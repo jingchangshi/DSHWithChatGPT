@@ -1,0 +1,4 @@
+```json
+{"plugin":"dsh-with-chatgpt","workspaceRoot":"D:\\workspace\\DSHWithChatGPT\\package","latestTask":{"taskId":"d2c_461a4a","goal":"bridge probe five","state":"awaiting-plan","iteration":0,"waitingFor":"chatgpt-plan","conversationId":"","lastReviewedHead":null,"createdAt":1789885620765,"updatedAt":1789885620765,"lastError":null},"bridgeRunning":false,"bridgePort":null,"bootPromptVersion":1}
+```
+

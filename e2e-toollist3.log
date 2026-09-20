@@ -1,0 +1,18 @@
+file:///D:/workspace/deepseek-harness/packages/boot/app-boot/lib/index.js:1019
+		if (declared === void 0) throw new Error(`${binName}: profile bundle ${JSON.stringify(packageName)} declares no dsh.bundle in its package.json`);
+		                               ^
+
+Error: dsh: profile bundle "@deepseek-ai/dsh-experimental-browser-use-browser-harness-mcp" declares no dsh.bundle in its package.json
+    at file:///D:/workspace/deepseek-harness/packages/boot/app-boot/lib/index.js:1019:34
+    at Array.map (<anonymous>)
+    at loadProfileDirectory (file:///D:/workspace/deepseek-harness/packages/boot/app-boot/lib/index.js:1016:25)
+    at loadProfile (file:///D:/workspace/deepseek-harness/packages/boot/app-boot/lib/index.js:1061:9)
+    at prepareProfile (file:///D:/workspace/deepseek-harness/apps/cli/lib/profile-boot-CuwbWsnH.js:208:18)
+    at composeProfile (file:///D:/workspace/deepseek-harness/apps/cli/lib/profile-boot-CuwbWsnH.js:233:18)
+    at runProfile (file:///D:/workspace/deepseek-harness/apps/cli/lib/profile-boot-CuwbWsnH.js:286:25)
+    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at async runCli (file:///D:/workspace/deepseek-harness/apps/cli/lib/bin.js:146:4)
+    at async file:///D:/workspace/deepseek-harness/apps/cli/lib/bin.js:168:23
+
+Node.js v24.19.0
+

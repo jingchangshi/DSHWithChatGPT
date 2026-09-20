@@ -1,0 +1,8 @@
+Ran exactly one `chatgpt_plan` round with goal `bridge probe`. It failed as anticipated. The exact error text:
+
+```
+Error: no-marker: ChatGPT reply contained no [D2C] envelope
+```
+
+Per your instruction, I made no further ChatGPT-side calls (no retries, no review, no status probe).
+

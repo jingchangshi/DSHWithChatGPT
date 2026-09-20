@@ -1,0 +1,12 @@
+chatgpt_status raw output:
+
+```json
+{"plugin":"dsh-with-chatgpt","workspaceRoot":"D:\\workspace\\DSHWithChatGPT\\package","latestTask":{"taskId":"d2c_90fb0d","goal":"restart-persistence probe two","state":"awaiting-plan","iteration":0,"waitingFor":"chatgpt-plan","conversationId":"","lastReviewedHead":null,"createdAt":1789882783213,"updatedAt":1789882783213,"lastError":null},"bridgeRunning":false,"bridgePort":null,"bootPromptVersion":1}
+```
+
+chatgpt_reconnect raw output:
+
+```
+conversation rebound; task state intact
+```
+

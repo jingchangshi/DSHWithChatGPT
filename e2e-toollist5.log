@@ -1,0 +1,5 @@
+dsh: warning: 1 entry did not activate
+browser-harness (@deepseek-ai/dsh-experimental-browser-use-browser-harness-mcp): failed to import
+dsh: NO_ADAPTER: no adapter registered for provider "workbuddy-ai"
+
+

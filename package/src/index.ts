@@ -137,13 +137,29 @@ class BrowserHarnessAdapter implements BrowserControl {
   private async call<T>(tool: string, args: Record<string, unknown>): Promise<T> {
     const tools = this.ctx.get('tools')
     if (tools === undefined) throw new Error('tools service unavailable for browser control')
-    const result = await tools.execute({
-      name: 'mcp__browser-harness__' + tool,
-      arguments: args,
-      agent: this.execAgent as never,
-      signal: new AbortController().signal,
-    } as never) as T
-    return result
+    // The upstream MCP path can stall indefinitely (documented race in the
+    // browser-harness provider). Race every call against a hard timer so the
+    // coordinator's polling loops always make progress; the abort signal is
+    // best-effort cancellation for the underlying transport.
+    const controller = new AbortController()
+    const timer = setTimeout(() => controller.abort(), 90_000)
+    const guard = new Promise<never>((_, reject) => {
+      setTimeout(() => reject(new Error('browser tool ' + tool + ' timed out after 90s')), 90_000)
+    })
+    try {
+      const result = await Promise.race([
+        tools.execute({
+          name: 'mcp__browser-harness__' + tool,
+          arguments: args,
+          agent: this.execAgent as never,
+          signal: controller.signal,
+        } as never) as Promise<T>,
+        guard,
+      ])
+      return result
+    } finally {
+      clearTimeout(timer)
+    }
   }
 
   async ensureReady(): Promise<void> {
@@ -180,15 +196,21 @@ class BrowserHarnessAdapter implements BrowserControl {
   async waitForReply(timeoutMs: number): Promise<{ text: string; complete: boolean }> {
     const deadline = Date.now() + timeoutMs
     let last = ''
+    let unchanged = 0
     while (Date.now() < deadline) {
       await new Promise(resolve => setTimeout(resolve, 4000))
       try {
         const snapshot = await this.call<{ content?: Array<{ text?: string }> }>('browser_snapshot', {})
         const text = snapshot.content?.map(c => c.text ?? '').join('\n') ?? ''
-        if (text.includes('Stop streaming')) continue
-        const stable = text === last && text.trim() !== ''
+        if (text.includes('Stop streaming')) {
+          unchanged = 0
+          last = text
+          continue
+        }
+        // Two consecutive identical non-empty snapshots = the reply settled.
+        unchanged = text === last && text.trim() !== '' ? unchanged + 1 : 0
         last = text
-        if (stable) return { text, complete: true }
+        if (unchanged >= 2) return { text, complete: true }
       } catch {
         // transient: retry until deadline
       }
@@ -334,6 +356,9 @@ export function apply(ctx: Context, config: Config): void | Promise<void> {
       async execute(args: Record<string, unknown>, exec: ToolExec | undefined) {
         const workspaceRoot = workspaceOf(exec)
         const coordinator = coordinatorFor(workspaceRoot, exec?.agent)
+        // The data plane must be listening before the INIT goes out, so the
+        // ChatGPT connector can answer with workspace reads on its own.
+        await ensureBridge(workspaceRoot)
         const started = await coordinator.startTask(String(args.goal))
         const round = await coordinator.awaitPlan(started.taskId)
         return {
