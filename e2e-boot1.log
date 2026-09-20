@@ -1,0 +1,103 @@
+dsh: warning: 82 entries did not activate
+timer (@deepseek-ai/cordis-plugin-timer): failed to import
+llm (@deepseek-ai/dsh-llm): failed to import
+deepseek-llm-api-extensions (@deepseek-ai/dsh-deepseek-llm-api-extensions): failed to import
+session (@deepseek-ai/dsh-session): failed to import
+session-log-deepseek (@deepseek-ai/dsh-session-log-deepseek): failed to import
+typert (@deepseek-ai/dsh-typert-registry): failed to import
+typert-loader (@deepseek-ai/dsh-typert-loader): failed to import
+typert-gateway (@deepseek-ai/dsh-api-gateway): failed to import
+session-title (@deepseek-ai/dsh-session-title): failed to import
+session-title-llm (@deepseek-ai/dsh-session-title-first-prompt-llm): failed to import
+user-questions (@deepseek-ai/dsh-user-questions): failed to import
+agent (@deepseek-ai/dsh-agent): failed to import
+plugin-package-inventory-deepseek (@deepseek-ai/dsh-plugin-package-inventory-deepseek): failed to import
+agent-default-model (@deepseek-ai/dsh-agent-default-model): failed to import
+jobs (@deepseek-ai/dsh-jobs-local): failed to import
+llm-retry (@deepseek-ai/dsh-llm-retry): failed to import
+settings (@deepseek-ai/dsh-settings-file): failed to import
+credentials (@deepseek-ai/dsh-credentials-local): failed to import
+llm-pi-ai (@deepseek-ai/dsh-llm-pi-ai): failed to import
+session-persistence-jsonl (@deepseek-ai/dsh-session-persistence-jsonl): failed to import
+attachment-local (@deepseek-ai/dsh-attachment-local): failed to import
+session-query-sqlite (@deepseek-ai/dsh-session-query-sqlite): failed to import
+session-projection (@deepseek-ai/dsh-session-projection): failed to import
+storage (@deepseek-ai/dsh-storage): failed to import
+storage-json (@deepseek-ai/dsh-storage-json): failed to import
+storage-domain (@deepseek-ai/dsh-storage-domain): failed to import
+session-projection-cache (@deepseek-ai/dsh-session-projection-cache): failed to import
+session-telemetry-otel (@deepseek-ai/dsh-session-telemetry-otel): failed to import
+subprocess (@deepseek-ai/dsh-subprocess-local): failed to import
+sandbox (@deepseek-ai/dsh-sandbox-local): failed to import
+sandbox-policy (@deepseek-ai/dsh-sandbox-policy): failed to import
+pwsh-sandbox (@deepseek-ai/dsh-pwsh-sandbox): failed to import
+approval (@deepseek-ai/dsh-user-approval): failed to import
+permission (@deepseek-ai/dsh-permission-presets): failed to import
+shell-env (@deepseek-ai/dsh-shell-env): failed to import
+tool-pwsh (@deepseek-ai/dsh-tool-pwsh): failed to import
+tool-jobs (@deepseek-ai/dsh-tool-jobs): failed to import
+fs-observation-policy (@deepseek-ai/dsh-fs-observation-policy): failed to import
+tool-fs (@deepseek-ai/dsh-tool-fs): failed to import
+tool-fs-search (@deepseek-ai/dsh-tool-fs-search): failed to import
+agent-instructions (@deepseek-ai/dsh-agent-instructions): failed to import
+skill (@deepseek-ai/dsh-skill): failed to import
+skill-filesystem (@deepseek-ai/dsh-skill-filesystem): failed to import
+tool-skill (@deepseek-ai/dsh-tool-skill): failed to import
+commands (@deepseek-ai/dsh-commands): failed to import
+command-feedback (@deepseek-ai/dsh-command-feedback): failed to import
+goal (@deepseek-ai/dsh-goal): failed to import
+goal-round-driver (@deepseek-ai/dsh-goal-round-driver): failed to import
+command-goal (@deepseek-ai/dsh-command-goal): failed to import
+plan-mode (@deepseek-ai/dsh-plan-mode): failed to import
+token-meter (@deepseek-ai/dsh-token-meter): failed to import
+compaction-basic (@deepseek-ai/dsh-compaction-basic): failed to import
+command-compact (@deepseek-ai/dsh-command-compact): failed to import
+subagent (@deepseek-ai/dsh-subagent): failed to import
+subagent-spawn-in-process (@deepseek-ai/dsh-subagent-spawn-in-process): failed to import
+subagent-fork-in-process (@deepseek-ai/dsh-subagent-fork-in-process): failed to import
+tool-subagent-control (@deepseek-ai/dsh-tool-subagent-control): failed to import
+tool-subagent-list-agents (@deepseek-ai/dsh-tool-subagent-control/list-agents): failed to import
+tool-subagent (@deepseek-ai/dsh-tool-subagent): failed to import
+tool-subagent-fork (@deepseek-ai/dsh-tool-subagent): failed to import
+ptc-runtime (@deepseek-ai/dsh-ptc-runtime-node): failed to import
+workflow-ptc (@deepseek-ai/dsh-workflow-ptc): failed to import
+tool-workflow (@deepseek-ai/dsh-tool-workflow): failed to import
+timeout-policy (@deepseek-ai/dsh-tool-call-timeout-policy): failed to import
+spill-local (@deepseek-ai/dsh-spill-local): failed to import
+spill-policy (@deepseek-ai/dsh-spill-policy): failed to import
+session-checkpoint-policy (@deepseek-ai/dsh-session-checkpoint-policy): failed to import
+tool-result-pruner (@deepseek-ai/dsh-compaction-tool-result-pruner): failed to import
+image-offload (@deepseek-ai/dsh-compaction-image-offload): failed to import
+tool-todo (@deepseek-ai/dsh-tool-todo): failed to import
+tool-goal (@deepseek-ai/dsh-tool-goal): failed to import
+repeat-tool-reminder (@deepseek-ai/dsh-repeat-tool-reminder): failed to import
+web (@deepseek-ai/dsh-web): failed to import
+web-search-deepseek (@deepseek-ai/dsh-web-search-deepseek): failed to import
+web-fetch-http (@deepseek-ai/dsh-web-fetch-http): failed to import
+tool-web (@deepseek-ai/dsh-tool-web): failed to import
+mcp-resources (@deepseek-ai/dsh-mcp-resources): failed to import
+tools (@deepseek-ai/dsh-tools): failed to import
+system-prompt (@deepseek-ai/dsh-system-prompt): failed to import
+fs-sandbox (@deepseek-ai/dsh-fs-sandbox): failed to import
+llm-deepseek (@deepseek-ai/dsh-llm-deepseek): failed to import
+dsh-with-chatgpt (dsh-with-chatgpt): failed to import
+file:///D:/workspace/deepseek-harness/packages/boot/app-boot/lib/index.js:2579
+		throw new Error(`${binName}: ${stage}: ${detail}${stack}`, { cause });
+		      ^
+
+Error: dsh: plugin tree failed to load: required startup failure: 1 entry did not activate
+agent-loop (@deepseek-ai/dsh-agent-loop): failed to import
+    at boot (file:///D:/workspace/deepseek-harness/packages/boot/app-boot/lib/index.js:2579:9)
+    at async runProfile (file:///D:/workspace/deepseek-harness/apps/cli/lib/profile-boot-CuwbWsnH.js:314:14)
+    at async runCli (file:///D:/workspace/deepseek-harness/apps/cli/lib/bin.js:146:4)
+    at async file:///D:/workspace/deepseek-harness/apps/cli/lib/bin.js:168:23 {
+  [cause]: Error: required startup failure: 1 entry did not activate
+  agent-loop (@deepseek-ai/dsh-agent-loop): failed to import
+      at auditStartupEntries (file:///D:/workspace/deepseek-harness/packages/boot/app-boot/lib/index.js:2515:33)
+      at async boot (file:///D:/workspace/deepseek-harness/packages/boot/app-boot/lib/index.js:2567:3)
+      at async runProfile (file:///D:/workspace/deepseek-harness/apps/cli/lib/profile-boot-CuwbWsnH.js:314:14)
+      at async runCli (file:///D:/workspace/deepseek-harness/apps/cli/lib/bin.js:146:4)
+      at async file:///D:/workspace/deepseek-harness/apps/cli/lib/bin.js:168:23
+}
+
+Node.js v24.19.0

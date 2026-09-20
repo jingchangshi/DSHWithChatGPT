@@ -11,6 +11,8 @@
  * @module dsh-with-chatgpt
  */
 
+import { join as joinPath } from 'node:path'
+import { randomFillSync } from 'node:crypto'
 import type { Context } from '@deepseek-ai/cordis'
 import { z } from 'zod'
 import { defineDomain, domainTable } from '@deepseek-ai/dsh-storage-domain'
@@ -288,6 +290,35 @@ export function apply(ctx: Context, config: Config): void | Promise<void> {
     const tools = ctx.get('tools')
     if (tools === undefined) throw new Error('dsh-with-chatgpt requires the tools service')
 
+    /** Shared output schema (raw JSON Schema subset) for the plan/review payload shape. */
+    const roundOutputSchema = {
+      type: 'object',
+      additionalProperties: false,
+      properties: {
+        taskId: { type: 'string', description: 'D2C task id.' },
+        state: { type: 'string', description: 'Task state after this round.' },
+        iteration: { type: 'integer', description: 'Protocol iteration.' },
+        actions: { type: 'string', description: 'ACTIONS section from the ChatGPT envelope.' },
+        successCriteria: { type: 'string', description: 'SUCCESS_CRITERIA section (plan rounds).' },
+        rationale: { type: 'string', description: 'RATIONALE section (plan rounds).' },
+        summary: { type: 'string', description: 'SUMMARY section (review rounds).' },
+      },
+      required: ['taskId', 'state', 'iteration'],
+    } as const
+
+    /** Render a round payload as compact model-facing text. */
+    function renderRound(_args: Record<string, unknown>, value: Record<string, unknown>): Array<{ type: 'text'; text: string }> {
+      const lines: string[] = []
+      lines.push('taskId: ' + String(value['taskId']))
+      lines.push('state: ' + String(value['state']))
+      lines.push('iteration: ' + String(value['iteration']))
+      for (const key of ['actions', 'successCriteria', 'rationale', 'summary'] as const) {
+        const text = value[key]
+        if (typeof text === 'string' && text.length > 0) lines.push(key + ':\n' + text)
+      }
+      return [{ type: 'text', text: lines.join('\n') }]
+    }
+
     tools.register({
       name: 'chatgpt_plan',
       description:
@@ -296,6 +327,10 @@ export function apply(ctx: Context, config: Config): void | Promise<void> {
         + 'files or diffs into the conversation. Returns the parsed plan sections for you to execute.',
       parameters: {
         goal: { type: 'string', required: true, description: 'The concrete task goal, phrased for a planning reviewer.' },
+      },
+      output: {
+        schema: roundOutputSchema,
+        render: renderRound as never,
       },
       async execute(args: Record<string, unknown>, exec: ToolExec | undefined) {
         const workspaceRoot = workspaceOf(exec)
@@ -325,6 +360,10 @@ export function apply(ctx: Context, config: Config): void | Promise<void> {
         testsRecorded: { type: 'boolean', description: 'Whether test runs were recorded (execute tests through normal DSH tools).' },
         note: { type: 'string', description: 'Short execution note (max ~200 chars).' },
       },
+      output: {
+        schema: roundOutputSchema,
+        render: renderRound as never,
+      },
       async execute(args: Record<string, unknown>, exec: ToolExec | undefined) {
         const workspaceRoot = workspaceOf(exec)
         const coordinator = coordinatorFor(workspaceRoot, exec?.agent)
@@ -336,10 +375,10 @@ export function apply(ctx: Context, config: Config): void | Promise<void> {
         })
         return {
           taskId: round.taskId,
-          reviewState: round.envelope.state,
-          summary: round.envelope.sections.get('SUMMARY') ?? '',
-          nextActions: round.envelope.sections.get('ACTIONS') ?? '',
+          state: round.record.state,
           iteration: round.record.iteration,
+          summary: round.envelope.sections.get('SUMMARY') ?? '',
+          actions: round.envelope.sections.get('ACTIONS') ?? '',
         }
       },
     })
@@ -348,6 +387,25 @@ export function apply(ctx: Context, config: Config): void | Promise<void> {
       name: 'chatgpt_status',
       description: 'Report dsh-with-chatgpt status: latest task, coordinator state, bridge ports, boot prompt id.',
       parameters: {},
+      output: {
+        schema: {
+          type: 'object',
+          additionalProperties: false,
+          properties: {
+            plugin: { type: 'string', description: 'Plugin name.' },
+            workspaceRoot: { type: 'string', description: 'Workspace the status is for.' },
+            latestTask: { description: 'Latest persisted task record, or null.' },
+            bridgeRunning: { type: 'boolean', description: 'Whether the read-only MCP bridge is listening.' },
+            bridgePort: { description: 'Bridge port when running, else null.' },
+            bootPromptVersion: { type: 'integer', description: 'Boot prompt version.' },
+          },
+          required: ['plugin', 'workspaceRoot', 'latestTask', 'bridgeRunning', 'bootPromptVersion'],
+        },
+        render: (_args: Record<string, unknown>, value: Record<string, unknown>) => [{
+          type: 'text' as const,
+          text: JSON.stringify(value),
+        }],
+      },
       async execute(_args: Record<string, unknown>, exec: ToolExec | undefined) {
         const workspaceRoot = workspaceOf(exec)
         const coordinator = coordinatorFor(workspaceRoot, exec?.agent)
@@ -369,6 +427,22 @@ export function apply(ctx: Context, config: Config): void | Promise<void> {
       name: 'chatgpt_reconnect',
       description: 'Recover the ChatGPT control plane after browser reload, logout, or DSH restart; rebinding the latest task.',
       parameters: {},
+      output: {
+        schema: {
+          type: 'object',
+          additionalProperties: false,
+          properties: {
+            recovered: { type: 'boolean', description: 'Whether a prior task was found and rebound.' },
+            task: { description: 'Recovered task record, or null.' },
+            detail: { type: 'string', description: 'Human-readable recovery detail.' },
+          },
+          required: ['recovered', 'task', 'detail'],
+        },
+        render: (_args: Record<string, unknown>, value: Record<string, unknown>) => [{
+          type: 'text' as const,
+          text: String(value['detail']),
+        }],
+      },
       async execute(_args: Record<string, unknown>, exec: ToolExec | undefined) {
         const workspaceRoot = workspaceOf(exec)
         const coordinator = coordinatorFor(workspaceRoot, exec?.agent)
@@ -426,12 +500,12 @@ function workspaceOf(exec: { agent?: { session?: { header?: { cwd?: string } } }
 /** State dir under the OS config home (never inside a workspace). */
 function joinStateDir(): string {
   const base = process.env['LOCALAPPDATA'] ?? process.env['XDG_STATE_HOME'] ?? process.env['HOME'] ?? process.cwd()
-  return require('node:path').join(String(base), 'dsh-with-chatgpt')
+  return joinPath(String(base), 'dsh-with-chatgpt')
 }
 
 /** Random hex token. */
 function randomToken(bytes: number): string {
   const array = new Uint8Array(bytes)
-  require('node:crypto').randomFillSync(array)
+  randomFillSync(array)
   return Array.from(array, b => b.toString(16).padStart(2, '0')).join('')
 }
