@@ -1,0 +1,8 @@
+The `chatgpt_plan` call failed as anticipated. Error text returned:
+
+```
+Error: BROWSER_UNAVAILABLE: browser harness could not open ChatGPT: TypeError: Cannot read properties of undefined (reading 'aborted')
+```
+
+Not retrying, per your instruction. The bridge reports the browser harness could not open ChatGPT — this looks like it needs a reconnect/rebind rather than another plan attempt. If you want, I can call `chatgpt_status` or `chatgpt_reconnect` next.
+

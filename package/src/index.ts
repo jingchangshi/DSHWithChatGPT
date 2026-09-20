@@ -141,7 +141,7 @@ class BrowserHarnessAdapter implements BrowserControl {
       name: 'mcp__browser-harness__' + tool,
       arguments: args,
       agent: this.execAgent as never,
-      signal: undefined,
+      signal: new AbortController().signal,
     } as never) as T
     return result
   }
