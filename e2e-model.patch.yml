@@ -1,0 +1,6 @@
+# E2E-only overlay: pin the headless executor model for verification runs.
+# Passed as `dsh --profile d2c-dev --patch ./e2e-model.patch.yml "<task>"`.
+- id: agent-default-model
+  config:
+    provider: deepseek-official
+    model: deepseek-flash
