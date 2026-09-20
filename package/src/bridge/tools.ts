@@ -228,9 +228,10 @@ export function searchWorkspaceTool(spec: WorkspaceSpec): McpToolDefinition {
           if (content.includes('\0')) continue // binary
           const lines = content.split(/\r?\n/)
           for (let i = 0; i < lines.length && matches.length < SEARCH_CAP; i++) {
+            const lineText = lines[i] ?? ''
             matcher.lastIndex = 0
-            if (matcher.test(lines[i])) {
-              matches.push({ path: relEntry, line: i + 1, text: lines[i].slice(0, 300) })
+            if (matcher.test(lineText)) {
+              matches.push({ path: relEntry, line: i + 1, text: lineText.slice(0, 300) })
             }
           }
         }

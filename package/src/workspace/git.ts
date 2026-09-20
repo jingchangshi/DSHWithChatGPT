@@ -122,8 +122,8 @@ function parsePorcelainZ(raw: string): PorcelainEntry[] {
   const entries: PorcelainEntry[] = []
   for (const segment of raw.split('\0')) {
     if (segment.length < 4) continue
-    const x = segment[0]
-    const y = segment[1]
+    const x = segment[0] ?? ' '
+    const y = segment[1] ?? ' '
     const filePath = segment.slice(3)
     if (filePath === '') continue
     entries.push({ x, y, path: filePath })
