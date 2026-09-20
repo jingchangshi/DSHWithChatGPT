@@ -66,27 +66,38 @@ export interface GitStatusSnapshot {
   untracked: string[]
 }
 
-/** Read git status (porcelain v2 parse). */
+/** Read git status (porcelain v1 with -z NUL separation). */
 export async function gitStatus(root: string): Promise<GitStatusSnapshot> {
-  const headOut = await git(root, ['rev-parse', 'HEAD']).catch(() => null)
+  const headOut = await git(root, ['rev-parse', '--verify', 'HEAD']).catch(() => null)
   if (headOut === null) {
-    return { isRepo: false, head: null, branch: null, dirty: false, staged: [], unstaged: [], untracked: [] }
+    // Either not a repo, or a repo with no commits yet. Distinguish via
+    // rev-parse --is-inside-work-tree, which succeeds in any repo.
+    const isRepo = await git(root, ['rev-parse', '--is-inside-work-tree']).catch(() => null)
+    if (isRepo === null) {
+      return { isRepo: false, head: null, branch: null, dirty: false, staged: [], unstaged: [], untracked: [] }
+    }
+    const branch = await git(root, ['rev-parse', '--abbrev-ref', 'HEAD']).catch(() => null)
+    const statusOut = await git(root, ['status', '--porcelain=v1', '-z'])
+    const untracked = parsePorcelainZ(statusOut).filter(e => e.x === '?').map(e => e.path)
+    return {
+      isRepo: true,
+      head: null,
+      branch: branch === 'HEAD' ? null : branch,
+      dirty: untracked.length > 0,
+      staged: [],
+      unstaged: [],
+      untracked,
+    }
   }
   const branchOut = await git(root, ['rev-parse', '--abbrev-ref', 'HEAD']).catch(() => '')
   const statusOut = await git(root, ['status', '--porcelain=v1', '-z'])
   const staged: string[] = []
   const unstaged: string[] = []
   const untracked: string[] = []
-  // -z gives NUL-separated "XY path" entries; parse defensively.
-  const entries = statusOut.split('\0').filter(s => s.length > 0)
-  for (const entry of entries) {
-    const x = entry[0]
-    const y = entry[1]
-    const filePath = entry.slice(3)
-    if (filePath === undefined || filePath === '') continue
-    if (x === '?' || x === '!') untracked.push(filePath)
-    else if (x !== ' ' && x !== '?') staged.push(filePath)
-    else if (y !== ' ') unstaged.push(filePath)
+  for (const entry of parsePorcelainZ(statusOut)) {
+    if (entry.x === '?' || entry.x === '!') untracked.push(entry.path)
+    else if (entry.x !== ' ') staged.push(entry.path)
+    else if (entry.y !== ' ') unstaged.push(entry.path)
   }
   return {
     isRepo: true,
@@ -97,6 +108,27 @@ export async function gitStatus(root: string): Promise<GitStatusSnapshot> {
     unstaged,
     untracked,
   }
+}
+
+/** One porcelain v1 -z entry. */
+interface PorcelainEntry {
+  x: string
+  y: string
+  path: string
+}
+
+/** Parse NUL-separated porcelain v1 entries defensively. */
+function parsePorcelainZ(raw: string): PorcelainEntry[] {
+  const entries: PorcelainEntry[] = []
+  for (const segment of raw.split('\0')) {
+    if (segment.length < 4) continue
+    const x = segment[0]
+    const y = segment[1]
+    const filePath = segment.slice(3)
+    if (filePath === '') continue
+    entries.push({ x, y, path: filePath })
+  }
+  return entries
 }
 
 /** Options for diff retrieval. */
@@ -129,9 +161,13 @@ export async function gitDiff(root: string, options: DiffOptions = {}): Promise<
   if (!status.isRepo) throw new GitError('NOT_A_REPOSITORY', 'workspace is not a git repository')
 
   const changed = [...new Set([...status.staged, ...status.untracked, ...status.unstaged])]
+  // With no commits yet there is no HEAD; git diff (no ref) diffs the index
+  // against the worktree, which covers staged changes. Explicit refs pass
+  // through untouched.
+  const noCommits = status.head === null && options.againstRef === undefined
   const baseArgs = options.workingTree === false
-    ? ['diff', against]
-    : ['diff', against, '--']
+    ? (noCommits ? ['diff', '--cached'] : ['diff', against])
+    : (noCommits ? ['diff'] : ['diff', against, '--'])
   // git diff (index/tree mode) never shows untracked content. If everything
   // changed is untracked, produce the diff with --no-index against the
   // Windows NUL device (empty baseline), keeping the same output format.
