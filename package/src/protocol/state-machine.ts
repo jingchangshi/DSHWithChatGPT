@@ -103,7 +103,8 @@ export class StateMachine {
       throw new ProtocolError('stale-reply', `waiting ${record.waitingFor} but got ${envelope.state}`)
     }
     // Iteration currency: a reply must reference the iteration we are at or
-    // the one we asked about (IN_REPLY_TO), never an older one.
+    // the one we asked about (IN_REPLY_TO), never an older one. The INIT
+    // round (iteration 0 plan) is the only reply allowed to carry 0.
     const expected = envelope.inReplyTo ?? record.iteration
     if (envelope.iteration < expected) {
       throw new ProtocolError('stale-iteration', `reply iteration ${envelope.iteration} < expected ${expected}`)
