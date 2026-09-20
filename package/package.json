@@ -40,14 +40,16 @@
     "node": ">=20"
   },
   "dependencies": {
-    "zod": "^3.25.76"
+    "zod": "^4.6.5"
   },
   "peerDependencies": {
     "@deepseek-ai/cordis": ">=4.0.0"
   },
   "devDependencies": {
     "@deepseek-ai/cordis": "^4.0.2",
+    "@deepseek-ai/dsh-storage-domain": "file:tarballs/deepseek-ai-dsh-storage-domain-0.1.6-alpha.1.tgz",
     "@types/node": "^24.0.0",
+    "deepseek-harness-check": "link:../deepseek-harness-check",
     "typescript": "^5.9.0",
     "vitest": "^5.0.1"
   }
