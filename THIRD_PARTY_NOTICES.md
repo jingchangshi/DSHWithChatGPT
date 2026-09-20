@@ -1,34 +1,29 @@
-MIT License
+# THIRD_PARTY_NOTICES
 
-Copyright (c) 2026 jingchangshi (DSH with ChatGPT)
+This project borrows design ideas and, where noted, adapted infrastructure from:
 
-This project studies and selectively adapts design ideas from
-`codex-with-chatgpt` (https://github.com/XiaoDuoYa/codex-with-chatgpt),
-an MIT-licensed community project by XiaoDuoYa. Where source code is
-adapted rather than only referenced, the file carries an explicit
-provenance header naming the upstream file, and this notice covers it:
+## codex-with-chatgpt
 
-    MIT License
+- Source: https://github.com/XiaoDuoYa/codex-with-chatgpt
+- License: MIT
+- Used: the control-plane/data-plane separation concept, the `[C2C]` envelope
+  shape (re-implemented here as `[D2C]` with stricter machine validation),
+  boot-prompt role separation, execution-record review philosophy, and the
+  `.d2cignore` additive-ignore semantics.
+- Not used: Codex CLI integration, its Node MCP SDK server, its OAuth/pairing
+  implementation (replaced by a loopback bearer-token bridge in this plugin),
+  and any Codex-specific branding or protocol strings.
 
-    Copyright (c) 2025 XiaoDuoYa (codex-with-chatgpt)
+All borrowed code paths were re-implemented against DeepSeek Harness (Cordis)
+APIs; nothing was copied wholesale. The envelope parser, state machine,
+workspace boundary, git snapshot layer, recorder, and bridge in
+`package/src/` are original to this repository.
 
-    Permission is hereby granted, free of charge, to any person obtaining a copy
-    of this software and associated documentation files (the "Software"), to deal
-    in the Software without restriction, including without limitation the rights
-    to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-    copies of the Software, and to permit persons to whom the Software is
-    furnished to do so, subject to the following conditions:
+## DeepSeek Harness
 
-    The above copyright notice and this permission notice shall be included in all
-    copies or substantial portions of the Software.
-
-    THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-    IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-    FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-    AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-    LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-    OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
-    SOFTWARE.
-
-The full upstream source snapshot used during study is vendored under
-`cwc-research/` for reference only and is not part of the distributed plugin.
+- Source: https://github.com/deepseek-ai/deepseek-harness
+- This is a plugin for that host; it links `@deepseek-ai/cordis` and the
+  `@deepseek-ai/dsh-storage-domain` type surface at development time.
+- A vendored development tarball of `@deepseek-ai/dsh-storage-domain` is kept
+  in `package/tarballs/` for typechecking only; at runtime the host provides
+  the service.

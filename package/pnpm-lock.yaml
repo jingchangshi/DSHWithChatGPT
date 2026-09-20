@@ -21,9 +21,6 @@ importers:
       '@types/node':
         specifier: ^24.0.0
         version: 24.13.5
-      deepseek-harness-check:
-        specifier: link:../deepseek-harness-check
-        version: link:../deepseek-harness-check
       typescript:
         specifier: ^5.9.0
         version: 5.9.3

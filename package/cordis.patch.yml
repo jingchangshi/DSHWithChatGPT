@@ -1,0 +1,10 @@
+# dsh-with-chatgpt profile patch. Adds the plugin to any base-backed
+# profile. Install with: dsh plugin --profile <name> add <this-package>
+# or add this row to the profile's cordis.patch.yml manually.
+- insert:
+    - id: dsh-with-chatgpt
+      name: dsh-with-chatgpt
+      config:
+        bridgePort: 0
+        replyTimeoutMs: 240000
+        browserMode: browser-harness-mcp
