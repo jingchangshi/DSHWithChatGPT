@@ -335,7 +335,10 @@ export function apply(ctx: Context, config: Config) {
     // outcomes instead of trusting the executor's prose. Background jobs are
     // intentionally excluded: their initial tool result only proves a job was
     // started, not that the command completed.
-    const executionObserverDispose = ctx.on('tools/execute', async (exec: any, next: () => Promise<any>) => {
+    // This package intentionally does not take a build-time dependency on
+    // dsh-tools solely for its Cordis Events augmentation; the runtime surface
+    // is verified against DSH and accessed through the host Context.
+    const executionObserverDispose = (ctx as any).on('tools/execute', async (exec: any, next: () => Promise<any>) => {
       if ((exec.name !== 'bash' && exec.name !== 'pwsh') || exec.parent !== undefined) return next()
       const args = (typeof exec.arguments === 'object' && exec.arguments !== null)
         ? exec.arguments as Record<string, unknown>
