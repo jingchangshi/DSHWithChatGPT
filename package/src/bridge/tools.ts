@@ -12,6 +12,7 @@ import { SensitivePolicy, WorkspaceError, NOISE_PATTERNS, IgnoreMatcher, resolve
 import { GitError, gitDiff, gitLog, gitStatus } from '../workspace/git.ts'
 import type { ExecutionRecorder } from '../execution/recorder.ts'
 import type { McpToolDefinition } from './server.ts'
+import { workspaceIdentity } from '../workspace/identity.ts'
 
 /** Workspace context every tool call is scoped to. */
 export interface WorkspaceSpec {
@@ -58,6 +59,7 @@ export function workspaceInfoTool(spec: WorkspaceSpec): McpToolDefinition {
         throw error
       })
       return {
+        workspaceId: workspaceIdentity(spec.root),
         name: path.basename(spec.root),
         isGitRepo: git !== null,
         ...(git !== null
