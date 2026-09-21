@@ -85,6 +85,7 @@ describe('MCP protocol', () => {
     const parsed = JSON.parse(r.body.result.content[0].text)
     expect(parsed.isGitRepo).toBe(true)
     expect(parsed.readOnly).toBe(true)
+    expect(parsed.workspaceId).toMatch(/^ws_[0-9a-f]{16}$/)
   })
 
   it('returns method-not-found for unknown methods', async () => {

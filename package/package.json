@@ -5,18 +5,18 @@
   "type": "module",
   "description": "DeepSeek Harness plugin: ChatGPT Web plans and reviews over a read-only MCP data plane; DSH/GLM owns execution.",
   "main": "lib/index.js",
-  "types": "lib/types/index.d.ts",
+  "types": "./lib/index.d.ts",
   "exports": {
     ".": {
-      "types": "./lib/types/index.d.ts",
+      "types": "./lib/index.d.ts",
       "default": "./lib/index.js"
     },
     "./protocol": {
-      "types": "./lib/types/protocol/index.d.ts",
+      "types": "./lib/protocol/index.d.ts",
       "default": "./lib/protocol/index.js"
     },
     "./workspace": {
-      "types": "./lib/types/workspace/index.d.ts",
+      "types": "./lib/workspace/index.d.ts",
       "default": "./lib/workspace/index.js"
     },
     "./package.json": "./package.json"
@@ -27,8 +27,8 @@
     }
   },
   "files": [
-    "lib/index.js",
-    "lib/types/**/*.d.ts",
+    "lib/**/*.js",
+    "lib/**/*.d.ts",
     "cordis.patch.yml"
   ],
   "scripts": {

@@ -2,10 +2,12 @@ import { describe, expect, it } from 'vitest'
 import {
   BrowserStaleError,
   ChatGptLoggedOutError,
+  ChatGptAppUnavailableError,
   DuplicateSendGuard,
   RetryBudget,
   extractEnvelopeText,
 } from '../src/browser/adapter.ts'
+import { decodeToolValue } from '../src/browser/harness.ts'
 
 describe('DuplicateSendGuard', () => {
   it('flags identical text within cooldown', () => {
@@ -63,5 +65,26 @@ describe('typed errors', () => {
   it('carries stable prefixes', () => {
     expect(new ChatGptLoggedOutError().message).toContain('ChatGPT_WEB_LOGGED_OUT')
     expect(new BrowserStaleError('composer gone').message).toContain('BROWSER_STALE')
+    expect(new ChatGptAppUnavailableError('DSH with ChatGPT').message).toContain('CHATGPT_APP_UNAVAILABLE')
+  })
+})
+
+describe('Browser Harness MCP result decoding', () => {
+  it('unwraps canonical structured content', () => {
+    expect(decodeToolValue<{ ok: boolean }>({
+      value: { structuredContent: { ok: true } },
+    })).toEqual({ ok: true })
+  })
+
+  it('unwraps nested MCP text content as JSON', () => {
+    expect(decodeToolValue<{ url: string }>({
+      value: { content: [{ type: 'text', text: '{"url":"https://chatgpt.com/"}' }] },
+    })).toEqual({ url: 'https://chatgpt.com/' })
+  })
+
+  it('parses top-level DSH text results', () => {
+    expect(decodeToolValue<{ found: boolean }>({
+      content: [{ type: 'text', text: '{"found":true}' }],
+    })).toEqual({ found: true })
   })
 })

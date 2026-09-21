@@ -1,106 +1,143 @@
 # 架构 / Architecture
 
-> 中文为主，术语保留英文。
+## 目标
 
-## 总览
-
-```
-             ChatGPT Web
-        Reason / Plan / Review
-             ▲           │
-             │           │
-   BrowserUse│           │Read-only MCP
-   Control   │           │Data plane
-   (control) │           │(loopback / tunneled)
-             │           ▼
-    ┌─────────────────────────┐
-    │    dsh-with-chatgpt     │  (Cordis plugin, host side)
-    │                         │
-    │ ChatGptCoordinator      │  ← 状态机 + 持久化
-    │ BrowserHarnessAdapter   │  ← BrowserUse 会话工具
-    │ BridgeServer (node:http)│  ← 只读 MCP over Streamable HTTP
-    │ ExecutionRecorder       │  ← 结构化执行记录
-    │ WorkspaceBoundary       │  ← realpath 遏制 + 敏感策略
-    └────────────┬────────────┘
-                 │ Cordis services (tools / systemPrompt / storageDomain)
-                 ▼
-      DeepSeek Harness / GLM-5.3-Flash
-      edit / shell / tests / git / commit / push
-```
-
-## 为什么这样切分
-
-1. **Control plane（浏览器）只传小消息。** 协议 envelope 上限 8KiB，永远不通过 composer 传文件、diff、日志。ChatGPT 需要什么数据，自己通过 MCP 拉取。
-2. **Data plane（MCP bridge）结构只读。** 工具注册表在注册时即拒绝任何非只读动词；没有 write/shell/commit 工具存在于进程中。
-3. **执行权永远在 DSH。** 协调器只编排（发 envelope、等 envelope、折算状态机）；GLM 拥有全部实现动作。ChatGPT 的输出是 WHAT/WHY，不是脚本。
-4. **状态不活在 context 里。** 任务记录落 `d2c_state` storage domain（KV，随 profile 持久），执行记录落 `%LOCALAPPDATA%\dsh-with-chatgpt\executions.jsonl`。DSH 重启后 `chatgpt_reconnect` 按 workspace 绑定恢复。
-
-## 为什么这样切分
-
-1. **Control plane（浏览器）只传小消息。** 协议 envelope 上限 8KiB，永远不通过 composer 传文件、diff、日志。ChatGPT 需要什么数据，自己通过 MCP 拉取。
-2. **Data plane（MCP bridge）结构只读。** 工具注册表在注册时即拒绝任何非只读动词；没有 write/shell/commit 工具存在于进程中。
-3. **执行权永远在 DSH。** 协调器只编排（发 envelope、等 envelope、折算状态机）；GLM 拥有全部实现动作。ChatGPT 的输出是 WHAT/WHY，不是脚本。
-4. **状态不活在 context 里。** 任务记录落 `d2c_state` storage domain（KV，随 profile 持久），执行记录落 `%LOCALAPPDATA%\dsh-with-chatgpt\executions.jsonl`。DSH 重启后 `chatgpt_reconnect` 按 workspace 绑定恢复。
-   已实测：headless profile 下 `chatgpt_plan` 建立任务 `d2c_90fb0d` 后，全新 DSH 进程的 `chatgpt_status` 从 `~/.dsh/storages/d2c_state.json` 完整恢复 goal/state/iteration/workspace 绑定。
-
-## 真实 DSH 集成面（E2E 验证过）
-
-| DSH public surface | 本插件用法 | 验证状态 |
-| --- | --- | --- |
-| `tools.register()` | 四个 model-facing 工具（plan/review/status/reconnect）。**output.schema 必须是 raw JSON Schema**：`register()` 直接跑 `assertSupportedJsonSchema`，不接受 author DSL 的 `required: true` 属性标记，也不接受 `type: 'json'`；对象级 `required` 数组才是合法形式。 | ✅ 全部四个工具在 headless profile 被 GLM 调用成功 |
-| `ctx.get('storageDomain').open()` | `d2c_state` domain（tasks/bindings/index 三张表）。domain handle 由调用方持有，插件在 dispose 时 close。 | ✅ 重启持久化已实证 |
-| `ctx.get('systemPrompt').section()` | `dsh-with-chatgpt:collaboration` 段，位于 `TOOL_WORKFLOW` 之后。 | ✅ 加载无报错 |
-| `ctx.get('tools').execute()` | 调 `mcp__browser-harness__*` 浏览器工具。必须传 AbortSignal；上游 MCP 路径可能永久挂起，因此每次调用都额外加硬超时竞速，保证轮询循环不会卡死。 | ⚠️ 浏览器工具名/语义按 DSH browser-use provider 文档对齐，尚未在已登录 ChatGPT 的浏览器上跑完整轮 |
-| profile 安装 | `dsh plugin --profile <name> add <path>`；包 manifest 声明 `dsh.bundle.patch` 即加入 layer stack。 | ✅ `--dump-config` 显示 `# == dsh-with-chatgpt` 行 |
-| cordis.patch.yml user layer | 挂载 browser-use 服务与 Browser Harness provider（二者都没有 `dsh.bundle`，只能作为普通 plugin row 插入）。 | ✅ provider 成功激活并暴露 `mcp__browser-harness__*` |
-
-## ESM 约束
-
-Host 侧是 ESM：`require()` 不可用，所有 node 内置模块必须顶层 `import`。`apply()` 返回 disposer（同步或 promise）由插件自己包装。图
-
-| 模块 | 文件 | 职责 |
-|---|---|---|
-| protocol | `src/protocol/envelope.ts` | `[D2C]` envelope 格式/解析/序列化，严格校验 |
-| protocol | `src/protocol/state-machine.ts` | 任务生命周期状态机，拒绝 stale reply |
-| orchestrator | `src/orchestrator/coordinator.ts` | INIT→PLAN→EXECUTED→REVIEW→DONE 编排，boot prompt，重连 |
-| orchestrator | `src/orchestrator/state.ts` | 持久化任务/绑定记录（KV store 契约） |
-| browser | `src/browser/adapter.ts` | `BrowserControl` 接口、重复发送防护、重试预算 |
-| workspace | `src/workspace/boundary.ts` | canonical realpath 遏制、敏感文件策略、`.d2cignore` |
-| workspace | `src/workspace/git.ts` | 只读 git 快照（status/diff/log，批处理、字节上限） |
-| execution | `src/execution/recorder.ts` | JSONL 执行记录、secret 脱敏、私钥硬拒 |
-| bridge | `src/bridge/server.ts` | loopback JSON-RPC/MCP 服务器，Bearer 鉴权 |
-| bridge | `src/bridge/tools.ts` | 十个只读 MCP 工具（绑定 workspace spec） |
-| 入口 | `src/index.ts` | Cordis apply：service + 4 tools + prompt section + bridge + storage |
-
-## 运行时协议回合
+运行时实现无人值守 C2C：一次性完成 ChatGPT 登录、自定义 MCP App 和 Secure MCP Tunnel 创建后，DSH 可以连续执行：
 
 ```
-chatgpt_plan(goal)
-  ├─ browser.ensureReady() → chatgpt.com 可达
-  ├─ 打开/复用持久 conversation
-  ├─ 发送 boot prompt + [D2C] INIT envelope（8KiB 上限）
-  └─ waitForReply → 提取最后一个 [D2C] → 状态机校验 → 持久化
-       PLAN → planned（等 DSH 执行）
-       BLOCKED/ERROR → 需要用户介入
-
-（GLM 执行计划：编辑/构建/测试，正常 DSH 工具流）
-
-chatgpt_review(taskId, changedFiles, head, testsRecorded)
-  ├─ 状态机：planned → executing →（发 EXECUTED，iteration+1）→ awaiting-review
-  ├─ EXECUTED envelope 附机器摘要（changed files / HEAD / tests_recorded）
-  └─ waitForReply → DONE（完成）/ PLAN（修复回合，回到 planned）
+User goal
+  → ChatGPT PLAN
+  → GLM implement / test
+  → commit + push task branch
+  → ChatGPT independently reviews exact HEAD
+  → DONE | fix PLAN
+  → repeat until DONE / BLOCKED / maxIterations
 ```
 
-## 恢复模型
+ChatGPT 始终只负责 WHAT/WHY 与独立评审；DSH/GLM 始终拥有写代码、shell、测试、git 的执行权。
 
-- **浏览器刷新/失联**：`chatgpt_reconnect` → `browser.ensureReady()` + 复用 conversation id；任务状态在 storage domain 中未受影响。
-- **DSH 重启**：插件随 profile 重新加载；`recover()` 用 workspace 绑定找到 `lastTaskId`，状态机记录原样恢复。
-- **stale 回复**：状态机按 `TASK_ID` + `ITERATION` + `IN_REPLY_TO` 校验，旧回合重放被拒绝（`stale-iteration` / `unexpected-reply`）。
+## 总体结构
 
-## 与 DSH 的接缝（全部公开 surface）
+```
+                    ChatGPT Web
+              Plan / Review / Reason
+                    ▲         │
+        @mention App│         │ read-only MCP
+       every message│         ▼
+             Browser Harness   OpenAI Secure MCP Tunnel
+                    ▲         │
+                    │         ▼
+          ┌─────────────────────────────┐
+          │       dsh-with-chatgpt      │
+          │                             │
+          │ ChatGptCoordinator          │
+          │ BrowserHarnessAdapter       │
+          │ TunnelSupervisor            │
+          │ BridgeServer (127.0.0.1)    │
+          │ ExecutionRecorder           │
+          │ WorkspaceBoundary           │
+          └──────────────┬──────────────┘
+                         │ DSH public surfaces
+                         ▼
+                 DSH / GLM-5.3-Flash
+             edit / shell / test / git
+```
 
-- `ctx.tools.register` — 4 个模型工具
-- `ctx.get('systemPrompt').section` — 协作规则 section（TOOL_WORKFLOW 序）
-- `ctx.get('storageDomain').open(defineDomain(...))` — 持久状态
-- Browser Harness MCP（`mcp__browser-harness__*`，session 隔离）— 控制面
-- 普通 Node 进程内 `node:http` loopback listener — 数据面
+## Control plane
+
+Browser Harness 控制 ChatGPT Web，但 composer 只传小型 D2C envelope，不传源码、diff 或日志。
+
+每次 INIT / REVIEW 前：
+1. 读取当前 assistant message 数量和最新文本，形成 reply baseline。
+2. 输入 `@<chatgptAppName>`。
+3. 在可见 autocomplete/menu 中查找精确 App 名，点击并验证 mention decorator。
+4. 追加 D2C envelope 并发送。
+5. 只接受 baseline 之后出现的新 assistant 回复；等待 streaming 停止且文本稳定。
+
+App 找不到时 fail closed：不会退化成一个没有 workspace MCP 的“盲规划/盲评审”。
+
+Browser Harness 工具调用始终绑定**当前 DSH agent/session**；coordinator 不再按 workspace 缓存旧 BrowserUse owner。
+
+## Data plane
+
+本地 BridgeServer：
+- 只监听 `127.0.0.1`
+- 仅注册固定十个只读 MCP 工具
+- 每个 workspace 使用独立随机 Bearer
+- 所有 path 工具经过 canonical realpath containment 与 sensitive-file policy
+- execution output 经过 secret redaction 与大小限制
+
+`workspace_info` 返回稳定、非秘密的 `workspaceId`。D2C 的 INIT/EXECUTED 携带 `WORKSPACE_ID`，ChatGPT 必须通过 MCP 确认后原样回显；错误 App/connector/workspace 会被 coordinator 机器拒绝。
+
+## Secure MCP Tunnel
+
+`TunnelSupervisor` 在 bundled `tunnelMode: managed` 下：
+- 从 config/env 取得 tunnel id
+- 从 `CONTROL_PLANE_API_KEY` 取得 runtime key
+- 启动/监控 `tunnel-client run`
+- 使用随机 localhost health endpoint + `/readyz`
+- bridge 端 Bearer 保持开启
+- Bearer 值写入本地 0600 文件
+- 通过 `MCP_EXTRA_HEADERS` 与 `MCP_DISCOVERY_EXTRA_HEADERS` 的 `file:` value reference，仅在 tunnel-client → localhost MCP 最后一跳注入 Authorization
+- workspace/local URL 变化时重建 managed tunnel binding
+- 同一插件进程只允许一个 active managed-tunnel C2C workspace；另一个 workspace 不能静默抢占 tunnel
+- plugin unload 时关闭 child process
+
+模型可见状态不包含 runtime API key 或 Bearer。
+
+## Review integrity
+
+一次 committed review 同时绑定三层 identity：
+
+```
+TASK_ID + ITERATION
+WORKSPACE_ID
+HEAD
+```
+
+ChatGPT 返回 PLAN/DONE 时必须匹配 workspace；对 EXECUTED 的 review 还必须回显精确 HEAD。
+
+bundled `gitPolicy: commit-push` 进一步要求：
+- 当前必须是正常 git branch，不允许 detached HEAD
+- 不允许 `main/master`
+- worktree 必须 clean
+- branch 必须配置 upstream
+- `ahead == 0`
+- upstream HEAD == local HEAD
+- `chatgpt_review(head=...)` 必须等于当前 local HEAD
+
+因此“只 commit 没 push”无法进入 ChatGPT review。
+
+## Autonomous loop
+
+插件本身不重写 DSH agent-loop。它通过 model-facing tools + system-prompt policy 驱动现有 GLM：
+
+`chatgpt_plan` → GLM 实现/测试/git → `chatgpt_review`。
+
+review 返回 PLAN 时，system prompt 要求 GLM 不询问用户而直接执行下一轮；返回 DONE 才结束。停止条件仅包括：
+- DONE / BLOCKED
+- `maxIterations`
+- 登录/2FA/CAPTCHA 或授权问题
+- tunnel/browser/connector 基础设施故障
+- git 冲突/安全风险
+- 必须由用户决定的产品选择
+
+## 持久化与恢复
+
+Durable storage 保存 task state、iteration、conversation id、last reviewed HEAD 与 workspace binding。DSH 重启后 `chatgpt_reconnect`：
+1. 重建 bridge/tunnel runtime
+2. rehydrate protocol state machine
+3. 用保存的 conversation id 打开原 ChatGPT chat
+4. 继续原任务
+
+执行证据单独保存在 DSH state area，不写进项目 repo。
+
+## 一次性人工边界
+
+“无人值守”不意味着绕过账号安全。以下只做一次或按平台要求人工完成：
+- ChatGPT 登录
+- 2FA / CAPTCHA
+- 创建/启用 ChatGPT custom MCP App
+- 创建 Secure MCP Tunnel / 获取 runtime key
+
+完成后，正常 C2C 回合不再需要人工选择 App、复制 prompt、启动 tunnel 或确认每轮是否继续。

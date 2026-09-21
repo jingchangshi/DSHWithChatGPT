@@ -30,15 +30,24 @@ Deny list with gitignore semantics (`SENSITIVE_PATTERNS`): `.env*` (but **not** 
 - Binds `127.0.0.1` only. A public URL (e.g. a tunnel) is never authorization: every request needs a Bearer token from the token→workspace map; comparison is length-checked and constant-time-ish (no early content exit).
 - Non-POST rejected; request bodies capped at 1MiB; `Cache-Control: no-store`, `X-Content-Type-Options: nosniff`.
 - Tokens are random per bridge instance (32 bytes hex). Rotation/revoke = restart of the bridge (future: persisted pairing store with TTL).
-- The ChatGPT connector stores the token in ChatGPT's connector settings — no long-lived credential is ever written to the workspace or the repo.
+- Tokens are never written to the workspace or repository. The plugin writes `Bearer <token>` to a local mode-0600 state file and managed `tunnel-client` injects it only on the final local MCP hop via `MCP_EXTRA_HEADERS` / `MCP_DISCOVERY_EXTRA_HEADERS`.
+- `CONTROL_PLANE_API_KEY` remains an environment secret consumed by tunnel-client; it is not included in argv, status output, prompts, or connector metadata.
 
-## Git review modes
+## Autonomous git policy
 
-- Workspace mode (default): working-tree diff vs HEAD, byte-capped.
-- Committed mode: diff against an explicit ref (audited HEAD SHA).
-- No automatic push to main/master, no force push, no reset — the plugin never runs git mutations at all (git tools are read-only; commits/pushes remain the agent's normal DSH tools, i.e. the user-visible agent action).
+The plugin itself still exposes no git-mutation MCP tool. DSH/GLM performs normal git operations through its own execution tools.
 
-## Known gaps
+Bundled unattended mode uses `gitPolicy: commit-push`:
+- `main` / `master` are protected by default and review is refused there.
+- review requires a clean committed worktree and an exact HEAD matching current git HEAD.
+- the system prompt instructs GLM to commit and push only a non-protected task branch, without force.
+- PR merge remains human-controlled.
 
-- Loopback-only auth is bearer-token; full OAuth 2.1 + pairing (upstream C2C style) is scaffolded but not yet wired for the remote/tunnel path. Do not expose the bridge publicly until that lands.
+`gitPolicy: worktree` keeps the previous working-tree review behavior.
+
+## Remaining trust boundaries
+
+- ChatGPT login/2FA/CAPTCHA and initial custom-App/tunnel creation are deliberately not automated.
+- `tunnelMode: managed` supervises the runtime tunnel process after those credentials/ids exist; the bridge never becomes a public listener.
+- Browser App activation is fail-closed and workspace replies are bound by `WORKSPACE_ID` plus exact review `HEAD`.
 - `.d2cignore` supports the documented pattern vocabulary (literals, `dir/`, `*`, `**`, `?`, negation last-wins); exotic gitignore spellings degrade to literal matching (documented behavior).

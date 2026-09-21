@@ -41,6 +41,14 @@ export class ChatGptLoggedOutError extends Error {
   }
 }
 
+/** Configured ChatGPT app could not be activated for the outgoing message. */
+export class ChatGptAppUnavailableError extends Error {
+  constructor(appName: string, detail = 'no exact app mention candidate appeared') {
+    super(`CHATGPT_APP_UNAVAILABLE: ${JSON.stringify(appName)}: ${detail}`)
+    this.name = 'ChatGptAppUnavailableError'
+  }
+}
+
 /** Composer-not-found / page-stale error. */
 export class BrowserStaleError extends Error {
   constructor(detail: string) {

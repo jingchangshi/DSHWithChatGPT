@@ -2,21 +2,25 @@
 
 | Symptom | Likely cause | Fix |
 |---|---|---|
-| `chatgpt_status` missing | plugin not in active profile | check `dsh plugin --profile <p> list`; re-add; restart |
-| `BROWSER_UNAVAILABLE` | browser not running / harness not attached | open the DSH-driven Chrome, log into chatgpt.com, call `chatgpt_reconnect` |
-| `ChatGptLoggedOutError` | session expired | log in manually; state persists; reconnect |
-| `stale-iteration` errors in log | ChatGPT replayed an old round | call `chatgpt_reconnect`; continue with a fresh review round |
-| Review never arrives | reply timeout (240s default) | raise `replyTimeoutMs` in the patch row config; check the conversation tab manually |
-| ChatGPT can't read workspace | connector not paired / bridge stopped | run a `chatgpt_plan` round (starts bridge), re-paste bridge URL+token into the connector settings |
-| `PATH_OUTSIDE_WORKSPACE` in bridge logs | connector hitting wrong workspace root | the bridge binds per workspace; reconnect from the right project session |
-| Sensitive file 403 (`SENSITIVE_FILE`) | deny list hit | intended; use `.env.example`-style samples; extend via `.d2cignore` (cannot un-deny defaults) |
-| Duplicate INIT warnings | same boot text within 30s | benign, DuplicateSendGuard suppressed it |
-| Tasks missing after restart | storage domain unavailable | plugin falls back to memory store; check DSH storage service in the profile |
+| `chatgpt_status` missing | plugin not in active profile | check plugin/profile installation, rebuild, restart DSH |
+| `TUNNEL_NOT_CONFIGURED` | managed mode lacks tunnel id or runtime key | set `CONTROL_PLANE_TUNNEL_ID` and `CONTROL_PLANE_API_KEY`, restart/reload |
+| `TUNNEL_START_FAILED` | `tunnel-client` missing or rejected configuration | verify executable on PATH and tunnel/runtime-key validity |
+| `TUNNEL_WORKSPACE_BUSY` | another workspace has an active managed-tunnel C2C task | finish/block that task first; then start the next workspace C2C task |
+| `tunnel.ready: false` | health endpoint not ready | run status again after checking tunnel-client/platform state; plugin will restart stale bindings |
+| `CHATGPT_APP_UNAVAILABLE` | exact configured App did not appear in @mention autocomplete | verify App exists/enabled and `chatgptAppName` matches exactly |
+| `ChatGptLoggedOutError` | ChatGPT browser session expired | log in manually; then call `chatgpt_reconnect` |
+| `workspace-mismatch` | ChatGPT used the wrong App/connector/workspace | verify App points at this tunnel and workspace_info returns the expected `workspaceId` |
+| `review-head-mismatch` | stale/wrong review reply or wrong git state | do not accept review; reconnect and review current exact HEAD |
+| `AUTONOMOUS_GIT_POLICY` protected branch | commit-push mode is on main/master | create/use a task branch, then implement/commit/push |
+| `AUTONOMOUS_GIT_POLICY` dirty worktree | review requested before committing | test, commit intended changes, ensure clean status, pass current HEAD |
+| `iteration-limit` | repeated fix plans exceeded `maxIterations` | inspect remaining review findings and decide whether to raise the bound |
+| reply timeout | no genuinely new settled assistant response | inspect browser/tunnel/App health; old visible replies are intentionally ignored |
+| `PATH_OUTSIDE_WORKSPACE` / sensitive-file denial | read-only boundary blocked access | expected security behavior; do not work around it |
 
-## Doctor checklist (manual, via tools)
+## Unattended doctor checklist
 
-1. `chatgpt_status` → plugin loaded? latest task plausible?
-2. Run a `chatgpt_plan` on a trivial goal → browser reachable, conversation opens?
-3. Bridge URL from status → reachable from ChatGPT connector (curl `POST /ping` with token)?
-4. In ChatGPT, ask the connector for `workspace_info` → matches your project?
-5. `chatgpt_review` after a no-op change → DONE or concrete fix plan?
+1. `chatgpt_status` reports `tunnel.ready: true`.
+2. `workspaceId` is stable for the same checkout.
+3. `chatgptAppName` exactly matches the enabled ChatGPT App.
+4. Browser Harness controls a logged-in ChatGPT tab.
+5. On a non-protected branch, a trivial C2C task reaches PLAN, local test, commit/push, exact-HEAD REVIEW, and DONE without manual App selection.

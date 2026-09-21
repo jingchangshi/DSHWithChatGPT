@@ -23,6 +23,10 @@ export interface CoordinatorOptions {
   replyTimeoutMs?: number
   /** Workspace root the coordinator is bound to. */
   workspaceRoot: string
+  /** Non-secret workspace identity echoed through D2C replies. */
+  workspaceId?: string
+  /** Hard safety bound for autonomous review/fix rounds. */
+  maxIterations?: number
 }
 
 /** Result of starting a task (INIT sent). */
@@ -51,8 +55,9 @@ export const CHATGPT_BOOT_PROMPT = [
   '5. Never request workspace write operations; you have none.',
   '6. Plans are WHAT/WHY, never HOW bindings; GLM decides implementation.',
   '7. Answer ONLY through a [D2C] envelope with the correct STATE, TASK_ID, ITERATION and IN_REPLY_TO headers.',
-  '8. When reviewing an EXECUTED envelope that carries HEAD, echo that exact HEAD header in your DONE or fix PLAN reply after verifying it via MCP/git.',
-  '9. PLAN replies iterate on the plan instead of infinite TODO lists; DONE means you verified the result.',
+  '8. Every PLAN/DONE/BLOCKED/ERROR reply must echo the exact WORKSPACE_ID header after checking workspace_info.workspaceId through MCP.',
+  '9. When reviewing an EXECUTED envelope that carries HEAD, echo that exact HEAD header in your DONE or fix PLAN reply after verifying it via MCP/git.',
+  '10. PLAN replies iterate on the plan instead of infinite TODO lists; DONE means you verified the result.',
 ].join('\n')
 
 /** The coordinator service published as `chatgptCoordinator`. */
@@ -61,10 +66,12 @@ export class ChatGptCoordinator {
   private readonly state: CoordinatorState
   private readonly sendGuard = new DuplicateSendGuard()
   private readonly replyTimeoutMs: number
+  private readonly maxIterations: number
 
   constructor(private readonly options: CoordinatorOptions) {
     this.state = options.store ?? new CoordinatorState(createMemoryStore())
     this.replyTimeoutMs = options.replyTimeoutMs ?? 4 * 60 * 1000
+    this.maxIterations = options.maxIterations ?? 12
   }
 
   /** Durable state handle (for tools and doctor). */
@@ -111,6 +118,7 @@ export class ChatGptCoordinator {
       'STATE: INIT',
       `TASK_ID: ${taskId}`,
       'ITERATION: 0',
+      ...(this.options.workspaceId !== undefined ? [`WORKSPACE_ID: ${this.options.workspaceId}`] : []),
       '',
       'GOAL:',
       goal,
@@ -139,6 +147,7 @@ export class ChatGptCoordinator {
       throw new ProtocolError('no-marker', 'ChatGPT reply contained no [D2C] envelope')
     }
     const envelope = parseEnvelope(envelopeText, { sender: 'chatgpt' })
+    this.validateWorkspaceReply(envelope)
     const folded = this.machine.applyReply(envelope)
     const conversationId = await this.options.browser.conversationId().catch(() => undefined)
     const merged: typeof persisted = {
@@ -164,6 +173,11 @@ export class ChatGptCoordinator {
   }): Promise<RoundResult> {
     const persisted = await this.requireTask(taskId)
     this.restoreMachine(persisted)
+    if (persisted.iteration > this.maxIterations) {
+      throw new ProtocolError('iteration-limit', `task ${taskId} exceeded maxIterations=${this.maxIterations}`)
+    }
+    await this.options.browser.ensureReady()
+    await this.options.browser.openConversation(persisted.conversationId ?? undefined)
     this.machine.applyLocal(taskId, 'executing')
     this.machine.advanceIteration(taskId)
     const record = this.machine.get(taskId)
@@ -176,6 +190,7 @@ export class ChatGptCoordinator {
       `TASK_ID: ${taskId}`,
       `ITERATION: ${iteration}`,
       `IN_REPLY_TO: ${inReplyTo}`,
+      ...(this.options.workspaceId !== undefined ? [`WORKSPACE_ID: ${this.options.workspaceId}`] : []),
       ...(summary.head !== null ? [`HEAD: ${summary.head}`] : []),
       '',
       'RESULT:',
@@ -200,6 +215,7 @@ export class ChatGptCoordinator {
       throw new ProtocolError('no-marker', 'ChatGPT review contained no [D2C] envelope')
     }
     const envelope = parseEnvelope(envelopeReply, { sender: 'chatgpt' })
+    this.validateWorkspaceReply(envelope)
     if (summary.head !== null && envelope.headers.get('HEAD') !== summary.head) {
       throw new ProtocolError(
         'review-head-mismatch',
@@ -243,6 +259,18 @@ export class ChatGptCoordinator {
     return task
   }
 
+
+  private validateWorkspaceReply(envelope: Envelope): void {
+    const expected = this.options.workspaceId
+    if (expected === undefined) return
+    const actual = envelope.headers.get('WORKSPACE_ID')
+    if (actual !== expected) {
+      throw new ProtocolError(
+        'workspace-mismatch',
+        `ChatGPT reply WORKSPACE_ID ${JSON.stringify(actual ?? null)} != expected ${JSON.stringify(expected)}`,
+      )
+    }
+  }
 
   /** Rebuild the in-memory protocol machine from durable state on demand. */
   private restoreMachine(task: PersistedTask) {
