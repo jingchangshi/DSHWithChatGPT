@@ -1,34 +1,47 @@
 # BrowserUse control plane
 
-## Model
+## Runtime model
 
-One **persistent browser control session** + one **persistent ChatGPT conversation per workspace**. No new browser session per iteration (deliberate, per the compatibility notes on second-session failures in the current BrowserUse stack).
+One persistent ChatGPT conversation per workspace, driven through the **current DSH session's** Browser Harness MCP tools.
 
+The plugin deliberately does **not** cache a BrowserUse-owning Agent across DSH sessions. Browser Harness tools are session-gated, so every `chatgpt_*` tool call builds its coordinator around the current caller while durable task state is rehydrated from storage.
+
+```text
+BrowserHarnessAdapter
+  ensureReady()              browser_page_info / browser_goto
+  openConversation(id)       browser_goto https://chatgpt.com/c/<id>
+  sendControlMessage()       browser_fill + browser_press Enter
+  currentConversationId()    browser_page_info -> /c/<id>
+  waitForReply()             browser_js -> latest assistant message
+  health()                   browser_page_info (non-destructive)
+  recover()                  ensureReady + persisted conversation id
 ```
-BrowserHarnessAdapter (implements BrowserControl)
-  ensureReady()      chatgpt.com reachable (retry budget: 3 attempts, 0.5s/1.5s backoff)
-  openConversation() reuse saved conversation id, else new chat
-  sendControlMessage() semantic composer fill + submit
-  waitForReply()     poll snapshot; completion = stable snapshot & no stop indicator; deadline = replyTimeoutMs
-  health()           navigation probe
-  recover()          ensureReady + conversation rebind
-```
 
-The interface is the seam: the orchestrator never touches DOM details. Swap the adapter without touching protocol/state machine.
+## DSH tool result handling
 
-## Element strategy
+`ctx.tools.execute()` returns DSH `ToolExecutionResult`, not the raw MCP payload. The adapter first checks `isError`, then unwraps `value.content` / `structuredContent` before interpreting Browser Harness results.
 
-Semantic only — `role`, `aria-label`, visible text, contenteditable. No long generated CSS classes. Composer target is the known contenteditable (`#prompt-textarea`); reply detection is snapshot-text based with stability windows, not class matching.
+Every nested Browser Harness dispatch includes a call id, owning agent, and AbortSignal. A hard 90-second adapter timeout bounds an upstream MCP stall.
 
-## Failure handling
+## ChatGPT page strategy
 
-| Condition | Detection | Response |
-|---|---|---|
-| Browser not running | ensureReady fails | retry budget, then `BROWSER_UNAVAILABLE` → agent/user starts the browser |
-| Logged out | snapshot contains login gate | `ChatGptLoggedOutError` → user logs in; task state persists |
-| Page stale / navigation | send fails or snapshot empty | recover() rebinds conversation |
-| Duplicate send | DuplicateSendGuard (identical text within 30s) | suppressed |
-| Reply timeout | deadline exceeded | `BROWSER_STALE` → round can be retried; iteration state intact |
-| Partial streaming | stop indicator present | keep polling until stable |
+- Composer: `#prompt-textarea`.
+- Submission: `browser_press` with Enter; no fake coordinate click.
+- Reply: `browser_js` reads the latest `[data-message-author-role="assistant"]` element only.
+- Streaming completion: stop-button detection plus two stable non-empty reads.
+- Conversation persistence: the `/c/<id>` route is captured after the first INIT and stored durably.
 
-Browser-layer failures never touch workspace state: the durable task record in the storage domain is the source of truth, and `chatgpt_reconnect` re-establishes the control plane.
+The adapter avoids generated CSS class names.
+
+## Recovery
+
+Durable state and browser ownership are separate:
+
+- DSH restart: task state is loaded from the storage domain and rehydrated into a fresh protocol StateMachine.
+- New DSH session in the same workspace: Browser Harness binds to the new session's Agent instead of reusing the old Agent.
+- Browser refresh: `chatgpt_reconnect` reopens the persisted `/c/<id>`.
+- Conversation-id capture failure after INIT is best-effort and never causes the already-sent INIT to be retried automatically.
+
+## Known boundary
+
+ChatGPT's DOM can change. The browser adapter is intentionally isolated behind `BrowserControl` so DOM/tool changes do not require protocol or workspace-bridge changes.
