@@ -66,10 +66,20 @@ Manual install: copy the package anywhere permanent and append its `cordis.patch
 
 ## First-time setup
 
-1. **Browser**: log into chatgpt.com in a Chrome/Edge that DSH BrowserUse can attach to (the browser-harness MCP flow prompts you for the dedicated debugging Chrome on first use).
-2. **Connector** (once per ChatGPT account): in ChatGPT Web → Settings → Connectors → add a custom MCP connector pointing at the bridge URL the plugin prints (loopback, or tunneled when remote review is needed). Paste the one-time pairing token when prompted.
-3. **Verify**: run the `chatgpt_status` tool from any DSH session in the workspace — it reports coordinator state, bridge port, and the latest task.
+1. **Browser control plane**: make sure the active DSH profile already has working BrowserUse / Browser Harness MCP and controls a Chrome/Edge session logged into chatgpt.com.
+2. **Bootstrap the local read-only bridge**: call `chatgpt_status` in the target workspace. This starts the bridge before the first plan; the default URL is `http://127.0.0.1:43127/mcp`.
+3. **Secure MCP Tunnel**: ChatGPT cannot directly reach a loopback MCP server. Create an OpenAI tunnel and run the official `tunnel-client`:
 
+```powershell
+$env:CONTROL_PLANE_API_KEY="<OpenAI Platform runtime key>"
+tunnel-client init --profile dsh-with-chatgpt --tunnel-id <tunnel_id> --mcp-server-url http://127.0.0.1:43127/mcp
+tunnel-client doctor --profile dsh-with-chatgpt --explain
+tunnel-client run --profile dsh-with-chatgpt
+```
+
+4. **ChatGPT developer-mode app**: create an app in ChatGPT, choose **Tunnel** as the connection, select the tunnel, and verify that the read-only workspace tools are discoverable.
+
+The bridge listens only on `127.0.0.1`; Secure MCP Tunnel supplies the external transport/authentication boundary. Do not configure ChatGPT with `127.0.0.1` as a remote MCP URL.
 ## Usage
 
 In a DSH session, inside the project you want to work on:
@@ -114,7 +124,7 @@ Run `chatgpt_status`; its output distinguishes: plugin loaded, browser reachable
 
 Working: protocol + state machine, workspace security boundary, execution recorder, read-only MCP bridge, coordinator with durable state, model tools, prompt section, profile install path. See `docs/` and the git log for evidence.
 
-Known limitations (honest list): the BrowserHarness chatgpt.com adapter is a first cut (composer/reply heuristics may need adjustment as ChatGPT's DOM changes); OAuth+pairing for remote (non-loopback) access is scaffolded but the Cloudflare tunnel flow is not wired end-to-end yet; no CLI beyond the DSH tool surface yet.
+Known limitations: the BrowserHarness adapter still depends on stable ChatGPT DOM semantics; one stable `bridgePort` is assumed per DSH instance, so simultaneous independent workspace tunnels should use distinct ports; automatic execution evidence currently covers foreground `bash` / `pwsh` only and never treats a background job start as a completed test; Secure MCP Tunnel and ChatGPT developer-mode permissions are required for the data plane.
 
 ## License
 
