@@ -1,6 +1,8 @@
-# dsh-with-chatgpt profile patch. Adds the plugin to any base-backed
-# profile. Install with: dsh plugin --profile <name> add <this-package>
-# or add this row to the profile's cordis.patch.yml manually.
+# dsh-with-chatgpt profile patch. Adds the plugin to any base-backed profile.
+# One-time prerequisites for the unattended runtime:
+# - ChatGPT custom MCP app named exactly "DSH with ChatGPT"
+# - CONTROL_PLANE_TUNNEL_ID and CONTROL_PLANE_API_KEY in the DSH environment
+# - tunnel-client available on PATH
 - insert:
     - id: dsh-with-chatgpt
       name: dsh-with-chatgpt
@@ -8,3 +10,14 @@
         bridgePort: 0
         replyTimeoutMs: 240000
         browserMode: browser-harness-mcp
+        chatgptAppName: DSH with ChatGPT
+        maxIterations: 12
+        gitPolicy: commit-push
+        protectedBranches:
+          - main
+          - master
+        tunnelMode: managed
+        tunnelClientPath: tunnel-client
+        tunnelIdEnv: CONTROL_PLANE_TUNNEL_ID
+        tunnelRuntimeApiKeyEnv: CONTROL_PLANE_API_KEY
+        tunnelStartupTimeoutMs: 20000
