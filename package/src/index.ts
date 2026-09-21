@@ -429,11 +429,20 @@ export function apply(ctx: Context, config: Config): void | Promise<void> {
         await ensureRuntime(workspaceRoot)
         if (config.gitPolicy === 'commit-push') {
           const current = await gitStatus(workspaceRoot)
-          if (config.protectedBranches.includes(current.branch ?? '')) {
-            throw new Error('AUTONOMOUS_GIT_POLICY: refusing review on protected branch ' + String(current.branch))
+          if (!current.isRepo || current.head === null || current.branch === null) {
+            throw new Error('AUTONOMOUS_GIT_POLICY: commit-push mode requires a normal checked-out git branch with at least one commit')
+          }
+          if (config.protectedBranches.includes(current.branch)) {
+            throw new Error('AUTONOMOUS_GIT_POLICY: refusing review on protected branch ' + current.branch)
           }
           if (current.dirty) {
             throw new Error('AUTONOMOUS_GIT_POLICY: commit-push mode requires a clean committed worktree before review')
+          }
+          if (current.upstream === null || current.upstreamHead === null) {
+            throw new Error('AUTONOMOUS_GIT_POLICY: current task branch has no upstream; push it with upstream tracking before review')
+          }
+          if (current.ahead !== 0 || current.upstreamHead !== current.head) {
+            throw new Error('AUTONOMOUS_GIT_POLICY: current HEAD is not fully pushed to upstream')
           }
           if (typeof args.head !== 'string' || args.head === '') {
             throw new Error('AUTONOMOUS_GIT_POLICY: commit-push mode requires the exact committed HEAD')
