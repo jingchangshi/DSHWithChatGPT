@@ -38,7 +38,7 @@ dsh plugin --profile <your-profile> add D:\workspace\DSHWithChatGPT\package
 
 In any DSH session with the profile active, inside a project workspace:
 
-- Ask the agent to call `chatgpt_status`. Expected: `plugin: dsh-with-chatgpt`, `latestTask: null` (fresh), `bridgeRunning: false` (starts lazily on first collaboration round).
+- Ask the agent to call `chatgpt_status`. Expected on a fresh workspace: `plugin: dsh-with-chatgpt`, `latestTask: null`, `bridgeRunning: true`, plus `bridgePort` and `connectorConfigPath`. Status intentionally starts the loopback bridge so first-time connector setup is possible before `chatgpt_plan`.
 
 ## Browser provider prerequisite
 
