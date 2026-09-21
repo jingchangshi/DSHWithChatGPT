@@ -23,6 +23,8 @@ export interface BrowserControl {
   openConversation(conversationId?: string): Promise<string>
   /** Send one control message. Throws on duplicate-send suspicion. */
   sendControlMessage(text: string): Promise<void>
+  /** Current ChatGPT conversation id, once the first message created /c/<id>. */
+  currentConversationId(): Promise<string | undefined>
   /** Wait for and read the latest assistant reply. */
   waitForReply(timeoutMs: number): Promise<BrowserReply>
   /** Health probe. */
