@@ -39,7 +39,7 @@ export interface Config {
 
 /** Plugin config schema (zod; the host layer adapts it to its config surface). */
 export const Config: z.ZodType<Config> = z.object({
-  bridgePort: z.number().default(0),
+  bridgePort: z.number().default(43127),
   replyTimeoutMs: z.number().default(240_000),
   browserMode: z.enum(['browser-harness-mcp']).default('browser-harness-mcp'),
 }) as unknown as z.ZodType<Config>
@@ -558,6 +558,9 @@ export function apply(ctx: Context, config: Config) {
         const coordinator = coordinatorFor(workspaceRoot, exec?.agent)
         const latestTaskId = await coordinator.latestTaskId()
         const task = latestTaskId !== undefined ? await coordinator.status(latestTaskId) : undefined
+        // Status doubles as the explicit bootstrap/doctor entry point so the
+        // tunnel can be configured BEFORE the first chatgpt_plan round.
+        await ensureBridge(workspaceRoot)
         const bridge = bridges.get(workspaceRoot)
         return {
           plugin: 'dsh-with-chatgpt',
