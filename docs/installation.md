@@ -40,12 +40,20 @@ In any DSH session with the profile active, inside a project workspace:
 
 - Ask the agent to call `chatgpt_status`. Expected: `plugin: dsh-with-chatgpt`, `latestTask: null` (fresh), `bridgeRunning: false` (starts lazily on first collaboration round).
 
+## Browser provider prerequisite
+
+The plugin consumes Browser Harness MCP tools but does not manufacture that provider itself. The target profile must already include DSH BrowserUse plus the Browser Harness MCP provider. For DSH 0.1.6-alpha.1 this repository includes matching package tarballs under `package/tarballs/`; install those provider packages into the same profile if they are not already present, then confirm the profile dump contains the BrowserUse/provider rows before starting a collaboration round.
+
 ## First-run checklist
 
-1. `chatgpt_status` — plugin loaded (proves profile wiring).
-2. Log into chatgpt.com in the browser DSH BrowserUse drives.
-3. First `chatgpt_plan` round opens the persistent conversation.
-4. Add the MCP connector in ChatGPT Web (Settings → Connectors) pointing at the bridge URL printed by `chatgpt_status` during a round, pasting the pairing token.
+1. Ask DSH to call `chatgpt_status`. This proves profile wiring **and starts the workspace's loopback read-only bridge**. Record `connectorConfigPath`.
+2. Open that local connector JSON yourself. It contains the localhost MCP URL and bearer token; the token is deliberately kept out of model-facing status output.
+3. Log into chatgpt.com in the Chrome/Edge instance controlled by Browser Harness.
+4. Because ChatGPT cannot connect to a local MCP server directly, connect that loopback endpoint through OpenAI Secure MCP Tunnel (preferred) or another trusted authenticated remote MCP endpoint.
+5. In ChatGPT Web developer/app settings, create or update the read-only custom MCP app against the remote endpoint and scan the tools.
+6. Start `chatgpt_plan`. The first completed reply persists the ChatGPT conversation id for restart recovery.
+
+ChatGPT app availability is message-scoped on current ChatGPT Web. If your workspace requires selecting/@mentioning the app for every MCP-backed message, do that for PLAN/REVIEW messages; automated app-menu selection is not part of the current Browser Harness adapter.
 
 ## Uninstall
 
