@@ -51,6 +51,25 @@ describe('bridge auth', () => {
     expect((await rpc('ping', undefined, 'wrong-token-aaaaaaaaaaaaaa')).status).toBe(401)
   })
 
+  it('allows unauthenticated loopback calls when token map is empty for Secure MCP Tunnel', async () => {
+    const recorder = new ExecutionRecorder({ stateDir })
+    const anonymous = await startBridgeServer(
+      { port: 0, tokens: new Map() },
+      buildWorkspaceTools(loadWorkspaceSpec(root, recorder)),
+    )
+    try {
+      const response = await fetch(`http://127.0.0.1:${anonymous.port}/mcp`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ jsonrpc: '2.0', id: 1, method: 'ping' }),
+      })
+      expect(response.status).toBe(200)
+      expect((await response.json()).result).toEqual({})
+    } finally {
+      await anonymous.close()
+    }
+  })
+
   it('rejects non-POST', async () => {
     const r = await fetch(`http://127.0.0.1:${port}/mcp`)
     expect(r.status).toBe(405)
