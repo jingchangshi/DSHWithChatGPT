@@ -11,8 +11,9 @@
  * @module dsh-with-chatgpt
  */
 
+import fs from 'node:fs'
 import { join as joinPath } from 'node:path'
-import { randomFillSync } from 'node:crypto'
+import { createHash, randomFillSync } from 'node:crypto'
 import type { Context } from '@deepseek-ai/cordis'
 import { z } from 'zod'
 import { defineDomain, domainTable } from '@deepseek-ai/dsh-storage-domain'
@@ -329,22 +330,41 @@ export function apply(ctx: Context, config: Config): void | Promise<void> {
     const bridges = new Map<string, BridgeServer>()
     const bridgeTokens = new Map<string, { subject: string; workspaceRoot: string }>()
 
-    async function ensureBridge(workspaceRoot: string): Promise<{ port: number; token: string }> {
+    async function ensureBridge(workspaceRoot: string): Promise<{ port: number; token: string; configPath: string }> {
+      const configPath = connectorConfigPath(workspaceRoot)
       const existing = bridges.get(workspaceRoot)
       if (existing !== undefined) {
         const token = [...bridgeTokens.entries()].find(([, v]) => v.workspaceRoot === workspaceRoot)?.[0]
-        if (token !== undefined) return { port: existing.port, token }
+        if (token !== undefined) {
+          writeConnectorConfig(configPath, existing.port, token)
+          return { port: existing.port, token, configPath }
+        }
       }
       const token = 'd2c_' + randomToken(32)
       const server = await startBridgeServer(
         { port: config.bridgePort, tokens: new Map([[token, 'workspace:bound']]) },
-        // Tools are constructed against the workspace at bridge start; the
-        // workspace is fixed for this bridge instance.
         buildWorkspaceTools(loadWorkspaceSpec(workspaceRoot, recorder)),
       )
       bridges.set(workspaceRoot, server)
       bridgeTokens.set(token, { subject: 'workspace:' + workspaceRoot, workspaceRoot })
-      return { port: server.port, token }
+      writeConnectorConfig(configPath, server.port, token)
+      return { port: server.port, token, configPath }
+    }
+
+    function connectorConfigPath(workspaceRoot: string): string {
+      const workspaceId = createHash('sha256').update(workspaceRoot).digest('hex').slice(0, 16)
+      return joinPath(stateDir, 'connectors', workspaceId + '.json')
+    }
+
+    function writeConnectorConfig(configPath: string, port: number, token: string): void {
+      fs.mkdirSync(joinPath(configPath, '..'), { recursive: true })
+      fs.writeFileSync(configPath, JSON.stringify({
+        transport: 'streamable-http',
+        localUrl: `http://127.0.0.1:${port}`,
+        authorization: { type: 'bearer', token },
+        note: 'ChatGPT cannot connect to this loopback URL directly; expose it through OpenAI Secure MCP Tunnel or another trusted remote MCP endpoint.',
+      }, null, 2) + '\n', { encoding: 'utf8', mode: 0o600 })
+      try { fs.chmodSync(configPath, 0o600) } catch { /* Windows ACLs are managed by the user profile. */ }
     }
 
     // ---- coordinator (per workspace; cached)
@@ -538,10 +558,11 @@ export function apply(ctx: Context, config: Config): void | Promise<void> {
             workspaceRoot: { type: 'string', description: 'Workspace the status is for.' },
             latestTask: { description: 'Latest persisted task record, or null.' },
             bridgeRunning: { type: 'boolean', description: 'Whether the read-only MCP bridge is listening.' },
-            bridgePort: { description: 'Bridge port when running, else null.' },
+            bridgePort: { description: 'Loopback bridge port.' },
+            connectorConfigPath: { type: 'string', description: 'Local file containing the loopback URL and bearer token for Secure MCP Tunnel setup.' },
             bootPromptVersion: { type: 'integer', description: 'Boot prompt version.' },
           },
-          required: ['plugin', 'workspaceRoot', 'latestTask', 'bridgeRunning', 'bootPromptVersion'],
+          required: ['plugin', 'workspaceRoot', 'latestTask', 'bridgeRunning', 'bridgePort', 'connectorConfigPath', 'bootPromptVersion'],
         },
         render: (_args: Record<string, unknown>, value: Record<string, unknown>) => [{
           type: 'text' as const,
@@ -553,13 +574,14 @@ export function apply(ctx: Context, config: Config): void | Promise<void> {
         const coordinator = coordinatorFor(workspaceRoot, exec?.agent)
         const latestTaskId = await coordinator.latestTaskId()
         const task = latestTaskId !== undefined ? await coordinator.status(latestTaskId) : undefined
-        const bridge = bridges.get(workspaceRoot)
+        const bridge = await ensureBridge(workspaceRoot)
         return {
           plugin: 'dsh-with-chatgpt',
           workspaceRoot,
           latestTask: task ?? null,
-          bridgeRunning: bridge !== undefined,
-          bridgePort: bridge?.port ?? null,
+          bridgeRunning: true,
+          bridgePort: bridge.port,
+          connectorConfigPath: bridge.configPath,
           bootPromptVersion: 1,
         }
       },
