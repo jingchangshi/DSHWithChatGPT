@@ -363,6 +363,68 @@ export function apply(ctx: Context, config: Config): void | Promise<void> {
       return c
     }
 
+    // ---- execution evidence: observe the real DSH shell tool pipeline.
+    // ChatGPT's test_status/execution_summary must be backed by actual tool
+    // outcomes, not by the executor's prose claims.
+    type ObservedExecution = {
+      name: string
+      arguments: Record<string, unknown>
+      agent?: { session?: { header?: { cwd?: string } } }
+    }
+    type ObservedResult = {
+      isError?: boolean
+      value?: unknown
+      content?: Array<{ type?: string; text?: string }>
+    }
+    const startedAt = new WeakMap<object, number>()
+    const toolEvents = ctx as unknown as {
+      on(event: 'tools/execute', handler: (exec: ObservedExecution, next: () => Promise<ObservedResult>) => Promise<ObservedResult>): void
+      on(event: 'tools/result', handler: (exec: ObservedExecution, result: ObservedResult) => void): void
+    }
+    toolEvents.on('tools/execute', async (exec, next) => {
+      if (exec.name === 'bash' || exec.name === 'pwsh') startedAt.set(exec as object, Date.now())
+      return next()
+    })
+    toolEvents.on('tools/result', (exec, result) => {
+      if (exec.name !== 'bash' && exec.name !== 'pwsh') return
+      const command = exec.arguments['command']
+      if (typeof command !== 'string' || command.trim() === '') return
+      void (async () => {
+        const workspaceRoot = workspaceOf({ agent: exec.agent })
+        const binding = await coordinatorState.loadWorkspace(workspaceRoot)
+        if (binding?.lastTaskId === null || binding?.lastTaskId === undefined) return
+        const task = await coordinatorState.loadTask(binding.lastTaskId)
+        if (task === undefined || !['planned', 'executing', 'executed', 'awaiting-review'].includes(task.state)) return
+
+        const value = result.value as {
+          kind?: string
+          exitCode?: number | null
+          timedOut?: boolean
+          aborted?: boolean
+          stdout?: { text?: string }
+          stderr?: { text?: string }
+        } | undefined
+        if (value?.kind === 'background') return
+        const content = result.content?.filter(block => block.type === 'text').map(block => block.text ?? '').join('\n') ?? ''
+        const timedOut = value?.timedOut === true
+        const aborted = value?.aborted === true
+        const exitCode = typeof value?.exitCode === 'number' || value?.exitCode === null ? value.exitCode : null
+        const status = timedOut ? 'timeout' : aborted ? 'cancelled' : result.isError === true || exitCode !== 0 ? 'failure' : 'success'
+        recorder.record({
+          taskId: task.taskId,
+          iteration: task.iteration,
+          command,
+          cwd: typeof exec.arguments['workdir'] === 'string' ? String(exec.arguments['workdir']) : '.',
+          startedAt: startedAt.get(exec as object) ?? Date.now(),
+          endedAt: Date.now(),
+          status,
+          exitCode,
+          stdout: value?.stdout?.text ?? (result.isError === true ? '' : content),
+          stderr: value?.stderr?.text ?? (result.isError === true ? content : ''),
+        })
+      })().catch(() => undefined)
+    })
+
     // ---- model-facing tools
     const tools = ctx.get('tools')
     if (tools === undefined) throw new Error('dsh-with-chatgpt requires the tools service')
@@ -552,19 +614,17 @@ export function apply(ctx: Context, config: Config): void | Promise<void> {
       })
     }
 
-    // ---- cleanup
-    return () => {
-      for (const bridge of bridges.values()) void bridge.close()
+    // ---- cleanup: register the async disposer with Cordis instead of
+    // dropping it through Promise.then(). This closes bridge listeners and
+    // the storage-domain handle when the plugin/profile unloads.
+    ctx.effect(() => async () => {
+      await Promise.allSettled([...bridges.values()].map(bridge => bridge.close()))
       bridges.clear()
-      domain?.close().catch(() => undefined)
-    }
+      if (domain !== undefined) await domain.close()
+    }, 'dsh-with-chatgpt runtime cleanup')
   }
 
-  const disposer = activate()
-  if (disposer instanceof Promise) {
-    return disposer.then(() => undefined)
-  }
-  return disposer
+  return activate()
 }
 
 /** Minimal tool execution context shape used by this plugin. */
