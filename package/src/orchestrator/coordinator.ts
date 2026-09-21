@@ -128,7 +128,7 @@ export class ChatGptCoordinator {
    */
   async awaitPlan(taskId: string): Promise<RoundResult> {
     const persisted = await this.requireTask(taskId)
-    const record = this.machine.get(taskId)
+    const record = this.restoreMachine(persisted)
     if (record === undefined || record.waitingFor !== 'chatgpt-plan') {
       throw new ProtocolError('unexpected-reply', `task ${taskId} is not waiting for a plan`)
     }
@@ -160,6 +160,7 @@ export class ChatGptCoordinator {
     note?: string
   }): Promise<RoundResult> {
     const persisted = await this.requireTask(taskId)
+    this.restoreMachine(persisted)
     this.machine.applyLocal(taskId, 'executing')
     this.machine.advanceIteration(taskId)
     const record = this.machine.get(taskId)
@@ -224,9 +225,23 @@ export class ChatGptCoordinator {
     if (taskId === undefined) return undefined
     const task = await this.state.loadTask(taskId)
     if (task === undefined) return undefined
+    this.restoreMachine(task)
     await this.options.browser.ensureReady()
     await this.options.browser.openConversation(task.conversationId ?? undefined)
     return task
+  }
+
+
+  /** Rebuild the in-memory protocol machine from durable state on demand. */
+  private restoreMachine(task: PersistedTask) {
+    return this.machine.restore({
+      taskId: task.taskId,
+      state: task.state,
+      iteration: task.iteration,
+      waitingFor: task.waitingFor,
+      goal: task.goal,
+      updatedAt: task.updatedAt,
+    })
   }
 
   private async requireTask(taskId: string): Promise<PersistedTask> {
