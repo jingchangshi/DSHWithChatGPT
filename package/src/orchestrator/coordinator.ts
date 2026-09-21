@@ -51,7 +51,8 @@ export const CHATGPT_BOOT_PROMPT = [
   '5. Never request workspace write operations; you have none.',
   '6. Plans are WHAT/WHY, never HOW bindings; GLM decides implementation.',
   '7. Answer ONLY through a [D2C] envelope with the correct STATE, TASK_ID, ITERATION and IN_REPLY_TO headers.',
-  '8. PLAN replies iterate on the plan instead of infinite TODO lists; DONE means you verified the result.',
+  '8. When reviewing an EXECUTED envelope that carries HEAD, echo that exact HEAD header in your DONE or fix PLAN reply after verifying it via MCP/git.',
+  '9. PLAN replies iterate on the plan instead of infinite TODO lists; DONE means you verified the result.',
 ].join('\n')
 
 /** The coordinator service published as `chatgptCoordinator`. */
@@ -175,6 +176,7 @@ export class ChatGptCoordinator {
       `TASK_ID: ${taskId}`,
       `ITERATION: ${iteration}`,
       `IN_REPLY_TO: ${inReplyTo}`,
+      ...(summary.head !== null ? [`HEAD: ${summary.head}`] : []),
       '',
       'RESULT:',
       `Implementation executed by DeepSeek Harness. Changed files: ${summary.changedFiles.length > 0 ? summary.changedFiles.join(', ') : '(none)'}`,
@@ -198,6 +200,12 @@ export class ChatGptCoordinator {
       throw new ProtocolError('no-marker', 'ChatGPT review contained no [D2C] envelope')
     }
     const envelope = parseEnvelope(envelopeReply, { sender: 'chatgpt' })
+    if (summary.head !== null && envelope.headers.get('HEAD') !== summary.head) {
+      throw new ProtocolError(
+        'review-head-mismatch',
+        `ChatGPT review HEAD ${JSON.stringify(envelope.headers.get('HEAD') ?? null)} != executed HEAD ${JSON.stringify(summary.head)}`,
+      )
+    }
     const folded = this.machine.applyReply(envelope)
     const conversationId = await this.options.browser.conversationId().catch(() => undefined)
     const merged: typeof persisted = {
