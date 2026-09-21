@@ -18,6 +18,9 @@ function fakeBrowser(replies: string[]): BrowserControl & { sent: string[] } {
       if (sent.includes(text)) throw new BrowserStaleError('duplicate send detected by fake browser')
       sent.push(text)
     },
+    async currentConversationId() {
+      return 'conv-1'
+    },
     async waitForReply(): Promise<BrowserReply> {
       const text = replies[replyIndex] ?? ''
       replyIndex++
@@ -170,17 +173,50 @@ describe('coordinator rejects stale replies', () => {
 })
 
 describe('state recovery', () => {
-  it('survives a coordinator restart with the same store', async () => {
+  it('persists the ChatGPT conversation assigned after INIT', async () => {
     const store = new CoordinatorState(createMemoryStore())
     const browser = fakeBrowser([])
     const first = new ChatGptCoordinator({ browser, store, workspaceRoot: 'C:\\ws\\r', replyTimeoutMs: 500 })
     const started = await first.startTask('task across restarts')
-    // "Restart": new coordinator instance over the same store.
+    const persisted = await first.status(started.taskId)
+    expect(persisted?.conversationId).toBe('conv-1')
+  })
+
+  it('rehydrates the protocol machine and can continue review after restart', async () => {
+    const store = new CoordinatorState(createMemoryStore())
+    const browser = fakeBrowser([])
+    let taskId = ''
+    let round = 0
+    browser.sendControlMessage = async (text: string) => {
+      const match = /TASK_ID: (d2c_[0-9a-z]+)/.exec(text)
+      if (match?.[1] !== undefined) taskId = match[1]
+      browser.sent.push(text)
+    }
+    browser.waitForReply = async () => {
+      round++
+      return round === 1
+        ? { text: planReply(taskId, 1, 0), complete: true }
+        : { text: doneReply(taskId, 2, 2), complete: true }
+    }
+
+    const first = new ChatGptCoordinator({ browser, store, workspaceRoot: 'C:\\ws\\r', replyTimeoutMs: 500 })
+    const started = await first.startTask('task across restarts')
+    taskId = started.taskId
+    const planned = await first.awaitPlan(taskId)
+    expect(planned.record.state).toBe('planned')
+
+    // "Restart": a brand-new coordinator has an empty in-memory StateMachine.
     const second = new ChatGptCoordinator({ browser, store, workspaceRoot: 'C:\\ws\\r', replyTimeoutMs: 500 })
     const recovered = await second.recover()
-    expect(recovered?.taskId).toBe(started.taskId)
-    expect(recovered?.state).toBe('awaiting-plan')
-    const latest = await second.latestTaskId()
-    expect(latest).toBe(started.taskId)
+    expect(recovered?.taskId).toBe(taskId)
+    expect(recovered?.state).toBe('planned')
+
+    const review = await second.reportExecuted(taskId, {
+      changedFiles: ['src/restart.ts'],
+      head: 'def456',
+      testsRecorded: true,
+    })
+    expect(review.record.state).toBe('done')
+    expect(review.record.lastReviewedHead).toBe('def456')
   })
 })
