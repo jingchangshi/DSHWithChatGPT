@@ -5,6 +5,7 @@
 | `chatgpt_status` missing | plugin not in active profile | check plugin/profile installation, rebuild, restart DSH |
 | `TUNNEL_NOT_CONFIGURED` | managed mode lacks tunnel id or runtime key | set `CONTROL_PLANE_TUNNEL_ID` and `CONTROL_PLANE_API_KEY`, restart/reload |
 | `TUNNEL_START_FAILED` | `tunnel-client` missing or rejected configuration | verify executable on PATH and tunnel/runtime-key validity |
+| `TUNNEL_WORKSPACE_BUSY` | another workspace has an active managed-tunnel C2C task | finish/block that task first; then start the next workspace C2C task |
 | `tunnel.ready: false` | health endpoint not ready | run status again after checking tunnel-client/platform state; plugin will restart stale bindings |
 | `CHATGPT_APP_UNAVAILABLE` | exact configured App did not appear in @mention autocomplete | verify App exists/enabled and `chatgptAppName` matches exactly |
 | `ChatGptLoggedOutError` | ChatGPT browser session expired | log in manually; then call `chatgpt_reconnect` |
