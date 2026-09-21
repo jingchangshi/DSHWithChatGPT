@@ -26,6 +26,9 @@ function fakeBrowser(replies: string[]): BrowserControl & { sent: string[] } {
     async health() {
       return { ok: true, detail: 'fake' }
     },
+    async conversationId() {
+      return 'conv-1'
+    },
     async recover() {},
   }
 }
@@ -170,6 +173,28 @@ describe('coordinator rejects stale replies', () => {
 })
 
 describe('state recovery', () => {
+  it('can continue a waiting plan after coordinator restart', async () => {
+    const store = new CoordinatorState(createMemoryStore())
+    const browser = fakeBrowser([])
+    let taskId = ''
+    const first = new ChatGptCoordinator({ browser, store, workspaceRoot: 'C:\\ws\\resume', replyTimeoutMs: 500 })
+    const originalSend = browser.sendControlMessage.bind(browser)
+    browser.sendControlMessage = async (text: string) => {
+      const match = /TASK_ID: (d2c_[0-9a-z]+)/.exec(text)
+      if (match?.[1] !== undefined) taskId = match[1]
+      await originalSend(text)
+    }
+    const started = await first.startTask('resume me')
+    taskId = started.taskId
+
+    const second = new ChatGptCoordinator({ browser, store, workspaceRoot: 'C:\\ws\\resume', replyTimeoutMs: 500 })
+    await second.recover()
+    browser.waitForReply = async () => ({ text: planReply(taskId, 1, 0), complete: true })
+    const plan = await second.awaitPlan(taskId)
+    expect(plan.record.state).toBe('planned')
+    expect(plan.record.conversationId).toBe('conv-1')
+  })
+
   it('survives a coordinator restart with the same store', async () => {
     const store = new CoordinatorState(createMemoryStore())
     const browser = fakeBrowser([])
