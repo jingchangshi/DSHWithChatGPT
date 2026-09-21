@@ -12,7 +12,6 @@
  */
 
 import { join as joinPath } from 'node:path'
-import { randomFillSync } from 'node:crypto'
 import type { Context } from '@deepseek-ai/cordis'
 import { z } from 'zod'
 import { defineDomain, domainTable } from '@deepseek-ai/dsh-storage-domain'
@@ -402,24 +401,19 @@ export function apply(ctx: Context, config: Config) {
     // The bridge server starts once; workspace binding happens at tool time
     // via the token->subject map maintained by chatgpt_status/setup.
     const bridges = new Map<string, BridgeServer>()
-    const bridgeTokens = new Map<string, { subject: string; workspaceRoot: string }>()
 
-    async function ensureBridge(workspaceRoot: string): Promise<{ port: number; token: string }> {
+    async function ensureBridge(workspaceRoot: string): Promise<{ port: number }> {
       const existing = bridges.get(workspaceRoot)
-      if (existing !== undefined) {
-        const token = [...bridgeTokens.entries()].find(([, v]) => v.workspaceRoot === workspaceRoot)?.[0]
-        if (token !== undefined) return { port: existing.port, token }
-      }
-      const token = 'd2c_' + randomToken(32)
+      if (existing !== undefined) return { port: existing.port }
+
+      // The server is hard-bound to 127.0.0.1. OpenAI Secure MCP Tunnel runs
+      // locally and provides the external authentication/control plane.
       const server = await startBridgeServer(
-        { port: config.bridgePort, tokens: new Map([[token, 'workspace:bound']]) },
-        // Tools are constructed against the workspace at bridge start; the
-        // workspace is fixed for this bridge instance.
+        { port: config.bridgePort, tokens: new Map() },
         buildWorkspaceTools(loadWorkspaceSpec(workspaceRoot, recorder)),
       )
       bridges.set(workspaceRoot, server)
-      bridgeTokens.set(token, { subject: 'workspace:' + workspaceRoot, workspaceRoot })
-      return { port: server.port, token }
+      return { port: server.port }
     }
 
     // ---- coordinator (per workspace; cached)
@@ -549,6 +543,7 @@ export function apply(ctx: Context, config: Config) {
             latestTask: { description: 'Latest persisted task record, or null.' },
             bridgeRunning: { type: 'boolean', description: 'Whether the read-only MCP bridge is listening.' },
             bridgePort: { description: 'Bridge port when running, else null.' },
+            bridgeUrl: { description: 'Loopback MCP URL for OpenAI Secure MCP Tunnel, else null.' },
             bootPromptVersion: { type: 'integer', description: 'Boot prompt version.' },
           },
           required: ['plugin', 'workspaceRoot', 'latestTask', 'bridgeRunning', 'bootPromptVersion'],
@@ -570,6 +565,7 @@ export function apply(ctx: Context, config: Config) {
           latestTask: task ?? null,
           bridgeRunning: bridge !== undefined,
           bridgePort: bridge?.port ?? null,
+          bridgeUrl: bridge !== undefined ? `http://127.0.0.1:${bridge.port}/mcp` : null,
           bootPromptVersion: 1,
         }
       },
@@ -650,11 +646,4 @@ function workspaceOf(exec: { agent?: { session?: { header?: { cwd?: string } } }
 function joinStateDir(): string {
   const base = process.env['LOCALAPPDATA'] ?? process.env['XDG_STATE_HOME'] ?? process.env['HOME'] ?? process.cwd()
   return joinPath(String(base), 'dsh-with-chatgpt')
-}
-
-/** Random hex token. */
-function randomToken(bytes: number): string {
-  const array = new Uint8Array(bytes)
-  randomFillSync(array)
-  return Array.from(array, b => b.toString(16).padStart(2, '0')).join('')
 }
