@@ -62,6 +62,18 @@ export class StateMachine {
     return record
   }
 
+  /**
+   * Rehydrate one task from durable coordinator state after a DSH restart.
+   * Existing in-memory state wins so repeated status/reconnect calls are idempotent.
+   */
+  restoreTask(record: TaskRecord): TaskRecord {
+    const existing = this.tasks.get(record.taskId)
+    if (existing !== undefined) return existing
+    const restored: TaskRecord = { ...record }
+    this.tasks.set(record.taskId, restored)
+    return restored
+  }
+
   /** Read one task record. */
   get(taskId: string): TaskRecord | undefined {
     return this.tasks.get(taskId)
