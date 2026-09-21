@@ -23,7 +23,7 @@ import type { StateStore } from './orchestrator/state.ts'
 import { ExecutionRecorder } from './execution/index.ts'
 import { loadWorkspaceSpec, buildWorkspaceTools } from './bridge/index.ts'
 import { startBridgeServer, type BridgeServer } from './bridge/index.ts'
-import type { BrowserControl } from './browser/index.ts'
+import { BrowserStaleError, ChatGptLoggedOutError, type BrowserControl } from './browser/index.ts'
 import { resolveContained } from './workspace/index.ts'
 import { gitStatus } from './workspace/index.ts'
 
@@ -129,6 +129,8 @@ const memoryCoordinatorState = new CoordinatorState(((): StateStore => {
  * selectors only. A persistent conversation is reused across iterations.
  */
 class BrowserHarnessAdapter implements BrowserControl {
+  private callSequence = 0
+
   constructor(
     private readonly ctx: Context,
     private readonly execAgent: { session: { header: { cwd: string } } } | undefined,
@@ -137,26 +139,39 @@ class BrowserHarnessAdapter implements BrowserControl {
   private async call<T>(tool: string, args: Record<string, unknown>): Promise<T> {
     const tools = this.ctx.get('tools')
     if (tools === undefined) throw new Error('tools service unavailable for browser control')
-    // The upstream MCP path can stall indefinitely (documented race in the
-    // browser-harness provider). Race every call against a hard timer so the
-    // coordinator's polling loops always make progress; the abort signal is
-    // best-effort cancellation for the underlying transport.
+
     const controller = new AbortController()
-    const timer = setTimeout(() => controller.abort(), 90_000)
-    const guard = new Promise<never>((_, reject) => {
-      setTimeout(() => reject(new Error('browser tool ' + tool + ' timed out after 90s')), 90_000)
-    })
+    let rejectGuard: ((reason?: unknown) => void) | undefined
+    const guard = new Promise<never>((_, reject) => { rejectGuard = reject })
+    const timer = setTimeout(() => {
+      controller.abort()
+      rejectGuard?.(new Error('browser tool ' + tool + ' timed out after 90s'))
+    }, 90_000)
+
     try {
-      const result = await Promise.race([
+      const outcome = await Promise.race([
         tools.execute({
+          callId: ('d2c-browser-' + (++this.callSequence)) as never,
           name: 'mcp__browser-harness__' + tool,
           arguments: args,
           agent: this.execAgent as never,
           signal: controller.signal,
-        } as never) as Promise<T>,
+        } as never),
         guard,
-      ])
-      return result
+      ]) as {
+        isError: boolean
+        value?: unknown
+        error?: { message?: string }
+        content?: Array<{ type?: string; text?: string }>
+      }
+
+      if (outcome.isError) {
+        const detail = outcome.error?.message
+          ?? outcome.content?.map(block => block.text ?? '').filter(Boolean).join('\n')
+          ?? 'unknown Browser Harness failure'
+        throw new Error(detail)
+      }
+      return unwrapMcpToolValue<T>(outcome.value)
     } finally {
       clearTimeout(timer)
     }
@@ -168,7 +183,15 @@ class BrowserHarnessAdapter implements BrowserControl {
     for (const delay of budget) {
       if (delay > 0) await new Promise(resolve => setTimeout(resolve, delay))
       try {
-        await this.call<unknown>('browser_navigate', { url: 'https://chatgpt.com/' })
+        const info = await this.call<{ url?: string }>('browser_page_info', {})
+        if (typeof info.url !== 'string' || !info.url.startsWith('https://chatgpt.com/')) {
+          await this.call<unknown>('browser_goto', { url: 'https://chatgpt.com/' })
+        }
+        await this.call<unknown>('browser_wait_for_element', {
+          selector: '#prompt-textarea',
+          timeout: 10,
+          visible: true,
+        })
         return
       } catch (error) {
         lastError = error
@@ -179,18 +202,36 @@ class BrowserHarnessAdapter implements BrowserControl {
 
   async openConversation(conversationId?: string): Promise<string> {
     if (conversationId !== undefined && conversationId !== '') {
-      await this.call<unknown>('browser_navigate', { url: 'https://chatgpt.com/c/' + conversationId })
+      await this.call<unknown>('browser_goto', { url: 'https://chatgpt.com/c/' + conversationId })
+      await this.call<unknown>('browser_wait_for_element', {
+        selector: '#prompt-textarea',
+        timeout: 10,
+        visible: true,
+      })
       return conversationId
     }
-    // New conversation: the URL after the first navigation becomes the id on
-    // the next round (read back via browser_js when needed).
+    await this.call<unknown>('browser_goto', { url: 'https://chatgpt.com/' })
     return ''
   }
 
   async sendControlMessage(text: string): Promise<void> {
-    // Fill the composer (contenteditable) then submit.
-    await this.call<unknown>('browser_fill', { selector: '#prompt-textarea', text })
-    await this.call<unknown>('browser_click', { x: -1, y: -1, submit: true })
+    await this.call<unknown>('browser_wait_for_element', {
+      selector: '#prompt-textarea',
+      timeout: 10,
+      visible: true,
+    })
+    await this.call<unknown>('browser_fill', { selector: '#prompt-textarea', text, clear_first: true })
+    await this.call<unknown>('browser_press', { key: 'Enter' })
+  }
+
+  async currentConversationId(): Promise<string | undefined> {
+    for (let attempt = 0; attempt < 10; attempt++) {
+      const info = await this.call<{ url?: string }>('browser_page_info', {})
+      const match = typeof info.url === 'string' ? /\/c\/([^/?#]+)/.exec(info.url) : null
+      if (match?.[1] !== undefined) return match[1]
+      await new Promise(resolve => setTimeout(resolve, 300))
+    }
+    return undefined
   }
 
   async waitForReply(timeoutMs: number): Promise<{ text: string; complete: boolean }> {
@@ -198,30 +239,54 @@ class BrowserHarnessAdapter implements BrowserControl {
     let last = ''
     let unchanged = 0
     while (Date.now() < deadline) {
-      await new Promise(resolve => setTimeout(resolve, 4000))
+      await new Promise(resolve => setTimeout(resolve, 2500))
       try {
-        const snapshot = await this.call<{ content?: Array<{ text?: string }> }>('browser_snapshot', {})
-        const text = snapshot.content?.map(c => c.text ?? '').join('\n') ?? ''
-        if (text.includes('Stop streaming')) {
+        const snapshot = await this.call<{
+          text?: string
+          streaming?: boolean
+          composer?: boolean
+          loginGate?: boolean
+        }>('browser_js', {
+          expression: `() => {
+            const replies = Array.from(document.querySelectorAll('[data-message-author-role="assistant"]'))
+            const latest = replies.length > 0 ? replies[replies.length - 1] : null
+            const stop = document.querySelector('button[data-testid="stop-button"], button[aria-label*="Stop"]')
+            const composer = document.querySelector('#prompt-textarea')
+            const loginGate = document.querySelector('a[href*="auth/login"], button[data-testid*="login"]')
+            return {
+              text: latest instanceof HTMLElement ? latest.innerText : '',
+              streaming: Boolean(stop),
+              composer: Boolean(composer),
+              loginGate: Boolean(loginGate),
+            }
+          })()`,
+        })
+        if (snapshot.loginGate === true || (snapshot.composer === false && snapshot.text === '')) {
+          throw new ChatGptLoggedOutError()
+        }
+        const text = snapshot.text ?? ''
+        if (snapshot.streaming === true) {
           unchanged = 0
           last = text
           continue
         }
-        // Two consecutive identical non-empty snapshots = the reply settled.
         unchanged = text === last && text.trim() !== '' ? unchanged + 1 : 0
         last = text
         if (unchanged >= 2) return { text, complete: true }
-      } catch {
-        // transient: retry until deadline
+      } catch (error) {
+        if (error instanceof ChatGptLoggedOutError) throw error
       }
     }
-    throw new BrowserStaleShim('no completed reply within timeout')
+    throw new BrowserStaleError('no completed reply within timeout')
   }
 
   async health(): Promise<{ ok: boolean; detail: string }> {
     try {
-      await this.call<unknown>('browser_navigate', { url: 'https://chatgpt.com/' })
-      return { ok: true, detail: 'chatgpt.com reachable' }
+      const info = await this.call<{ url?: string; title?: string }>('browser_page_info', {})
+      return {
+        ok: typeof info.url === 'string' && info.url.startsWith('https://chatgpt.com/'),
+        detail: typeof info.url === 'string' ? info.url : (info.title ?? 'browser reachable'),
+      }
     } catch (error) {
       return { ok: false, detail: String(error) }
     }
@@ -232,11 +297,16 @@ class BrowserHarnessAdapter implements BrowserControl {
   }
 }
 
-/** Local stub so the module does not import the browser module for one error. */
-class BrowserStaleShim extends Error {
-  constructor(detail: string) {
-    super('BROWSER_STALE: ' + detail)
-    this.name = 'BrowserStaleError'
+function unwrapMcpToolValue<T>(value: unknown): T {
+  if (typeof value !== 'object' || value === null) return value as T
+  const record = value as { structuredContent?: unknown; content?: Array<{ type?: string; text?: string }> }
+  if (record.structuredContent !== undefined) return record.structuredContent as T
+  const text = record.content?.find(block => block.type === 'text' && typeof block.text === 'string')?.text
+  if (text === undefined) return value as T
+  try {
+    return JSON.parse(text) as T
+  } catch {
+    return text as T
   }
 }
 
@@ -247,7 +317,7 @@ export const name = 'dsh-with-chatgpt'
 /** Services this plugin hard-requires (storage-domain is optional in v1). */
 export const inject: string[] = []
 
-export function apply(ctx: Context, config: Config): void | Promise<void> {
+export function apply(ctx: Context, config: Config) {
   const activate = async (): Promise<() => void> => {
     // ---- state: durable storage domain when available
     let coordinatorState = memoryCoordinatorState
@@ -292,19 +362,16 @@ export function apply(ctx: Context, config: Config): void | Promise<void> {
     }
 
     // ---- coordinator (per workspace; cached)
-    const coordinators = new Map<string, ChatGptCoordinator>()
     function coordinatorFor(workspaceRoot: string, agent: unknown): ChatGptCoordinator {
-      let c = coordinators.get(workspaceRoot)
-      if (c === undefined) {
-        c = new ChatGptCoordinator({
-          browser: makeBrowser(agent),
-          store: coordinatorState,
-          workspaceRoot,
-          replyTimeoutMs: config.replyTimeoutMs,
-        })
-        coordinators.set(workspaceRoot, c)
-      }
-      return c
+      // Browser Harness tools are session-gated. Build the coordinator around
+      // the CURRENT tool caller so a later DSH session in the same workspace
+      // never reuses the previous session's BrowserUse owner.
+      return new ChatGptCoordinator({
+        browser: makeBrowser(agent),
+        store: coordinatorState,
+        workspaceRoot,
+        replyTimeoutMs: config.replyTimeoutMs,
+      })
     }
 
     // ---- model-facing tools
@@ -504,11 +571,7 @@ export function apply(ctx: Context, config: Config): void | Promise<void> {
     }
   }
 
-  const disposer = activate()
-  if (disposer instanceof Promise) {
-    return disposer.then(() => undefined)
-  }
-  return disposer
+  return activate()
 }
 
 /** Minimal tool execution context shape used by this plugin. */
