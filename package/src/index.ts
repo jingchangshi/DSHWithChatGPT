@@ -304,7 +304,7 @@ export const name = 'dsh-with-chatgpt'
 export const inject: string[] = []
 
 export function apply(ctx: Context, config: Config): void | Promise<void> {
-  const activate = async (): Promise<() => void> => {
+  const activate = async (): Promise<void> => {
     // ---- state: durable storage domain when available
     let coordinatorState = memoryCoordinatorState
     let domain: Domain<typeof d2cDomain> | undefined
