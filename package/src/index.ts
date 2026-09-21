@@ -247,7 +247,7 @@ class BrowserHarnessAdapter implements BrowserControl {
           composer?: boolean
           loginGate?: boolean
         }>('browser_js', {
-          expression: `() => {
+          expression: `(() => {
             const replies = Array.from(document.querySelectorAll('[data-message-author-role="assistant"]'))
             const latest = replies.length > 0 ? replies[replies.length - 1] : null
             const stop = document.querySelector('button[data-testid="stop-button"], button[aria-label*="Stop"]')
@@ -331,6 +331,67 @@ export function apply(ctx: Context, config: Config) {
     // ---- execution recorder lives in DSH storage area (outside workspaces)
     const stateDir = joinStateDir()
     const recorder = new ExecutionRecorder({ stateDir })
+
+    // Observe foreground shell tools so ChatGPT can verify actual command
+    // outcomes instead of trusting the executor's prose. Background jobs are
+    // intentionally excluded: their initial tool result only proves a job was
+    // started, not that the command completed.
+    const executionObserverDispose = ctx.on('tools/execute', async (exec: any, next: () => Promise<any>) => {
+      if ((exec.name !== 'bash' && exec.name !== 'pwsh') || exec.parent !== undefined) return next()
+      const args = (typeof exec.arguments === 'object' && exec.arguments !== null)
+        ? exec.arguments as Record<string, unknown>
+        : {}
+      const command = typeof args.command === 'string' ? args.command : ''
+      if (command === '' || args.run_in_background === true) return next()
+
+      const startedAt = Date.now()
+      const result = await next()
+      try {
+        const cwd = exec.agent?.session?.header?.cwd
+        if (typeof cwd !== 'string' || cwd === '') return result
+        const binding = await coordinatorState.loadWorkspace(cwd)
+        const task = binding?.lastTaskId !== null && binding?.lastTaskId !== undefined
+          ? await coordinatorState.loadTask(binding.lastTaskId)
+          : undefined
+        if (task === undefined || (task.waitingFor !== 'dsh-execution' && task.state !== 'executing')) return result
+
+        const value = result.isError === false && typeof result.value === 'object' && result.value !== null
+          ? result.value as Record<string, any>
+          : undefined
+        const foreground = value?.kind === 'foreground' ? value : undefined
+        const stdout = typeof foreground?.stdout?.text === 'string'
+          ? foreground.stdout.text
+          : result.content?.map((block: any) => block?.type === 'text' ? String(block.text ?? '') : '').join('\n') ?? ''
+        const stderr = typeof foreground?.stderr?.text === 'string' ? foreground.stderr.text : ''
+        const exitCode = typeof foreground?.exitCode === 'number' || foreground?.exitCode === null
+          ? foreground.exitCode as number | null
+          : null
+        const status = foreground?.timedOut === true
+          ? 'timeout'
+          : foreground?.aborted === true
+            ? 'cancelled'
+            : result.isError === true || (typeof exitCode === 'number' && exitCode !== 0)
+              ? 'failure'
+              : 'success'
+
+        recorder.record({
+          taskId: task.taskId,
+          iteration: task.iteration,
+          command,
+          cwd,
+          startedAt,
+          endedAt: Date.now(),
+          status,
+          exitCode,
+          stdout,
+          stderr,
+        })
+      } catch {
+        // Evidence collection must never change the executor-visible tool
+        // result. Private-key rejection and recorder I/O failures stay local.
+      }
+      return result
+    })
 
     // ---- browser control
     // The per-call agent comes from tool execution context; the adapter is
@@ -565,6 +626,7 @@ export function apply(ctx: Context, config: Config) {
 
     // ---- cleanup
     return () => {
+      executionObserverDispose()
       for (const bridge of bridges.values()) void bridge.close()
       bridges.clear()
       domain?.close().catch(() => undefined)
