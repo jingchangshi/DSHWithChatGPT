@@ -173,8 +173,8 @@ export class ChatGptCoordinator {
   }): Promise<RoundResult> {
     const persisted = await this.requireTask(taskId)
     this.restoreMachine(persisted)
-    if (persisted.iteration >= this.maxIterations) {
-      throw new ProtocolError('iteration-limit', `task ${taskId} reached maxIterations=${this.maxIterations}`)
+    if (persisted.iteration > this.maxIterations) {
+      throw new ProtocolError('iteration-limit', `task ${taskId} exceeded maxIterations=${this.maxIterations}`)
     }
     await this.options.browser.ensureReady()
     await this.options.browser.openConversation(persisted.conversationId ?? undefined)
