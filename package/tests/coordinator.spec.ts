@@ -33,17 +33,24 @@ function fakeBrowser(replies: string[]): BrowserControl & { sent: string[] } {
   }
 }
 
-function planReply(taskId: string, iteration: number, inReplyTo: number): string {
+function planReply(taskId: string, iteration: number, inReplyTo: number, workspaceId?: string): string {
   return 'I inspected the workspace via MCP. My plan:\n' + formatEnvelope({
     state: 'PLAN', sender: 'chatgpt', taskId, iteration, inReplyTo,
+    ...(workspaceId !== undefined ? { headers: { WORKSPACE_ID: workspaceId } } : {}),
     sections: { ACTIONS: '1. Add function\n2. Add tests' },
   }) + '\nReady for execution.'
 }
 
-function doneReply(taskId: string, iteration: number, inReplyTo: number, head = 'abc123'): string {
+function doneReply(
+  taskId: string,
+  iteration: number,
+  inReplyTo: number,
+  head = 'abc123',
+  workspaceId?: string,
+): string {
   return 'I verified the diff and test records myself.\n' + formatEnvelope({
     state: 'DONE', sender: 'chatgpt', taskId, iteration, inReplyTo,
-    headers: { HEAD: head },
+    headers: { HEAD: head, ...(workspaceId !== undefined ? { WORKSPACE_ID: workspaceId } : {}) },
     sections: { SUMMARY: 'Verified via git_diff + test_status.' },
   })
 }
@@ -144,6 +151,91 @@ describe('coordinator review integrity', () => {
       testsRecorded: true,
     })).rejects.toThrow(/review-head-mismatch/)
     expect((await coordinator.status(started.taskId))?.lastReviewedHead).toBeNull()
+  })
+})
+
+describe('coordinator workspace binding', () => {
+  it('requires ChatGPT to echo the exact workspace id', async () => {
+    const browser = fakeBrowser([])
+    const workspaceId = 'ws_0123456789abcdef'
+    const coordinator = new ChatGptCoordinator({
+      browser,
+      store: new CoordinatorState(createMemoryStore()),
+      workspaceRoot: 'C:\\ws\\bound',
+      workspaceId,
+      replyTimeoutMs: 500,
+    })
+    let taskId = ''
+    browser.sendControlMessage = async (text: string) => {
+      const match = /TASK_ID: (d2c_[0-9a-z]+)/.exec(text)
+      if (match?.[1] !== undefined) taskId = match[1]
+      browser.sent.push(text)
+    }
+    browser.waitForReply = async () => ({
+      text: planReply(taskId, 1, 0, 'ws_wrongworkspace0'),
+      complete: true,
+    })
+
+    const started = await coordinator.startTask('bound task')
+    expect(browser.sent[0]).toContain('WORKSPACE_ID: ' + workspaceId)
+    await expect(coordinator.awaitPlan(started.taskId)).rejects.toThrow(/workspace-mismatch/)
+  })
+
+  it('accepts a matching workspace id', async () => {
+    const browser = fakeBrowser([])
+    const workspaceId = 'ws_0123456789abcdef'
+    const coordinator = new ChatGptCoordinator({
+      browser,
+      store: new CoordinatorState(createMemoryStore()),
+      workspaceRoot: 'C:\\ws\\bound-ok',
+      workspaceId,
+      replyTimeoutMs: 500,
+    })
+    let taskId = ''
+    browser.sendControlMessage = async (text: string) => {
+      const match = /TASK_ID: (d2c_[0-9a-z]+)/.exec(text)
+      if (match?.[1] !== undefined) taskId = match[1]
+      browser.sent.push(text)
+    }
+    browser.waitForReply = async () => ({
+      text: planReply(taskId, 1, 0, workspaceId),
+      complete: true,
+    })
+    const started = await coordinator.startTask('bound task')
+    expect((await coordinator.awaitPlan(started.taskId)).record.state).toBe('planned')
+  })
+})
+
+describe('coordinator autonomous safety bound', () => {
+  it('stops review loops at maxIterations', async () => {
+    const browser = fakeBrowser([])
+    const coordinator = new ChatGptCoordinator({
+      browser,
+      store: new CoordinatorState(createMemoryStore()),
+      workspaceRoot: 'C:\\ws\\bounded-loop',
+      maxIterations: 1,
+      replyTimeoutMs: 500,
+    })
+    let taskId = ''
+    browser.sendControlMessage = async (text: string) => {
+      const match = /TASK_ID: (d2c_[0-9a-z]+)/.exec(text)
+      if (match?.[1] !== undefined) taskId = match[1]
+      browser.sent.push(text)
+    }
+    let reviewCount = 0
+    browser.waitForReply = async () => {
+      reviewCount++
+      if (reviewCount === 1) return { text: planReply(taskId, 1, 0), complete: true }
+      return { text: planReply(taskId, 1, 1), complete: true }
+    }
+
+    const started = await coordinator.startTask('bounded loop')
+    await coordinator.awaitPlan(started.taskId)
+    await expect(coordinator.reportExecuted(started.taskId, {
+      changedFiles: ['src/a.ts'],
+      head: null,
+      testsRecorded: true,
+    })).rejects.toThrow(/iteration-limit/)
   })
 })
 
