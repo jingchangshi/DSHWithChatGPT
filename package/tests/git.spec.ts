@@ -41,6 +41,29 @@ describe('gitStatus', () => {
     expect(status.head).toMatch(/^[0-9a-f]{40}$/)
   })
 
+  it('reports whether local HEAD is fully pushed to its upstream', async () => {
+    const remote = fs.mkdtempSync(path.join(os.tmpdir(), 'd2c-git-remote-'))
+    try {
+      execFileSync('git', ['init', '--bare', remote], { stdio: 'pipe' })
+      git(['remote', 'add', 'origin', remote])
+      git(['push', '-u', 'origin', 'main'])
+      const synced = await gitStatus(root)
+      expect(synced.upstream).toBe('origin/main')
+      expect(synced.upstreamHead).toBe(synced.head)
+      expect(synced.ahead).toBe(0)
+      expect(synced.behind).toBe(0)
+
+      fs.writeFileSync(path.join(root, 'local.txt'), 'local\n')
+      git(['add', 'local.txt'])
+      git(['commit', '-m', 'local only'])
+      const ahead = await gitStatus(root)
+      expect(ahead.ahead).toBe(1)
+      expect(ahead.upstreamHead).not.toBe(ahead.head)
+    } finally {
+      fs.rmSync(remote, { recursive: true, force: true })
+    }
+  })
+
   it('reports staged, unstaged, and untracked separately', async () => {
     fs.writeFileSync(path.join(root, 'staged.txt'), 's')
     git(['add', 'staged.txt'])
