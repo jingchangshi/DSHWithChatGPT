@@ -122,15 +122,21 @@ export class ChatGptCoordinator {
 
     // ChatGPT assigns /c/<id> only after the first message is submitted.
     // Capture it after INIT so restart/reconnect can return to the same thread.
-    const assignedConversationId = await this.options.browser.currentConversationId()
-    if (assignedConversationId !== undefined && assignedConversationId !== conversationId) {
-      persisted.conversationId = assignedConversationId
-      await this.state.saveTask(persisted)
-      await this.state.bindWorkspace(this.options.workspaceRoot, {
-        workspaceRoot: this.options.workspaceRoot,
-        conversationId: assignedConversationId,
-        lastTaskId: taskId,
-      })
+    try {
+      const assignedConversationId = await this.options.browser.currentConversationId()
+      if (assignedConversationId !== undefined && assignedConversationId !== conversationId) {
+        persisted.conversationId = assignedConversationId
+        await this.state.saveTask(persisted)
+        await this.state.bindWorkspace(this.options.workspaceRoot, {
+          workspaceRoot: this.options.workspaceRoot,
+          conversationId: assignedConversationId,
+          lastTaskId: taskId,
+        })
+      }
+    } catch {
+      // INIT is already sent. Conversation-id capture is recovery metadata,
+      // so a transient page-info failure must not turn a successful send into
+      // a model-visible retry that could duplicate the task.
     }
     return { taskId, sentEnvelope: initEnvelope }
   }
