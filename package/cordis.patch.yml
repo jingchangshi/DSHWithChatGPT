@@ -5,6 +5,6 @@
     - id: dsh-with-chatgpt
       name: dsh-with-chatgpt
       config:
-        bridgePort: 0
+        bridgePort: 43127
         replyTimeoutMs: 240000
         browserMode: browser-harness-mcp
