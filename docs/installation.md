@@ -1,58 +1,83 @@
 # Installation
 
-## Option A — DSH plugin manager (preferred)
+## 1. Build and register the plugin
 
 ```powershell
-# Build first
 cd <repo>\package
 pnpm install
-pnpm build
+pnpm typecheck
 pnpm test
+pnpm build
 
-# Register into a profile: this runs pnpm and reconciles the layer stack;
-# the package's dsh.bundle.patch row (cordis.patch.yml) joins the profile.
 dsh plugin --profile <your-profile> add D:\workspace\DSHWithChatGPT\package
-
-# Restart DSH with that profile. The plugin now loads at startup.
 ```
 
-## Option B — manual
+The DSH profile must already include a working BrowserUse / Browser Harness MCP provider. This plugin consumes the session-gated `mcp__browser-harness__*` tools; it does not install the browser provider itself.
 
-1. Build as above (`lib/` must exist).
-2. Add the row to your profile's `cordis.patch.yml`:
+Manual profile row:
 
 ```yaml
 - insert:
     - id: dsh-with-chatgpt
       name: dsh-with-chatgpt
       config:
-        bridgePort: 0
+        bridgePort: 43127
         replyTimeoutMs: 240000
         browserMode: browser-harness-mcp
 ```
 
-3. Make sure the package directory is resolvable by Node (same drive, or set the row's `name:` to the absolute path of the package folder).
-4. Restart DSH.
+Restart DSH after installing/reconfiguring the profile.
 
-## Verify
+## 2. Bootstrap the local bridge
 
-In any DSH session with the profile active, inside a project workspace:
+In the target workspace, call `chatgpt_status`. Status is deliberately also the bootstrap entry point: it starts the read-only MCP server before the first PLAN round.
 
-- Ask the agent to call `chatgpt_status`. Expected: `plugin: dsh-with-chatgpt`, `latestTask: null` (fresh), `bridgeRunning: false` (starts lazily on first collaboration round).
+Expected fields include:
 
-## First-run checklist
+```json
+{
+  "plugin": "dsh-with-chatgpt",
+  "bridgeRunning": true,
+  "bridgePort": 43127,
+  "bridgeUrl": "http://127.0.0.1:43127/mcp"
+}
+```
 
-1. `chatgpt_status` — plugin loaded (proves profile wiring).
-2. Log into chatgpt.com in the browser DSH BrowserUse drives.
-3. First `chatgpt_plan` round opens the persistent conversation.
-4. Add the MCP connector in ChatGPT Web (Settings → Connectors) pointing at the bridge URL printed by `chatgpt_status` during a round, pasting the pairing token.
+Use another fixed `bridgePort` if 43127 is occupied. A fixed port is recommended because the tunnel profile must survive DSH restarts.
+
+## 3. Connect the private MCP server with OpenAI Secure MCP Tunnel
+
+ChatGPT does not connect directly to a local MCP server. Create a tunnel in OpenAI Platform, install the official `tunnel-client`, then point it at the loopback bridge:
+
+```powershell
+$env:CONTROL_PLANE_API_KEY="<OpenAI Platform runtime key>"
+
+tunnel-client init `
+  --profile dsh-with-chatgpt `
+  --tunnel-id <tunnel_id> `
+  --mcp-server-url http://127.0.0.1:43127/mcp
+
+tunnel-client doctor --profile dsh-with-chatgpt --explain
+tunnel-client run --profile dsh-with-chatgpt
+```
+
+The bridge remains bound to `127.0.0.1`; no inbound firewall port is required.
+
+## 4. Create the ChatGPT developer-mode app
+
+In ChatGPT developer mode, create an app and choose **Tunnel** under Connection. Select the tunnel from the previous step. Verify discovery of the read-only tools such as `workspace_info`, `git_diff`, and `test_status`.
+
+Keep `tunnel-client run --profile dsh-with-chatgpt` healthy while using the collaboration loop.
+
+## 5. Verify the browser control plane
+
+Use the same DSH profile to control a Chrome/Edge session already logged into chatgpt.com. Then start a small collaboration task. The first INIT creates a ChatGPT `/c/<id>` thread; the plugin captures and persists that id for restart/reconnect.
 
 ## Uninstall
 
 ```powershell
 dsh plugin --profile <your-profile> remove dsh-with-chatgpt
-# optional cleanup:
 Remove-Item "$env:LOCALAPPDATA\dsh-with-chatgpt" -Recurse -Force
 ```
 
-The `d2c_state` storage domain lives under the DSH storage area and disappears with the profile's storages if you remove the profile.
+The `d2c_state` storage domain is owned by the DSH profile. Execution evidence is kept under the plugin state directory.
