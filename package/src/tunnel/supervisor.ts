@@ -182,6 +182,11 @@ export class TunnelSupervisor {
     this.running = running
 
     let diagnostic = ''
+    let spawnError: Error | undefined
+    child.once('error', (error) => {
+      spawnError = error
+      running.detail = sanitizeDiagnostic(error.message)
+    })
     const append = (chunk: unknown): void => {
       diagnostic = (diagnostic + String(chunk)).slice(-8192)
       running.detail = sanitizeDiagnostic(diagnostic)
@@ -191,6 +196,10 @@ export class TunnelSupervisor {
 
     const deadline = Date.now() + this.options.startupTimeoutMs
     while (Date.now() < deadline) {
+      if (spawnError !== undefined) {
+        this.running = undefined
+        throw new Error('TUNNEL_START_FAILED: ' + sanitizeDiagnostic(spawnError.message))
+      }
       if (child.exitCode !== null || child.signalCode !== null) {
         const detail = sanitizeDiagnostic(diagnostic) || `tunnel-client exited with code ${String(child.exitCode)}`
         this.running = undefined
