@@ -64,15 +64,23 @@ dsh plugin --profile <your-profile> add D:\workspace\DSHWithChatGPT\package
 
 Manual install: copy the package anywhere permanent and append its `cordis.patch.yml` row (`id: dsh-with-chatgpt, name: dsh-with-chatgpt`) to your profile's `cordis.patch.yml`.
 
-## First-time setup
+## One-time setup
 
-1. **Browser**: log into chatgpt.com in a Chrome/Edge that the DSH Browser Harness MCP provider can attach to.
-2. **Start the read-only bridge**: ask DSH to run `chatgpt_status`. Status now starts the workspace bridge lazily and returns `bridgePort` plus `connectorConfigPath`. The referenced local JSON file contains the loopback URL and bearer token; the token is intentionally not returned to the model.
-3. **Expose the local bridge safely**: ChatGPT cannot connect directly to a localhost MCP server. Use OpenAI Secure MCP Tunnel (preferred) or another trusted authenticated remote MCP endpoint that forwards to the loopback URL in the connector config.
-4. **Create/enable the ChatGPT custom app**: in ChatGPT Web developer/app settings, configure the remote MCP endpoint and authentication, scan the ten read-only tools, and keep the app read-only.
-5. **Browser control**: keep the logged-in ChatGPT tab available to Browser Harness. The plugin reuses one conversation per workspace and persists its `/c/<conversation-id>` after the first reply.
+The runtime is unattended **after** account/app/tunnel setup. Login, 2FA/CAPTCHA, creating the ChatGPT custom app, and creating the Secure MCP Tunnel remain explicit user setup steps.
 
-> Current platform caveat: ChatGPT custom-app selection is message-scoped. If your ChatGPT workspace requires explicitly selecting or @mentioning the custom app for each message, that UI selection is still a manual prerequisite for MCP-backed PLAN/REVIEW rounds; this PR does not pretend that a loopback bridge alone makes the app ambient.
+1. **Browser**: log into chatgpt.com in a dedicated Chrome/Edge profile that the DSH Browser Harness MCP provider can attach to.
+2. **ChatGPT app**: create/enable one read-only custom MCP app named exactly `DSH with ChatGPT` (or set `chatgptAppName` to your chosen exact name). The app should expose only this plugin's ten read-only tools.
+3. **Secure MCP Tunnel**: create a tunnel in OpenAI Platform, then provide its id and runtime key to the DSH process:
+
+   ```powershell
+   $env:CONTROL_PLANE_TUNNEL_ID="<tunnel_id>"
+   $env:CONTROL_PLANE_API_KEY="<runtime_api_key>"
+   ```
+
+   Keep `tunnel-client` on `PATH`. In the default `managed` mode the plugin starts/restarts it automatically and injects the loopback Bearer header only on the final tunnel-client → localhost MCP hop.
+4. **Verify once**: ask DSH to call `chatgpt_status`. Expect `tunnel.ready: true`, a stable `workspaceId`, the configured `chatgptAppName`, and `gitPolicy: commit-push`.
+
+No per-round ChatGPT UI action is required after setup. The Browser Harness adapter activates the exact app with `@mention` before every INIT/REVIEW message and fails closed if the app cannot be selected.
 
 ## Usage
 
@@ -81,7 +89,7 @@ In a DSH session, inside the project you want to work on:
 > 使用 ChatGPT 帮我规划并实现 <task>
 > Use ChatGPT to implement <task>
 
-The agent will start a collaboration round (`chatgpt_plan`), execute the plan with its normal tools, then request independent review (`chatgpt_review`). Regular development requests never enter the loop — the system-prompt section only activates on collaboration intent.
+With the bundled profile defaults, the agent runs the whole collaboration loop without pausing between rounds: `chatgpt_plan` → implementation/test → task-branch commit + push → `chatgpt_review` of the exact HEAD → fix PLAN if needed → repeat until DONE. Protected branches (`main`, `master`) are refused by the autonomous commit-push review gate. Regular development requests never enter the loop — the system-prompt section only activates on collaboration intent.
 
 Useful tools:
 
@@ -116,9 +124,9 @@ Run `chatgpt_status` first. It proves the plugin is loaded, starts the local bri
 
 ## Status & limitations
 
-Working: protocol + restart-rehydratable state machine, workspace security boundary, execution recorder wired to real DSH bash/pwsh outcomes, loopback read-only MCP bridge, durable coordinator, model tools, prompt section, and a Browser Harness adapter using the upstream MCP tool contract. CI verifies typecheck + unit tests + build.
+Working: protocol + restart recovery, workspace identity binding, execution evidence, read-only MCP bridge, managed Secure MCP Tunnel lifecycle, automatic per-message ChatGPT app activation, stale-reply fencing, exact-HEAD review integrity, current-session Browser Harness binding, and bounded autonomous PLAN→implement→commit/push→review loops.
 
-Known limitations: ChatGPT cannot consume the loopback bridge directly, so a Secure MCP Tunnel/remote MCP endpoint must still be configured outside this package; custom-app selection may be message-scoped in ChatGPT Web and is not yet automated by the Browser Harness adapter; the ChatGPT DOM adapter remains heuristic and may need updates as the Web UI changes; there is intentionally no standalone `d2c` CLI yet.
+Known limitations: one-time ChatGPT login/2FA/CAPTCHA, custom-app creation, and tunnel creation are not automated; the ChatGPT DOM adapter intentionally relies on semantic UI structure and may need maintenance when the Web UI changes; the plugin does not merge PRs or force-push, and it never gives ChatGPT write/shell capabilities.
 
 ## License
 
