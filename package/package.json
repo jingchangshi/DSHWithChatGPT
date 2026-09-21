@@ -21,9 +21,6 @@
     },
     "./package.json": "./package.json"
   },
-  "bin": {
-    "d2c": "./lib/cli.js"
-  },
   "dsh": {
     "bundle": {
       "patch": "./cordis.patch.yml"
@@ -31,7 +28,6 @@
   },
   "files": [
     "lib/index.js",
-    "lib/cli.js",
     "lib/types/**/*.d.ts",
     "cordis.patch.yml"
   ],
