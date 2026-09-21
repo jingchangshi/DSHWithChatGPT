@@ -80,6 +80,7 @@ Browser Harness 工具调用始终绑定**当前 DSH agent/session**；coordinat
 - Bearer 值写入本地 0600 文件
 - 通过 `MCP_EXTRA_HEADERS` 与 `MCP_DISCOVERY_EXTRA_HEADERS` 的 `file:` value reference，仅在 tunnel-client → localhost MCP 最后一跳注入 Authorization
 - workspace/local URL 变化时重建 managed tunnel binding
+- 同一插件进程只允许一个 active managed-tunnel C2C workspace；另一个 workspace 不能静默抢占 tunnel
 - plugin unload 时关闭 child process
 
 模型可见状态不包含 runtime API key 或 Bearer。
