@@ -119,6 +119,19 @@ export class ChatGptCoordinator {
     }
     await this.options.browser.sendControlMessage(initEnvelope)
     this.sendGuard.record(initEnvelope)
+
+    // ChatGPT assigns /c/<id> only after the first message is submitted.
+    // Capture it after INIT so restart/reconnect can return to the same thread.
+    const assignedConversationId = await this.options.browser.currentConversationId()
+    if (assignedConversationId !== undefined && assignedConversationId !== conversationId) {
+      persisted.conversationId = assignedConversationId
+      await this.state.saveTask(persisted)
+      await this.state.bindWorkspace(this.options.workspaceRoot, {
+        workspaceRoot: this.options.workspaceRoot,
+        conversationId: assignedConversationId,
+        lastTaskId: taskId,
+      })
+    }
     return { taskId, sentEnvelope: initEnvelope }
   }
 
@@ -224,6 +237,7 @@ export class ChatGptCoordinator {
     if (taskId === undefined) return undefined
     const task = await this.state.loadTask(taskId)
     if (task === undefined) return undefined
+    this.restoreMachineTask(task)
     await this.options.browser.ensureReady()
     await this.options.browser.openConversation(task.conversationId ?? undefined)
     return task
@@ -232,6 +246,18 @@ export class ChatGptCoordinator {
   private async requireTask(taskId: string): Promise<PersistedTask> {
     const task = await this.state.loadTask(taskId)
     if (task === undefined) throw new ProtocolError('unknown-task', `task ${taskId} not found in durable state`)
+    this.restoreMachineTask(task)
     return task
+  }
+
+  private restoreMachineTask(task: PersistedTask): void {
+    this.machine.restoreTask({
+      taskId: task.taskId,
+      state: task.state,
+      iteration: task.iteration,
+      waitingFor: task.waitingFor,
+      goal: task.goal,
+      updatedAt: task.updatedAt,
+    })
   }
 }
