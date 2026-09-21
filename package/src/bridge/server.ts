@@ -122,7 +122,12 @@ export function createRpcHandler(tools: readonly McpToolDefinition[]): (req: Rpc
 export interface BridgeServerOptions {
   /** Fixed port (loopback). 0 = ephemeral, for tests. */
   port: number
-  /** Bearer tokens -> subject (workspace binding). Checked per request. */
+  /**
+   * Optional Bearer tokens -> subject. When empty, loopback transport is
+   * trusted; the listener is still hard-bound to 127.0.0.1. This mode is for
+   * OpenAI Secure MCP Tunnel, whose tunnel-client runs in the same trust
+   * boundary and supplies the external authentication/control plane.
+   */
   tokens: Map<string, string>
   /** Extra safety: require this exact header on every request. */
   serviceHeader?: string
@@ -180,21 +185,27 @@ async function handleRequest(
     res.end(JSON.stringify({ error: 'method not allowed; POST only' }))
     return
   }
-  // Auth: exact bearer token, constant-ish compare (length + XOR accumulate).
-  const auth = req.headers['authorization'] ?? ''
-  const token = auth.startsWith('Bearer ') ? auth.slice(7) : ''
-  let subject: string | undefined
-  for (const [candidate, candidateSubject] of options.tokens) {
-    if (safeEqual(token, candidate)) {
-      subject = candidateSubject
-      break
+  // External authentication normally terminates at OpenAI Secure MCP Tunnel.
+  // The bridge itself is loopback-only. Bearer mode remains available for
+  // direct local/test clients by supplying a non-empty token map.
+  let subject = 'loopback'
+  if (options.tokens.size > 0) {
+    const auth = req.headers['authorization'] ?? ''
+    const token = auth.startsWith('Bearer ') ? auth.slice(7) : ''
+    let authenticatedSubject: string | undefined
+    for (const [candidate, candidateSubject] of options.tokens) {
+      if (safeEqual(token, candidate)) {
+        authenticatedSubject = candidateSubject
+        break
+      }
     }
-  }
-  if (subject === undefined) {
-    options.log?.(`401 from ${req.socket.remoteAddress}`)
-    res.writeHead(401, { 'Content-Type': 'application/json', 'WWW-Authenticate': 'Bearer realm="d2c"' })
-    res.end(JSON.stringify({ error: 'unauthorized' }))
-    return
+    if (authenticatedSubject === undefined) {
+      options.log?.(`401 from ${req.socket.remoteAddress}`)
+      res.writeHead(401, { 'Content-Type': 'application/json', 'WWW-Authenticate': 'Bearer realm="d2c"' })
+      res.end(JSON.stringify({ error: 'unauthorized' }))
+      return
+    }
+    subject = authenticatedSubject
   }
   if (options.serviceHeader !== undefined && req.headers['x-d2c-service'] !== options.serviceHeader) {
     res.writeHead(403, { 'Content-Type': 'application/json' })
