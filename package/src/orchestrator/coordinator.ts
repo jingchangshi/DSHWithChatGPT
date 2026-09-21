@@ -139,8 +139,10 @@ export class ChatGptCoordinator {
     }
     const envelope = parseEnvelope(envelopeText, { sender: 'chatgpt' })
     const folded = this.machine.applyReply(envelope)
+    const conversationId = await this.options.browser.conversationId().catch(() => undefined)
     const merged: typeof persisted = {
       ...persisted,
+      conversationId: conversationId ?? persisted.conversationId,
       state: folded.state as TaskState,
       iteration: folded.iteration,
       waitingFor: folded.waitingFor,
@@ -197,8 +199,10 @@ export class ChatGptCoordinator {
     }
     const envelope = parseEnvelope(envelopeReply, { sender: 'chatgpt' })
     const folded = this.machine.applyReply(envelope)
+    const conversationId = await this.options.browser.conversationId().catch(() => undefined)
     const merged: typeof persisted = {
       ...persisted,
+      conversationId: conversationId ?? persisted.conversationId,
       state: folded.state as TaskState,
       iteration: folded.iteration,
       waitingFor: folded.waitingFor,
