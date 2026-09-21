@@ -226,11 +226,17 @@ describe('coordinator autonomous safety bound', () => {
     browser.waitForReply = async () => {
       reviewCount++
       if (reviewCount === 1) return { text: planReply(taskId, 1, 0), complete: true }
-      return { text: planReply(taskId, 1, 1), complete: true }
+      return { text: planReply(taskId, 2, 2), complete: true }
     }
 
     const started = await coordinator.startTask('bounded loop')
     await coordinator.awaitPlan(started.taskId)
+    const firstReview = await coordinator.reportExecuted(started.taskId, {
+      changedFiles: ['src/a.ts'],
+      head: null,
+      testsRecorded: true,
+    })
+    expect(firstReview.record.state).toBe('planned')
     await expect(coordinator.reportExecuted(started.taskId, {
       changedFiles: ['src/a.ts'],
       head: null,
