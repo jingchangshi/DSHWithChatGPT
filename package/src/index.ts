@@ -174,6 +174,7 @@ export function apply(ctx: Context, config: Config): void | Promise<void> {
     // ---- execution recorder lives in DSH storage area (outside workspaces)
     const stateDir = joinStateDir()
     const recorder = new ExecutionRecorder({ stateDir })
+    const activeTasks = new Map<string, { taskId: string; iteration: number }>()
     const tunnel = new TunnelSupervisor({
       mode: config.tunnelMode,
       clientPath: config.tunnelClientPath,
@@ -263,6 +264,15 @@ export function apply(ctx: Context, config: Config): void | Promise<void> {
     }
 
     async function ensureRuntime(workspaceRoot: string) {
+      if (config.tunnelMode === 'managed') {
+        const otherActive = [...activeTasks.entries()].find(([root]) => root !== workspaceRoot)
+        if (otherActive !== undefined) {
+          throw new Error(
+            'TUNNEL_WORKSPACE_BUSY: managed tunnel is owned by another active C2C workspace/task '
+            + otherActive[1].taskId,
+          )
+        }
+      }
       const bridge = await ensureBridge(workspaceRoot)
       const tunnelStatus = await tunnel.ensure({
         workspaceId: bridge.workspaceId,
@@ -298,7 +308,6 @@ export function apply(ctx: Context, config: Config): void | Promise<void> {
       content?: Array<{ type?: string; text?: string }>
     }
     const startedAt = new WeakMap<object, number>()
-    const activeTasks = new Map<string, { taskId: string; iteration: number }>()
     const toolEvents = ctx as unknown as {
       on(event: 'tools/execute', handler: (exec: ObservedExecution, next: () => Promise<ObservedResult>) => Promise<ObservedResult>): void
       on(event: 'tools/result', handler: (exec: ObservedExecution, result: ObservedResult) => void): void
