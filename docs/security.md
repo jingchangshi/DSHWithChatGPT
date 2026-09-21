@@ -25,13 +25,13 @@ Deny list with gitignore semantics (`SENSITIVE_PATTERNS`): `.env*` (but **not** 
 - Output tails capped at 16KiB / 200 lines with a truncation flag; the recorder lives in `%LOCALAPPDATA%\dsh-with-chatgpt` (outside every workspace).
 - Environment values are never captured — only the sanitized command line.
 
-## Bridge auth
+## Bridge transport and auth
 
-- Binds `127.0.0.1` only. A public URL (e.g. a tunnel) is never authorization: every request needs a Bearer token from the token→workspace map; comparison is length-checked and constant-time-ish (no early content exit).
-- Non-POST rejected; request bodies capped at 1MiB; `Cache-Control: no-store`, `X-Content-Type-Options: nosniff`.
-- Tokens are random per bridge instance (32 bytes hex). Rotation/revoke = restart of the bridge (future: persisted pairing store with TTL).
-- The ChatGPT connector stores the token in ChatGPT's connector settings — no long-lived credential is ever written to the workspace or the repo.
-
+- The MCP server binds **only** to `127.0.0.1`; it is never a public listener.
+- Default plugin mode uses an empty local token map because the supported ChatGPT path is **OpenAI Secure MCP Tunnel**: `tunnel-client` runs inside the same local trust boundary, reaches the loopback server, and authenticates the external tunnel/control plane to OpenAI.
+- Direct local/test clients can still start the bridge with a non-empty Bearer token map. In that mode every request requires an exact token match.
+- Non-POST requests are rejected; bodies are capped at 1 MiB; responses set `Cache-Control: no-store` and `X-Content-Type-Options: nosniff`.
+- The absence of a local Bearer in tunnel mode does **not** make the bridge remotely reachable: binding remains hard-coded to `127.0.0.1`. A user must not proxy/expose this port directly to the public internet.
 ## Git review modes
 
 - Workspace mode (default): working-tree diff vs HEAD, byte-capped.
@@ -40,5 +40,5 @@ Deny list with gitignore semantics (`SENSITIVE_PATTERNS`): `.env*` (but **not** 
 
 ## Known gaps
 
-- Loopback-only auth is bearer-token; full OAuth 2.1 + pairing (upstream C2C style) is scaffolded but not yet wired for the remote/tunnel path. Do not expose the bridge publicly until that lands.
+- Secure MCP Tunnel is the supported ChatGPT transport. Public/plugin distribution would need a stable public HTTPS endpoint and its own production authentication model; this repository does not provide that.
 - `.d2cignore` supports the documented pattern vocabulary (literals, `dir/`, `*`, `**`, `?`, negation last-wins); exotic gitignore spellings degrade to literal matching (documented behavior).
