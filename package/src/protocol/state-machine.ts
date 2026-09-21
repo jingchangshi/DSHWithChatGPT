@@ -62,6 +62,29 @@ export class StateMachine {
     return record
   }
 
+  /**
+   * Rehydrate one task from durable coordinator state after a DSH restart.
+   * The durable record is authoritative; restoring an already-loaded task is
+   * idempotent only when every machine field still matches.
+   */
+  restore(record: TaskRecord): TaskRecord {
+    const existing = this.tasks.get(record.taskId)
+    if (existing !== undefined) {
+      if (
+        existing.state !== record.state
+        || existing.iteration !== record.iteration
+        || existing.waitingFor !== record.waitingFor
+        || existing.goal !== record.goal
+      ) {
+        throw new ProtocolError('restore-conflict', `task ${record.taskId} is already loaded with different state`)
+      }
+      return existing
+    }
+    const restored: TaskRecord = { ...record }
+    this.tasks.set(record.taskId, restored)
+    return restored
+  }
+
   /** Read one task record. */
   get(taskId: string): TaskRecord | undefined {
     return this.tasks.get(taskId)

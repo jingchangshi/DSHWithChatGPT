@@ -51,7 +51,8 @@ export const CHATGPT_BOOT_PROMPT = [
   '5. Never request workspace write operations; you have none.',
   '6. Plans are WHAT/WHY, never HOW bindings; GLM decides implementation.',
   '7. Answer ONLY through a [D2C] envelope with the correct STATE, TASK_ID, ITERATION and IN_REPLY_TO headers.',
-  '8. PLAN replies iterate on the plan instead of infinite TODO lists; DONE means you verified the result.',
+  '8. When reviewing an EXECUTED envelope that carries HEAD, echo that exact HEAD header in your DONE or fix PLAN reply after verifying it via MCP/git.',
+  '9. PLAN replies iterate on the plan instead of infinite TODO lists; DONE means you verified the result.',
 ].join('\n')
 
 /** The coordinator service published as `chatgptCoordinator`. */
@@ -128,7 +129,7 @@ export class ChatGptCoordinator {
    */
   async awaitPlan(taskId: string): Promise<RoundResult> {
     const persisted = await this.requireTask(taskId)
-    const record = this.machine.get(taskId)
+    const record = this.restoreMachine(persisted)
     if (record === undefined || record.waitingFor !== 'chatgpt-plan') {
       throw new ProtocolError('unexpected-reply', `task ${taskId} is not waiting for a plan`)
     }
@@ -139,8 +140,10 @@ export class ChatGptCoordinator {
     }
     const envelope = parseEnvelope(envelopeText, { sender: 'chatgpt' })
     const folded = this.machine.applyReply(envelope)
+    const conversationId = await this.options.browser.conversationId().catch(() => undefined)
     const merged: typeof persisted = {
       ...persisted,
+      conversationId: conversationId ?? persisted.conversationId,
       state: folded.state as TaskState,
       iteration: folded.iteration,
       waitingFor: folded.waitingFor,
@@ -160,6 +163,7 @@ export class ChatGptCoordinator {
     note?: string
   }): Promise<RoundResult> {
     const persisted = await this.requireTask(taskId)
+    this.restoreMachine(persisted)
     this.machine.applyLocal(taskId, 'executing')
     this.machine.advanceIteration(taskId)
     const record = this.machine.get(taskId)
@@ -172,6 +176,7 @@ export class ChatGptCoordinator {
       `TASK_ID: ${taskId}`,
       `ITERATION: ${iteration}`,
       `IN_REPLY_TO: ${inReplyTo}`,
+      ...(summary.head !== null ? [`HEAD: ${summary.head}`] : []),
       '',
       'RESULT:',
       `Implementation executed by DeepSeek Harness. Changed files: ${summary.changedFiles.length > 0 ? summary.changedFiles.join(', ') : '(none)'}`,
@@ -195,9 +200,17 @@ export class ChatGptCoordinator {
       throw new ProtocolError('no-marker', 'ChatGPT review contained no [D2C] envelope')
     }
     const envelope = parseEnvelope(envelopeReply, { sender: 'chatgpt' })
+    if (summary.head !== null && envelope.headers.get('HEAD') !== summary.head) {
+      throw new ProtocolError(
+        'review-head-mismatch',
+        `ChatGPT review HEAD ${JSON.stringify(envelope.headers.get('HEAD') ?? null)} != executed HEAD ${JSON.stringify(summary.head)}`,
+      )
+    }
     const folded = this.machine.applyReply(envelope)
+    const conversationId = await this.options.browser.conversationId().catch(() => undefined)
     const merged: typeof persisted = {
       ...persisted,
+      conversationId: conversationId ?? persisted.conversationId,
       state: folded.state as TaskState,
       iteration: folded.iteration,
       waitingFor: folded.waitingFor,
@@ -224,9 +237,23 @@ export class ChatGptCoordinator {
     if (taskId === undefined) return undefined
     const task = await this.state.loadTask(taskId)
     if (task === undefined) return undefined
+    this.restoreMachine(task)
     await this.options.browser.ensureReady()
     await this.options.browser.openConversation(task.conversationId ?? undefined)
     return task
+  }
+
+
+  /** Rebuild the in-memory protocol machine from durable state on demand. */
+  private restoreMachine(task: PersistedTask) {
+    return this.machine.restore({
+      taskId: task.taskId,
+      state: task.state,
+      iteration: task.iteration,
+      waitingFor: task.waitingFor,
+      goal: task.goal,
+      updatedAt: task.updatedAt,
+    })
   }
 
   private async requireTask(taskId: string): Promise<PersistedTask> {

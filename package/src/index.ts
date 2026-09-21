@@ -11,8 +11,9 @@
  * @module dsh-with-chatgpt
  */
 
+import fs from 'node:fs'
 import { join as joinPath } from 'node:path'
-import { randomFillSync } from 'node:crypto'
+import { createHash, randomFillSync } from 'node:crypto'
 import type { Context } from '@deepseek-ai/cordis'
 import { z } from 'zod'
 import { defineDomain, domainTable } from '@deepseek-ai/dsh-storage-domain'
@@ -23,7 +24,7 @@ import type { StateStore } from './orchestrator/state.ts'
 import { ExecutionRecorder } from './execution/index.ts'
 import { loadWorkspaceSpec, buildWorkspaceTools } from './bridge/index.ts'
 import { startBridgeServer, type BridgeServer } from './bridge/index.ts'
-import type { BrowserControl } from './browser/index.ts'
+import { BrowserStaleError, ChatGptLoggedOutError, type BrowserControl } from './browser/index.ts'
 import { resolveContained } from './workspace/index.ts'
 import { gitStatus } from './workspace/index.ts'
 
@@ -137,28 +138,37 @@ class BrowserHarnessAdapter implements BrowserControl {
   private async call<T>(tool: string, args: Record<string, unknown>): Promise<T> {
     const tools = this.ctx.get('tools')
     if (tools === undefined) throw new Error('tools service unavailable for browser control')
-    // The upstream MCP path can stall indefinitely (documented race in the
-    // browser-harness provider). Race every call against a hard timer so the
-    // coordinator's polling loops always make progress; the abort signal is
-    // best-effort cancellation for the underlying transport.
     const controller = new AbortController()
-    const timer = setTimeout(() => controller.abort(), 90_000)
+    let rejectTimer: ReturnType<typeof setTimeout> | undefined
+    const abortTimer = setTimeout(() => controller.abort(), 90_000)
     const guard = new Promise<never>((_, reject) => {
-      setTimeout(() => reject(new Error('browser tool ' + tool + ' timed out after 90s')), 90_000)
+      rejectTimer = setTimeout(() => reject(new BrowserStaleError('browser tool ' + tool + ' timed out after 90s')), 90_000)
     })
     try {
-      const result = await Promise.race([
+      const raw = await Promise.race([
         tools.execute({
           name: 'mcp__browser-harness__' + tool,
           arguments: args,
           agent: this.execAgent as never,
           signal: controller.signal,
-        } as never) as Promise<T>,
+        } as never),
         guard,
-      ])
-      return result
+      ]) as { isError?: boolean; value?: unknown; content?: Array<{ type?: string; text?: string }> }
+      if (raw.isError === true) {
+        const detail = raw.content?.filter(block => block.type === 'text').map(block => block.text ?? '').join('\n') ?? tool
+        throw new BrowserStaleError(detail)
+      }
+      if (raw.value !== undefined) return raw.value as T
+      const text = raw.content?.filter(block => block.type === 'text').map(block => block.text ?? '').join('\n').trim() ?? ''
+      if (text === '') return undefined as T
+      try {
+        return JSON.parse(text) as T
+      } catch {
+        return text as T
+      }
     } finally {
-      clearTimeout(timer)
+      clearTimeout(abortTimer)
+      if (rejectTimer !== undefined) clearTimeout(rejectTimer)
     }
   }
 
@@ -168,29 +178,34 @@ class BrowserHarnessAdapter implements BrowserControl {
     for (const delay of budget) {
       if (delay > 0) await new Promise(resolve => setTimeout(resolve, delay))
       try {
-        await this.call<unknown>('browser_navigate', { url: 'https://chatgpt.com/' })
+        await this.call<unknown>('browser_goto', { url: 'https://chatgpt.com/' })
+        const state = await this.inspectChatPage()
+        if (state.loggedOut) throw new ChatGptLoggedOutError()
+        if (!state.composer) throw new BrowserStaleError('ChatGPT composer not found')
         return
       } catch (error) {
+        if (error instanceof ChatGptLoggedOutError) throw error
         lastError = error
       }
     }
-    throw new Error('BROWSER_UNAVAILABLE: browser harness could not open ChatGPT: ' + String(lastError))
+    throw new BrowserStaleError('browser harness could not open ChatGPT: ' + String(lastError))
   }
 
   async openConversation(conversationId?: string): Promise<string> {
     if (conversationId !== undefined && conversationId !== '') {
-      await this.call<unknown>('browser_navigate', { url: 'https://chatgpt.com/c/' + conversationId })
+      await this.call<unknown>('browser_goto', { url: 'https://chatgpt.com/c/' + conversationId })
       return conversationId
     }
-    // New conversation: the URL after the first navigation becomes the id on
-    // the next round (read back via browser_js when needed).
+    await this.call<unknown>('browser_goto', { url: 'https://chatgpt.com/' })
     return ''
   }
 
   async sendControlMessage(text: string): Promise<void> {
-    // Fill the composer (contenteditable) then submit.
-    await this.call<unknown>('browser_fill', { selector: '#prompt-textarea', text })
-    await this.call<unknown>('browser_click', { x: -1, y: -1, submit: true })
+    const state = await this.inspectChatPage()
+    if (state.loggedOut) throw new ChatGptLoggedOutError()
+    if (!state.composer) throw new BrowserStaleError('ChatGPT composer not found')
+    await this.call<unknown>('browser_fill', { selector: '#prompt-textarea', text, clear_first: true })
+    await this.call<unknown>('browser_press', { key: 'ENTER' })
   }
 
   async waitForReply(timeoutMs: number): Promise<{ text: string; complete: boolean }> {
@@ -198,30 +213,40 @@ class BrowserHarnessAdapter implements BrowserControl {
     let last = ''
     let unchanged = 0
     while (Date.now() < deadline) {
-      await new Promise(resolve => setTimeout(resolve, 4000))
+      await new Promise(resolve => setTimeout(resolve, 2500))
       try {
-        const snapshot = await this.call<{ content?: Array<{ text?: string }> }>('browser_snapshot', {})
-        const text = snapshot.content?.map(c => c.text ?? '').join('\n') ?? ''
-        if (text.includes('Stop streaming')) {
+        const state = await this.inspectChatPage()
+        if (state.loggedOut) throw new ChatGptLoggedOutError()
+        if (state.streaming) {
           unchanged = 0
-          last = text
+          last = state.text
           continue
         }
-        // Two consecutive identical non-empty snapshots = the reply settled.
-        unchanged = text === last && text.trim() !== '' ? unchanged + 1 : 0
-        last = text
-        if (unchanged >= 2) return { text, complete: true }
-      } catch {
-        // transient: retry until deadline
+        unchanged = state.text === last && state.text.trim() !== '' ? unchanged + 1 : 0
+        last = state.text
+        if (unchanged >= 1) return { text: state.text, complete: true }
+      } catch (error) {
+        if (error instanceof ChatGptLoggedOutError) throw error
       }
     }
-    throw new BrowserStaleShim('no completed reply within timeout')
+    throw new BrowserStaleError('no completed ChatGPT reply within timeout')
+  }
+
+  async conversationId(): Promise<string | undefined> {
+    const info = await this.call<{ url?: string }>('browser_page_info', {})
+    const url = info?.url
+    if (typeof url !== 'string') return undefined
+    const match = /\/c\/([^/?#]+)/.exec(url)
+    return match?.[1]
   }
 
   async health(): Promise<{ ok: boolean; detail: string }> {
     try {
-      await this.call<unknown>('browser_navigate', { url: 'https://chatgpt.com/' })
-      return { ok: true, detail: 'chatgpt.com reachable' }
+      const info = await this.call<{ url?: string; title?: string }>('browser_page_info', {})
+      const url = info?.url ?? ''
+      return url.includes('chatgpt.com')
+        ? { ok: true, detail: 'ChatGPT tab reachable' }
+        : { ok: false, detail: 'current browser tab is not ChatGPT' }
     } catch (error) {
       return { ok: false, detail: String(error) }
     }
@@ -230,13 +255,45 @@ class BrowserHarnessAdapter implements BrowserControl {
   async recover(): Promise<void> {
     await this.ensureReady()
   }
-}
 
-/** Local stub so the module does not import the browser module for one error. */
-class BrowserStaleShim extends Error {
-  constructor(detail: string) {
-    super('BROWSER_STALE: ' + detail)
-    this.name = 'BrowserStaleError'
+  private async inspectChatPage(): Promise<{ text: string; streaming: boolean; loggedOut: boolean; composer: boolean }> {
+    const expression = `() => {
+      const composer = document.querySelector('#prompt-textarea');
+      const messages = Array.from(document.querySelectorAll('[data-message-author-role="assistant"]'));
+      const latest = messages.length > 0 ? messages[messages.length - 1] : null;
+      const stop = Array.from(document.querySelectorAll('button')).some((button) => {
+        const label = (button.getAttribute('aria-label') || button.textContent || '').toLowerCase();
+        return label.includes('stop streaming') || label === 'stop';
+      });
+      const login = Array.from(document.querySelectorAll('a,button')).some((node) => {
+        const text = (node.textContent || '').trim().toLowerCase();
+        return text === 'log in' || text === 'login' || text === 'sign up';
+      });
+      return {
+        text: latest ? (latest.innerText || latest.textContent || '') : '',
+        streaming: stop,
+        loggedOut: !composer && login,
+        composer: !!composer,
+      };
+    })()`
+    const value = await this.call<unknown>('browser_js', { expression })
+    if (typeof value === 'string') {
+      try {
+        return JSON.parse(value) as { text: string; streaming: boolean; loggedOut: boolean; composer: boolean }
+      } catch {
+        throw new BrowserStaleError('unexpected browser_js response')
+      }
+    }
+    if (typeof value === 'object' && value !== null) {
+      const candidate = value as Partial<{ text: string; streaming: boolean; loggedOut: boolean; composer: boolean }>
+      return {
+        text: typeof candidate.text === 'string' ? candidate.text : '',
+        streaming: candidate.streaming === true,
+        loggedOut: candidate.loggedOut === true,
+        composer: candidate.composer === true,
+      }
+    }
+    throw new BrowserStaleError('unexpected browser_js response')
   }
 }
 
@@ -248,7 +305,7 @@ export const name = 'dsh-with-chatgpt'
 export const inject: string[] = []
 
 export function apply(ctx: Context, config: Config): void | Promise<void> {
-  const activate = async (): Promise<() => void> => {
+  const activate = async (): Promise<void> => {
     // ---- state: durable storage domain when available
     let coordinatorState = memoryCoordinatorState
     let domain: Domain<typeof d2cDomain> | undefined
@@ -273,22 +330,41 @@ export function apply(ctx: Context, config: Config): void | Promise<void> {
     const bridges = new Map<string, BridgeServer>()
     const bridgeTokens = new Map<string, { subject: string; workspaceRoot: string }>()
 
-    async function ensureBridge(workspaceRoot: string): Promise<{ port: number; token: string }> {
+    async function ensureBridge(workspaceRoot: string): Promise<{ port: number; token: string; configPath: string }> {
+      const configPath = connectorConfigPath(workspaceRoot)
       const existing = bridges.get(workspaceRoot)
       if (existing !== undefined) {
         const token = [...bridgeTokens.entries()].find(([, v]) => v.workspaceRoot === workspaceRoot)?.[0]
-        if (token !== undefined) return { port: existing.port, token }
+        if (token !== undefined) {
+          writeConnectorConfig(configPath, existing.port, token)
+          return { port: existing.port, token, configPath }
+        }
       }
       const token = 'd2c_' + randomToken(32)
       const server = await startBridgeServer(
         { port: config.bridgePort, tokens: new Map([[token, 'workspace:bound']]) },
-        // Tools are constructed against the workspace at bridge start; the
-        // workspace is fixed for this bridge instance.
         buildWorkspaceTools(loadWorkspaceSpec(workspaceRoot, recorder)),
       )
       bridges.set(workspaceRoot, server)
       bridgeTokens.set(token, { subject: 'workspace:' + workspaceRoot, workspaceRoot })
-      return { port: server.port, token }
+      writeConnectorConfig(configPath, server.port, token)
+      return { port: server.port, token, configPath }
+    }
+
+    function connectorConfigPath(workspaceRoot: string): string {
+      const workspaceId = createHash('sha256').update(workspaceRoot).digest('hex').slice(0, 16)
+      return joinPath(stateDir, 'connectors', workspaceId + '.json')
+    }
+
+    function writeConnectorConfig(configPath: string, port: number, token: string): void {
+      fs.mkdirSync(joinPath(configPath, '..'), { recursive: true })
+      fs.writeFileSync(configPath, JSON.stringify({
+        transport: 'streamable-http',
+        localUrl: `http://127.0.0.1:${port}`,
+        authorization: { type: 'bearer', token },
+        note: 'ChatGPT cannot connect to this loopback URL directly; expose it through OpenAI Secure MCP Tunnel or another trusted remote MCP endpoint.',
+      }, null, 2) + '\n', { encoding: 'utf8', mode: 0o600 })
+      try { fs.chmodSync(configPath, 0o600) } catch { /* Windows ACLs are managed by the user profile. */ }
     }
 
     // ---- coordinator (per workspace; cached)
@@ -306,6 +382,64 @@ export function apply(ctx: Context, config: Config): void | Promise<void> {
       }
       return c
     }
+
+    // ---- execution evidence: observe the real DSH shell tool pipeline.
+    // ChatGPT's test_status/execution_summary must be backed by actual tool
+    // outcomes, not by the executor's prose claims.
+    type ObservedExecution = {
+      name: string
+      arguments: Record<string, unknown>
+      agent?: { session?: { header?: { cwd?: string } } }
+    }
+    type ObservedResult = {
+      isError?: boolean
+      value?: unknown
+      content?: Array<{ type?: string; text?: string }>
+    }
+    const startedAt = new WeakMap<object, number>()
+    const activeTasks = new Map<string, { taskId: string; iteration: number }>()
+    const toolEvents = ctx as unknown as {
+      on(event: 'tools/execute', handler: (exec: ObservedExecution, next: () => Promise<ObservedResult>) => Promise<ObservedResult>): void
+      on(event: 'tools/result', handler: (exec: ObservedExecution, result: ObservedResult) => void): void
+    }
+    toolEvents.on('tools/execute', async (exec, next) => {
+      if (exec.name === 'bash' || exec.name === 'pwsh') startedAt.set(exec as object, Date.now())
+      return next()
+    })
+    toolEvents.on('tools/result', (exec, result) => {
+      if (exec.name !== 'bash' && exec.name !== 'pwsh') return
+      const command = exec.arguments['command']
+      if (typeof command !== 'string' || command.trim() === '') return
+      const workspaceRoot = workspaceOf({ agent: exec.agent })
+      const task = activeTasks.get(workspaceRoot)
+      if (task === undefined) return
+      const value = result.value as {
+        kind?: string
+        exitCode?: number | null
+        timedOut?: boolean
+        aborted?: boolean
+        stdout?: { text?: string }
+        stderr?: { text?: string }
+      } | undefined
+      if (value?.kind === 'background') return
+      const content = result.content?.filter(block => block.type === 'text').map(block => block.text ?? '').join('\n') ?? ''
+      const timedOut = value?.timedOut === true
+      const aborted = value?.aborted === true
+      const exitCode = typeof value?.exitCode === 'number' || value?.exitCode === null ? value.exitCode : null
+      const status = timedOut ? 'timeout' : aborted ? 'cancelled' : result.isError === true || exitCode !== 0 ? 'failure' : 'success'
+      recorder.record({
+        taskId: task.taskId,
+        iteration: task.iteration,
+        command,
+        cwd: typeof exec.arguments['workdir'] === 'string' ? String(exec.arguments['workdir']) : '.',
+        startedAt: startedAt.get(exec as object) ?? Date.now(),
+        endedAt: Date.now(),
+        status,
+        exitCode,
+        stdout: value?.stdout?.text ?? (result.isError === true ? '' : content),
+        stderr: value?.stderr?.text ?? (result.isError === true ? content : ''),
+      })
+    })
 
     // ---- model-facing tools
     const tools = ctx.get('tools')
@@ -361,6 +495,7 @@ export function apply(ctx: Context, config: Config): void | Promise<void> {
         await ensureBridge(workspaceRoot)
         const started = await coordinator.startTask(String(args.goal))
         const round = await coordinator.awaitPlan(started.taskId)
+        activeTasks.set(workspaceRoot, { taskId: round.taskId, iteration: round.record.iteration })
         return {
           taskId: round.taskId,
           state: round.record.state,
@@ -397,6 +532,11 @@ export function apply(ctx: Context, config: Config): void | Promise<void> {
           testsRecorded: args.testsRecorded === true,
           ...(args.note !== undefined ? { note: String(args.note).slice(0, 200) } : {}),
         })
+        if (round.record.state === 'planned') {
+          activeTasks.set(workspaceRoot, { taskId: round.taskId, iteration: round.record.iteration })
+        } else {
+          activeTasks.delete(workspaceRoot)
+        }
         return {
           taskId: round.taskId,
           state: round.record.state,
@@ -420,10 +560,11 @@ export function apply(ctx: Context, config: Config): void | Promise<void> {
             workspaceRoot: { type: 'string', description: 'Workspace the status is for.' },
             latestTask: { description: 'Latest persisted task record, or null.' },
             bridgeRunning: { type: 'boolean', description: 'Whether the read-only MCP bridge is listening.' },
-            bridgePort: { description: 'Bridge port when running, else null.' },
+            bridgePort: { description: 'Loopback bridge port.' },
+            connectorConfigPath: { type: 'string', description: 'Local file containing the loopback URL and bearer token for Secure MCP Tunnel setup.' },
             bootPromptVersion: { type: 'integer', description: 'Boot prompt version.' },
           },
-          required: ['plugin', 'workspaceRoot', 'latestTask', 'bridgeRunning', 'bootPromptVersion'],
+          required: ['plugin', 'workspaceRoot', 'latestTask', 'bridgeRunning', 'bridgePort', 'connectorConfigPath', 'bootPromptVersion'],
         },
         render: (_args: Record<string, unknown>, value: Record<string, unknown>) => [{
           type: 'text' as const,
@@ -435,13 +576,14 @@ export function apply(ctx: Context, config: Config): void | Promise<void> {
         const coordinator = coordinatorFor(workspaceRoot, exec?.agent)
         const latestTaskId = await coordinator.latestTaskId()
         const task = latestTaskId !== undefined ? await coordinator.status(latestTaskId) : undefined
-        const bridge = bridges.get(workspaceRoot)
+        const bridge = await ensureBridge(workspaceRoot)
         return {
           plugin: 'dsh-with-chatgpt',
           workspaceRoot,
           latestTask: task ?? null,
-          bridgeRunning: bridge !== undefined,
-          bridgePort: bridge?.port ?? null,
+          bridgeRunning: true,
+          bridgePort: bridge.port,
+          connectorConfigPath: bridge.configPath,
           bootPromptVersion: 1,
         }
       },
@@ -471,6 +613,9 @@ export function apply(ctx: Context, config: Config): void | Promise<void> {
         const workspaceRoot = workspaceOf(exec)
         const coordinator = coordinatorFor(workspaceRoot, exec?.agent)
         const task = await coordinator.recover()
+        if (task !== undefined && ['planned', 'executing', 'executed', 'awaiting-review'].includes(task.state)) {
+          activeTasks.set(workspaceRoot, { taskId: task.taskId, iteration: task.iteration })
+        }
         return {
           recovered: task !== undefined,
           task: task ?? null,
@@ -496,19 +641,17 @@ export function apply(ctx: Context, config: Config): void | Promise<void> {
       })
     }
 
-    // ---- cleanup
-    return () => {
-      for (const bridge of bridges.values()) void bridge.close()
+    // ---- cleanup: register the async disposer with Cordis instead of
+    // dropping it through Promise.then(). This closes bridge listeners and
+    // the storage-domain handle when the plugin/profile unloads.
+    ctx.effect(() => async () => {
+      await Promise.allSettled([...bridges.values()].map(bridge => bridge.close()))
       bridges.clear()
-      domain?.close().catch(() => undefined)
-    }
+      if (domain !== undefined) await domain.close()
+    }, 'dsh-with-chatgpt runtime cleanup')
   }
 
-  const disposer = activate()
-  if (disposer instanceof Promise) {
-    return disposer.then(() => undefined)
-  }
-  return disposer
+  return activate()
 }
 
 /** Minimal tool execution context shape used by this plugin. */

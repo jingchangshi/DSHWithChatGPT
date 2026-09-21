@@ -27,6 +27,8 @@ export interface BrowserControl {
   waitForReply(timeoutMs: number): Promise<BrowserReply>
   /** Health probe. */
   health(): Promise<{ ok: boolean; detail: string }>
+  /** Current ChatGPT conversation id, when the page URL has one. */
+  conversationId(): Promise<string | undefined>
   /** Best-effort recovery (reload page, re-find composer). */
   recover(): Promise<void>
 }

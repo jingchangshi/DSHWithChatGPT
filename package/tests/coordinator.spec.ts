@@ -26,6 +26,9 @@ function fakeBrowser(replies: string[]): BrowserControl & { sent: string[] } {
     async health() {
       return { ok: true, detail: 'fake' }
     },
+    async conversationId() {
+      return 'conv-1'
+    },
     async recover() {},
   }
 }
@@ -37,9 +40,10 @@ function planReply(taskId: string, iteration: number, inReplyTo: number): string
   }) + '\nReady for execution.'
 }
 
-function doneReply(taskId: string, iteration: number, inReplyTo: number): string {
+function doneReply(taskId: string, iteration: number, inReplyTo: number, head = 'abc123'): string {
   return 'I verified the diff and test records myself.\n' + formatEnvelope({
     state: 'DONE', sender: 'chatgpt', taskId, iteration, inReplyTo,
+    headers: { HEAD: head },
     sections: { SUMMARY: 'Verified via git_diff + test_status.' },
   })
 }
@@ -110,6 +114,39 @@ describe('coordinator happy path', () => {
   })
 })
 
+describe('coordinator review integrity', () => {
+  it('rejects a review that does not acknowledge the executed HEAD', async () => {
+    const browser = fakeBrowser([])
+    const coordinator = new ChatGptCoordinator({
+      browser,
+      store: new CoordinatorState(createMemoryStore()),
+      workspaceRoot: 'C:\\ws\\head-check',
+      replyTimeoutMs: 500,
+    })
+    let taskId = ''
+    let round = 0
+    browser.sendControlMessage = async (text: string) => {
+      const match = /TASK_ID: (d2c_[0-9a-z]+)/.exec(text)
+      if (match?.[1] !== undefined) taskId = match[1]
+      browser.sent.push(text)
+    }
+    browser.waitForReply = async () => {
+      round++
+      if (round === 1) return { text: planReply(taskId, 1, 0), complete: true }
+      return { text: doneReply(taskId, 2, 2, 'stale-head'), complete: true }
+    }
+
+    const started = await coordinator.startTask('verify exact head')
+    await coordinator.awaitPlan(started.taskId)
+    await expect(coordinator.reportExecuted(started.taskId, {
+      changedFiles: ['src/a.ts'],
+      head: 'expected-head',
+      testsRecorded: true,
+    })).rejects.toThrow(/review-head-mismatch/)
+    expect((await coordinator.status(started.taskId))?.lastReviewedHead).toBeNull()
+  })
+})
+
 describe('coordinator rejects stale replies', () => {
   it('a reply with an old iteration is rejected and state unchanged', async () => {
     const browser = fakeBrowser([])
@@ -170,6 +207,28 @@ describe('coordinator rejects stale replies', () => {
 })
 
 describe('state recovery', () => {
+  it('can continue a waiting plan after coordinator restart', async () => {
+    const store = new CoordinatorState(createMemoryStore())
+    const browser = fakeBrowser([])
+    let taskId = ''
+    const first = new ChatGptCoordinator({ browser, store, workspaceRoot: 'C:\\ws\\resume', replyTimeoutMs: 500 })
+    const originalSend = browser.sendControlMessage.bind(browser)
+    browser.sendControlMessage = async (text: string) => {
+      const match = /TASK_ID: (d2c_[0-9a-z]+)/.exec(text)
+      if (match?.[1] !== undefined) taskId = match[1]
+      await originalSend(text)
+    }
+    const started = await first.startTask('resume me')
+    taskId = started.taskId
+
+    const second = new ChatGptCoordinator({ browser, store, workspaceRoot: 'C:\\ws\\resume', replyTimeoutMs: 500 })
+    await second.recover()
+    browser.waitForReply = async () => ({ text: planReply(taskId, 1, 0), complete: true })
+    const plan = await second.awaitPlan(taskId)
+    expect(plan.record.state).toBe('planned')
+    expect(plan.record.conversationId).toBe('conv-1')
+  })
+
   it('survives a coordinator restart with the same store', async () => {
     const store = new CoordinatorState(createMemoryStore())
     const browser = fakeBrowser([])

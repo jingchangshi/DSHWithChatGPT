@@ -47,7 +47,7 @@ Because it doesn't need it, and independence requires containment:
 
 ## Install
 
-Prereqs: Node.js ≥ 20, pnpm, a DSH checkout or installed DSH with profile support.
+Prereqs: Node.js ≥ 20, pnpm, a DSH checkout or installed DSH with profile support, and a BrowserUse/Browser Harness MCP provider available in the target DSH profile. This repository carries matching 0.1.6-alpha.1 provider tarballs under `package/tarballs/` for local installation when your profile does not already provide them.
 
 ```powershell
 # 1. Build the plugin package
@@ -66,9 +66,13 @@ Manual install: copy the package anywhere permanent and append its `cordis.patch
 
 ## First-time setup
 
-1. **Browser**: log into chatgpt.com in a Chrome/Edge that DSH BrowserUse can attach to (the browser-harness MCP flow prompts you for the dedicated debugging Chrome on first use).
-2. **Connector** (once per ChatGPT account): in ChatGPT Web → Settings → Connectors → add a custom MCP connector pointing at the bridge URL the plugin prints (loopback, or tunneled when remote review is needed). Paste the one-time pairing token when prompted.
-3. **Verify**: run the `chatgpt_status` tool from any DSH session in the workspace — it reports coordinator state, bridge port, and the latest task.
+1. **Browser**: log into chatgpt.com in a Chrome/Edge that the DSH Browser Harness MCP provider can attach to.
+2. **Start the read-only bridge**: ask DSH to run `chatgpt_status`. Status now starts the workspace bridge lazily and returns `bridgePort` plus `connectorConfigPath`. The referenced local JSON file contains the loopback URL and bearer token; the token is intentionally not returned to the model.
+3. **Expose the local bridge safely**: ChatGPT cannot connect directly to a localhost MCP server. Use OpenAI Secure MCP Tunnel (preferred) or another trusted authenticated remote MCP endpoint that forwards to the loopback URL in the connector config.
+4. **Create/enable the ChatGPT custom app**: in ChatGPT Web developer/app settings, configure the remote MCP endpoint and authentication, scan the ten read-only tools, and keep the app read-only.
+5. **Browser control**: keep the logged-in ChatGPT tab available to Browser Harness. The plugin reuses one conversation per workspace and persists its `/c/<conversation-id>` after the first reply.
+
+> Current platform caveat: ChatGPT custom-app selection is message-scoped. If your ChatGPT workspace requires explicitly selecting or @mentioning the custom app for each message, that UI selection is still a manual prerequisite for MCP-backed PLAN/REVIEW rounds; this PR does not pretend that a loopback bridge alone makes the app ambient.
 
 ## Usage
 
@@ -98,7 +102,7 @@ Task state lives in the DSH storage area (`d2c_state` domain) and `%LOCALAPPDATA
 
 ## Doctor / troubleshooting
 
-Run `chatgpt_status`; its output distinguishes: plugin loaded, browser reachable, ChatGPT logged in, bridge running, MCP reachable, conversation bound. See `docs/troubleshooting.md` for the failure table.
+Run `chatgpt_status` first. It proves the plugin is loaded, starts the local bridge, and reports the connector-config path and latest task. Browser/login health is then exercised by `chatgpt_plan` / `chatgpt_reconnect`. See `docs/troubleshooting.md` for the failure table.
 
 ## Docs
 
@@ -112,9 +116,9 @@ Run `chatgpt_status`; its output distinguishes: plugin loaded, browser reachable
 
 ## Status & limitations
 
-Working: protocol + state machine, workspace security boundary, execution recorder, read-only MCP bridge, coordinator with durable state, model tools, prompt section, profile install path. See `docs/` and the git log for evidence.
+Working: protocol + restart-rehydratable state machine, workspace security boundary, execution recorder wired to real DSH bash/pwsh outcomes, loopback read-only MCP bridge, durable coordinator, model tools, prompt section, and a Browser Harness adapter using the upstream MCP tool contract. CI verifies typecheck + unit tests + build.
 
-Known limitations (honest list): the BrowserHarness chatgpt.com adapter is a first cut (composer/reply heuristics may need adjustment as ChatGPT's DOM changes); OAuth+pairing for remote (non-loopback) access is scaffolded but the Cloudflare tunnel flow is not wired end-to-end yet; no CLI beyond the DSH tool surface yet.
+Known limitations: ChatGPT cannot consume the loopback bridge directly, so a Secure MCP Tunnel/remote MCP endpoint must still be configured outside this package; custom-app selection may be message-scoped in ChatGPT Web and is not yet automated by the Browser Harness adapter; the ChatGPT DOM adapter remains heuristic and may need updates as the Web UI changes; there is intentionally no standalone `d2c` CLI yet.
 
 ## License
 
