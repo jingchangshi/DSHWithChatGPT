@@ -397,6 +397,7 @@ export function apply(ctx: Context, config: Config): void | Promise<void> {
       content?: Array<{ type?: string; text?: string }>
     }
     const startedAt = new WeakMap<object, number>()
+    const activeTasks = new Map<string, { taskId: string; iteration: number }>()
     const toolEvents = ctx as unknown as {
       on(event: 'tools/execute', handler: (exec: ObservedExecution, next: () => Promise<ObservedResult>) => Promise<ObservedResult>): void
       on(event: 'tools/result', handler: (exec: ObservedExecution, result: ObservedResult) => void): void
@@ -409,40 +410,35 @@ export function apply(ctx: Context, config: Config): void | Promise<void> {
       if (exec.name !== 'bash' && exec.name !== 'pwsh') return
       const command = exec.arguments['command']
       if (typeof command !== 'string' || command.trim() === '') return
-      void (async () => {
-        const workspaceRoot = workspaceOf({ agent: exec.agent })
-        const binding = await coordinatorState.loadWorkspace(workspaceRoot)
-        if (binding?.lastTaskId === null || binding?.lastTaskId === undefined) return
-        const task = await coordinatorState.loadTask(binding.lastTaskId)
-        if (task === undefined || !['planned', 'executing', 'executed', 'awaiting-review'].includes(task.state)) return
-
-        const value = result.value as {
-          kind?: string
-          exitCode?: number | null
-          timedOut?: boolean
-          aborted?: boolean
-          stdout?: { text?: string }
-          stderr?: { text?: string }
-        } | undefined
-        if (value?.kind === 'background') return
-        const content = result.content?.filter(block => block.type === 'text').map(block => block.text ?? '').join('\n') ?? ''
-        const timedOut = value?.timedOut === true
-        const aborted = value?.aborted === true
-        const exitCode = typeof value?.exitCode === 'number' || value?.exitCode === null ? value.exitCode : null
-        const status = timedOut ? 'timeout' : aborted ? 'cancelled' : result.isError === true || exitCode !== 0 ? 'failure' : 'success'
-        recorder.record({
-          taskId: task.taskId,
-          iteration: task.iteration,
-          command,
-          cwd: typeof exec.arguments['workdir'] === 'string' ? String(exec.arguments['workdir']) : '.',
-          startedAt: startedAt.get(exec as object) ?? Date.now(),
-          endedAt: Date.now(),
-          status,
-          exitCode,
-          stdout: value?.stdout?.text ?? (result.isError === true ? '' : content),
-          stderr: value?.stderr?.text ?? (result.isError === true ? content : ''),
-        })
-      })().catch(() => undefined)
+      const workspaceRoot = workspaceOf({ agent: exec.agent })
+      const task = activeTasks.get(workspaceRoot)
+      if (task === undefined) return
+      const value = result.value as {
+        kind?: string
+        exitCode?: number | null
+        timedOut?: boolean
+        aborted?: boolean
+        stdout?: { text?: string }
+        stderr?: { text?: string }
+      } | undefined
+      if (value?.kind === 'background') return
+      const content = result.content?.filter(block => block.type === 'text').map(block => block.text ?? '').join('\n') ?? ''
+      const timedOut = value?.timedOut === true
+      const aborted = value?.aborted === true
+      const exitCode = typeof value?.exitCode === 'number' || value?.exitCode === null ? value.exitCode : null
+      const status = timedOut ? 'timeout' : aborted ? 'cancelled' : result.isError === true || exitCode !== 0 ? 'failure' : 'success'
+      recorder.record({
+        taskId: task.taskId,
+        iteration: task.iteration,
+        command,
+        cwd: typeof exec.arguments['workdir'] === 'string' ? String(exec.arguments['workdir']) : '.',
+        startedAt: startedAt.get(exec as object) ?? Date.now(),
+        endedAt: Date.now(),
+        status,
+        exitCode,
+        stdout: value?.stdout?.text ?? (result.isError === true ? '' : content),
+        stderr: value?.stderr?.text ?? (result.isError === true ? content : ''),
+      })
     })
 
     // ---- model-facing tools
@@ -499,6 +495,7 @@ export function apply(ctx: Context, config: Config): void | Promise<void> {
         await ensureBridge(workspaceRoot)
         const started = await coordinator.startTask(String(args.goal))
         const round = await coordinator.awaitPlan(started.taskId)
+        activeTasks.set(workspaceRoot, { taskId: round.taskId, iteration: round.record.iteration })
         return {
           taskId: round.taskId,
           state: round.record.state,
@@ -535,6 +532,11 @@ export function apply(ctx: Context, config: Config): void | Promise<void> {
           testsRecorded: args.testsRecorded === true,
           ...(args.note !== undefined ? { note: String(args.note).slice(0, 200) } : {}),
         })
+        if (round.record.state === 'planned') {
+          activeTasks.set(workspaceRoot, { taskId: round.taskId, iteration: round.record.iteration })
+        } else {
+          activeTasks.delete(workspaceRoot)
+        }
         return {
           taskId: round.taskId,
           state: round.record.state,
@@ -611,6 +613,9 @@ export function apply(ctx: Context, config: Config): void | Promise<void> {
         const workspaceRoot = workspaceOf(exec)
         const coordinator = coordinatorFor(workspaceRoot, exec?.agent)
         const task = await coordinator.recover()
+        if (task !== undefined && ['planned', 'executing', 'executed', 'awaiting-review'].includes(task.state)) {
+          activeTasks.set(workspaceRoot, { taskId: task.taskId, iteration: task.iteration })
+        }
         return {
           recovered: task !== undefined,
           task: task ?? null,
