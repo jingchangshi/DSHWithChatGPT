@@ -40,9 +40,10 @@ function planReply(taskId: string, iteration: number, inReplyTo: number): string
   }) + '\nReady for execution.'
 }
 
-function doneReply(taskId: string, iteration: number, inReplyTo: number): string {
+function doneReply(taskId: string, iteration: number, inReplyTo: number, head = 'abc123'): string {
   return 'I verified the diff and test records myself.\n' + formatEnvelope({
     state: 'DONE', sender: 'chatgpt', taskId, iteration, inReplyTo,
+    headers: { HEAD: head },
     sections: { SUMMARY: 'Verified via git_diff + test_status.' },
   })
 }
@@ -110,6 +111,39 @@ describe('coordinator happy path', () => {
     expect(browser.sent[0]).toContain(CHATGPT_BOOT_PROMPT)
     expect(browser.sent[1]).toContain('STATE: EXECUTED')
     expect(browser.sent[1]).toContain('verify via test_status')
+  })
+})
+
+describe('coordinator review integrity', () => {
+  it('rejects a review that does not acknowledge the executed HEAD', async () => {
+    const browser = fakeBrowser([])
+    const coordinator = new ChatGptCoordinator({
+      browser,
+      store: new CoordinatorState(createMemoryStore()),
+      workspaceRoot: 'C:\\ws\\head-check',
+      replyTimeoutMs: 500,
+    })
+    let taskId = ''
+    let round = 0
+    browser.sendControlMessage = async (text: string) => {
+      const match = /TASK_ID: (d2c_[0-9a-z]+)/.exec(text)
+      if (match?.[1] !== undefined) taskId = match[1]
+      browser.sent.push(text)
+    }
+    browser.waitForReply = async () => {
+      round++
+      if (round === 1) return { text: planReply(taskId, 1, 0), complete: true }
+      return { text: doneReply(taskId, 2, 2, 'stale-head'), complete: true }
+    }
+
+    const started = await coordinator.startTask('verify exact head')
+    await coordinator.awaitPlan(started.taskId)
+    await expect(coordinator.reportExecuted(started.taskId, {
+      changedFiles: ['src/a.ts'],
+      head: 'expected-head',
+      testsRecorded: true,
+    })).rejects.toThrow(/review-head-mismatch/)
+    expect((await coordinator.status(started.taskId))?.lastReviewedHead).toBeNull()
   })
 })
 
