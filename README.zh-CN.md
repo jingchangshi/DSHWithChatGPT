@@ -65,10 +65,20 @@ dsh plugin --profile <你的profile> add D:\workspace\DSHWithChatGPT\package
 
 ## 首次 setup
 
-1. **浏览器**：在 DSH BrowserUse 能驱动的 Chrome/Edge 里登录 chatgpt.com。
-2. **连接器**（每个 ChatGPT 账号一次）：ChatGPT Web → Settings → Connectors → 添加自定义 MCP 连接器，地址用插件打印的 bridge URL（本机回环；远程评审需隧道），粘贴一次性配对 token。
-3. **验证**：在目标 workspace 的 DSH 会话里运行 `chatgpt_status` 工具。
+1. **浏览器控制面**：确保当前 DSH profile 已有可工作的 BrowserUse / Browser Harness MCP，并让它控制一个已经登录 chatgpt.com 的 Chrome/Edge。
+2. **启动本地只读 bridge**：在目标 workspace 调用 `chatgpt_status`。这会提前启动 bridge；默认地址为 `http://127.0.0.1:43127/mcp`。
+3. **Secure MCP Tunnel**：ChatGPT 不能直接访问本机 loopback MCP。请在 OpenAI Platform 创建 tunnel，并用官方 `tunnel-client` 把上述本地 URL 接入 tunnel：
 
+```powershell
+$env:CONTROL_PLANE_API_KEY="<OpenAI Platform runtime key>"
+tunnel-client init --profile dsh-with-chatgpt --tunnel-id <tunnel_id> --mcp-server-url http://127.0.0.1:43127/mcp
+tunnel-client doctor --profile dsh-with-chatgpt --explain
+tunnel-client run --profile dsh-with-chatgpt
+```
+
+4. **ChatGPT 开发者模式 App**：在 ChatGPT 中创建开发者模式 App，Connection 选择 **Tunnel** 并选择上述 tunnel。确认可发现 `workspace_info`、`git_diff`、`test_status` 等只读工具。
+
+插件 bridge 只监听 `127.0.0.1`；通过 Secure MCP Tunnel 时，外部认证和传输由 OpenAI tunnel 控制面承担。不要把 `127.0.0.1` 直接填成 ChatGPT 的远程 MCP URL。
 ## 使用
 
 在 DSH 会话里、目标项目目录下：
@@ -101,7 +111,7 @@ dsh plugin --profile <你的profile> remove dsh-with-chatgpt
 
 已实现并测试：协议与状态机、workspace 安全边界、执行记录、只读 MCP bridge、持久化协调器、模型工具、prompt 注入、profile 安装路径。
 
-已知限制（如实列出）：chatgpt.com 的 BrowserHarness 适配器是第一版（composer/回复启发式可能随 ChatGPT DOM 变化需调整）；远程访问的 OAuth+配对已搭骨架但 Cloudflare 隧道未端到端打通；暂无独立 CLI（用 DSH 工具面）。
+已知限制（如实列出）：chatgpt.com 的 BrowserHarness 适配器仍依赖稳定 DOM 语义；默认一个 DSH 实例使用一个稳定 `bridgePort`，并发独立 workspace tunnel 应配置不同端口；自动执行证据目前覆盖前台 `bash` / `pwsh`，后台 job 的“已启动”不会被误记为测试完成；Secure MCP Tunnel 与 ChatGPT 开发者模式需要相应权限。
 
 ## 许可
 
