@@ -34,6 +34,8 @@ Theme toggles without reload.
 | TASK_ID | yes | `d2c_` + 4–32 lowercase alphanumerics |
 | ITERATION | yes | Monotonic round counter (INIT sends 0) |
 | IN_REPLY_TO | when replying | ITERATION of the envelope being answered |
+| WORKSPACE_ID | DSH sends; ChatGPT must echo | Stable non-secret id from `workspace_info.workspaceId`; prevents cross-workspace App/connector mistakes |
+| HEAD | EXECUTED review rounds | Exact committed HEAD; ChatGPT must echo it in DONE/fix PLAN after independent verification |
 
 ## States and senders
 
@@ -78,8 +80,18 @@ Rejection rules (machine-enforced, `ProtocolError` with stable reasons):
 - `stale-reply` — reply state cannot satisfy the current wait (e.g. DONE before any plan)
 - `stale-iteration` — `ITERATION < expected` where expected is `IN_REPLY_TO ?? current`
 - `wrong-sender` — a side sent a state it may not send
+- `workspace-mismatch` — ChatGPT did not echo the exact workspace id verified through MCP
+- `review-head-mismatch` — review did not acknowledge the exact EXECUTED HEAD
+- `iteration-limit` — autonomous fix/review loop exceeded configured `maxIterations`
 - `version-mismatch`, `bad-task-id`, `bad-header`, `section-too-large`, `envelope-too-large`
 
 ## Size discipline
 
 The composer carries only envelopes + short prose. Files, diffs, and logs flow through the read-only MCP data plane (`git_diff` is byte-capped at 256KiB default; `read_file` at 128KiB with head+tail; execution output tails at 16KiB/200 lines).
+
+
+## Unattended runtime invariants
+
+The ChatGPT App is activated for every outgoing MCP-dependent control message. Before PLAN, ChatGPT is instructed to call `workspace_info` and echo its `workspaceId`. Before DONE/fix PLAN after EXECUTED, ChatGPT independently checks git/test evidence and echoes both `WORKSPACE_ID` and exact `HEAD`.
+
+These headers are control-plane identity checks; source, diffs, and logs stay on the read-only MCP data plane.

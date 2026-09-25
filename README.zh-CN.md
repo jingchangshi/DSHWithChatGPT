@@ -2,106 +2,86 @@
 
 **ChatGPT 负责思考，DeepSeek Harness 负责执行。**
 
-一个 DeepSeek Harness 插件：把你现有的 DSH 编码代理（GLM-5.3-Flash）与 ChatGPT Web 组成"规划/评审大脑 + 执行者"的协作闭环。走官方 ChatGPT 网页 UI —— 不需要 ChatGPT API key，不逆向私有 API。
+这是一个 DeepSeek Harness 插件：ChatGPT Web 负责架构、规划和独立评审，DSH / GLM-5.3-Flash 负责修改代码、构建、测试、git commit/push 和故障恢复。
 
-## 这是什么？
-
-你照常用 DeepSeek Harness。当任务需要"第二个大脑"时，代理会启动一个**协作回合**：
+## 运行闭环
 
 ```
-用户任务
-  → DSH/GLM 通过浏览器控制面给 ChatGPT 发 INIT
-  → ChatGPT 通过只读 MCP 连接器自己读取 workspace（数据面）
-  → ChatGPT 回复结构化 [D2C] PLAN envelope
-  → DSH/GLM 实现、构建、测试（全部执行留在本地）
-  → DSH/GLM 发 EXECUTED（机器摘要，极小）
-  → ChatGPT 通过 git_diff / test_status 等 MCP 工具独立核验
-  → 回复 DONE 或 PLAN（修复要求）
-  → 循环直到 DONE
+用户目标
+  → DSH 自动启动 bridge + Secure MCP Tunnel
+  → Browser Harness 自动 @mention 指定 ChatGPT App 并发送 INIT
+  → ChatGPT 通过只读 MCP 检查 workspace，返回 PLAN
+  → GLM 实现 / 测试 / commit / push
+  → DSH 发送带精确 HEAD 的 EXECUTED
+  → ChatGPT 通过 MCP 独立核验 diff + test records
+  → DONE，或返回修复 PLAN
+  → GLM 自动继续下一轮，直到 DONE / BLOCKED / maxIterations
 ```
 
-## 为什么不直接调 ChatGPT API？
-
-- **用你现有的 ChatGPT 账号与订阅**，控制面是官方 Web UI（BrowserUse 驱动），没有 API 计费与密钥管理。
-- **独立评审需要文件访问能力，不是更长的 prompt。** 让 ChatGPT 自己读真实 diff 和真实测试记录，而不是靠 composer 粘贴。
-- **信任边界是结构性的**：bridge 服务器在注册层面就拒绝任何非只读工具——写能力根本不存在。
-
-## 为什么 ChatGPT 没有写权限？
-
-因为它不需要，而且独立性要求遏制：
-
-- bridge 只暴露十个只读工具（workspace_info、list_directory、read_file、search_workspace、git_status、git_diff、git_log、test_status、execution_summary、execution_output）。
-- 所有路径访问经过 canonical realpath 遏制（symlink 逃逸有测试）+ 敏感文件默认拒绝（.env、密钥、凭据…）+ 项目级 `.d2cignore`。
-- 测试结果是被核验的，不是被转述的：ChatGPT 读结构化执行记录（退出码、测试分类），不听"测试通过了"。
-
-## 分工
-
-| | ChatGPT Web | DSH / GLM-5.3-Flash |
-|---|---|---|
-| 架构推理、规划 | ✅ | |
-| 独立代码评审 | ✅ | |
-| 调试策略 | ✅ | |
-| 文件编辑、shell、构建、测试 | | ✅ |
-| git commit / push | | ✅ |
-| 恢复、实现 | | ✅ |
+默认 profile 使用 `gitPolicy: commit-push`：不允许在 `main/master` 上进行无人值守 review 回合；GLM 应创建任务分支，测试成功后 commit、push 非保护分支，再用精确 HEAD 请求 ChatGPT 评审。插件不执行 force push，也不自动合并 PR。
 
 ## 安装
 
-前置：Node.js ≥ 20、pnpm、可用的 DSH（支持 profile）。
+前置：Node.js ≥ 20、pnpm、DSH profile、DSH BrowserUse + Browser Harness MCP provider。
 
 ```powershell
 git clone https://github.com/jingchangshi/DSHWithChatGPT.git
 cd DSHWithChatGPT\package
 pnpm install
-pnpm build && pnpm test
+pnpm typecheck
+pnpm test
+pnpm build
 
-# 注册进 profile（读取包内 cordis.patch.yml）
 dsh plugin --profile <你的profile> add D:\workspace\DSHWithChatGPT\package
-
-# 重启 DSH —— 插件随 profile 加载
 ```
 
-手动安装：把包放到任意持久目录，把它的 `cordis.patch.yml` 行（`id: dsh-with-chatgpt, name: dsh-with-chatgpt`）追加进 profile 的 `cordis.patch.yml`。
+## 一次性 setup
 
-## 首次 setup
+无人值守是指 **setup 完成后的运行时** 无需人工逐轮操作。以下仍属于显式一次性设置：
 
-1. **浏览器**：在 DSH BrowserUse 能驱动的 Chrome/Edge 里登录 chatgpt.com。
-2. **连接器**（每个 ChatGPT 账号一次）：ChatGPT Web → Settings → Connectors → 添加自定义 MCP 连接器，地址用插件打印的 bridge URL（本机回环；远程评审需隧道），粘贴一次性配对 token。
-3. **验证**：在目标 workspace 的 DSH 会话里运行 `chatgpt_status` 工具。
+1. 在 Browser Harness 使用的 Chrome/Edge profile 中登录 ChatGPT；登录、2FA、CAPTCHA 不自动绕过。
+2. 在 ChatGPT 创建/启用一个只读 MCP App，名字默认必须精确为 `DSH with ChatGPT`（也可修改 `chatgptAppName`）。
+3. 在 OpenAI Platform 创建 Secure MCP Tunnel。
+4. 让启动 DSH 的环境包含：
+
+```powershell
+$env:CONTROL_PLANE_TUNNEL_ID="<tunnel_id>"
+$env:CONTROL_PLANE_API_KEY="<runtime_api_key>"
+```
+
+并确保 `tunnel-client` 在 `PATH`。
+5. 在目标项目中让 DSH 调用一次 `chatgpt_status`。应看到 `tunnel.ready: true`、稳定的 `workspaceId`、正确的 `chatgptAppName` 和 `gitPolicy`。
+
+bridge 仍只监听 `127.0.0.1` 并要求 Bearer。Bearer 不进入 ChatGPT prompt，也不放进 repo；插件把它保存到本地 0600 文件，由 `tunnel-client` 只在最后一跳注入。
 
 ## 使用
 
-在 DSH 会话里、目标项目目录下：
+在 **Standard Mode + GLM-5.3-Flash** 的 DSH 会话中，进入目标 repo：
 
-> 使用 ChatGPT 帮我规划并实现 <任务>
-> Use ChatGPT to implement <task>
+> 使用 ChatGPT 完全无人值守地完成：<任务>
 
-代理会启动协作回合（`chatgpt_plan`），用自己的常规工具执行计划，然后请求独立评审（`chatgpt_review`）。普通开发请求不会进入该循环。
+插件注入的协作规则会要求 GLM 连续完成：
 
-| 工具 | 用途 |
-|---|---|
-| `chatgpt_plan` | 发送目标，取回 ChatGPT 结构化计划 |
-| `chatgpt_review` | 汇报执行结果，取回独立评审（DONE / 修复 PLAN） |
-| `chatgpt_status` | 协调器 + bridge 状态、最近任务 |
-| `chatgpt_reconnect` | 浏览器刷新 / DSH 重启后恢复 |
+`chatgpt_plan → 实现 → 测试 → commit/push → chatgpt_review → 修复 PLAN → ... → DONE`
 
-## 卸载
+不会在每一轮结束后询问“是否继续”。仅在登录/授权、CAPTCHA、基础设施故障、冲突/安全风险、达到 `maxIterations`，或确实需要用户产品决策时停止。
 
-```powershell
-dsh plugin --profile <你的profile> remove dsh-with-chatgpt
-```
+## 安全边界
 
-任务状态在 DSH storage 区（`d2c_state` domain），执行记录在 `%LOCALAPPDATA%\dsh-with-chatgpt`——删除后者即清除记录。
+ChatGPT 只有十个只读 MCP 工具：`workspace_info`、`list_directory`、`read_file`、`search_workspace`、`git_status`、`git_diff`、`git_log`、`test_status`、`execution_summary`、`execution_output`。没有 write、shell、commit、push 工具。
 
-## 文档
+每次 D2C 回复还要同时通过：
+- TASK_ID / ITERATION / IN_REPLY_TO
+- `WORKSPACE_ID`
+- review 时的精确 `HEAD`
 
-`docs/architecture.md`（架构）、`docs/protocol.md`（[D2C] 协议）、`docs/security.md`（安全边界）、`docs/installation.md`（安装）、`docs/browser-use.md`（浏览器会话与恢复）、`docs/troubleshooting.md`（故障表）、`docs/development.md`（开发）。
+任一不匹配都会拒绝该回复。
 
 ## 状态与限制
 
-已实现并测试：协议与状态机、workspace 安全边界、执行记录、只读 MCP bridge、持久化协调器、模型工具、prompt 注入、profile 安装路径。
+已实现：自动 App @mention、旧回复 fencing、当前 DSH session BrowserUse 绑定、managed Secure MCP Tunnel、自恢复 conversation、workspace identity、精确 HEAD 评审、执行证据、有限轮自动循环。
 
-已知限制（如实列出）：chatgpt.com 的 BrowserHarness 适配器是第一版（composer/回复启发式可能随 ChatGPT DOM 变化需调整）；远程访问的 OAuth+配对已搭骨架但 Cloudflare 隧道未端到端打通；暂无独立 CLI（用 DSH 工具面）。
+仍需人工的一次性边界：ChatGPT 登录/2FA/CAPTCHA、创建 ChatGPT App、创建 Secure MCP Tunnel。ChatGPT Web DOM 变化时，语义选择器可能需要维护。
 
 ## 许可
 

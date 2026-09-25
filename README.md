@@ -47,7 +47,7 @@ Because it doesn't need it, and independence requires containment:
 
 ## Install
 
-Prereqs: Node.js ≥ 20, pnpm, a DSH checkout or installed DSH with profile support.
+Prereqs: Node.js ≥ 20, pnpm, a DSH checkout or installed DSH with profile support, and a BrowserUse/Browser Harness MCP provider available in the target DSH profile. This repository carries matching 0.1.6-alpha.1 provider tarballs under `package/tarballs/` for local installation when your profile does not already provide them.
 
 ```powershell
 # 1. Build the plugin package
@@ -64,11 +64,23 @@ dsh plugin --profile <your-profile> add D:\workspace\DSHWithChatGPT\package
 
 Manual install: copy the package anywhere permanent and append its `cordis.patch.yml` row (`id: dsh-with-chatgpt, name: dsh-with-chatgpt`) to your profile's `cordis.patch.yml`.
 
-## First-time setup
+## One-time setup
 
-1. **Browser**: log into chatgpt.com in a Chrome/Edge that DSH BrowserUse can attach to (the browser-harness MCP flow prompts you for the dedicated debugging Chrome on first use).
-2. **Connector** (once per ChatGPT account): in ChatGPT Web → Settings → Connectors → add a custom MCP connector pointing at the bridge URL the plugin prints (loopback, or tunneled when remote review is needed). Paste the one-time pairing token when prompted.
-3. **Verify**: run the `chatgpt_status` tool from any DSH session in the workspace — it reports coordinator state, bridge port, and the latest task.
+The runtime is unattended **after** account/app/tunnel setup. Login, 2FA/CAPTCHA, creating the ChatGPT custom app, and creating the Secure MCP Tunnel remain explicit user setup steps.
+
+1. **Browser**: log into chatgpt.com in a dedicated Chrome/Edge profile that the DSH Browser Harness MCP provider can attach to.
+2. **ChatGPT app**: create/enable one read-only custom MCP app named exactly `DSH with ChatGPT` (or set `chatgptAppName` to your chosen exact name). The app should expose only this plugin's ten read-only tools.
+3. **Secure MCP Tunnel**: create a tunnel in OpenAI Platform, then provide its id and runtime key to the DSH process:
+
+   ```powershell
+   $env:CONTROL_PLANE_TUNNEL_ID="<tunnel_id>"
+   $env:CONTROL_PLANE_API_KEY="<runtime_api_key>"
+   ```
+
+   Keep `tunnel-client` on `PATH`. In the default `managed` mode the plugin starts/restarts it automatically and injects the loopback Bearer header only on the final tunnel-client → localhost MCP hop.
+4. **Verify once**: ask DSH to call `chatgpt_status`. Expect `tunnel.ready: true`, a stable `workspaceId`, the configured `chatgptAppName`, and `gitPolicy: commit-push`.
+
+No per-round ChatGPT UI action is required after setup. The Browser Harness adapter activates the exact app with `@mention` before every INIT/REVIEW message and fails closed if the app cannot be selected.
 
 ## Usage
 
@@ -77,7 +89,7 @@ In a DSH session, inside the project you want to work on:
 > 使用 ChatGPT 帮我规划并实现 <task>
 > Use ChatGPT to implement <task>
 
-The agent will start a collaboration round (`chatgpt_plan`), execute the plan with its normal tools, then request independent review (`chatgpt_review`). Regular development requests never enter the loop — the system-prompt section only activates on collaboration intent.
+With the bundled profile defaults, the agent runs the whole collaboration loop without pausing between rounds: `chatgpt_plan` → implementation/test → task-branch commit + push → `chatgpt_review` of the exact HEAD → fix PLAN if needed → repeat until DONE. Protected branches (`main`, `master`) are refused by the autonomous commit-push review gate. Regular development requests never enter the loop — the system-prompt section only activates on collaboration intent.
 
 Useful tools:
 
@@ -98,7 +110,7 @@ Task state lives in the DSH storage area (`d2c_state` domain) and `%LOCALAPPDATA
 
 ## Doctor / troubleshooting
 
-Run `chatgpt_status`; it reports the latest persisted task and whether the local bridge is running. It does not check browser login or remote connector reachability. See `docs/troubleshooting.md` for the failure table.
+Run `chatgpt_status` first. It proves the plugin is loaded, starts the local bridge, and reports the connector-config path and latest task. Browser/login health is then exercised by `chatgpt_plan` / `chatgpt_reconnect`. See `docs/troubleshooting.md` for the failure table.
 
 ## Docs
 
@@ -112,9 +124,9 @@ Run `chatgpt_status`; it reports the latest persisted task and whether the local
 
 ## Status & limitations
 
-Working: protocol + state machine, workspace security boundary, execution recorder, read-only local MCP bridge, coordinator with durable state, model tools, prompt section, profile install path. The coordinator restores unfinished tasks after a restart, captures new ChatGPT conversation IDs, and resumes an outstanding review without resending its execution message. Foreground DSH `bash` and `pwsh` results are recorded for the active task, with separate records per workspace. See `docs/` and the git log for evidence.
+Working: protocol + restart recovery, workspace identity binding, execution evidence, read-only MCP bridge, managed Secure MCP Tunnel lifecycle, automatic per-message ChatGPT app activation, stale-reply fencing, exact-HEAD review integrity, current-session Browser Harness binding, and bounded autonomous PLAN→implement→commit/push→review loops.
 
-Known limitations: the BrowserHarness chatgpt.com adapter is a first cut (composer/reply heuristics may need adjustment as ChatGPT's DOM changes); the plugin's MCP bridge is loopback-only and accepts bearer tokens, while ChatGPT's custom connector needs a reachable OAuth connection, so the documented first-run connector setup is not yet functional; no CLI beyond the DSH tool surface yet. A full ChatGPT PLAN → DSH execution → ChatGPT review round has not been verified.
+Known limitations: one-time ChatGPT login/2FA/CAPTCHA, custom-app creation, and tunnel creation are not automated; the ChatGPT DOM adapter intentionally relies on semantic UI structure and may need maintenance when the Web UI changes; the plugin does not merge PRs or force-push, and it never gives ChatGPT write/shell capabilities.
 
 ## License
 

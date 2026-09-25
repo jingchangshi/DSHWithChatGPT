@@ -1,58 +1,82 @@
 # Installation
 
-## Option A — DSH plugin manager (preferred)
+## Build and install
 
 ```powershell
-# Build first
 cd <repo>\package
 pnpm install
-pnpm build
+pnpm typecheck
 pnpm test
+pnpm build
 
-# Register into a profile: this runs pnpm and reconciles the layer stack;
-# the package's dsh.bundle.patch row (cordis.patch.yml) joins the profile.
 dsh plugin --profile <your-profile> add D:\workspace\DSHWithChatGPT\package
-
-# Restart DSH with that profile. The plugin now loads at startup.
 ```
 
-## Option B — manual
+The target profile must also expose DSH BrowserUse + the Browser Harness MCP provider. Matching DSH 0.1.6-alpha.1 provider tarballs are kept under `package/tarballs/`.
 
-1. Build as above (`lib/` must exist).
-2. Add the row to your profile's `cordis.patch.yml`:
+## Unattended profile defaults
+
+The bundled `cordis.patch.yml` enables:
 
 ```yaml
-- insert:
-    - id: dsh-with-chatgpt
-      name: dsh-with-chatgpt
-      config:
-        bridgePort: 0
-        replyTimeoutMs: 240000
-        browserMode: browser-harness-mcp
+chatgptAppName: DSH with ChatGPT
+maxIterations: 12
+gitPolicy: commit-push
+protectedBranches: [main, master]
+tunnelMode: managed
+tunnelClientPath: tunnel-client
+tunnelIdEnv: CONTROL_PLANE_TUNNEL_ID
+tunnelRuntimeApiKeyEnv: CONTROL_PLANE_API_KEY
 ```
 
-3. Make sure the package directory is resolvable by Node (same drive, or set the row's `name:` to the absolute path of the package folder).
-4. Restart DSH.
+Use `gitPolicy: worktree` if you want ChatGPT review without mandatory commit/push rounds. Use `tunnelMode: external` only when another process already owns a healthy Secure MCP Tunnel lifecycle.
 
-## Verify
+## One-time ChatGPT / Tunnel setup
 
-In any DSH session with the profile active, inside a project workspace:
+1. Log into ChatGPT in the Chrome/Edge profile controlled by Browser Harness.
+2. Create/enable a read-only custom MCP app. Its exact name must match `chatgptAppName` (default `DSH with ChatGPT`).
+3. Create an OpenAI Secure MCP Tunnel and make `tunnel-client` available on `PATH`.
+4. Set the tunnel id and runtime API key in the environment that launches DSH:
 
-- Ask the agent to call `chatgpt_status`. Expected: `plugin: dsh-with-chatgpt`, `latestTask: null` (fresh), `bridgeRunning: false` (starts lazily on first collaboration round).
+```powershell
+$env:CONTROL_PLANE_TUNNEL_ID="<tunnel_id>"
+$env:CONTROL_PLANE_API_KEY="<runtime_api_key>"
+```
 
-## First-run checklist
+5. Restart/reload DSH, enter a workspace, and ask it to call `chatgpt_status`.
 
-1. `chatgpt_status` — plugin loaded (proves profile wiring).
-2. Log into chatgpt.com in the browser DSH BrowserUse drives.
-3. First `chatgpt_plan` round opens the persistent conversation.
-4. Add the MCP connector in ChatGPT Web (Settings → Connectors) pointing at the bridge URL printed by `chatgpt_status` during a round, pasting the pairing token.
+Expected status:
+- `bridgeRunning: true`
+- a stable `workspaceId`
+- `chatgptAppName` equals the ChatGPT app
+- `gitPolicy: commit-push`
+- `tunnel.configured: true`
+- `tunnel.ready: true`
+
+The local bridge remains Bearer-protected. The secret value is written outside the repository to a mode-0600 file. Managed `tunnel-client` receives it through `MCP_EXTRA_HEADERS` / `MCP_DISCOVERY_EXTRA_HEADERS`; the token is not returned in model-facing status output.
+
+## Browser session
+
+Use a persistent, dedicated Chrome/Edge profile. Login/2FA/CAPTCHA is intentionally human-owned setup. Runtime D2C messages do not require manual App selection: the browser adapter enters `@<chatgptAppName>`, selects the exact visible App candidate, verifies the mention, and only then appends/sends the control envelope.
+
+## Verify the full loop
+
+In a non-protected task branch, ask:
+
+> Use ChatGPT to implement a trivial change, run tests, commit and push it, and keep applying ChatGPT review fixes until DONE.
+
+A successful unattended run should show:
+1. INIT with `WORKSPACE_ID`
+2. PLAN from ChatGPT with the same `WORKSPACE_ID`
+3. local implementation/tests
+4. commit + push on a non-protected branch
+5. EXECUTED with exact `HEAD`
+6. DONE or fix PLAN echoing both `WORKSPACE_ID` and `HEAD`
+7. automatic continuation on fix PLAN.
 
 ## Uninstall
 
 ```powershell
 dsh plugin --profile <your-profile> remove dsh-with-chatgpt
-# optional cleanup:
 Remove-Item "$env:LOCALAPPDATA\dsh-with-chatgpt" -Recurse -Force
 ```
-
-The `d2c_state` storage domain lives under the DSH storage area and disappears with the profile's storages if you remove the profile.

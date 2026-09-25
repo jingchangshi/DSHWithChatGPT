@@ -45,14 +45,6 @@ export interface TaskRecord {
 export class StateMachine {
   private readonly tasks = new Map<string, TaskRecord>()
 
-  /** Restore one trusted durable task without replaying protocol messages. */
-  restore(record: TaskRecord): void {
-    if (this.tasks.has(record.taskId)) {
-      throw new ProtocolError('duplicate-task', `task ${record.taskId} already exists`)
-    }
-    this.tasks.set(record.taskId, { ...record })
-  }
-
   /** Start a task (INIT sent). */
   startTask(taskId: string, goal: string, iteration = 0): TaskRecord {
     if (this.tasks.has(taskId)) {
@@ -68,6 +60,29 @@ export class StateMachine {
     }
     this.tasks.set(taskId, record)
     return record
+  }
+
+  /**
+   * Rehydrate one task from durable coordinator state after a DSH restart.
+   * The durable record is authoritative; restoring an already-loaded task is
+   * idempotent only when every machine field still matches.
+   */
+  restore(record: TaskRecord): TaskRecord {
+    const existing = this.tasks.get(record.taskId)
+    if (existing !== undefined) {
+      if (
+        existing.state !== record.state
+        || existing.iteration !== record.iteration
+        || existing.waitingFor !== record.waitingFor
+        || existing.goal !== record.goal
+      ) {
+        throw new ProtocolError('restore-conflict', `task ${record.taskId} is already loaded with different state`)
+      }
+      return existing
+    }
+    const restored: TaskRecord = { ...record }
+    this.tasks.set(record.taskId, restored)
+    return restored
   }
 
   /** Read one task record. */
@@ -110,13 +125,12 @@ export class StateMachine {
     if (!satisfying.includes(envelope.state)) {
       throw new ProtocolError('stale-reply', `waiting ${record.waitingFor} but got ${envelope.state}`)
     }
-    // A reply must answer the exact outstanding iteration; its own iteration
-    // may advance, but never move the task backward.
-    if (envelope.inReplyTo !== undefined && envelope.inReplyTo !== record.iteration) {
-      throw new ProtocolError('stale-iteration', `reply references iteration ${envelope.inReplyTo}, expected ${record.iteration}`)
-    }
-    if (envelope.iteration < record.iteration) {
-      throw new ProtocolError('stale-iteration', `reply iteration ${envelope.iteration} < expected ${record.iteration}`)
+    // Iteration currency: a reply must reference the iteration we are at or
+    // the one we asked about (IN_REPLY_TO), never an older one. The INIT
+    // round (iteration 0 plan) is the only reply allowed to carry 0.
+    const expected = envelope.inReplyTo ?? record.iteration
+    if (envelope.iteration < expected) {
+      throw new ProtocolError('stale-iteration', `reply iteration ${envelope.iteration} < expected ${expected}`)
     }
     record.iteration = envelope.iteration
     record.updatedAt = Date.now()

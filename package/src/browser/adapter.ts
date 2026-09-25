@@ -21,14 +21,14 @@ export interface BrowserControl {
   ensureReady(): Promise<void>
   /** Open (or reuse) the persistent conversation; returns conversation id/url. */
   openConversation(conversationId?: string): Promise<string>
-  /** Read the current ChatGPT conversation id, if its URL has one. */
-  currentConversationId(): Promise<string | undefined>
   /** Send one control message. Throws on duplicate-send suspicion. */
   sendControlMessage(text: string): Promise<void>
   /** Wait for and read the latest assistant reply. */
   waitForReply(timeoutMs: number): Promise<BrowserReply>
   /** Health probe. */
   health(): Promise<{ ok: boolean; detail: string }>
+  /** Current ChatGPT conversation id, when the page URL has one. */
+  conversationId(): Promise<string | undefined>
   /** Best-effort recovery (reload page, re-find composer). */
   recover(): Promise<void>
 }
@@ -38,6 +38,14 @@ export class ChatGptLoggedOutError extends Error {
   constructor() {
     super('ChatGPT_WEB_LOGGED_OUT: the browser session is not logged in to ChatGPT')
     this.name = 'ChatGptLoggedOutError'
+  }
+}
+
+/** Configured ChatGPT app could not be activated for the outgoing message. */
+export class ChatGptAppUnavailableError extends Error {
+  constructor(appName: string, detail = 'no exact app mention candidate appeared') {
+    super(`CHATGPT_APP_UNAVAILABLE: ${JSON.stringify(appName)}: ${detail}`)
+    this.name = 'ChatGptAppUnavailableError'
   }
 }
 

@@ -61,6 +61,14 @@ export interface GitStatusSnapshot {
   head: string | null
   branch: string | null
   dirty: boolean
+  /** Tracking branch, when configured (for example origin/feature). */
+  upstream: string | null
+  /** Upstream commit currently observed. */
+  upstreamHead: string | null
+  /** Commits local HEAD is ahead of upstream; null when no upstream. */
+  ahead: number | null
+  /** Commits local HEAD is behind upstream; null when no upstream. */
+  behind: number | null
   staged: string[]
   unstaged: string[]
   untracked: string[]
@@ -74,7 +82,11 @@ export async function gitStatus(root: string): Promise<GitStatusSnapshot> {
     // rev-parse --is-inside-work-tree, which succeeds in any repo.
     const isRepo = await git(root, ['rev-parse', '--is-inside-work-tree']).catch(() => null)
     if (isRepo === null) {
-      return { isRepo: false, head: null, branch: null, dirty: false, staged: [], unstaged: [], untracked: [] }
+      return {
+        isRepo: false, head: null, branch: null, dirty: false,
+        upstream: null, upstreamHead: null, ahead: null, behind: null,
+        staged: [], unstaged: [], untracked: [],
+      }
     }
     const branch = await git(root, ['rev-parse', '--abbrev-ref', 'HEAD']).catch(() => null)
     const statusOut = await git(root, ['status', '--porcelain=v1', '-z'])
@@ -84,12 +96,31 @@ export async function gitStatus(root: string): Promise<GitStatusSnapshot> {
       head: null,
       branch: branch === 'HEAD' ? null : branch,
       dirty: untracked.length > 0,
+      upstream: null,
+      upstreamHead: null,
+      ahead: null,
+      behind: null,
       staged: [],
       unstaged: [],
       untracked,
     }
   }
   const branchOut = await git(root, ['rev-parse', '--abbrev-ref', 'HEAD']).catch(() => '')
+  const upstreamOut = await git(root, ['rev-parse', '--abbrev-ref', '--symbolic-full-name', '@{u}']).catch(() => null)
+  const upstream = upstreamOut?.trim() || null
+  const upstreamHeadOut = upstream === null
+    ? null
+    : await git(root, ['rev-parse', '--verify', '@{u}']).catch(() => null)
+  const countsOut = upstream === null
+    ? null
+    : await git(root, ['rev-list', '--left-right', '--count', 'HEAD...@{u}']).catch(() => null)
+  const counts = countsOut?.trim().split(/\s+/).map(Number)
+  const ahead = counts !== undefined && counts.length >= 2 && Number.isSafeInteger(counts[0])
+    ? counts[0]!
+    : null
+  const behind = counts !== undefined && counts.length >= 2 && Number.isSafeInteger(counts[1])
+    ? counts[1]!
+    : null
   const statusOut = await git(root, ['status', '--porcelain=v1', '-z'])
   const staged: string[] = []
   const unstaged: string[] = []
@@ -104,6 +135,10 @@ export async function gitStatus(root: string): Promise<GitStatusSnapshot> {
     head: headOut.trim(),
     branch: branchOut.trim() || null,
     dirty: staged.length + unstaged.length + untracked.length > 0,
+    upstream,
+    upstreamHead: upstreamHeadOut?.trim() || null,
+    ahead,
+    behind,
     staged,
     unstaged,
     untracked,
