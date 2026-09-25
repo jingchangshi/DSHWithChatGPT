@@ -78,7 +78,7 @@ The runtime is unattended **after** account/app/tunnel setup. Login, 2FA/CAPTCHA
    ```
 
    Keep `tunnel-client` on `PATH`. In the default `managed` mode the plugin starts/restarts it automatically and injects the loopback Bearer header only on the final tunnel-client → localhost MCP hop.
-4. **Verify once**: ask DSH to call `chatgpt_status`. Expect `tunnel.ready: true`, a stable `workspaceId`, the configured `chatgptAppName`, and `gitPolicy: commit-push`.
+4. **Verify once**: ask DSH to call `chatgpt_doctor` in a fresh Session. Expect local readiness checks to pass; `remote_workspace_access` remains unverified until a real ChatGPT App call.
 
 No per-round ChatGPT UI action is required after setup. The Browser Harness adapter activates the exact app with `@mention` before every INIT/REVIEW message and fails closed if the app cannot be selected.
 
@@ -97,7 +97,7 @@ Useful tools:
 |---|---|
 | `chatgpt_plan` | Send a goal, get ChatGPT's structured plan |
 | `chatgpt_review` | Report execution, get independent review (DONE / fix PLAN) |
-| `chatgpt_status` | Coordinator + bridge status, latest task |
+| `chatgpt_status` | Coordinator + bridge status, latest task |`n| `chatgpt_doctor` | Real Session local readiness: Browser Harness, ChatGPT login/App probe, bridge identity, and tunnel |
 | `chatgpt_reconnect` | Recover after browser reload / DSH restart |
 
 ## Uninstall
@@ -110,7 +110,7 @@ Task state lives in the DSH storage area (`d2c_state` domain) and `%LOCALAPPDATA
 
 ## Doctor / troubleshooting
 
-Run `chatgpt_status` first. It proves the plugin is loaded, starts the local bridge, and reports the connector-config path and latest task. Browser/login health is then exercised by `chatgpt_plan` / `chatgpt_reconnect`. See `docs/troubleshooting.md` for the failure table.
+Use `chatgpt_status` for task/runtime state and `chatgpt_doctor` for bounded local readiness. Component tests are not E2E; a real Session doctor proves local prerequisites; only a real ChatGPT App call proves remote C2C access. See `docs/troubleshooting.md` for the failure table.
 
 ## Docs
 

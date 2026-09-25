@@ -1,6 +1,13 @@
 import { describe, expect, it } from 'vitest'
 import { runDoctor } from '../src/readiness/doctor.ts'
 import { OperationCancelledError } from '../src/cancellation.ts'
+import { startBridgeServer } from '../src/bridge/server.ts'
+import { loadWorkspaceSpec, workspaceInfoTool } from '../src/bridge/tools.ts'
+import { ExecutionRecorder } from '../src/execution/recorder.ts'
+import fs from 'node:fs'
+import os from 'node:os'
+import path from 'node:path'
+import { workspaceIdentity } from '../src/workspace/identity.ts'
 
 describe('chatgpt_doctor', () => {
   it('propagates cancellation instead of misreporting a failed readiness check', async () => {
@@ -47,3 +54,28 @@ describe('chatgpt_doctor', () => {
     expect(result.checks.find(check => check.id === 'chatgpt_app')).toMatchObject({ ok: true })
   })
 })
+  it('proves local readiness through the authenticated ephemeral bridge', async () => {
+    const root = fs.mkdtempSync(path.join(os.tmpdir(), 'dsh-doctor-'))
+    const recorder = new ExecutionRecorder({ stateDir: path.join(root, 'records') })
+    const spec = loadWorkspaceSpec(root, recorder)
+    const token = 'doctor-test-token'
+    const server = await startBridgeServer({ port: 0, tokens: new Map([[token, 'workspace']]) }, [workspaceInfoTool(spec)])
+    try {
+      const result = await runDoctor({
+        workspaceRoot: root,
+        workspaceId: workspaceIdentity(root),
+        appName: 'DSH with ChatGPT',
+        browser: { readiness: async () => ({ url: 'https://chatgpt.com/c/test', composer: true, loggedOut: false }) },
+        bridgeHttp: { port: server.port, token },
+        probeApp: async () => undefined,
+        runtime: { bridge: { workspaceId: workspaceIdentity(root) }, tunnel: { mode: 'managed', configured: true, ready: true, detail: 'ready' } },
+      })
+      expect(result.checks.find(check => check.id === 'bridge')).toMatchObject({ ok: true })
+      expect(result.ready).toBe(true)
+      expect(result.checks.find(check => check.id === 'remote_workspace_access')).toMatchObject({ ok: false, code: 'REMOTE_ACCESS_REQUIRES_E2E' })
+      expect(JSON.stringify(result)).not.toContain(token)
+    } finally {
+      await server.close()
+      fs.rmSync(root, { recursive: true, force: true })
+    }
+  })

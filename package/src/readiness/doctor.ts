@@ -25,6 +25,25 @@ export interface DoctorInputs {
   signal?: AbortSignal
 }
 
+const BRIDGE_PROBE_TIMEOUT_MS = 5_000
+
+async function probeBridge(inputs: DoctorInputs): Promise<Response> {
+  const controller = new AbortController()
+  const onAbort = () => controller.abort()
+  inputs.signal?.addEventListener('abort', onAbort, { once: true })
+  const timeout = setTimeout(() => controller.abort(), BRIDGE_PROBE_TIMEOUT_MS)
+  try {
+    return await fetch('http://127.0.0.1:' + inputs.bridgeHttp.port + '/mcp', {
+      method: 'POST',
+      headers: { authorization: 'Bearer ' + inputs.bridgeHttp.token, 'content-type': 'application/json' },
+      body: JSON.stringify({ jsonrpc: '2.0', id: 1, method: 'tools/call', params: { name: 'workspace_info', arguments: {} } }),
+      signal: controller.signal,
+    })
+  } finally {
+    clearTimeout(timeout)
+    inputs.signal?.removeEventListener('abort', onAbort)
+  }
+}
 export async function runDoctor(inputs: DoctorInputs): Promise<DoctorResult> {
   throwIfCancelled(inputs.signal)
   const checks: ReadinessCheck[] = [
@@ -37,12 +56,7 @@ export async function runDoctor(inputs: DoctorInputs): Promise<DoctorResult> {
     { id: 'remote_workspace_access', ok: false, detail: 'requires one real ChatGPT App MCP call; not verified by local doctor', code: 'REMOTE_ACCESS_REQUIRES_E2E' },
   ]
   try {
-    const response = await fetch(`http://127.0.0.1:${inputs.bridgeHttp.port}/mcp`, {
-      method: 'POST',
-      headers: { authorization: `Bearer ${inputs.bridgeHttp.token}`, 'content-type': 'application/json' },
-      body: JSON.stringify({ jsonrpc: '2.0', id: 1, method: 'tools/call', params: { name: 'workspace_info', arguments: {} } }),
-      signal: inputs.signal,
-    })
+    const response = await probeBridge(inputs)
     if (!response.ok) throw new Error(`bridge returned HTTP ${response.status}`)
     const envelope = await response.json() as { result?: { content?: Array<{ text?: string }> }; error?: { message?: string } }
     if (envelope.error !== undefined) throw new Error(envelope.error.message ?? 'bridge workspace_info failed')
