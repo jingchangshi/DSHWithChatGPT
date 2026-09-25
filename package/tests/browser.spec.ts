@@ -7,7 +7,7 @@ import {
   RetryBudget,
   extractEnvelopeText,
 } from '../src/browser/adapter.ts'
-import { decodeToolValue } from '../src/browser/harness.ts'
+import { BrowserHarnessAdapter, decodeToolValue } from '../src/browser/harness.ts'
 
 describe('DuplicateSendGuard', () => {
   it('flags identical text within cooldown', () => {
@@ -86,5 +86,50 @@ describe('Browser Harness MCP result decoding', () => {
     expect(decodeToolValue<{ found: boolean }>({
       content: [{ type: 'text', text: '{"found":true}' }],
     })).toEqual({ found: true })
+  })
+})
+describe('Browser Harness App probe', () => {
+  function makeBrowser(respond: (name: string, args: Record<string, unknown>) => unknown) {
+    const calls: string[] = []
+    const browser = new BrowserHarnessAdapter({
+      get: () => ({
+        execute: async ({ name, arguments: args }: { name: string; arguments: Record<string, unknown> }) => {
+          calls.push(name)
+          return { value: respond(name, args) }
+        },
+      }),
+    } as never, undefined, 'DSH with ChatGPT')
+    return { browser, calls }
+  }
+
+  it('selects the exact App, cleans the composer, and never presses Enter', async () => {
+    const { browser, calls } = makeBrowser((name, args) => {
+      if (name.endsWith('browser_page_info')) return { url: 'https://chatgpt.com/c/test' }
+      if (name.endsWith('browser_js')) {
+        const expression = String(args.expression)
+        if (expression.includes('const candidates =')) return { found: true, x: 10, y: 20 }
+        if (expression.includes('const decorators')) return true
+        return { text: '', assistantCount: 0, streaming: false, loggedOut: false, composer: true }
+      }
+      return {}
+    })
+    await browser.probeApp('DSH with ChatGPT')
+    expect(calls.some(name => name.endsWith('browser_press'))).toBe(false)
+    expect(calls.filter(name => name.endsWith('browser_fill')).at(-1)).toContain('browser_fill')
+  })
+
+  it('cleans the composer after an unavailable App without pressing Enter', async () => {
+    const { browser, calls } = makeBrowser((name, args) => {
+      if (name.endsWith('browser_page_info')) return { url: 'https://chatgpt.com/c/test' }
+      if (name.endsWith('browser_js')) {
+        const expression = String(args.expression)
+        if (expression.includes('const candidates =')) return { found: false }
+        return { text: '', assistantCount: 0, streaming: false, loggedOut: false, composer: true }
+      }
+      return {}
+    })
+    await expect(browser.probeApp('DSH with ChatGPT')).rejects.toBeInstanceOf(ChatGptAppUnavailableError)
+    expect(calls.some(name => name.endsWith('browser_press'))).toBe(false)
+    expect(calls.filter(name => name.endsWith('browser_fill')).at(-1)).toContain('browser_fill')
   })
 })
