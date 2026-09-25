@@ -69,6 +69,8 @@ Browser Harness 工具调用始终绑定**当前 DSH agent/session**；coordinat
 
 `workspace_info` 返回稳定、非秘密的 `workspaceId`。D2C 的 INIT/EXECUTED 携带 `WORKSPACE_ID`，ChatGPT 必须通过 MCP 确认后原样回显；错误 App/connector/workspace 会被 coordinator 机器拒绝。
 
+Model-facing C2C 工具仅接受当前 DSH Session 的 cwd；插件在建立 coordinator、bridge 和持久 workspace binding 前解析真实目录，并统一 Windows/macOS 大小写与路径别名。缺失 Session cwd 或无效目录直接失败，不回退到宿主进程 cwd。
+
 ## Secure MCP Tunnel
 
 `TunnelSupervisor` 在 bundled `tunnelMode: managed` 下：
@@ -131,6 +133,10 @@ Durable storage 保存 task state、iteration、conversation id、last reviewed 
 4. 继续原任务
 
 执行证据单独保存在 DSH state area，不写进项目 repo。
+
+Shell 证据归属在工具执行开始前从该工作区的持久 binding 与 planned task 读取并冻结；结果事件只使用这个冻结的 task、工作区与下一 review iteration。插件重启后无需先调用 reconnect 即可归属后续命令。每个规范化工作区使用独立 JSONL 记录器，MCP bridge 的未过滤证据查询也只能读取本工作区记录。
+
+DSH tool 调用的取消信号沿 coordinator、Browser Harness 与 managed tunnel 启动路径传递。取消等待 PLAN 不改变已保存的 awaiting-plan 状态；成功发送 EXECUTED 后，review iteration、等待状态与 HEAD 立即持久化。取消 REVIEW 等待时，重连读取同一条回复，不重发 EXECUTED。启动期间取消 managed tunnel 会终止本次新建的子进程，不关闭已就绪的共享连接。
 
 ## 一次性人工边界
 

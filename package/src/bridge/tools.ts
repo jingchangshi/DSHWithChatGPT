@@ -8,7 +8,7 @@
 
 import fs from 'node:fs'
 import path from 'node:path'
-import { SensitivePolicy, WorkspaceError, NOISE_PATTERNS, IgnoreMatcher, resolveContained } from '../workspace/index.ts'
+import { SensitivePolicy, WorkspaceError, NOISE_PATTERNS, IgnoreMatcher, canonicalWorkspaceRoot, resolveContained } from '../workspace/index.ts'
 import { GitError, gitDiff, gitLog, gitStatus } from '../workspace/git.ts'
 import type { ExecutionRecorder } from '../execution/recorder.ts'
 import type { McpToolDefinition } from './server.ts'
@@ -26,6 +26,7 @@ export interface WorkspaceSpec {
 
 /** Load .d2cignore from the workspace root (additive deny list). */
 export function loadWorkspaceSpec(root: string, recorder: ExecutionRecorder): WorkspaceSpec {
+  root = canonicalWorkspaceRoot(root).root
   let extra: string[] = []
   try {
     const ignorePath = path.join(root, '.d2cignore')

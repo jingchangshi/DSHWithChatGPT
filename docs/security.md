@@ -7,6 +7,8 @@
 
 ## Path containment
 
+The executing DSH Session must supply a workspace cwd. The plugin resolves it to an existing real directory before creating a task, bridge, or workspace identity; a missing cwd fails with `SESSION_WORKSPACE_UNAVAILABLE`, and an inaccessible root fails with `INVALID_WORKSPACE_ROOT`. Windows and macOS case variants and symlink aliases share one normalized identity. Existing bindings keyed by a physical path keep their key on Windows; a binding previously created through a symlink alias requires a fresh collaboration task after this change.
+
 `src/workspace/boundary.ts`:
 
 1. Reject null bytes, URL-scheme-like inputs (`file://`, `http://`); `workspace:/` prefixes are normalized.

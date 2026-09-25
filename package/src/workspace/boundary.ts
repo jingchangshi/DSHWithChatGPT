@@ -10,6 +10,7 @@
 
 import fs from 'node:fs'
 import path from 'node:path'
+import { canonicalWorkspaceRoot } from './identity.ts'
 
 /** Whether this platform's filesystem is case-insensitive in practice. */
 const CASE_INSENSITIVE = process.platform === 'win32' || process.platform === 'darwin'
@@ -206,6 +207,7 @@ export function resolveContained(
   root: string,
   requested: string,
 ): { abs: string; rel: string } {
+  const canonicalRoot = canonicalWorkspaceRoot(root).root
   if (typeof requested !== 'string' || requested.includes('\0')) {
     throw new WorkspaceError('INVALID_PATH', 'path must be a string without null bytes')
   }
@@ -219,14 +221,14 @@ export function resolveContained(
     const quoted = JSON.stringify(requested)
     throw new WorkspaceError('INVALID_PATH', 'refusing scheme-like path ' + quoted)
   }
-  const abs = path.resolve(root, p)
+  const abs = path.resolve(canonicalRoot, p)
   const canonical = canonicalize(abs)
-  const r = normCase(root)
+  const r = normCase(canonicalRoot)
   const c = normCase(canonical)
   if (c !== r && !c.startsWith(r + path.sep)) {
     throw new WorkspaceError('PATH_OUTSIDE_WORKSPACE', String(requested) + ' resolves outside the workspace')
   }
-  const rel = path.relative(root, canonical).split(path.sep).join('/')
+  const rel = path.relative(canonicalRoot, canonical).split(path.sep).join('/')
   if (rel.startsWith('..')) {
     throw new WorkspaceError('PATH_OUTSIDE_WORKSPACE', String(requested) + ' resolves outside the workspace')
   }

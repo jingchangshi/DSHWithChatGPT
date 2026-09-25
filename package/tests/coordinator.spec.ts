@@ -150,7 +150,9 @@ describe('coordinator review integrity', () => {
       head: 'expected-head',
       testsRecorded: true,
     })).rejects.toThrow(/review-head-mismatch/)
-    expect((await coordinator.status(started.taskId))?.lastReviewedHead).toBeNull()
+    expect(await coordinator.status(started.taskId)).toMatchObject({
+      state: 'executed', waitingFor: 'chatgpt-review', lastReviewedHead: 'expected-head',
+    })
   })
 })
 

@@ -18,19 +18,19 @@ export interface BrowserReply {
 /** Abstract ChatGPT-Web-capable browser control. */
 export interface BrowserControl {
   /** Ensure a browser session exists and ChatGPT is reachable+logged in. */
-  ensureReady(): Promise<void>
+  ensureReady(signal?: AbortSignal): Promise<void>
   /** Open (or reuse) the persistent conversation; returns conversation id/url. */
-  openConversation(conversationId?: string): Promise<string>
+  openConversation(conversationId?: string, signal?: AbortSignal): Promise<string>
   /** Send one control message. Throws on duplicate-send suspicion. */
-  sendControlMessage(text: string): Promise<void>
+  sendControlMessage(text: string, signal?: AbortSignal): Promise<void>
   /** Wait for and read the latest assistant reply. */
-  waitForReply(timeoutMs: number): Promise<BrowserReply>
+  waitForReply(timeoutMs: number, signal?: AbortSignal): Promise<BrowserReply>
   /** Health probe. */
   health(): Promise<{ ok: boolean; detail: string }>
   /** Current ChatGPT conversation id, when the page URL has one. */
-  conversationId(): Promise<string | undefined>
+  conversationId(signal?: AbortSignal): Promise<string | undefined>
   /** Best-effort recovery (reload page, re-find composer). */
-  recover(): Promise<void>
+  recover(signal?: AbortSignal): Promise<void>
 }
 
 /** ChatGPT-not-logged-in detection error. */

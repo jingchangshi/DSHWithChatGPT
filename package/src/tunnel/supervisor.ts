@@ -1,6 +1,7 @@
 import fs from 'node:fs'
 import path from 'node:path'
 import { spawn, type ChildProcess } from 'node:child_process'
+import { abortableDelay, OperationCancelledError, throwIfCancelled, withCancellation } from '../cancellation.ts'
 
 export type TunnelMode = 'auto' | 'managed' | 'external'
 
@@ -45,13 +46,20 @@ export class TunnelSupervisor {
 
   constructor(private readonly options: TunnelSupervisorOptions) {}
 
-  async ensure(binding: TunnelBinding): Promise<TunnelStatus> {
+  async ensure(binding: TunnelBinding, signal?: AbortSignal): Promise<TunnelStatus> {
+    throwIfCancelled(signal)
     const prior = this.serialized
     let release!: () => void
-    this.serialized = new Promise<void>(resolve => { release = resolve })
-    await prior
+    const turn = new Promise<void>(resolve => { release = resolve })
+    this.serialized = prior.then(() => turn)
     try {
-      return await this.ensureExclusive(binding)
+      await withCancellation(prior, signal)
+    } catch (error) {
+      release()
+      throw error
+    }
+    try {
+      return await this.ensureExclusive(binding, signal)
     } finally {
       release()
     }
@@ -104,7 +112,8 @@ export class TunnelSupervisor {
     try { fs.unlinkSync(running.healthFile) } catch {}
   }
 
-  private async ensureExclusive(binding: TunnelBinding): Promise<TunnelStatus> {
+  private async ensureExclusive(binding: TunnelBinding, signal?: AbortSignal): Promise<TunnelStatus> {
+    throwIfCancelled(signal)
     const configured = this.resolveConfigured()
     if (configured.mode === 'external') {
       await this.close()
@@ -132,7 +141,7 @@ export class TunnelSupervisor {
       && this.running.bindingKey === bindingKey
       && this.running.child.exitCode === null
       && this.running.child.signalCode === null
-      && await this.probe(this.running.healthUrl)
+      && await this.probe(this.running.healthUrl, signal)
     ) {
       return {
         mode: 'managed',
@@ -145,7 +154,9 @@ export class TunnelSupervisor {
       }
     }
 
+    throwIfCancelled(signal)
     await this.close()
+    throwIfCancelled(signal)
 
     const tunnelDir = path.join(this.options.stateDir, 'tunnel')
     fs.mkdirSync(tunnelDir, { recursive: true })
@@ -195,7 +206,9 @@ export class TunnelSupervisor {
     child.stderr?.on('data', append)
 
     const deadline = Date.now() + this.options.startupTimeoutMs
+    try {
     while (Date.now() < deadline) {
+      throwIfCancelled(signal)
       if (spawnError !== undefined) {
         this.running = undefined
         throw new Error('TUNNEL_START_FAILED: ' + sanitizeDiagnostic(spawnError.message))
@@ -209,7 +222,7 @@ export class TunnelSupervisor {
         const url = fs.readFileSync(healthFile, 'utf8').trim()
         if (url !== '') {
           running.healthUrl = url.replace(/\/+$/, '')
-          if (await this.probe(running.healthUrl)) {
+          if (await this.probe(running.healthUrl, signal)) {
             running.detail = 'managed Secure MCP Tunnel is ready'
             return {
               mode: 'managed',
@@ -223,7 +236,11 @@ export class TunnelSupervisor {
           }
         }
       }
-      await sleep(200)
+      await abortableDelay(200, signal)
+    }
+    } catch (error) {
+      if (error instanceof OperationCancelledError && this.running === running) await this.close()
+      throw error
     }
 
     const detail = sanitizeDiagnostic(diagnostic) || `tunnel-client did not become ready within ${this.options.startupTimeoutMs} ms`
@@ -261,14 +278,16 @@ export class TunnelSupervisor {
     }
   }
 
-  private async probe(healthUrl: string | undefined): Promise<boolean> {
+  private async probe(healthUrl: string | undefined, signal?: AbortSignal): Promise<boolean> {
+    throwIfCancelled(signal)
     if (healthUrl === undefined || healthUrl === '') return false
     try {
       const response = await fetch(healthUrl.replace(/\/+$/, '') + '/readyz', {
-        signal: AbortSignal.timeout(1500),
+        signal: signal === undefined ? AbortSignal.timeout(1500) : AbortSignal.any([signal, AbortSignal.timeout(1500)]),
       })
       return response.ok
     } catch {
+      throwIfCancelled(signal)
       return false
     }
   }

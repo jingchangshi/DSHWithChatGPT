@@ -12,6 +12,7 @@ import type { BrowserControl } from '../browser/index.ts'
 import { DuplicateSendGuard, extractEnvelopeText } from '../browser/index.ts'
 import { parseEnvelope } from '../protocol/index.ts'
 import { CoordinatorState, createMemoryStore, type PersistedTask, type TaskState } from './state.ts'
+import { OperationCancelledError, throwIfCancelled } from '../cancellation.ts'
 
 /** Coordinator configuration. */
 export interface CoordinatorOptions {
@@ -84,9 +85,11 @@ export class ChatGptCoordinator {
    * send INIT + boot prompt. Does NOT wait for the plan (the model tool
    * returns; the plan arrives via chatgpt_status polling or review tool).
    */
-  async startTask(goal: string, opts: { resumeConversationId?: string } = {}): Promise<StartResult> {
-    await this.options.browser.ensureReady()
-    const conversationId = await this.options.browser.openConversation(opts.resumeConversationId)
+  async startTask(goal: string, opts: { resumeConversationId?: string; signal?: AbortSignal } = {}): Promise<StartResult> {
+    throwIfCancelled(opts.signal)
+    await this.options.browser.ensureReady(opts.signal)
+    const conversationId = await this.options.browser.openConversation(opts.resumeConversationId, opts.signal)
+    throwIfCancelled(opts.signal)
     const taskId = mintTaskId()
     const record = this.machine.startTask(taskId, goal)
     const persisted: PersistedTask = {
@@ -126,7 +129,7 @@ export class ChatGptCoordinator {
     if (this.sendGuard.isDuplicate(initEnvelope)) {
       throw new ProtocolError('duplicate-send', 'INIT envelope just sent; verify browser state before re-sending')
     }
-    await this.options.browser.sendControlMessage(initEnvelope)
+    await this.options.browser.sendControlMessage(initEnvelope, opts.signal)
     this.sendGuard.record(initEnvelope)
     return { taskId, sentEnvelope: initEnvelope }
   }
@@ -135,13 +138,14 @@ export class ChatGptCoordinator {
    * Wait for the ChatGPT reply to the latest send and fold it into the
    * machine. Rejects stale/mismatched envelopes (ProtocolError).
    */
-  async awaitPlan(taskId: string): Promise<RoundResult> {
+  async awaitPlan(taskId: string, signal?: AbortSignal): Promise<RoundResult> {
+    throwIfCancelled(signal)
     const persisted = await this.requireTask(taskId)
     const record = this.restoreMachine(persisted)
     if (record === undefined || record.waitingFor !== 'chatgpt-plan') {
       throw new ProtocolError('unexpected-reply', `task ${taskId} is not waiting for a plan`)
     }
-    const reply = await this.options.browser.waitForReply(this.replyTimeoutMs)
+    const reply = await this.options.browser.waitForReply(this.replyTimeoutMs, signal)
     const envelopeText = extractEnvelopeText(reply.text)
     if (envelopeText === null) {
       throw new ProtocolError('no-marker', 'ChatGPT reply contained no [D2C] envelope')
@@ -149,7 +153,10 @@ export class ChatGptCoordinator {
     const envelope = parseEnvelope(envelopeText, { sender: 'chatgpt' })
     this.validateWorkspaceReply(envelope)
     const folded = this.machine.applyReply(envelope)
-    const conversationId = await this.options.browser.conversationId().catch(() => undefined)
+    const conversationId = await this.options.browser.conversationId(signal).catch(error => {
+      if (error instanceof OperationCancelledError) throw error
+      return undefined
+    })
     const merged: typeof persisted = {
       ...persisted,
       conversationId: conversationId ?? persisted.conversationId,
@@ -170,20 +177,24 @@ export class ChatGptCoordinator {
     head: string | null
     testsRecorded: boolean
     note?: string
-  }): Promise<RoundResult> {
+  }, signal?: AbortSignal): Promise<RoundResult> {
+    throwIfCancelled(signal)
     const persisted = await this.requireTask(taskId)
     this.restoreMachine(persisted)
     if (persisted.iteration > this.maxIterations) {
       throw new ProtocolError('iteration-limit', `task ${taskId} exceeded maxIterations=${this.maxIterations}`)
     }
-    await this.options.browser.ensureReady()
-    await this.options.browser.openConversation(persisted.conversationId ?? undefined)
-    this.machine.applyLocal(taskId, 'executing')
-    this.machine.advanceIteration(taskId)
-    const record = this.machine.get(taskId)
-    const iteration = record?.iteration ?? persisted.iteration + 1
-    const inReplyTo = persisted.iteration
-    const envelopeText = [
+    await this.options.browser.ensureReady(signal)
+    await this.options.browser.openConversation(persisted.conversationId ?? undefined, signal)
+    const resumingReview = persisted.state === 'executed' && persisted.waitingFor === 'chatgpt-review'
+    let reviewHead = persisted.lastReviewedHead
+    if (!resumingReview) {
+      this.machine.applyLocal(taskId, 'executing')
+      this.machine.advanceIteration(taskId)
+      const record = this.machine.get(taskId)
+      const iteration = record?.iteration ?? persisted.iteration + 1
+      const inReplyTo = persisted.iteration
+      const envelopeText = [
       '[D2C]',
       'VERSION: 1',
       'STATE: EXECUTED',
@@ -201,36 +212,46 @@ export class ChatGptCoordinator {
       '',
       'Independently review via MCP (git_diff, test_status), then reply DONE or PLAN (fix).',
     ].join('\n')
-    if (this.sendGuard.isDuplicate(envelopeText)) {
-      throw new ProtocolError('duplicate-send', 'EXECUTED envelope just sent')
+      if (this.sendGuard.isDuplicate(envelopeText)) {
+        throw new ProtocolError('duplicate-send', 'EXECUTED envelope just sent')
+      }
+      await this.options.browser.sendControlMessage(envelopeText, signal)
+      this.sendGuard.record(envelopeText)
+      const sent = this.machine.applyLocal(taskId, 'executed')
+      reviewHead = summary.head
+      await this.state.saveTask({
+        ...persisted,
+        state: sent.state as TaskState,
+        iteration: sent.iteration,
+        waitingFor: sent.waitingFor,
+        lastReviewedHead: reviewHead,
+      })
     }
-    await this.options.browser.sendControlMessage(envelopeText)
-    this.sendGuard.record(envelopeText)
-    // The EXECUTED send moves the machine to the reviewing posture: the
-    // record now waits for ChatGPT's independent review of iteration N.
-    this.machine.applyLocal(taskId, 'executed')
-    const reply = await this.options.browser.waitForReply(this.replyTimeoutMs)
+    const reply = await this.options.browser.waitForReply(this.replyTimeoutMs, signal)
     const envelopeReply = extractEnvelopeText(reply.text)
     if (envelopeReply === null) {
       throw new ProtocolError('no-marker', 'ChatGPT review contained no [D2C] envelope')
     }
     const envelope = parseEnvelope(envelopeReply, { sender: 'chatgpt' })
     this.validateWorkspaceReply(envelope)
-    if (summary.head !== null && envelope.headers.get('HEAD') !== summary.head) {
+    if (reviewHead !== null && envelope.headers.get('HEAD') !== reviewHead) {
       throw new ProtocolError(
         'review-head-mismatch',
-        `ChatGPT review HEAD ${JSON.stringify(envelope.headers.get('HEAD') ?? null)} != executed HEAD ${JSON.stringify(summary.head)}`,
+        `ChatGPT review HEAD ${JSON.stringify(envelope.headers.get('HEAD') ?? null)} != executed HEAD ${JSON.stringify(reviewHead)}`,
       )
     }
     const folded = this.machine.applyReply(envelope)
-    const conversationId = await this.options.browser.conversationId().catch(() => undefined)
+    const conversationId = await this.options.browser.conversationId(signal).catch(error => {
+      if (error instanceof OperationCancelledError) throw error
+      return undefined
+    })
     const merged: typeof persisted = {
       ...persisted,
       conversationId: conversationId ?? persisted.conversationId,
       state: folded.state as TaskState,
       iteration: folded.iteration,
       waitingFor: folded.waitingFor,
-      lastReviewedHead: summary.head,
+      lastReviewedHead: reviewHead,
     }
     await this.state.saveTask(merged)
     return { taskId, envelope, record: merged }
@@ -248,14 +269,15 @@ export class ChatGptCoordinator {
   }
 
   /** Recover after restart/reload: rebind conversation, re-check task. */
-  async recover(): Promise<PersistedTask | undefined> {
+  async recover(signal?: AbortSignal): Promise<PersistedTask | undefined> {
+    throwIfCancelled(signal)
     const taskId = await this.latestTaskId()
     if (taskId === undefined) return undefined
     const task = await this.state.loadTask(taskId)
     if (task === undefined) return undefined
     this.restoreMachine(task)
-    await this.options.browser.ensureReady()
-    await this.options.browser.openConversation(task.conversationId ?? undefined)
+    await this.options.browser.ensureReady(signal)
+    await this.options.browser.openConversation(task.conversationId ?? undefined, signal)
     return task
   }
 

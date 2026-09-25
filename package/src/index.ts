@@ -21,12 +21,14 @@ import type { Domain } from '@deepseek-ai/dsh-storage-domain'
 import { ChatGptCoordinator } from './orchestrator/index.ts'
 import { CoordinatorState, type PersistedTask, type TaskState } from './orchestrator/state.ts'
 import type { StateStore } from './orchestrator/state.ts'
-import { ExecutionRecorder } from './execution/index.ts'
 import { loadWorkspaceSpec, buildWorkspaceTools } from './bridge/index.ts'
 import { startBridgeServer, type BridgeServer } from './bridge/index.ts'
 import { BrowserHarnessAdapter } from './browser/index.ts'
-import { gitStatus, workspaceIdentity } from './workspace/index.ts'
+import { gitStatus, sessionWorkspaceRoot, workspaceIdentity } from './workspace/index.ts'
+import { freezeShellExecution, observeShellResult, type FrozenExecutionContext, type ObservedExecution, type ObservedResult } from './execution/observe.ts'
+import { WorkspaceRecorders } from './execution/workspaces.ts'
 import { TunnelSupervisor } from './tunnel/index.ts'
+import { throwIfCancelled } from './cancellation.ts'
 
 // ---------------------------------------------------------------- config
 
@@ -173,7 +175,7 @@ export function apply(ctx: Context, config: Config): void | Promise<void> {
 
     // ---- execution recorder lives in DSH storage area (outside workspaces)
     const stateDir = joinStateDir()
-    const recorder = new ExecutionRecorder({ stateDir })
+    const recorders = new WorkspaceRecorders(stateDir)
     const activeTasks = new Map<string, { taskId: string; iteration: number }>()
     const tunnel = new TunnelSupervisor({
       mode: config.tunnelMode,
@@ -224,7 +226,7 @@ export function apply(ctx: Context, config: Config): void | Promise<void> {
       const token = 'd2c_' + randomToken(32)
       const server = await startBridgeServer(
         { port: config.bridgePort, tokens: new Map([[token, 'workspace:' + workspaceId]]) },
-        buildWorkspaceTools(loadWorkspaceSpec(workspaceRoot, recorder)),
+        buildWorkspaceTools(loadWorkspaceSpec(workspaceRoot, recorders.forWorkspace(workspaceRoot))),
       )
       bridges.set(workspaceRoot, server)
       bridgeTokens.set(token, { subject: 'workspace:' + workspaceId, workspaceRoot })
@@ -263,7 +265,8 @@ export function apply(ctx: Context, config: Config): void | Promise<void> {
       try { fs.chmodSync(configPath, 0o600) } catch {}
     }
 
-    async function ensureRuntime(workspaceRoot: string) {
+    async function ensureRuntime(workspaceRoot: string, signal?: AbortSignal) {
+      throwIfCancelled(signal)
       if (config.tunnelMode === 'managed') {
         const otherActive = [...activeTasks.entries()].find(([root]) => root !== workspaceRoot)
         if (otherActive !== undefined) {
@@ -274,11 +277,12 @@ export function apply(ctx: Context, config: Config): void | Promise<void> {
         }
       }
       const bridge = await ensureBridge(workspaceRoot)
+      throwIfCancelled(signal)
       const tunnelStatus = await tunnel.ensure({
         workspaceId: bridge.workspaceId,
         localUrl: bridge.localUrl,
         bearerValueFile: bridge.tokenFile,
-      })
+      }, signal)
       return { bridge, tunnelStatus }
     }
 
@@ -297,58 +301,28 @@ export function apply(ctx: Context, config: Config): void | Promise<void> {
     // ---- execution evidence: observe the real DSH shell tool pipeline.
     // ChatGPT's test_status/execution_summary must be backed by actual tool
     // outcomes, not by the executor's prose claims.
-    type ObservedExecution = {
-      name: string
-      arguments: Record<string, unknown>
-      agent?: { session?: { header?: { cwd?: string } } }
-    }
-    type ObservedResult = {
-      isError?: boolean
-      value?: unknown
-      content?: Array<{ type?: string; text?: string }>
-    }
-    const startedAt = new WeakMap<object, number>()
+    const ownership = new WeakMap<object, FrozenExecutionContext>()
     const toolEvents = ctx as unknown as {
       on(event: 'tools/execute', handler: (exec: ObservedExecution, next: () => Promise<ObservedResult>) => Promise<ObservedResult>): void
       on(event: 'tools/result', handler: (exec: ObservedExecution, result: ObservedResult) => void): void
     }
     toolEvents.on('tools/execute', async (exec, next) => {
-      if (exec.name === 'bash' || exec.name === 'pwsh') startedAt.set(exec as object, Date.now())
+      try {
+        const owner = await freezeShellExecution(exec, coordinatorState)
+        if (owner !== undefined) ownership.set(exec as object, owner)
+      } catch (_observationFailure) {
+      }
       return next()
     })
     toolEvents.on('tools/result', (exec, result) => {
-      if (exec.name !== 'bash' && exec.name !== 'pwsh') return
-      const command = exec.arguments['command']
-      if (typeof command !== 'string' || command.trim() === '') return
-      const workspaceRoot = workspaceOf({ agent: exec.agent })
-      const task = activeTasks.get(workspaceRoot)
-      if (task === undefined) return
-      const value = result.value as {
-        kind?: string
-        exitCode?: number | null
-        timedOut?: boolean
-        aborted?: boolean
-        stdout?: { text?: string }
-        stderr?: { text?: string }
-      } | undefined
-      if (value?.kind === 'background') return
-      const content = result.content?.filter(block => block.type === 'text').map(block => block.text ?? '').join('\n') ?? ''
-      const timedOut = value?.timedOut === true
-      const aborted = value?.aborted === true
-      const exitCode = typeof value?.exitCode === 'number' || value?.exitCode === null ? value.exitCode : null
-      const status = timedOut ? 'timeout' : aborted ? 'cancelled' : result.isError === true || exitCode !== 0 ? 'failure' : 'success'
-      recorder.record({
-        taskId: task.taskId,
-        iteration: task.iteration,
-        command,
-        cwd: typeof exec.arguments['workdir'] === 'string' ? String(exec.arguments['workdir']) : '.',
-        startedAt: startedAt.get(exec as object) ?? Date.now(),
-        endedAt: Date.now(),
-        status,
-        exitCode,
-        stdout: value?.stdout?.text ?? (result.isError === true ? '' : content),
-        stderr: value?.stderr?.text ?? (result.isError === true ? content : ''),
-      })
+      try {
+        const owner = ownership.get(exec as object)
+        if (owner === undefined) return
+        ownership.delete(exec as object)
+        observeShellResult(exec, result, owner, recorders.forWorkspace(owner.workspaceRoot))
+      } catch (_recordingFailure) {
+        return
+      }
     })
 
     // ---- model-facing tools
@@ -402,9 +376,9 @@ export function apply(ctx: Context, config: Config): void | Promise<void> {
         const coordinator = coordinatorFor(workspaceRoot, exec?.agent)
         // Bridge + tunnel must be ready before INIT so ChatGPT can immediately
         // verify workspace_info for the exact workspace id.
-        await ensureRuntime(workspaceRoot)
-        const started = await coordinator.startTask(String(args.goal))
-        const round = await coordinator.awaitPlan(started.taskId)
+        await ensureRuntime(workspaceRoot, exec?.signal)
+        const started = await coordinator.startTask(String(args.goal), { signal: exec?.signal })
+        const round = await coordinator.awaitPlan(started.taskId, exec?.signal)
         activeTasks.set(workspaceRoot, { taskId: round.taskId, iteration: round.record.iteration })
         return {
           taskId: round.taskId,
@@ -435,7 +409,7 @@ export function apply(ctx: Context, config: Config): void | Promise<void> {
       },
       async execute(args: Record<string, unknown>, exec: ToolExec | undefined) {
         const workspaceRoot = workspaceOf(exec)
-        await ensureRuntime(workspaceRoot)
+        await ensureRuntime(workspaceRoot, exec?.signal)
         if (config.gitPolicy === 'commit-push') {
           const current = await gitStatus(workspaceRoot)
           if (!current.isRepo || current.head === null || current.branch === null) {
@@ -466,7 +440,7 @@ export function apply(ctx: Context, config: Config): void | Promise<void> {
           head: typeof args.head === 'string' ? args.head : null,
           testsRecorded: args.testsRecorded === true,
           ...(args.note !== undefined ? { note: String(args.note).slice(0, 200) } : {}),
-        })
+        }, exec?.signal)
         if (round.record.state === 'planned') {
           activeTasks.set(workspaceRoot, { taskId: round.taskId, iteration: round.record.iteration })
         } else {
@@ -516,7 +490,7 @@ export function apply(ctx: Context, config: Config): void | Promise<void> {
         const coordinator = coordinatorFor(workspaceRoot, exec?.agent)
         const latestTaskId = await coordinator.latestTaskId()
         const task = latestTaskId !== undefined ? await coordinator.status(latestTaskId) : undefined
-        const runtime = await ensureRuntime(workspaceRoot)
+        const runtime = await ensureRuntime(workspaceRoot, exec?.signal)
         return {
           plugin: 'dsh-with-chatgpt',
           workspaceRoot,
@@ -556,9 +530,9 @@ export function apply(ctx: Context, config: Config): void | Promise<void> {
       },
       async execute(_args: Record<string, unknown>, exec: ToolExec | undefined) {
         const workspaceRoot = workspaceOf(exec)
-        await ensureRuntime(workspaceRoot)
+        await ensureRuntime(workspaceRoot, exec?.signal)
         const coordinator = coordinatorFor(workspaceRoot, exec?.agent)
-        const task = await coordinator.recover()
+        const task = await coordinator.recover(exec?.signal)
         if (task !== undefined && ['planned', 'executing', 'executed', 'awaiting-review'].includes(task.state)) {
           activeTasks.set(workspaceRoot, { taskId: task.taskId, iteration: task.iteration })
         }
@@ -611,13 +585,11 @@ export function apply(ctx: Context, config: Config): void | Promise<void> {
 }
 
 /** Minimal tool execution context shape used by this plugin. */
-type ToolExec = { agent?: { session?: { header?: { cwd?: string } } } }
+type ToolExec = { agent?: { session?: { header?: { cwd?: string } } }; signal?: AbortSignal }
 
 /** Workspace root for a tool execution (session cwd). */
 function workspaceOf(exec: { agent?: { session?: { header?: { cwd?: string } } } } | undefined): string {
-  const cwd = exec?.agent?.session?.header?.cwd
-  if (typeof cwd === 'string' && cwd !== '') return cwd
-  return process.cwd()
+  return sessionWorkspaceRoot(exec?.agent?.session?.header?.cwd)
 }
 
 /** State dir under the OS config home (never inside a workspace). */

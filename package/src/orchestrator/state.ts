@@ -65,7 +65,7 @@ export function createMemoryStore(): StateStore {
 }
 
 const TASK_KEY = (taskId: string): string => 'task:' + taskId
-const WORKSPACE_KEY = (root: string): string => 'workspace:' + root.toLowerCase()
+const WORKSPACE_KEY = (root: string): string => 'workspace:' + root
 
 /** State repository over a StateStore. */
 export class CoordinatorState {

@@ -1,4 +1,5 @@
 import type { Context } from '@deepseek-ai/cordis'
+import { abortableDelay, OperationCancelledError, throwIfCancelled, withCancellation } from '../cancellation.ts'
 import {
   BrowserStaleError,
   ChatGptAppUnavailableError,
@@ -46,66 +47,68 @@ export class BrowserHarnessAdapter implements BrowserControl {
     private readonly appName: string,
   ) {}
 
-  async ensureReady(): Promise<void> {
+  async ensureReady(signal?: AbortSignal): Promise<void> {
     const budget = [0, 500, 1500]
     let lastError: unknown
     for (const delay of budget) {
-      if (delay > 0) await sleep(delay)
+      await abortableDelay(delay, signal)
       try {
-        const info = await this.call<{ url?: string }>('browser_page_info', {})
+        const info = await this.call<{ url?: string }>('browser_page_info', {}, signal)
         if (typeof info?.url !== 'string' || !info.url.startsWith('https://chatgpt.com/')) {
-          await this.call<unknown>('browser_goto', { url: 'https://chatgpt.com/' })
+          await this.call<unknown>('browser_goto', { url: 'https://chatgpt.com/' }, signal)
         }
-        const state = await this.inspectChatPage()
+        const state = await this.inspectChatPage(signal)
         if (state.loggedOut) throw new ChatGptLoggedOutError()
         if (!state.composer) {
           await this.call<unknown>('browser_wait_for_element', {
             selector: '#prompt-textarea',
             timeout: 10,
             visible: true,
-          })
+          }, signal)
         }
         return
       } catch (error) {
-        if (error instanceof ChatGptLoggedOutError) throw error
+        if (error instanceof ChatGptLoggedOutError || error instanceof OperationCancelledError) throw error
         lastError = error
       }
     }
     throw new BrowserStaleError('browser harness could not open ChatGPT: ' + String(lastError))
   }
 
-  async openConversation(conversationId?: string): Promise<string> {
+  async openConversation(conversationId?: string, signal?: AbortSignal): Promise<string> {
     const target = conversationId !== undefined && conversationId !== ''
       ? 'https://chatgpt.com/c/' + conversationId
       : 'https://chatgpt.com/'
-    await this.call<unknown>('browser_goto', { url: target })
-    await this.call<unknown>('browser_wait_for_load', { timeout: 15 }).catch(() => undefined)
-    const state = await this.inspectChatPage()
+    await this.call<unknown>('browser_goto', { url: target }, signal)
+    await this.call<unknown>('browser_wait_for_load', { timeout: 15 }, signal).catch(error => {
+      if (error instanceof OperationCancelledError) throw error
+    })
+    const state = await this.inspectChatPage(signal)
     if (state.loggedOut) throw new ChatGptLoggedOutError()
     if (!state.composer) throw new BrowserStaleError('ChatGPT composer not found after navigation')
-    return (await this.conversationId()) ?? ''
+    return (await this.conversationId(signal)) ?? ''
   }
 
-  async sendControlMessage(text: string): Promise<void> {
-    const state = await this.inspectChatPage()
+  async sendControlMessage(text: string, signal?: AbortSignal): Promise<void> {
+    const state = await this.inspectChatPage(signal)
     if (state.loggedOut) throw new ChatGptLoggedOutError()
     if (!state.composer) throw new BrowserStaleError('ChatGPT composer not found')
     this.replyBaseline = { assistantCount: state.assistantCount, text: state.text }
 
     if (this.appName.trim() !== '') {
-      await this.activateAppMention(this.appName.trim())
-      await this.call<unknown>('browser_type', { text: ' ' + text })
+      await this.activateAppMention(this.appName.trim(), signal)
+      await this.call<unknown>('browser_type', { text: ' ' + text }, signal)
     } else {
       await this.call<unknown>('browser_fill', {
         selector: '#prompt-textarea',
         text,
         clear_first: true,
-      })
+      }, signal)
     }
-    await this.call<unknown>('browser_press', { key: 'ENTER' })
+    await this.call<unknown>('browser_press', { key: 'ENTER' }, signal)
   }
 
-  async waitForReply(timeoutMs: number): Promise<BrowserReply> {
+  async waitForReply(timeoutMs: number, signal?: AbortSignal): Promise<BrowserReply> {
     const deadline = Date.now() + timeoutMs
     const baseline = this.replyBaseline ?? { assistantCount: -1, text: '' }
     let last = ''
@@ -113,9 +116,9 @@ export class BrowserHarnessAdapter implements BrowserControl {
     let sawNewReply = false
 
     while (Date.now() < deadline) {
-      await sleep(1500)
+      await abortableDelay(1500, signal)
       try {
-        const state = await this.inspectChatPage()
+        const state = await this.inspectChatPage(signal)
         if (state.loggedOut) throw new ChatGptLoggedOutError()
 
         const changedFromBaseline =
@@ -141,7 +144,7 @@ export class BrowserHarnessAdapter implements BrowserControl {
           return { text: state.text, complete: true }
         }
       } catch (error) {
-        if (error instanceof ChatGptLoggedOutError) throw error
+        if (error instanceof ChatGptLoggedOutError || error instanceof OperationCancelledError) throw error
       }
     }
 
@@ -152,8 +155,8 @@ export class BrowserHarnessAdapter implements BrowserControl {
     )
   }
 
-  async conversationId(): Promise<string | undefined> {
-    const info = await this.call<{ url?: string }>('browser_page_info', {})
+  async conversationId(signal?: AbortSignal): Promise<string | undefined> {
+    const info = await this.call<{ url?: string }>('browser_page_info', {}, signal)
     const url = info?.url
     if (typeof url !== 'string') return undefined
     const match = /\/c\/([^/?#]+)/.exec(url)
@@ -172,40 +175,42 @@ export class BrowserHarnessAdapter implements BrowserControl {
     }
   }
 
-  async recover(): Promise<void> {
-    await this.ensureReady()
+  async recover(signal?: AbortSignal): Promise<void> {
+    await this.ensureReady(signal)
   }
 
-  private async activateAppMention(appName: string): Promise<void> {
+  private async activateAppMention(appName: string, signal?: AbortSignal): Promise<void> {
     await this.call<unknown>('browser_fill', {
       selector: '#prompt-textarea',
       text: '@',
       clear_first: true,
-    })
-    await this.call<unknown>('browser_type', { text: appName })
+    }, signal)
+    await this.call<unknown>('browser_type', { text: appName }, signal)
 
     for (let attempt = 0; attempt < 12; attempt++) {
-      const candidate = await this.findAppCandidate(appName)
+      const candidate = await this.findAppCandidate(appName, signal)
       if (candidate.found && typeof candidate.x === 'number' && typeof candidate.y === 'number') {
         await this.call<unknown>('browser_click', {
           x: Math.round(candidate.x),
           y: Math.round(candidate.y),
-        })
-        await this.call<unknown>('browser_wait', { seconds: 0.2 }).catch(() => undefined)
-        if (await this.verifyAppMention(appName)) return
+        }, signal)
+        await abortableDelay(200, signal)
+        if (await this.verifyAppMention(appName, signal)) return
       }
-      await sleep(200)
+      await abortableDelay(200, signal)
     }
 
     await this.call<unknown>('browser_fill', {
       selector: '#prompt-textarea',
       text: '',
       clear_first: true,
-    }).catch(() => undefined)
+    }, signal).catch(error => {
+      if (error instanceof OperationCancelledError) throw error
+    })
     throw new ChatGptAppUnavailableError(appName)
   }
 
-  private async findAppCandidate(appName: string): Promise<{ found: boolean; x?: number; y?: number }> {
+  private async findAppCandidate(appName: string, signal?: AbortSignal): Promise<{ found: boolean; x?: number; y?: number }> {
     const wanted = JSON.stringify(appName)
     const expression = [
       '(() => {',
@@ -220,10 +225,10 @@ export class BrowserHarnessAdapter implements BrowserControl {
       'return { found: true, x: r.left + r.width / 2, y: r.top + r.height / 2 };',
       '})()',
     ].join(' ')
-    return await this.call<{ found: boolean; x?: number; y?: number }>('browser_js', { expression })
+    return await this.call<{ found: boolean; x?: number; y?: number }>('browser_js', { expression }, signal)
   }
 
-  private async verifyAppMention(appName: string): Promise<boolean> {
+  private async verifyAppMention(appName: string, signal?: AbortSignal): Promise<boolean> {
     const wanted = JSON.stringify(appName)
     const expression = [
       '(() => {',
@@ -237,11 +242,11 @@ export class BrowserHarnessAdapter implements BrowserControl {
       'return raw.includes(wanted) && !raw.startsWith("@" + wanted);',
       '})()',
     ].join(' ')
-    const result = await this.call<unknown>('browser_js', { expression })
+    const result = await this.call<unknown>('browser_js', { expression }, signal)
     return result === true || result === 'true'
   }
 
-  private async inspectChatPage(): Promise<ChatPageState> {
+  private async inspectChatPage(signal?: AbortSignal): Promise<ChatPageState> {
     const expression = [
       '(() => {',
       'const composer = document.querySelector("#prompt-textarea");',
@@ -252,7 +257,7 @@ export class BrowserHarnessAdapter implements BrowserControl {
       'return { text: latest ? (latest.innerText || latest.textContent || "") : "", assistantCount: messages.length, streaming: stop, loggedOut: !composer && login, composer: !!composer };',
       '})()',
     ].join(' ')
-    const value = await this.call<unknown>('browser_js', { expression })
+    const value = await this.call<unknown>('browser_js', { expression }, signal)
     if (typeof value === 'string') {
       try {
         return normalizePageState(JSON.parse(value))
@@ -264,29 +269,31 @@ export class BrowserHarnessAdapter implements BrowserControl {
     throw new BrowserStaleError('unexpected browser_js response')
   }
 
-  private async call<T>(tool: string, args: Record<string, unknown>): Promise<T> {
+  private async call<T>(tool: string, args: Record<string, unknown>, signal?: AbortSignal): Promise<T> {
+    throwIfCancelled(signal)
     const tools = this.ctx.get('tools')
     if (tools === undefined) throw new Error('tools service unavailable for browser control')
 
     const controller = new AbortController()
+    const onAbort = () => controller.abort()
+    signal?.addEventListener('abort', onAbort, { once: true })
     let rejectTimer: ReturnType<typeof setTimeout> | undefined
-    const abortTimer = setTimeout(() => controller.abort(), 90_000)
     const guard = new Promise<never>((_, reject) => {
-      rejectTimer = setTimeout(
-        () => reject(new BrowserStaleError('browser tool ' + tool + ' timed out after 90s')),
-        90_000,
-      )
+      rejectTimer = setTimeout(() => {
+        reject(new BrowserStaleError('browser tool ' + tool + ' timed out after 90s'))
+        controller.abort()
+      }, 90_000)
     })
 
     try {
       const raw = await Promise.race([
-        tools.execute({
+        withCancellation(() => tools.execute({
           callId: ('d2c-browser-' + process.pid + '-' + (++this.callSequence)) as never,
           name: 'mcp__browser-harness__' + tool,
           arguments: args,
           agent: this.execAgent as never,
           signal: controller.signal,
-        } as never),
+        } as never), signal),
         guard,
       ]) as ToolResultLike
 
@@ -297,8 +304,13 @@ export class BrowserHarnessAdapter implements BrowserControl {
         throw new BrowserStaleError(detail)
       }
       return decodeToolValue<T>(raw)
+    } catch (error) {
+      if (signal?.aborted && error instanceof Error && error.name === 'AbortError') {
+        throw new OperationCancelledError()
+      }
+      throw error
     } finally {
-      clearTimeout(abortTimer)
+      signal?.removeEventListener('abort', onAbort)
       if (rejectTimer !== undefined) clearTimeout(rejectTimer)
     }
   }
@@ -342,8 +354,4 @@ function normalizePageState(value: unknown): ChatPageState {
     loggedOut: candidate.loggedOut === true,
     composer: candidate.composer === true,
   }
-}
-
-function sleep(ms: number): Promise<void> {
-  return new Promise(resolve => setTimeout(resolve, ms))
 }
