@@ -1,5 +1,6 @@
 import type { BrowserControl } from '../browser/index.ts'
 import type { TunnelStatus } from '../tunnel/supervisor.ts'
+import { OperationCancelledError, throwIfCancelled } from '../cancellation.ts'
 
 export interface ReadinessCheck {
   id: string
@@ -25,6 +26,7 @@ export interface DoctorInputs {
 }
 
 export async function runDoctor(inputs: DoctorInputs): Promise<DoctorResult> {
+  throwIfCancelled(inputs.signal)
   const checks: ReadinessCheck[] = [
     { id: 'session_workspace', ok: inputs.workspaceRoot !== '', detail: inputs.workspaceRoot !== '' ? 'session workspace is canonicalized' : 'session workspace is unavailable', code: inputs.workspaceRoot !== '' ? undefined : 'SESSION_WORKSPACE_MISSING' },
     { id: 'chatgpt_session', ok: false, detail: 'browser session probe not completed', code: 'BROWSER_SESSION_UNPROBED' },
@@ -51,8 +53,9 @@ export async function runDoctor(inputs: DoctorInputs): Promise<DoctorResult> {
     bridge.detail = bridge.ok ? 'authenticated loopback workspace_info identity matches session workspace' : 'workspace_info identity mismatch'
     bridge.code = bridge.ok ? undefined : 'WORKSPACE_ID_MISMATCH'
   } catch (error) {
+    if (inputs.signal?.aborted || error instanceof OperationCancelledError) throw new OperationCancelledError()
     const bridge = checks.find(item => item.id === 'bridge')!
-    bridge.detail = error instanceof Error ? error.message : String(error)
+    bridge.detail = 'authenticated workspace_info request failed'
     bridge.code = 'BRIDGE_PROBE_FAILED'
   }
   try {
@@ -63,8 +66,9 @@ export async function runDoctor(inputs: DoctorInputs): Promise<DoctorResult> {
     app.detail = `exact ChatGPT App is selectable and composer was cleaned: ${inputs.appName}`
     app.code = undefined
   } catch (error) {
+    if (inputs.signal?.aborted || error instanceof OperationCancelledError) throw new OperationCancelledError()
     const app = checks.find(item => item.id === 'chatgpt_app')!
-    app.detail = error instanceof Error ? error.message : String(error)
+    app.detail = 'exact ChatGPT App could not be selected; verify the app and browser session'
     app.code = 'CHATGPT_APP_UNAVAILABLE'
   }
   try {
@@ -75,8 +79,9 @@ export async function runDoctor(inputs: DoctorInputs): Promise<DoctorResult> {
     check.detail = check.ok ? 'ChatGPT page, composer, and login are available' : 'ChatGPT page is unavailable, logged out, or composer is missing'
     check.code = check.ok ? undefined : browser.loggedOut ? 'CHATGPT_LOGGED_OUT' : 'CHATGPT_SESSION_NOT_READY'
   } catch (error) {
+    if (inputs.signal?.aborted || error instanceof OperationCancelledError) throw new OperationCancelledError()
     const check = checks.find(item => item.id === 'chatgpt_session')!
-    check.detail = error instanceof Error ? error.message : String(error)
+    check.detail = 'Browser Harness session probe failed; check the provider and Session ownership'
     check.code = 'BROWSER_HARNESS_UNAVAILABLE'
   }
   return { ready: checks.filter(check => check.id !== 'remote_workspace_access').every(check => check.ok), checks }

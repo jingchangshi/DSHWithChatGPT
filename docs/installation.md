@@ -43,9 +43,11 @@ $env:CONTROL_PLANE_TUNNEL_ID="<tunnel_id>"
 $env:CONTROL_PLANE_API_KEY="<runtime_api_key>"
 ```
 
-5. Restart/reload DSH, enter a workspace, and ask it to call `chatgpt_status`.
+5. Restart/reload DSH, create a new Session in the workspace, and call `chatgpt_doctor` before starting a collaboration round.
 
-Expected status:
+`chatgpt_doctor` calls Browser Harness through that Session's agent, checks the logged-in ChatGPT composer and the exact App mention without sending a message, calls the authenticated loopback `workspace_info` tool, and checks local tunnel readiness. It can focus or navigate the controlled browser tab. Its `remote_workspace_access` check remains unverified until ChatGPT actually invokes the App; `ready` reports only locally checkable prerequisites. Use `chatgpt_status` for task and runtime state.
+
+Expected status from `chatgpt_status`:
 - `bridgeRunning: true`
 - a stable `workspaceId`
 - `chatgptAppName` equals the ChatGPT app

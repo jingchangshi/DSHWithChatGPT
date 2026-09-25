@@ -198,8 +198,6 @@ export class BrowserHarnessAdapter implements BrowserControl {
         selector: '#prompt-textarea',
         text: '',
         clear_first: true,
-      }, signal).catch(error => {
-        if (error instanceof OperationCancelledError) throw error
       })
     }
   }
