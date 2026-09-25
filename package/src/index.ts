@@ -29,6 +29,7 @@ import { freezeShellExecution, observeShellResult, type FrozenExecutionContext, 
 import { WorkspaceRecorders } from './execution/workspaces.ts'
 import { TunnelSupervisor } from './tunnel/index.ts'
 import { throwIfCancelled } from './cancellation.ts'
+import { runDoctor } from './readiness/doctor.ts'
 
 // ---------------------------------------------------------------- config
 
@@ -541,6 +542,29 @@ export function apply(ctx: Context, config: Config): void | Promise<void> {
           task: task ?? null,
           detail: task !== undefined ? 'conversation rebound; task state intact' : 'no prior task for this workspace',
         }
+      },
+    })
+
+    tools.register({
+      name: 'chatgpt_doctor',
+      description: 'Run bounded, read-only readiness checks for the current DSH Session and ChatGPT control plane.',
+      parameters: {},
+      output: {
+        schema: { type: 'object', additionalProperties: false, properties: { ready: { type: 'boolean' }, checks: { type: 'array' } }, required: ['ready', 'checks'] },
+        render: (_args: Record<string, unknown>, value: Record<string, unknown>) => [{ type: 'text' as const, text: JSON.stringify(value) }],
+      },
+      async execute(_args: Record<string, unknown>, exec: ToolExec | undefined) {
+        const workspaceRoot = workspaceOf(exec)
+        const runtime = await ensureRuntime(workspaceRoot, exec?.signal)
+        return runDoctor({
+          workspaceRoot,
+          workspaceId: runtime.bridge.workspaceId,
+          appName: config.chatgptAppName,
+          browser: makeBrowser(exec?.agent),
+          runtime: { bridge: runtime.bridge, tunnel: runtime.tunnelStatus },
+          bridgeHttp: { port: runtime.bridge.port, token: runtime.bridge.token },
+          signal: exec?.signal,
+        })
       },
     })
 

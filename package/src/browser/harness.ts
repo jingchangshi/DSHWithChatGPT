@@ -179,6 +179,16 @@ export class BrowserHarnessAdapter implements BrowserControl {
     await this.ensureReady(signal)
   }
 
+  async readiness(signal?: AbortSignal): Promise<{ url: string; composer: boolean; loggedOut: boolean }> {
+    const info = await this.call<{ url?: string }>('browser_page_info', {}, signal)
+    const state = await this.inspectChatPage(signal)
+    return {
+      url: typeof info.url === 'string' ? info.url : '',
+      composer: state.composer,
+      loggedOut: state.loggedOut,
+    }
+  }
+
   private async activateAppMention(appName: string, signal?: AbortSignal): Promise<void> {
     await this.call<unknown>('browser_fill', {
       selector: '#prompt-textarea',

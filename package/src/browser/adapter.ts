@@ -31,6 +31,8 @@ export interface BrowserControl {
   conversationId(signal?: AbortSignal): Promise<string | undefined>
   /** Best-effort recovery (reload page, re-find composer). */
   recover(signal?: AbortSignal): Promise<void>
+  /** Read-only readiness facts for the active browser session. */
+  readiness?(signal?: AbortSignal): Promise<{ url: string; composer: boolean; loggedOut: boolean }>
 }
 
 /** ChatGPT-not-logged-in detection error. */
