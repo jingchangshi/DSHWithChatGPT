@@ -563,6 +563,7 @@ export function apply(ctx: Context, config: Config): void | Promise<void> {
           browser: makeBrowser(exec?.agent),
           runtime: { bridge: runtime.bridge, tunnel: runtime.tunnelStatus },
           bridgeHttp: { port: runtime.bridge.port, token: runtime.bridge.token },
+          probeApp: signal => makeBrowser(exec?.agent).probeApp?.(config.chatgptAppName, signal) ?? Promise.reject(new Error('browser app probe unavailable')),
           signal: exec?.signal,
         })
       },

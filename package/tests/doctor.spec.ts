@@ -11,6 +11,7 @@ describe('chatgpt_doctor', () => {
         readiness: async () => ({ url: 'https://chatgpt.com/c/demo', composer: true, loggedOut: false }),
       },
       bridgeHttp: { port: 1, token: 'test' },
+      probeApp: async () => undefined,
       runtime: {
         bridge: { workspaceId: 'workspace-demo' },
         tunnel: { mode: 'managed', configured: true, ready: true, detail: 'ready' },
@@ -19,5 +20,6 @@ describe('chatgpt_doctor', () => {
     expect(result.ready).toBe(false)
     expect(result.checks.find(check => check.id === 'remote_workspace_access')).toMatchObject({ ok: false, code: 'REMOTE_ACCESS_REQUIRES_E2E' })
     expect(result.checks.find(check => check.id === 'chatgpt_session')).toMatchObject({ ok: true })
+    expect(result.checks.find(check => check.id === 'chatgpt_app')).toMatchObject({ ok: true })
   })
 })

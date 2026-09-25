@@ -189,6 +189,21 @@ export class BrowserHarnessAdapter implements BrowserControl {
     }
   }
 
+  async probeApp(appName: string, signal?: AbortSignal): Promise<void> {
+    await this.ensureReady(signal)
+    try {
+      await this.activateAppMention(appName.trim(), signal)
+    } finally {
+      await this.call<unknown>('browser_fill', {
+        selector: '#prompt-textarea',
+        text: '',
+        clear_first: true,
+      }, signal).catch(error => {
+        if (error instanceof OperationCancelledError) throw error
+      })
+    }
+  }
+
   private async activateAppMention(appName: string, signal?: AbortSignal): Promise<void> {
     await this.call<unknown>('browser_fill', {
       selector: '#prompt-textarea',

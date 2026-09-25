@@ -33,6 +33,8 @@ export interface BrowserControl {
   recover(signal?: AbortSignal): Promise<void>
   /** Read-only readiness facts for the active browser session. */
   readiness?(signal?: AbortSignal): Promise<{ url: string; composer: boolean; loggedOut: boolean }>
+  /** Select the configured app without sending a message, then clean up. */
+  probeApp?(appName: string, signal?: AbortSignal): Promise<void>
 }
 
 /** ChatGPT-not-logged-in detection error. */

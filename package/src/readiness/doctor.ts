@@ -20,6 +20,7 @@ export interface DoctorInputs {
   browser: BrowserControl
   runtime: { tunnel: TunnelStatus; bridge: { workspaceId: string } }
   bridgeHttp: { port: number; token: string }
+  probeApp?: (signal?: AbortSignal) => Promise<void>
   signal?: AbortSignal
 }
 
@@ -53,6 +54,18 @@ export async function runDoctor(inputs: DoctorInputs): Promise<DoctorResult> {
     const bridge = checks.find(item => item.id === 'bridge')!
     bridge.detail = error instanceof Error ? error.message : String(error)
     bridge.code = 'BRIDGE_PROBE_FAILED'
+  }
+  try {
+    if (inputs.probeApp === undefined) throw new Error('browser adapter does not expose app probe')
+    await inputs.probeApp(inputs.signal)
+    const app = checks.find(item => item.id === 'chatgpt_app')!
+    app.ok = true
+    app.detail = `exact ChatGPT App is selectable and composer was cleaned: ${inputs.appName}`
+    app.code = undefined
+  } catch (error) {
+    const app = checks.find(item => item.id === 'chatgpt_app')!
+    app.detail = error instanceof Error ? error.message : String(error)
+    app.code = 'CHATGPT_APP_UNAVAILABLE'
   }
   try {
     if (inputs.browser.readiness === undefined) throw new Error('browser adapter does not expose readiness probe')
