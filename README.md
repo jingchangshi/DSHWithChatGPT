@@ -98,7 +98,7 @@ Task state lives in the DSH storage area (`d2c_state` domain) and `%LOCALAPPDATA
 
 ## Doctor / troubleshooting
 
-Run `chatgpt_status`; its output distinguishes: plugin loaded, browser reachable, ChatGPT logged in, bridge running, MCP reachable, conversation bound. See `docs/troubleshooting.md` for the failure table.
+Run `chatgpt_status`; it reports the latest persisted task and whether the local bridge is running. It does not check browser login or remote connector reachability. See `docs/troubleshooting.md` for the failure table.
 
 ## Docs
 
@@ -112,9 +112,9 @@ Run `chatgpt_status`; its output distinguishes: plugin loaded, browser reachable
 
 ## Status & limitations
 
-Working: protocol + state machine, workspace security boundary, execution recorder, read-only MCP bridge, coordinator with durable state, model tools, prompt section, profile install path. See `docs/` and the git log for evidence.
+Working: protocol + state machine, workspace security boundary, execution recorder, read-only local MCP bridge, coordinator with durable state, model tools, prompt section, profile install path. The coordinator restores unfinished tasks after a restart, captures new ChatGPT conversation IDs, and resumes an outstanding review without resending its execution message. Foreground DSH `bash` and `pwsh` results are recorded for the active task, with separate records per workspace. See `docs/` and the git log for evidence.
 
-Known limitations (honest list): the BrowserHarness chatgpt.com adapter is a first cut (composer/reply heuristics may need adjustment as ChatGPT's DOM changes); OAuth+pairing for remote (non-loopback) access is scaffolded but the Cloudflare tunnel flow is not wired end-to-end yet; no CLI beyond the DSH tool surface yet.
+Known limitations: the BrowserHarness chatgpt.com adapter is a first cut (composer/reply heuristics may need adjustment as ChatGPT's DOM changes); the plugin's MCP bridge is loopback-only and accepts bearer tokens, while ChatGPT's custom connector needs a reachable OAuth connection, so the documented first-run connector setup is not yet functional; no CLI beyond the DSH tool surface yet. A full ChatGPT PLAN → DSH execution → ChatGPT review round has not been verified.
 
 ## License
 

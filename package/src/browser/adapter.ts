@@ -21,6 +21,8 @@ export interface BrowserControl {
   ensureReady(): Promise<void>
   /** Open (or reuse) the persistent conversation; returns conversation id/url. */
   openConversation(conversationId?: string): Promise<string>
+  /** Read the current ChatGPT conversation id, if its URL has one. */
+  currentConversationId(): Promise<string | undefined>
   /** Send one control message. Throws on duplicate-send suspicion. */
   sendControlMessage(text: string): Promise<void>
   /** Wait for and read the latest assistant reply. */

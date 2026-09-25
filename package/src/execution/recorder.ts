@@ -119,6 +119,10 @@ function capOutput(text: string, capBytes: number, capLines: number): { tail: st
 /** Classify a command line into a semantic kind. */
 export function classifyCommand(commandLine: string): CommandKind {
   const lower = commandLine.toLowerCase()
+  if (/\b(npm|pnpm|yarn|bun)\s+(run\s+)?(test|test:[\w:-]+|vitest|jest)(\s|$)/.test(lower)) return 'test'
+  if (/\b(npm|pnpm|yarn|bun)\s+(run\s+)?(typecheck|check:types)(\s|$)/.test(lower)) return 'typecheck'
+  if (/\b(npm|pnpm|yarn|bun)\s+(run\s+)?(lint|format:check)(\s|$)/.test(lower)) return 'lint'
+  if (/\b(npm|pnpm|yarn|bun)\s+(run\s+)?(build|compile)(\s|$)/.test(lower)) return 'build'
   if (/(^|\s|")(vitest|jest|mocha|pytest|go test|cargo test|dotnet test|mvn test|gradle test)/.test(lower)) return 'test'
   if (/(^|\s|")(tsc|typecheck|pyright|mypy|vue-tsc)/.test(lower)) return 'typecheck'
   if (/(^|\s|")(eslint|biome|prettier|flake8|ruff|clippy)/.test(lower)) return 'lint'

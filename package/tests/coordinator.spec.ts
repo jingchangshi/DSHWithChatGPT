@@ -5,15 +5,19 @@ import { parseEnvelope, formatEnvelope, ProtocolError } from '../src/protocol/in
 import { BrowserStaleError, type BrowserControl, type BrowserReply } from '../src/browser/index.ts'
 
 /** Scripted fake browser: queued replies, duplicate-send aware. */
-function fakeBrowser(replies: string[]): BrowserControl & { sent: string[] } {
+function fakeBrowser(replies: string[]): BrowserControl & { sent: string[]; opened: Array<string | undefined> } {
   const sent: string[] = []
+  const opened: Array<string | undefined> = []
   let replyIndex = 0
   return {
     sent,
+    opened,
     async ensureReady() {},
     async openConversation(id) {
+      opened.push(id)
       return id ?? 'conv-1'
     },
+    async currentConversationId() { return 'conv-1' },
     async sendControlMessage(text) {
       if (sent.includes(text)) throw new BrowserStaleError('duplicate send detected by fake browser')
       sent.push(text)
@@ -182,5 +186,45 @@ describe('state recovery', () => {
     expect(recovered?.state).toBe('awaiting-plan')
     const latest = await second.latestTaskId()
     expect(latest).toBe(started.taskId)
+    expect(browser.opened).toEqual([undefined, 'conv-1'])
+    expect(browser.sent).toHaveLength(1)
+    browser.waitForReply = async () => ({ text: planReply(started.taskId, 1, 0), complete: true })
+    const plan = await second.awaitPlan(started.taskId)
+    expect(plan.record.state).toBe('planned')
+    const third = new ChatGptCoordinator({ browser, store, workspaceRoot: 'C:\\ws\\r', replyTimeoutMs: 500 })
+    await third.recover()
+    browser.waitForReply = async () => ({ text: doneReply(started.taskId, 2, 2), complete: true })
+    const review = await third.reportExecuted(started.taskId, { changedFiles: ['src/x.ts'], head: 'abc', testsRecorded: true })
+    expect(review.record.state).toBe('done')
+    expect(review.record.iteration).toBe(2)
+    expect(browser.sent).toHaveLength(2)
+  })
+
+  it('saves a conversation id assigned after the first message', async () => {
+    const store = new CoordinatorState(createMemoryStore())
+    const browser = fakeBrowser([])
+    browser.openConversation = async id => id ?? ''
+    const coordinator = new ChatGptCoordinator({ browser, store, workspaceRoot: 'C:\\ws\\new' })
+    const started = await coordinator.startTask('new chat')
+    expect((await store.loadTask(started.taskId))?.conversationId).toBe('conv-1')
+    expect((await store.loadWorkspace('C:\\ws\\new'))?.conversationId).toBe('conv-1')
+  })
+
+  it('waits for an outstanding review after restart without resending EXECUTED', async () => {
+    const store = new CoordinatorState(createMemoryStore())
+    const browser = fakeBrowser([])
+    const first = new ChatGptCoordinator({ browser, store, workspaceRoot: 'C:\\ws\\review' })
+    const started = await first.startTask('review after restart')
+    browser.waitForReply = async () => ({ text: planReply(started.taskId, 1, 0), complete: true })
+    await first.awaitPlan(started.taskId)
+    browser.waitForReply = async () => { throw new BrowserStaleError('interrupted after send') }
+    await expect(first.reportExecuted(started.taskId, { changedFiles: [], head: 'abc', testsRecorded: false })).rejects.toThrow('interrupted')
+    expect(browser.sent).toHaveLength(2)
+    const second = new ChatGptCoordinator({ browser, store, workspaceRoot: 'C:\\ws\\review' })
+    browser.waitForReply = async () => ({ text: doneReply(started.taskId, 2, 2), complete: true })
+    const result = await second.reportExecuted(started.taskId, { changedFiles: [], head: 'ignored', testsRecorded: false })
+    expect(result.record.state).toBe('done')
+    expect(result.record.lastReviewedHead).toBe('abc')
+    expect(browser.sent).toHaveLength(2)
   })
 })

@@ -10,6 +10,7 @@
 
 import http from 'node:http'
 import type { IncomingMessage, ServerResponse } from 'node:http'
+import type { ConnectorAuth } from '../connector/auth.ts'
 
 /** JSON-RPC request id (number or string). */
 export type RpcId = number | string
@@ -124,6 +125,8 @@ export interface BridgeServerOptions {
   port: number
   /** Bearer tokens -> subject (workspace binding). Checked per request. */
   tokens: Map<string, string>
+  /** Optional connector OAuth layer for a public HTTPS carrier. */
+  connectorAuth?: ConnectorAuth
   /** Extra safety: require this exact header on every request. */
   serviceHeader?: string
   /** Optional request logger. */
@@ -142,7 +145,8 @@ export function startBridgeServer(options: BridgeServerOptions, tools: readonly 
   const server = http.createServer(async (req: IncomingMessage, res: ServerResponse) => {
     res.setHeader('X-Content-Type-Options', 'nosniff')
     res.setHeader('Cache-Control', 'no-store')
-    try {
+  try {
+      if (options.connectorAuth !== undefined && await options.connectorAuth.handle(req, res)) return
       await handleRequest(req, res, options, rpcHandler)
     } catch {
       if (!res.headersSent) {
@@ -175,6 +179,11 @@ async function handleRequest(
   options: BridgeServerOptions,
   rpcHandler: (req: RpcRequest, ctx: BridgeToolContext) => Promise<RpcResponse>,
 ): Promise<void> {
+  if (new URL(req.url ?? '/', 'http://localhost').pathname !== '/mcp') {
+    res.writeHead(404)
+    res.end()
+    return
+  }
   if (req.method !== 'POST') {
     res.writeHead(405, { 'Content-Type': 'application/json' })
     res.end(JSON.stringify({ error: 'method not allowed; POST only' }))
@@ -190,9 +199,11 @@ async function handleRequest(
       break
     }
   }
+  if (subject === undefined && options.connectorAuth?.verify(token)) subject = 'workspace:bound'
   if (subject === undefined) {
     options.log?.(`401 from ${req.socket.remoteAddress}`)
-    res.writeHead(401, { 'Content-Type': 'application/json', 'WWW-Authenticate': 'Bearer realm="d2c"' })
+    const metadata = options.connectorAuth === undefined ? '' : `, resource_metadata="${options.connectorAuth.baseUrl}/.well-known/oauth-protected-resource/mcp"`
+    res.writeHead(401, { 'Content-Type': 'application/json', 'WWW-Authenticate': `Bearer realm="d2c"${metadata}` })
     res.end(JSON.stringify({ error: 'unauthorized' }))
     return
   }

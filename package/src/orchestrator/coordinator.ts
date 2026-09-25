@@ -78,7 +78,8 @@ export class ChatGptCoordinator {
    */
   async startTask(goal: string, opts: { resumeConversationId?: string } = {}): Promise<StartResult> {
     await this.options.browser.ensureReady()
-    const conversationId = await this.options.browser.openConversation(opts.resumeConversationId)
+    const binding = await this.state.loadWorkspace(this.options.workspaceRoot)
+    const conversationId = await this.options.browser.openConversation(opts.resumeConversationId ?? binding?.conversationId ?? undefined)
     const taskId = mintTaskId()
     const record = this.machine.startTask(taskId, goal)
     const persisted: PersistedTask = {
@@ -119,6 +120,17 @@ export class ChatGptCoordinator {
     }
     await this.options.browser.sendControlMessage(initEnvelope)
     this.sendGuard.record(initEnvelope)
+    // A new chat receives its id only after the first message is sent.
+    const assignedId = await this.waitForConversationId()
+    if (assignedId !== undefined && assignedId !== conversationId) {
+      persisted.conversationId = assignedId
+      await this.state.saveTask(persisted)
+      await this.state.bindWorkspace(this.options.workspaceRoot, {
+        workspaceRoot: this.options.workspaceRoot,
+        conversationId: assignedId,
+        lastTaskId: taskId,
+      })
+    }
     return { taskId, sentEnvelope: initEnvelope }
   }
 
@@ -133,6 +145,7 @@ export class ChatGptCoordinator {
       throw new ProtocolError('unexpected-reply', `task ${taskId} is not waiting for a plan`)
     }
     const reply = await this.options.browser.waitForReply(this.replyTimeoutMs)
+    await this.bindCurrentConversation(persisted)
     const envelopeText = extractEnvelopeText(reply.text)
     if (envelopeText === null) {
       throw new ProtocolError('no-marker', 'ChatGPT reply contained no [D2C] envelope')
@@ -160,10 +173,18 @@ export class ChatGptCoordinator {
     note?: string
   }): Promise<RoundResult> {
     const persisted = await this.requireTask(taskId)
-    this.machine.applyLocal(taskId, 'executing')
-    this.machine.advanceIteration(taskId)
-    const record = this.machine.get(taskId)
-    const iteration = record?.iteration ?? persisted.iteration + 1
+    if (persisted.conversationId === null || persisted.conversationId === '') {
+      throw new ProtocolError('missing-conversation', `task ${taskId} has no saved ChatGPT conversation`)
+    }
+    await this.options.browser.ensureReady()
+    await this.options.browser.openConversation(persisted.conversationId)
+    if (persisted.waitingFor === 'chatgpt-review') {
+      return this.awaitReview(taskId, persisted, persisted.lastReviewedHead)
+    }
+    if (persisted.state !== 'planned') {
+      throw new ProtocolError('illegal-transition', `task ${taskId} is not ready for execution review`)
+    }
+    const iteration = persisted.iteration + 1
     const inReplyTo = persisted.iteration
     const envelopeText = [
       '[D2C]',
@@ -188,7 +209,18 @@ export class ChatGptCoordinator {
     this.sendGuard.record(envelopeText)
     // The EXECUTED send moves the machine to the reviewing posture: the
     // record now waits for ChatGPT's independent review of iteration N.
+    this.machine.applyLocal(taskId, 'executing')
+    this.machine.advanceIteration(taskId)
     this.machine.applyLocal(taskId, 'executed')
+    persisted.state = 'executed'
+    persisted.iteration = iteration
+    persisted.waitingFor = 'chatgpt-review'
+    persisted.lastReviewedHead = summary.head
+    await this.state.saveTask(persisted)
+    return this.awaitReview(taskId, persisted, summary.head)
+  }
+
+  private async awaitReview(taskId: string, persisted: PersistedTask, head: string | null): Promise<RoundResult> {
     const reply = await this.options.browser.waitForReply(this.replyTimeoutMs)
     const envelopeReply = extractEnvelopeText(reply.text)
     if (envelopeReply === null) {
@@ -201,7 +233,7 @@ export class ChatGptCoordinator {
       state: folded.state as TaskState,
       iteration: folded.iteration,
       waitingFor: folded.waitingFor,
-      lastReviewedHead: summary.head,
+      lastReviewedHead: head,
     }
     await this.state.saveTask(merged)
     return { taskId, envelope, record: merged }
@@ -222,16 +254,52 @@ export class ChatGptCoordinator {
   async recover(): Promise<PersistedTask | undefined> {
     const taskId = await this.latestTaskId()
     if (taskId === undefined) return undefined
-    const task = await this.state.loadTask(taskId)
-    if (task === undefined) return undefined
+    const task = await this.requireTask(taskId)
+    if (task.conversationId === null || task.conversationId === '') {
+      await this.bindCurrentConversation(task)
+    }
+    if (task.conversationId === null || task.conversationId === '') {
+      throw new ProtocolError('missing-conversation', `task ${taskId} has no saved ChatGPT conversation`)
+    }
     await this.options.browser.ensureReady()
-    await this.options.browser.openConversation(task.conversationId ?? undefined)
+    await this.options.browser.openConversation(task.conversationId)
     return task
   }
 
   private async requireTask(taskId: string): Promise<PersistedTask> {
     const task = await this.state.loadTask(taskId)
     if (task === undefined) throw new ProtocolError('unknown-task', `task ${taskId} not found in durable state`)
+    if (this.machine.get(taskId) === undefined) {
+      this.machine.restore({
+        taskId: task.taskId,
+        goal: task.goal,
+        state: task.state,
+        iteration: task.iteration,
+        waitingFor: task.waitingFor,
+        updatedAt: task.updatedAt,
+      })
+    }
     return task
+  }
+
+  private async waitForConversationId(): Promise<string | undefined> {
+    for (let attempt = 0; attempt < 8; attempt++) {
+      const id = await this.options.browser.currentConversationId()
+      if (id !== undefined) return id
+      await new Promise(resolve => setTimeout(resolve, 250))
+    }
+    return undefined
+  }
+
+  private async bindCurrentConversation(task: PersistedTask): Promise<void> {
+    const id = await this.options.browser.currentConversationId()
+    if (id === undefined || id === task.conversationId) return
+    task.conversationId = id
+    await this.state.saveTask(task)
+    await this.state.bindWorkspace(this.options.workspaceRoot, {
+      workspaceRoot: this.options.workspaceRoot,
+      conversationId: id,
+      lastTaskId: task.taskId,
+    })
   }
 }

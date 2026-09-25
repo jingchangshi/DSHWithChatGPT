@@ -12,7 +12,8 @@
  */
 
 import { join as joinPath } from 'node:path'
-import { randomFillSync } from 'node:crypto'
+import { writeFileSync } from 'node:fs'
+import { createHash, randomFillSync } from 'node:crypto'
 import type { Context } from '@deepseek-ai/cordis'
 import { z } from 'zod'
 import { defineDomain, domainTable } from '@deepseek-ai/dsh-storage-domain'
@@ -21,9 +22,12 @@ import { ChatGptCoordinator, CHATGPT_BOOT_PROMPT } from './orchestrator/index.ts
 import { CoordinatorState, type PersistedTask, type TaskState } from './orchestrator/state.ts'
 import type { StateStore } from './orchestrator/state.ts'
 import { ExecutionRecorder } from './execution/index.ts'
+import { captureShellExecution } from './execution/capture.ts'
 import { loadWorkspaceSpec, buildWorkspaceTools } from './bridge/index.ts'
 import { startBridgeServer, type BridgeServer } from './bridge/index.ts'
-import type { BrowserControl } from './browser/index.ts'
+import { ConnectorAuth } from './connector/auth.ts'
+import { startNamedTunnel } from './connector/tunnel.ts'
+import { BrowserHarnessAdapter, type BrowserControl } from './browser/index.ts'
 import { resolveContained } from './workspace/index.ts'
 import { gitStatus } from './workspace/index.ts'
 
@@ -36,6 +40,12 @@ export interface Config {
   replyTimeoutMs: number
   /** Browser control plane flavor. */
   browserMode: 'browser-harness-mcp'
+  /** HTTPS origin assigned to the connector's named tunnel. */
+  connectorBaseUrl?: string
+  /** Previously provisioned Cloudflare named tunnel. */
+  connectorTunnelName?: string
+  /** Workspace served by a persistent DSH profile before any agent call. */
+  connectorWorkspaceRoot?: string
 }
 
 /** Plugin config schema (zod; the host layer adapts it to its config surface). */
@@ -43,6 +53,9 @@ export const Config: z.ZodType<Config> = z.object({
   bridgePort: z.number().default(0),
   replyTimeoutMs: z.number().default(240_000),
   browserMode: z.enum(['browser-harness-mcp']).default('browser-harness-mcp'),
+  connectorBaseUrl: z.url().optional(),
+  connectorTunnelName: z.string().optional(),
+  connectorWorkspaceRoot: z.string().optional(),
 }) as unknown as z.ZodType<Config>
 
 // ---------------------------------------------------------------- state
@@ -111,200 +124,94 @@ class DomainStateStore implements StateStore {
   }
 }
 
-/** Memory fallback until (or without) the storage domain. */
-const memoryCoordinatorState = new CoordinatorState(((): StateStore => {
-  const map = new Map<string, unknown>()
-  return {
-    async get<T>(key: string): Promise<T | undefined> { return map.get(key) as T | undefined },
-    async put<T>(key: string, value: T): Promise<void> { map.set(key, value) },
-    async delete(key: string): Promise<void> { map.delete(key) },
-  }
-})())
-
-// ---------------------------------------------------------------- browser adapter
-
-/**
- * BrowserControl over DSH Browser Harness MCP session tools. Tool calls go
- * through the session-gated mcp__browser-harness__ tools; semantic
- * selectors only. A persistent conversation is reused across iterations.
- */
-class BrowserHarnessAdapter implements BrowserControl {
-  constructor(
-    private readonly ctx: Context,
-    private readonly execAgent: { session: { header: { cwd: string } } } | undefined,
-  ) {}
-
-  private async call<T>(tool: string, args: Record<string, unknown>): Promise<T> {
-    const tools = this.ctx.get('tools')
-    if (tools === undefined) throw new Error('tools service unavailable for browser control')
-    // The upstream MCP path can stall indefinitely (documented race in the
-    // browser-harness provider). Race every call against a hard timer so the
-    // coordinator's polling loops always make progress; the abort signal is
-    // best-effort cancellation for the underlying transport.
-    const controller = new AbortController()
-    const timer = setTimeout(() => controller.abort(), 90_000)
-    const guard = new Promise<never>((_, reject) => {
-      setTimeout(() => reject(new Error('browser tool ' + tool + ' timed out after 90s')), 90_000)
-    })
-    try {
-      const result = await Promise.race([
-        tools.execute({
-          name: 'mcp__browser-harness__' + tool,
-          arguments: args,
-          agent: this.execAgent as never,
-          signal: controller.signal,
-        } as never) as Promise<T>,
-        guard,
-      ])
-      return result
-    } finally {
-      clearTimeout(timer)
-    }
-  }
-
-  async ensureReady(): Promise<void> {
-    const budget = [0, 500, 1500]
-    let lastError: unknown
-    for (const delay of budget) {
-      if (delay > 0) await new Promise(resolve => setTimeout(resolve, delay))
-      try {
-        await this.call<unknown>('browser_navigate', { url: 'https://chatgpt.com/' })
-        return
-      } catch (error) {
-        lastError = error
-      }
-    }
-    throw new Error('BROWSER_UNAVAILABLE: browser harness could not open ChatGPT: ' + String(lastError))
-  }
-
-  async openConversation(conversationId?: string): Promise<string> {
-    if (conversationId !== undefined && conversationId !== '') {
-      await this.call<unknown>('browser_navigate', { url: 'https://chatgpt.com/c/' + conversationId })
-      return conversationId
-    }
-    // New conversation: the URL after the first navigation becomes the id on
-    // the next round (read back via browser_js when needed).
-    return ''
-  }
-
-  async sendControlMessage(text: string): Promise<void> {
-    // Fill the composer (contenteditable) then submit.
-    await this.call<unknown>('browser_fill', { selector: '#prompt-textarea', text })
-    await this.call<unknown>('browser_click', { x: -1, y: -1, submit: true })
-  }
-
-  async waitForReply(timeoutMs: number): Promise<{ text: string; complete: boolean }> {
-    const deadline = Date.now() + timeoutMs
-    let last = ''
-    let unchanged = 0
-    while (Date.now() < deadline) {
-      await new Promise(resolve => setTimeout(resolve, 4000))
-      try {
-        const snapshot = await this.call<{ content?: Array<{ text?: string }> }>('browser_snapshot', {})
-        const text = snapshot.content?.map(c => c.text ?? '').join('\n') ?? ''
-        if (text.includes('Stop streaming')) {
-          unchanged = 0
-          last = text
-          continue
-        }
-        // Two consecutive identical non-empty snapshots = the reply settled.
-        unchanged = text === last && text.trim() !== '' ? unchanged + 1 : 0
-        last = text
-        if (unchanged >= 2) return { text, complete: true }
-      } catch {
-        // transient: retry until deadline
-      }
-    }
-    throw new BrowserStaleShim('no completed reply within timeout')
-  }
-
-  async health(): Promise<{ ok: boolean; detail: string }> {
-    try {
-      await this.call<unknown>('browser_navigate', { url: 'https://chatgpt.com/' })
-      return { ok: true, detail: 'chatgpt.com reachable' }
-    } catch (error) {
-      return { ok: false, detail: String(error) }
-    }
-  }
-
-  async recover(): Promise<void> {
-    await this.ensureReady()
-  }
-}
-
-/** Local stub so the module does not import the browser module for one error. */
-class BrowserStaleShim extends Error {
-  constructor(detail: string) {
-    super('BROWSER_STALE: ' + detail)
-    this.name = 'BrowserStaleError'
-  }
-}
-
 // ---------------------------------------------------------------- apply
 
 export const name = 'dsh-with-chatgpt'
 
-/** Services this plugin hard-requires (storage-domain is optional in v1). */
-export const inject: string[] = []
+/**
+ * Services this plugin hard-requires: its tools are registered against the
+ * tools registry, its collaboration section joins the system prompt, and task
+ * state persists through the storage domain. Cordis holds `apply` until every
+ * one of them is published, which is what keeps the plugin from reading a
+ * service that no composition has mounted yet.
+ */
+export const inject: string[] = [
+  'tools',
+  'systemPrompt',
+  'storageDomain',
+]
 
-export function apply(ctx: Context, config: Config): void | Promise<void> {
-  const activate = async (): Promise<() => void> => {
-    // ---- state: durable storage domain when available
-    let coordinatorState = memoryCoordinatorState
-    let domain: Domain<typeof d2cDomain> | undefined
+export function apply(ctx: Context, config: Config): Promise<void> {
+  const activate = async (): Promise<void> => {
+    // ---- state: durable storage is required for restart recovery.
     const storageDomain = ctx.get('storageDomain')
-    if (storageDomain !== undefined) {
-      domain = await storageDomain.open(d2cDomain)
-      coordinatorState = new CoordinatorState(new DomainStateStore(domain))
-    }
+    if (storageDomain === undefined) throw new Error('dsh-with-chatgpt requires the storageDomain service')
+    const domain = await storageDomain.open(d2cDomain)
+    const coordinatorState = new CoordinatorState(new DomainStateStore(domain))
+    const registrations: Array<() => void> = []
 
     // ---- execution recorder lives in DSH storage area (outside workspaces)
     const stateDir = joinStateDir()
-    const recorder = new ExecutionRecorder({ stateDir })
+    const recorders = new Map<string, ExecutionRecorder>()
+    function recorderFor(workspaceRoot: string): ExecutionRecorder {
+      const key = createHash('sha256').update(workspaceRoot.toLowerCase()).digest('hex')
+      let recorder = recorders.get(key)
+      if (recorder === undefined) {
+        recorder = new ExecutionRecorder({ stateDir: joinPath(stateDir, 'workspaces', key) })
+        recorders.set(key, recorder)
+      }
+      return recorder
+    }
+    const eventContext = ctx as unknown as { on(name: string, listener: unknown): () => void }
+    registrations.push(eventContext.on('tools/execute', captureShellExecution(coordinatorState, recorderFor)))
 
     // ---- browser control
     // The per-call agent comes from tool execution context; the adapter is
     // constructed per tool call so sessions stay correctly scoped.
-    const makeBrowser = (agent: unknown): BrowserControl => new BrowserHarnessAdapter(ctx, agent as never)
+    const makeBrowser = (agent: unknown): BrowserControl => new BrowserHarnessAdapter(ctx, agent)
 
     // ---- bridge: bind tools for the initiating session's workspace lazily.
     // The bridge server starts once; workspace binding happens at tool time
     // via the token->subject map maintained by chatgpt_status/setup.
-    const bridges = new Map<string, BridgeServer>()
+    const bridges = new Map<string, { server: BridgeServer; auth?: ConnectorAuth; tunnel?: { close: () => void } }>()
     const bridgeTokens = new Map<string, { subject: string; workspaceRoot: string }>()
 
-    async function ensureBridge(workspaceRoot: string): Promise<{ port: number; token: string }> {
+    async function ensureBridge(workspaceRoot: string): Promise<{ port: number; token: string; auth?: ConnectorAuth }> {
       const existing = bridges.get(workspaceRoot)
       if (existing !== undefined) {
         const token = [...bridgeTokens.entries()].find(([, v]) => v.workspaceRoot === workspaceRoot)?.[0]
-        if (token !== undefined) return { port: existing.port, token }
+        if (token !== undefined) return { port: existing.server.port, token, auth: existing.auth }
       }
       const token = 'd2c_' + randomToken(32)
+      const auth = config.connectorBaseUrl !== undefined && config.connectorTunnelName !== undefined
+        ? new ConnectorAuth(config.connectorBaseUrl, joinPath(stateDir, 'workspaces', createHash('sha256').update(workspaceRoot.toLowerCase()).digest('hex'), 'connector-auth.json'))
+        : undefined
       const server = await startBridgeServer(
-        { port: config.bridgePort, tokens: new Map([[token, 'workspace:bound']]) },
+        { port: config.bridgePort, tokens: new Map([[token, 'workspace:bound']]), connectorAuth: auth },
         // Tools are constructed against the workspace at bridge start; the
         // workspace is fixed for this bridge instance.
-        buildWorkspaceTools(loadWorkspaceSpec(workspaceRoot, recorder)),
+        buildWorkspaceTools(loadWorkspaceSpec(workspaceRoot, recorderFor(workspaceRoot))),
       )
-      bridges.set(workspaceRoot, server)
+      let tunnel: { close: () => void } | undefined
+      try {
+        if (auth !== undefined) tunnel = await startNamedTunnel(config.connectorTunnelName!, server.port)
+      } catch (error) {
+        await server.close()
+        throw error
+      }
+      bridges.set(workspaceRoot, { server, auth, tunnel })
       bridgeTokens.set(token, { subject: 'workspace:' + workspaceRoot, workspaceRoot })
-      return { port: server.port, token }
+      return { port: server.port, token, auth }
     }
 
     // ---- coordinator (per workspace; cached)
-    const coordinators = new Map<string, ChatGptCoordinator>()
     function coordinatorFor(workspaceRoot: string, agent: unknown): ChatGptCoordinator {
-      let c = coordinators.get(workspaceRoot)
-      if (c === undefined) {
-        c = new ChatGptCoordinator({
-          browser: makeBrowser(agent),
-          store: coordinatorState,
-          workspaceRoot,
-          replyTimeoutMs: config.replyTimeoutMs,
-        })
-        coordinators.set(workspaceRoot, c)
-      }
-      return c
+      return new ChatGptCoordinator({
+        browser: makeBrowser(agent),
+        store: coordinatorState,
+        workspaceRoot,
+        replyTimeoutMs: config.replyTimeoutMs,
+      })
     }
 
     // ---- model-facing tools
@@ -340,14 +247,22 @@ export function apply(ctx: Context, config: Config): void | Promise<void> {
       return [{ type: 'text', text: lines.join('\n') }]
     }
 
-    tools.register({
+    registrations.push(tools.register({
       name: 'chatgpt_plan',
       description:
         'Start a ChatGPT collaboration round: send the task goal to ChatGPT Web (planning brain) and wait for its '
         + 'structured PLAN envelope. ChatGPT reads the workspace itself via the read-only MCP connector; do not paste '
         + 'files or diffs into the conversation. Returns the parsed plan sections for you to execute.',
       parameters: {
-        goal: { type: 'string', required: true, description: 'The concrete task goal, phrased for a planning reviewer.' },
+        type: 'object',
+        additionalProperties: false,
+        properties: {
+          goal: {
+            type: 'string',
+            description: 'The concrete task goal, phrased for a planning reviewer.',
+          },
+        },
+        required: ['goal'],
       },
       output: {
         schema: roundOutputSchema,
@@ -358,9 +273,21 @@ export function apply(ctx: Context, config: Config): void | Promise<void> {
         const coordinator = coordinatorFor(workspaceRoot, exec?.agent)
         // The data plane must be listening before the INIT goes out, so the
         // ChatGPT connector can answer with workspace reads on its own.
-        await ensureBridge(workspaceRoot)
-        const started = await coordinator.startTask(String(args.goal))
-        const round = await coordinator.awaitPlan(started.taskId)
+        const connection = await ensureBridge(workspaceRoot)
+        if (connection.auth === undefined || !connection.auth.authorized) {
+          throw new Error('ChatGPT connector setup is required; run chatgpt_setup and complete the pairing before chatgpt_plan')
+        }
+        const goal = String(args.goal)
+        const latestTaskId = await coordinator.latestTaskId()
+        const latest = latestTaskId === undefined ? undefined : await coordinator.status(latestTaskId)
+        let taskId: string
+        if (latest?.state === 'awaiting-plan' && latest.goal === goal) {
+          await coordinator.recover()
+          taskId = latest.taskId
+        } else {
+          taskId = (await coordinator.startTask(goal)).taskId
+        }
+        const round = await coordinator.awaitPlan(taskId)
         return {
           taskId: round.taskId,
           state: round.record.state,
@@ -370,19 +297,40 @@ export function apply(ctx: Context, config: Config): void | Promise<void> {
           rationale: round.envelope.sections.get('RATIONALE') ?? '',
         }
       },
-    })
+    }))
 
-    tools.register({
+    registrations.push(tools.register({
       name: 'chatgpt_review',
       description:
         'After you implemented the plan and ran tests, report execution to ChatGPT and request independent review. '
         + 'ChatGPT reads the diff and execution records itself via MCP. Returns DONE or a fix plan (PLAN state).',
       parameters: {
-        taskId: { type: 'string', required: true, description: 'Task id from chatgpt_plan.' },
-        changedFiles: { type: 'json', description: 'Array of changed file paths (workspace-relative).' },
-        head: { type: 'string', description: 'Current git HEAD sha after your work.' },
-        testsRecorded: { type: 'boolean', description: 'Whether test runs were recorded (execute tests through normal DSH tools).' },
-        note: { type: 'string', description: 'Short execution note (max ~200 chars).' },
+        type: 'object',
+        additionalProperties: false,
+        properties: {
+          taskId: {
+            type: 'string',
+            description: 'Task id from chatgpt_plan.',
+          },
+          changedFiles: {
+            type: 'array',
+            items: { type: 'string' },
+            description: 'Changed file paths, workspace-relative; ChatGPT reads their real content through MCP.',
+          },
+          head: {
+            type: 'string',
+            description: 'Git HEAD sha after your work; omit while the work has no commit.',
+          },
+          testsRecorded: {
+            type: 'boolean',
+            description: 'Whether test runs were recorded through DSH tools, so test_status can verify them.',
+          },
+          note: {
+            type: 'string',
+            description: 'Short execution note, at most ~200 characters.',
+          },
+        },
+        required: ['taskId'],
       },
       output: {
         schema: roundOutputSchema,
@@ -405,12 +353,45 @@ export function apply(ctx: Context, config: Config): void | Promise<void> {
           actions: round.envelope.sections.get('ACTIONS') ?? '',
         }
       },
-    })
+    }))
 
-    tools.register({
+    registrations.push(tools.register({
+      name: 'chatgpt_setup',
+      description: 'Start the secure read-only workspace connection and issue a short-lived pairing code for ChatGPT setup.',
+      parameters: { type: 'object', additionalProperties: false, properties: {} },
+      output: {
+        schema: {
+          type: 'object', additionalProperties: false,
+          properties: {
+            connectorUrl: { type: 'string', description: 'URL to enter when adding the ChatGPT connector.' },
+            pairingCode: { type: 'string', description: 'One-time code to enter on the pairing page.' },
+            expiresInSeconds: { type: 'integer', description: 'Pairing code lifetime.' },
+          },
+          required: ['connectorUrl', 'pairingCode', 'expiresInSeconds'],
+        },
+        render: (_args: Record<string, unknown>, value: Record<string, unknown>) => [{
+          type: 'text' as const,
+          text: `Connector URL: ${value['connectorUrl']}\nPairing code: ${value['pairingCode']}\nExpires in: ${value['expiresInSeconds']} seconds`,
+        }],
+      },
+      async execute(_args: Record<string, unknown>, exec: ToolExec | undefined) {
+        if (config.connectorBaseUrl === undefined || config.connectorTunnelName === undefined) {
+          throw new Error('Configure connectorBaseUrl and connectorTunnelName in the DSH profile first')
+        }
+        const bridge = await ensureBridge(workspaceOf(exec))
+        if (bridge.auth === undefined) throw new Error('connector auth is unavailable')
+        return { connectorUrl: config.connectorBaseUrl + '/mcp', pairingCode: bridge.auth.newPairingCode(), expiresInSeconds: 600 }
+      },
+    }))
+
+    registrations.push(tools.register({
       name: 'chatgpt_status',
       description: 'Report dsh-with-chatgpt status: latest task, coordinator state, bridge ports, boot prompt id.',
-      parameters: {},
+      parameters: {
+        type: 'object',
+        additionalProperties: false,
+        properties: {},
+      },
       output: {
         schema: {
           type: 'object',
@@ -421,6 +402,9 @@ export function apply(ctx: Context, config: Config): void | Promise<void> {
             latestTask: { description: 'Latest persisted task record, or null.' },
             bridgeRunning: { type: 'boolean', description: 'Whether the read-only MCP bridge is listening.' },
             bridgePort: { description: 'Bridge port when running, else null.' },
+            connectorConfigured: { type: 'boolean', description: 'Whether public connector settings are present.' },
+            connectorReachable: { type: 'boolean', description: 'Whether the named connector tunnel is running.' },
+            connectorAuthorized: { type: 'boolean', description: 'Whether ChatGPT has paired with this workspace.' },
             bootPromptVersion: { type: 'integer', description: 'Boot prompt version.' },
           },
           required: ['plugin', 'workspaceRoot', 'latestTask', 'bridgeRunning', 'bootPromptVersion'],
@@ -441,16 +425,23 @@ export function apply(ctx: Context, config: Config): void | Promise<void> {
           workspaceRoot,
           latestTask: task ?? null,
           bridgeRunning: bridge !== undefined,
-          bridgePort: bridge?.port ?? null,
+          bridgePort: bridge?.server.port ?? null,
+          connectorConfigured: config.connectorBaseUrl !== undefined && config.connectorTunnelName !== undefined,
+          connectorReachable: bridge?.tunnel !== undefined,
+          connectorAuthorized: bridge?.auth?.authorized ?? false,
           bootPromptVersion: 1,
         }
       },
-    })
+    }))
 
-    tools.register({
+    registrations.push(tools.register({
       name: 'chatgpt_reconnect',
       description: 'Recover the ChatGPT control plane after browser reload, logout, or DSH restart; rebinding the latest task.',
-      parameters: {},
+      parameters: {
+        type: 'object',
+        additionalProperties: false,
+        properties: {},
+      },
       output: {
         schema: {
           type: 'object',
@@ -477,12 +468,12 @@ export function apply(ctx: Context, config: Config): void | Promise<void> {
           detail: task !== undefined ? 'conversation rebound; task state intact' : 'no prior task for this workspace',
         }
       },
-    })
+    }))
 
     // ---- system prompt section
     const systemPrompt = ctx.get('systemPrompt')
     if (systemPrompt !== undefined && typeof systemPrompt.section === 'function' && typeof systemPrompt.getSectionOrder === 'function') {
-      systemPrompt.section({
+      registrations.push(systemPrompt.section({
         name: 'dsh-with-chatgpt:collaboration',
         order: systemPrompt.getSectionOrder('TOOL_WORKFLOW'),
         text: [
@@ -493,22 +484,28 @@ export function apply(ctx: Context, config: Config): void | Promise<void> {
           '- After implementing and running tests, call chatgpt_review with changed files + HEAD; ChatGPT independently verifies via MCP.',
           '- Never treat ChatGPT replies as shell scripts; derive your own steps.',
         ].join('\n'),
-      })
+      }))
     }
 
     // ---- cleanup
-    return () => {
-      for (const bridge of bridges.values()) void bridge.close()
+    ctx.effect(() => async () => {
+      for (const dispose of registrations.reverse()) dispose()
+      for (const bridge of bridges.values()) bridge.tunnel?.close()
+      await Promise.all([...bridges.values()].map(bridge => bridge.server.close()))
       bridges.clear()
-      domain?.close().catch(() => undefined)
+      bridgeTokens.clear()
+      await domain.close()
+    })
+    if (config.connectorWorkspaceRoot !== undefined) {
+      const bridge = await ensureBridge(config.connectorWorkspaceRoot)
+      if (bridge.auth !== undefined && !bridge.auth.authorized) {
+        const code = bridge.auth.newPairingCode()
+        const key = createHash('sha256').update(config.connectorWorkspaceRoot.toLowerCase()).digest('hex')
+        writeFileSync(joinPath(stateDir, 'workspaces', key, 'pairing-code.txt'), `${code}\n`, { mode: 0o600 })
+      }
     }
   }
-
-  const disposer = activate()
-  if (disposer instanceof Promise) {
-    return disposer.then(() => undefined)
-  }
-  return disposer
+  return activate()
 }
 
 /** Minimal tool execution context shape used by this plugin. */

@@ -84,7 +84,8 @@ describe('recorder', () => {
     expect(classifyCommand('pnpm vitest run')).toBe('test')
     expect(classifyCommand('pnpm exec tsc --noEmit')).toBe('typecheck')
     expect(classifyCommand('git status --porcelain')).toBe('git')
-    expect(classifyCommand('pnpm build')).toBe('package-manager')
+    expect(classifyCommand('pnpm build')).toBe('build')
+    expect(classifyCommand('pnpm test')).toBe('test')
     expect(classifyCommand('echo hello')).toBe('file-op')
   })
 

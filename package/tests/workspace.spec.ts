@@ -12,6 +12,26 @@ import {
 
 let root: string
 
+/**
+ * Whether this host lets the test process create symlinks. Windows requires
+ * Developer Mode or an elevated process, and the escape tests are meaningless
+ * without one, so they skip instead of failing for a missing host privilege.
+ * @returns true when a probe symlink could be created.
+ */
+function canCreateSymlinks(): boolean {
+  const probe = fs.mkdtempSync(path.join(os.tmpdir(), 'd2c-symlink-probe-'))
+  try {
+    const target = path.join(probe, 'target.txt')
+    fs.writeFileSync(target, 'probe')
+    fs.symlinkSync(target, path.join(probe, 'link.txt'), 'file')
+    return true
+  } catch {
+    return false
+  } finally {
+    fs.rmSync(probe, { recursive: true, force: true })
+  }
+}
+
 beforeEach(() => {
   root = fs.mkdtempSync(path.join(os.tmpdir(), 'd2c-ws-'))
   root = fs.realpathSync(root)
@@ -50,7 +70,7 @@ describe('resolveContained', () => {
     expect(() => resolveContained(root, 'workspace:/src')).not.toThrow()
   })
 
-  it('resolves symlink escape via deepest-existing-ancestor canonicalization', () => {
+  it('resolves symlink escape via deepest-existing-ancestor canonicalization', { skip: !canCreateSymlinks() }, () => {
     const outside = fs.mkdtempSync(path.join(os.tmpdir(), 'd2c-out-'))
     try {
       const secret = path.join(outside, 'secret.txt')
@@ -71,7 +91,7 @@ describe('resolveContained', () => {
     }
   })
 
-  it('allows paths through a symlink chain that stays inside', () => {
+  it('allows paths through a symlink chain that stays inside', { skip: !canCreateSymlinks() }, () => {
     const realDir = path.join(root, 'real')
     fs.mkdirSync(realDir)
     const link = path.join(root, 'inside-link')
