@@ -34,6 +34,22 @@ afterEach(() => {
 })
 
 describe('gitStatus', () => {
+  it('preserves staged and untracked paths before the first commit', async () => {
+    git(['checkout', '--orphan', 'unborn'])
+    git(['rm', '-rf', '.'])
+    fs.writeFileSync(path.join(root, 'staged.txt'), 'STAGED_ONLY')
+    git(['add', 'staged.txt'])
+    fs.writeFileSync(path.join(root, 'untracked.txt'), 'UNTRACKED_ONLY')
+    const status = await gitStatus(localGitExecutor(root))
+    expect(status.head).toBeNull()
+    expect(status.dirty).toBe(true)
+    expect(status.staged).toEqual(['staged.txt'])
+    expect(status.untracked).toEqual(['untracked.txt'])
+    const diff = await gitDiff(localGitExecutor(root))
+    expect(diff.text).toContain('STAGED_ONLY')
+    expect(diff.text).toContain('UNTRACKED_ONLY')
+  })
+
   it('reports clean tree at HEAD', async () => {
     const status = await gitStatus(localGitExecutor(root))
     expect(status.isRepo).toBe(true)
@@ -77,6 +93,14 @@ describe('gitStatus', () => {
     expect(status.dirty).toBe(true)
   })
 
+  it('records a staged rename once under its current pathname', async () => {
+    git(['mv', 'README.md', 'renamed.md'])
+    const status = await gitStatus(localGitExecutor(root))
+    expect(status.dirty).toBe(true)
+    expect(status.staged).toEqual(['renamed.md'])
+    expect(status.untracked).toEqual([])
+  })
+
   it('degrades to isRepo=false for non-repositories', async () => {
     const plain = fs.mkdtempSync(path.join(os.tmpdir(), 'd2c-plain-'))
     try {
@@ -97,11 +121,33 @@ describe('gitDiff', () => {
     expect(diff.against).toBe('HEAD')
   })
 
+  it('does not invoke a configured external diff program', async () => {
+    const marker = path.join(root, 'external-ran')
+    const script = path.join(root, 'external.cjs')
+    fs.writeFileSync(script, "require('node:fs').writeFileSync(" + JSON.stringify(marker) + ", 'called')")
+    git(['config', 'diff.external', 'node external.cjs'])
+    fs.writeFileSync(path.join(root, 'README.md'), '# modified')
+    git(['diff'])
+    expect(fs.existsSync(marker)).toBe(true)
+    fs.rmSync(marker)
+    const diff = await gitDiff(localGitExecutor(root))
+    expect(diff.text).toContain('README.md')
+    expect(fs.existsSync(marker)).toBe(false)
+  })
+
   it('returns working-tree diff for modifications', async () => {
     fs.writeFileSync(path.join(root, 'README.md'), '# demo changed\n')
     const diff = await gitDiff(localGitExecutor(root))
     expect(diff.text).toContain('README.md')
     expect(diff.text).toContain('+')
+  })
+
+  it('includes both modified tracked and new untracked content', async () => {
+    fs.writeFileSync(path.join(root, 'README.md'), '# TRACKED_CHANGE')
+    fs.writeFileSync(path.join(root, 'new.txt'), 'UNTRACKED_CHANGE')
+    const diff = await gitDiff(localGitExecutor(root))
+    expect(diff.text).toContain('TRACKED_CHANGE')
+    expect(diff.text).toContain('UNTRACKED_CHANGE')
   })
 
   it('includes untracked file content by diffing against the empty tree', async () => {
@@ -117,10 +163,30 @@ describe('gitDiff', () => {
     git(['add', '.'])
     git(['commit', '-m', 'second'])
     const head = (await gitStatus(localGitExecutor(root))).head
-    const diff = await gitDiff(localGitExecutor(root), { againstRef: 'HEAD~1' })
-    expect(diff.against).toBe('HEAD~1')
+    const previous = git(['rev-parse', 'HEAD~1']).trim()
+    const diff = await gitDiff(localGitExecutor(root), { againstRef: previous })
+    expect(diff.against).toBe(previous)
     expect(head).toMatch(/^[0-9a-f]{40}$/)
     expect(diff.text).toContain('README.md')
+  })
+
+  it('includes files inside an untracked directory', async () => {
+    fs.mkdirSync(path.join(root, 'new-dir'))
+    fs.writeFileSync(path.join(root, 'new-dir', 'nested.txt'), 'NESTED_UNTRACKED')
+    const diff = await gitDiff(localGitExecutor(root))
+    expect(diff.text).toContain('NESTED_UNTRACKED')
+  })
+
+  it('includes committed changes outside currently dirty paths for an explicit ref', async () => {
+    const previous = git(['rev-parse', 'HEAD']).trim()
+    fs.writeFileSync(path.join(root, 'committed.txt'), 'COMMITTED_CHANGE')
+    git(['add', 'committed.txt'])
+    git(['commit', '-m', 'add committed file'])
+    fs.writeFileSync(path.join(root, 'README.md'), '# WORKTREE_CHANGE')
+    const diff = await gitDiff(localGitExecutor(root), { againstRef: previous })
+    expect(diff.against).toBe(previous)
+    expect(diff.text).toContain('COMMITTED_CHANGE')
+    expect(diff.text).toContain('WORKTREE_CHANGE')
   })
 
   it('truncates oversized diffs', async () => {

@@ -128,5 +128,5 @@ export async function runDoctor(inputs: DoctorInputs): Promise<DoctorResult> {
     check.detail = 'Browser Harness session probe failed; check the provider and Session ownership'
     check.code = 'BROWSER_HARNESS_UNAVAILABLE'
   }
-  return { ready: checks.filter(check => check.id !== 'remote_workspace_access').every(check => check.ok), checks }
+  return { ready: checks.filter(check => check.id !== 'remote_workspace_access' && check.id !== 'execution_output_access').every(check => check.ok), checks }
 }

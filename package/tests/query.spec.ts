@@ -40,6 +40,7 @@ describe('workspace query normalization', () => {
     for (const against_ref of ['', '--output=/private/file', 5, null, 'bad\0ref']) {
       expect(() => normalizeWorkspaceQuery('git_diff', { against_ref })).toThrow('INVALID_WORKSPACE_QUERY')
     }
-    expect(normalizeWorkspaceQuery('git_diff', { against_ref: 'HEAD~1' })).toEqual({ operation: 'git_diff', againstRef: 'HEAD~1', maxBytes: 262144 })
+    expect(() => normalizeWorkspaceQuery('git_diff', { against_ref: 'HEAD~1' })).toThrow('INVALID_WORKSPACE_QUERY')
+    expect(normalizeWorkspaceQuery('git_diff', { against_ref: 'a'.repeat(40) })).toEqual({ operation: 'git_diff', againstRef: 'a'.repeat(40), maxBytes: 262144 })
   })
 })

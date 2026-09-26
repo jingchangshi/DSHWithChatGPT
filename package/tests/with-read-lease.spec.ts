@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from 'vitest'
 import type { ExecutionReadLease } from '@deepseek-ai/dsh-execution-world/read-lease'
-import type { ExecutionGitLease } from '@deepseek-ai/dsh-execution-world/git-lease'
+import { ExecutionGitCleanupError, type ExecutionGitLease } from '@deepseek-ai/dsh-execution-world/git-lease'
 import { WorkspaceRuntimeRegistry } from '../src/workspace/runtime.ts'
 import { withWorkspaceReadLease } from '../src/workspace/with-read-lease.ts'
 
@@ -70,6 +70,24 @@ describe('workspace operation read lease', () => {
     expect(gitLease.dispose).toHaveBeenCalledTimes(1)
   })
 
+  it('does not downgrade unconfirmed Git acquisition cleanup to optional access', async () => {
+    const { registry, identity, lease } = fixture()
+    const operation = vi.fn()
+    const privateFailure = new Error('/private/provider/path')
+    const failure = new ExecutionGitCleanupError(new AggregateError([privateFailure], 'private cleanup'))
+    let message = ''
+    try {
+      await withWorkspaceReadLease(registry, identity, async () => lease, operation, undefined, async () => { throw failure })
+    } catch (error) {
+      message = String(error)
+      expect(error).toMatchObject({ reason: 'WORKSPACE_CLEANUP_FAILED' })
+    }
+    expect(message).not.toContain('/private/provider/path')
+    expect(operation).not.toHaveBeenCalled()
+    expect(lease.dispose).toHaveBeenCalledTimes(1)
+    expect(registry.capabilities(identity.workspaceId).leaseBound).toBe(false)
+  })
+
   it('rejects a Git lease from another execution workspace and disposes it', async () => {
     const { registry, identity, lease } = fixture()
     const gitLease: ExecutionGitLease = {
@@ -96,6 +114,35 @@ describe('workspace operation read lease', () => {
     const { registry, identity, lease } = fixture()
     vi.mocked(lease.dispose).mockRejectedValue(new Error('/private/transport'))
     await expect(withWorkspaceReadLease(registry, identity, async () => lease, async () => 'done')).rejects.toMatchObject({ reason: 'WORKSPACE_CLEANUP_FAILED' })
+  })
+
+  it.each(['read', 'git'])('joins the other cleanup when %s cleanup fails', async failing => {
+    const { registry, identity, lease } = fixture()
+    const pending = Promise.withResolvers<void>()
+    const entered = Promise.withResolvers<void>()
+    const gitLease: ExecutionGitLease = {
+      workspaceId: lease.workspaceId,
+      git: { workspaceId: lease.workspaceId, emptyFile: '/dev/null', signal: new AbortController().signal, execute: vi.fn() },
+      dispose: vi.fn(async () => {
+        if (failing === 'git') throw new Error('Git transport details')
+        entered.resolve()
+        await pending.promise
+      }),
+    }
+    vi.mocked(lease.dispose).mockImplementation(async () => {
+      if (failing === 'read') throw new Error('file transport details')
+      entered.resolve()
+      await pending.promise
+    })
+    let settled = false
+    const result = withWorkspaceReadLease(registry, identity, async () => lease, async () => 'done', undefined, async () => gitLease)
+      .finally(() => { settled = true })
+    await entered.promise
+    expect(settled).toBe(false)
+    pending.resolve()
+    await expect(result).rejects.toMatchObject({ reason: 'WORKSPACE_CLEANUP_FAILED' })
+    expect(lease.dispose).toHaveBeenCalledTimes(1)
+    expect(gitLease.dispose).toHaveBeenCalledTimes(1)
   })
 
   it('disposes an acquisition completed after cancellation without running the operation', async () => {

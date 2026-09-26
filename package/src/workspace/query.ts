@@ -73,7 +73,7 @@ export function normalizeWorkspaceQuery(operation: WorkspaceReadOperation, args:
     case 'git_status': return { operation }
     case 'git_diff': {
       const againstRef = args.against_ref === undefined ? undefined : text(args.against_ref)
-      if (againstRef !== undefined && (againstRef === '' || againstRef.startsWith('-'))) return invalid()
+      if (againstRef !== undefined && !/^(?:HEAD|@\{u\}|HEAD\.\.\.@\{u\}|[0-9a-f]{7,64})$/u.test(againstRef)) return invalid()
       return { operation, ...(againstRef === undefined ? {} : { againstRef }), maxBytes: positiveInteger(args.max_bytes, 256 * 1024, 1024 * 1024) }
     }
     case 'git_log': return { operation, limit: positiveInteger(args.limit, 10, 50) }

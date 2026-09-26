@@ -82,7 +82,7 @@ packages:
       '@deepseek-ai/cordis': ^4.0.2
 
   '@deepseek-ai/dsh-execution-world@file:tarballs/deepseek-ai-dsh-execution-world-0.1.6-alpha.2.tgz':
-    resolution: {integrity: sha512-7il3xGSOuUmlFgw5pi/fT49Uxy/Y/O9dXUvAbqK7gU6LgpwvqoveUhCzTg9MM/DrdG3ftqQSBdbCFL6h7X7Fsw==, tarball: file:tarballs/deepseek-ai-dsh-execution-world-0.1.6-alpha.2.tgz}
+    resolution: {integrity: sha512-dOa+qB+mPE9N3i6e3JNowDj8XKesHY8Rq2tvT+HYF4EQmAcEeidd3VeWwGZwFX8A6S1sp6gBRfuf+M+wLjpJuQ==, tarball: file:tarballs/deepseek-ai-dsh-execution-world-0.1.6-alpha.2.tgz}
     version: 0.1.6-alpha.2
     peerDependencies:
       '@deepseek-ai/cordis': ^4.0.2

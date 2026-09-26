@@ -1,4 +1,4 @@
-import type { ExecutionGitLease } from '@deepseek-ai/dsh-execution-world/git-lease'
+import { ExecutionGitCleanupError, type ExecutionGitLease } from '@deepseek-ai/dsh-execution-world/git-lease'
 import type { ExecutionReadLease } from '@deepseek-ai/dsh-execution-world/read-lease'
 import { WorkspaceError } from './errors.ts'
 import { createReadLeaseBackend } from './read-lease.ts'
@@ -36,6 +36,9 @@ export async function withWorkspaceReadLease<Result>(
         }
       } catch (error) {
         if (error instanceof WorkspaceError && error.reason === 'WORKSPACE_IDENTITY_MISMATCH') throw error
+        if (error instanceof ExecutionGitCleanupError) {
+          throw new WorkspaceError('WORKSPACE_CLEANUP_FAILED', 'execution workspace cleanup could not be confirmed')
+        }
         active.throwIfAborted()
         gitLease = undefined
       }
@@ -58,7 +61,10 @@ export async function withWorkspaceReadLease<Result>(
     lifetime.abort()
     release?.()
     try {
-      await Promise.all([lease?.dispose(), gitLease?.dispose()])
+      const outcomes = await Promise.allSettled([lease?.dispose(), gitLease?.dispose()])
+      if (outcomes.some(outcome => outcome.status === 'rejected')) {
+        throw new WorkspaceError('WORKSPACE_CLEANUP_FAILED', 'execution workspace cleanup could not be confirmed')
+      }
     } catch (cleanupError) {
       if (!failed) throw new WorkspaceError('WORKSPACE_CLEANUP_FAILED', 'execution workspace cleanup could not be confirmed')
       void cleanupError

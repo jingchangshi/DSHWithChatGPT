@@ -97,19 +97,19 @@ export async function gitStatus(executor: WorkspaceGitExecutor): Promise<GitStat
       }
     }
     const branch = await git(executor, ['rev-parse', '--abbrev-ref', 'HEAD']).catch(absentRef)
-    const statusOut = await git(executor, ['status', '--porcelain=v1', '-z'])
-    const untracked = parsePorcelainZ(statusOut).filter(e => e.x === '?').map(e => e.path)
+    const statusOut = await git(executor, ['status', '--porcelain=v1', '-z', '--untracked-files=all'])
+    const { staged, unstaged, untracked } = classifyStatus(statusOut)
     return {
       isRepo: true,
       head: null,
       branch: branch === 'HEAD' ? null : branch,
-      dirty: untracked.length > 0,
+      dirty: staged.length + unstaged.length + untracked.length > 0,
       upstream: null,
       upstreamHead: null,
       ahead: null,
       behind: null,
-      staged: [],
-      unstaged: [],
+      staged,
+      unstaged,
       untracked,
     }
   }
@@ -129,15 +129,8 @@ export async function gitStatus(executor: WorkspaceGitExecutor): Promise<GitStat
   const behind = counts !== undefined && counts.length >= 2 && Number.isSafeInteger(counts[1])
     ? counts[1]!
     : null
-  const statusOut = await git(executor, ['status', '--porcelain=v1', '-z'])
-  const staged: string[] = []
-  const unstaged: string[] = []
-  const untracked: string[] = []
-  for (const entry of parsePorcelainZ(statusOut)) {
-    if (entry.x === '?' || entry.x === '!') untracked.push(entry.path)
-    else if (entry.x !== ' ') staged.push(entry.path)
-    else if (entry.y !== ' ') unstaged.push(entry.path)
-  }
+  const statusOut = await git(executor, ['status', '--porcelain=v1', '-z', '--untracked-files=all'])
+  const { staged, unstaged, untracked } = classifyStatus(statusOut)
   return {
     isRepo: true,
     head: headOut.trim(),
@@ -153,6 +146,20 @@ export async function gitStatus(executor: WorkspaceGitExecutor): Promise<GitStat
   }
 }
 
+function classifyStatus(statusOut: string): Pick<GitStatusSnapshot, 'staged' | 'unstaged' | 'untracked'> {
+  const staged: string[] = []
+  const unstaged: string[] = []
+  const untracked: string[] = []
+  for (const entry of parsePorcelainZ(statusOut)) {
+    if (entry.x === '?' || entry.x === '!') untracked.push(entry.path)
+    else {
+      if (entry.x !== ' ') staged.push(entry.path)
+      if (entry.y !== ' ') unstaged.push(entry.path)
+    }
+  }
+  return { staged, unstaged, untracked }
+}
+
 /** One porcelain v1 -z entry. */
 interface PorcelainEntry {
   x: string
@@ -163,13 +170,16 @@ interface PorcelainEntry {
 /** Parse NUL-separated porcelain v1 entries defensively. */
 function parsePorcelainZ(raw: string): PorcelainEntry[] {
   const entries: PorcelainEntry[] = []
-  for (const segment of raw.split('\0')) {
+  const segments = raw.split('\0')
+  for (let index = 0; index < segments.length; index++) {
+    const segment = segments[index] ?? ''
     if (segment.length < 4) continue
     const x = segment[0] ?? ' '
     const y = segment[1] ?? ' '
     const filePath = segment.slice(3)
     if (filePath === '') continue
     entries.push({ x, y, path: filePath })
+    if (x === 'R' || x === 'C' || y === 'R' || y === 'C') index++
   }
   return entries
 }
@@ -203,19 +213,20 @@ export async function gitDiff(executor: WorkspaceGitExecutor, options: DiffOptio
   const status = await gitStatus(executor)
   if (!status.isRepo) throw new GitError('NOT_A_REPOSITORY', 'workspace is not a git repository')
 
-  const changed = [...new Set([...status.staged, ...status.untracked, ...status.unstaged])]
+  const changed = options.againstRef === undefined ? [...new Set([...status.staged, ...status.unstaged])] : []
+  const untracked = options.workingTree === false ? [] : status.untracked
   // With no commits yet there is no HEAD; git diff (no ref) diffs the index
   // against the worktree, which covers staged changes. Explicit refs pass
   // through untouched.
   const noCommits = status.head === null && options.againstRef === undefined
+  const fixedDiff = ['diff', '--no-ext-diff', '--no-textconv']
   const baseArgs = options.workingTree === false
-    ? (noCommits ? ['diff', '--cached'] : ['diff', against])
-    : (noCommits ? ['diff'] : ['diff', against, '--'])
+    ? (noCommits ? [...fixedDiff, '--cached'] : [...fixedDiff, against])
+    : (noCommits ? fixedDiff : [...fixedDiff, against, '--'])
   // git diff (index/tree mode) never shows untracked content. If everything
   // changed is untracked, produce the diff with --no-index against the
   // Windows NUL device (empty baseline), keeping the same output format.
-  const allUntracked = changed.length > 0 && changed.every(p => status.untracked.includes(p))
-  const useNoIndex = allUntracked && options.againstRef === undefined && options.workingTree !== false
+  const useNoIndex = changed.length === 0 && untracked.length > 0 && options.againstRef === undefined
   const diffAgainst = useNoIndex ? 'EMPTY_TREE' : against
 
   let text = ''
@@ -225,7 +236,7 @@ export async function gitDiff(executor: WorkspaceGitExecutor, options: DiffOptio
     const parts: string[] = []
     let acc = 0
     let anyTruncated = false
-    for (const p of changed) {
+    for (const p of untracked) {
       const out = await gitNoIndex(executor, p, maxBytes + 1024)
       parts.push(out)
       acc += Buffer.byteLength(out, 'utf8')
@@ -236,7 +247,7 @@ export async function gitDiff(executor: WorkspaceGitExecutor, options: DiffOptio
     }
     text = parts.join('')
     truncatedInternal = anyTruncated
-    batches = changed.length
+    batches = untracked.length
   } else if (changed.length === 0) {
     text = await git(executor, baseArgs, maxBytes + 1024)
   } else if (changed.length <= MAX_BATCH_PATHS) {
@@ -262,6 +273,19 @@ export async function gitDiff(executor: WorkspaceGitExecutor, options: DiffOptio
       if (acc > maxBytes) break
     }
     text = parts.join('')
+  }
+
+  if (noCommits && options.workingTree !== false && status.staged.length > 0) {
+    const cached = await git(executor, [...fixedDiff, '--cached'], maxBytes + 1024)
+    text = cached + text
+    batches++
+  }
+  if (!useNoIndex && untracked.length > 0) {
+    for (const filePath of untracked) {
+      if (Buffer.byteLength(text, 'utf8') > maxBytes) { truncatedInternal = true; break }
+      text += await gitNoIndex(executor, filePath, maxBytes + 1024)
+      batches++
+    }
   }
 
   let truncated = truncatedInternal

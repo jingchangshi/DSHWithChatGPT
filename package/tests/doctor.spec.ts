@@ -11,6 +11,28 @@ import path from 'node:path'
 import { workspaceIdentity } from '../src/workspace/identity.ts'
 
 describe('chatgpt_doctor', () => {
+  it('reports local readiness without raw execution-output access', async () => {
+    const token = 'doctor-optional-output-token'
+    const server = await startBridgeServer({ port: 0, tokens: new Map([[token, 'workspace']]) }, [{
+      name: 'workspace_info', description: 'test metadata', inputSchema: { type: 'object' },
+      async handler() { return { workspaceId: 'opaque-id', capabilities: {
+        leaseBound: true, workspaceContentRead: { available: true }, gitRead: { available: true },
+        executionOutput: { available: false, reason: 'EXECUTION_OUTPUT_UNAVAILABLE' },
+      } } },
+    }])
+    try {
+      const result = await runDoctor({
+        workspaceRoot: '/remote/workspace', workspaceId: 'opaque-id', appName: 'DSH with ChatGPT',
+        browser: { readiness: async () => ({ url: 'https://chatgpt.com/c/test', composer: true, loggedOut: false }) },
+        bridgeHttp: { port: server.port, token }, probeApp: async () => undefined,
+        runtime: { bridge: { workspaceId: 'opaque-id' }, tunnel: { mode: 'managed', configured: true, ready: true, detail: 'ready' } },
+      })
+      expect(result.ready).toBe(true)
+      expect(result.checks.find(check => check.id === 'execution_output_access')).toMatchObject({ ok: false, code: 'EXECUTION_OUTPUT_UNAVAILABLE' })
+      expect(result.checks.find(check => check.id === 'remote_workspace_access')?.ok).toBe(false)
+    } finally { await server.close() }
+  })
+
   it.each([
     [false, 'RUNTIME_LEASE_UNAVAILABLE', 'RUNTIME_LEASE_UNAVAILABLE'],
     [false, 'PRIVATE_PROVIDER_DETAIL', 'WORKSPACE_CAPABILITY_UNAVAILABLE'],
