@@ -191,14 +191,22 @@ export class BrowserHarnessAdapter implements BrowserControl {
 
   async probeApp(appName: string, signal?: AbortSignal): Promise<void> {
     await this.ensureReady(signal)
+    let originalError: unknown
     try {
       await this.activateAppMention(appName.trim(), signal)
+    } catch (error) {
+      originalError = error
+      throw error
     } finally {
-      await this.call<unknown>('browser_fill', {
-        selector: '#prompt-textarea',
-        text: '',
-        clear_first: true,
-      })
+      try {
+        await this.call<unknown>('browser_fill', {
+          selector: '#prompt-textarea',
+          text: '',
+          clear_first: true,
+        }, AbortSignal.timeout(1_500))
+      } catch (error) {
+        if (originalError === undefined) throw new BrowserStaleError('App probe composer cleanup failed: ' + String(error))
+      }
     }
   }
 

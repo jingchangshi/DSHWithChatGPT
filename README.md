@@ -97,7 +97,8 @@ Useful tools:
 |---|---|
 | `chatgpt_plan` | Send a goal, get ChatGPT's structured plan |
 | `chatgpt_review` | Report execution, get independent review (DONE / fix PLAN) |
-| `chatgpt_status` | Coordinator + bridge status, latest task |`n| `chatgpt_doctor` | Real Session local readiness: Browser Harness, ChatGPT login/App probe, bridge identity, and tunnel |
+| `chatgpt_status` | Coordinator + bridge status, latest task |
+| `chatgpt_doctor` | Real Session local readiness: Browser Harness, ChatGPT login/App probe, bridge identity, and tunnel |
 | `chatgpt_reconnect` | Recover after browser reload / DSH restart |
 
 ## Uninstall

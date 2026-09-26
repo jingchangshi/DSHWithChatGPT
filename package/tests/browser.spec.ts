@@ -8,6 +8,7 @@ import {
   extractEnvelopeText,
 } from '../src/browser/adapter.ts'
 import { BrowserHarnessAdapter, decodeToolValue } from '../src/browser/harness.ts'
+import { OperationCancelledError } from '../src/cancellation.ts'
 
 describe('DuplicateSendGuard', () => {
   it('flags identical text within cooldown', () => {
@@ -132,4 +133,33 @@ describe('Browser Harness App probe', () => {
     expect(calls.some(name => name.endsWith('browser_press'))).toBe(false)
     expect(calls.filter(name => name.endsWith('browser_fill')).at(-1)).toContain('browser_fill')
   })
+
+  it('bounds cleanup after cancellation even when the browser provider never answers', async () => {
+    const controller = new AbortController()
+    const calls: string[] = []
+    let cleanupAttempted = false
+    const browser = new BrowserHarnessAdapter({
+      get: () => ({
+        execute: async ({ name, arguments: args }: { name: string; arguments: Record<string, unknown> }) => {
+          calls.push(name)
+          if (name.endsWith('browser_page_info')) return { value: { url: 'https://chatgpt.com/c/test' } }
+          if (name.endsWith('browser_js')) return { value: { loggedOut: false, composer: true } }
+          if (name.endsWith('browser_type')) {
+            controller.abort()
+            return new Promise<never>(() => {})
+          }
+          if (name.endsWith('browser_fill') && args.text === '') {
+            cleanupAttempted = true
+            return new Promise<never>(() => {})
+          }
+          return { value: {} }
+        },
+      }),
+    } as never, undefined, 'DSH with ChatGPT')
+    const started = Date.now()
+    await expect(browser.probeApp('DSH with ChatGPT', controller.signal)).rejects.toBeInstanceOf(OperationCancelledError)
+    expect(cleanupAttempted).toBe(true)
+    expect(Date.now() - started).toBeLessThan(3_500)
+    expect(calls.some(name => name.endsWith('browser_press'))).toBe(false)
+  }, 5_000)
 })
