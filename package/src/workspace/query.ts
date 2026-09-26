@@ -12,6 +12,20 @@ export type WorkspaceQuery =
 /** Fixed read-only query names exposed by the workspace bridge. */
 export type WorkspaceReadOperation = WorkspaceQuery['operation']
 
+/** Convert a display path to logical components without consulting the Host filesystem. */
+export function normalizeWorkspacePath(value: string): string {
+  const logical = value.startsWith('workspace:/') ? value.slice('workspace:/'.length) : value
+  if (logical.includes('\0') || logical.includes('\\') || logical.startsWith('/') || logical.includes(':')) {
+    throw new WorkspaceError('INVALID_PATH', 'expected a workspace-relative path')
+  }
+  if (logical === '.' || logical === '') return ''
+  const parts = logical.split('/')
+  if (parts.some(part => part === '' || part === '.' || part === '..')) {
+    throw new WorkspaceError('INVALID_PATH', 'invalid workspace path components')
+  }
+  return parts.join('/')
+}
+
 function invalid(): never {
   throw new WorkspaceError('INVALID_WORKSPACE_QUERY', 'invalid workspace query arguments')
 }

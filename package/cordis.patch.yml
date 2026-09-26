@@ -13,6 +13,7 @@
         chatgptAppName: DSH with ChatGPT
         maxIterations: 12
         gitPolicy: commit-push
+        gitRead: true
         protectedBranches:
           - main
           - master

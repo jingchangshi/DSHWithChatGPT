@@ -49,14 +49,28 @@
   "peerDependencies": {
     "@deepseek-ai/cordis": ">=4.0.0",
     "@deepseek-ai/dsh-execution-world": ">=0.1.6-alpha.2",
+    "@deepseek-ai/dsh-fs": ">=0.1.6-alpha.2",
+    "@deepseek-ai/dsh-sandbox": ">=0.1.6-alpha.2",
+    "@deepseek-ai/dsh-subprocess": ">=0.1.6-alpha.2",
     "@deepseek-ai/dsh-storage-domain": ">=0.1.6-alpha.2"
   },
   "devDependencies": {
     "@deepseek-ai/cordis": "^4.0.2",
     "@deepseek-ai/dsh-execution-world": "file:tarballs/deepseek-ai-dsh-execution-world-0.1.6-alpha.2.tgz",
+    "@deepseek-ai/dsh-fs": "file:tarballs/deepseek-ai-dsh-fs-0.1.6-alpha.2.tgz",
+    "@deepseek-ai/dsh-sandbox": "0.1.6-alpha.2",
+    "@deepseek-ai/dsh-subprocess": "0.1.6-alpha.2",
     "@deepseek-ai/dsh-storage-domain": "file:tarballs/deepseek-ai-dsh-storage-domain-0.1.6-alpha.2.tgz",
     "@types/node": "^24.0.0",
     "typescript": "^5.9.0",
     "vitest": "^5.0.1"
+  },
+  "pnpm": {
+    "overrides": {
+      "@deepseek-ai/dsh-llm": "file:tarballs/deepseek-ai-dsh-llm-0.1.6-alpha.2.tgz",
+      "@deepseek-ai/dsh-attachment": "file:tarballs/deepseek-ai-dsh-attachment-0.1.6-alpha.2.tgz",
+      "@deepseek-ai/dsh-fs": "file:tarballs/deepseek-ai-dsh-fs-0.1.6-alpha.2.tgz",
+      "@deepseek-ai/dsh-execution-world-affinity": "file:tarballs/deepseek-ai-dsh-execution-world-affinity-0.1.6-alpha.2.tgz"
+    }
   }
 }

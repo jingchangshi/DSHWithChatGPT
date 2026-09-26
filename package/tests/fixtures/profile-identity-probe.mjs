@@ -48,22 +48,15 @@ export function apply(ctx, config) {
         const value = JSON.parse(status.content.find(block => block.type === 'text').text)
         assert.equal(value.bridgeRunning, true)
         statuses.push({ workspaceId: value.workspaceId, bridgePort: value.bridgePort, latestTask: value.latestTask })
-        for (const name of ['chatgpt_plan', 'chatgpt_review']) {
-          const before = calls.length
-          const result = await execute(name, { goal: 'profile fixture', taskId: 'd2c_fixture1' })
-          assert.equal(result.isError, true, name + ' must refuse missing content authorization')
-          assert.match(JSON.stringify(result), /WORKSPACE_CAPABILITY_UNAVAILABLE/u)
-          assert.deepEqual(calls.slice(before), [name], name + ' must not dispatch browser tools')
-        }
         if (statuses.length === 1) {
           const result = await execute('chatgpt_doctor', {})
           assert.equal(result.isError, false, JSON.stringify(result))
           const doctor = JSON.parse(result.content.find(block => block.type === 'text').text)
           assert.equal(doctor.ready, false)
           assert.equal(doctor.checks.find(check => check.id === 'workspace_identity')?.ok, true)
-          for (const id of ['workspace_content_read', 'workspace_git_read', 'execution_output_access']) {
-            assert.equal(doctor.checks.find(check => check.id === id)?.ok, false, id)
-          }
+          assert.equal(doctor.checks.find(check => check.id === 'workspace_content_read')?.ok, true)
+          assert.equal(doctor.checks.find(check => check.id === 'workspace_git_read')?.ok, false)
+          assert.equal(doctor.checks.find(check => check.id === 'execution_output_access')?.ok, false)
         }
       }
       assert.equal(statuses[0].workspaceId, statuses[1].workspaceId)

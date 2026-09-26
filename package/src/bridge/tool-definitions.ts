@@ -10,7 +10,7 @@ const number = { type: 'number' }
 export const WORKSPACE_TOOL_DEFINITIONS = {
   workspace_info: { name: 'workspace_info', description: 'Workspace identity and available read-only capabilities.', inputSchema: object({}) },
   list_directory: { name: 'list_directory', description: 'List a workspace-relative directory, excluding sensitive and noise entries; at most 500 entries.', inputSchema: object({ path: string }) },
-  read_file: { name: 'read_file', description: 'Read a non-sensitive workspace-relative UTF-8 file; at most 128 KiB with head and tail.', inputSchema: object({ path: string }, ['path']) },
+  read_file: { name: 'read_file', description: 'Read a non-sensitive workspace-relative UTF-8 file up to 128 KiB.', inputSchema: object({ path: string }, ['path']) },
   search_workspace: { name: 'search_workspace', description: 'Search non-sensitive workspace files; at most 200 matches, skipping files over 512 KiB.', inputSchema: object({ query: string, is_regex: { type: 'boolean' }, subdirectory: string }, ['query']) },
   git_status: { name: 'git_status', description: 'Read Git HEAD, branch, and working-tree status.', inputSchema: object({}) },
   git_diff: { name: 'git_diff', description: 'Read a bounded working-tree diff against HEAD or a supplied ref.', inputSchema: object({ against_ref: string, max_bytes: number }) },

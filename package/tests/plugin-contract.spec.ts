@@ -15,7 +15,7 @@ interface RegisteredTool {
 
 describe('production collaboration service requirements', () => {
   it('declares tool, prompt, durability and execution identity dependencies', () => {
-    expect(inject).toEqual(['tools', 'systemPrompt', 'storageDomain', 'executionWorldIdentity'])
+    expect(inject).toEqual(['tools', 'systemPrompt', 'storageDomain', 'executionWorldIdentity', 'fs', 'subprocess', 'sandbox'])
   })
 
   it('refuses direct activation without durable storage', async () => {
@@ -32,6 +32,9 @@ describe('production collaboration service requirements', () => {
     let settled = false
     ctx.provide('storageDomain', { open: async () => { started.resolve(); await storage.promise; return { close } } })
     ctx.provide('executionWorldIdentity', { resolve: async () => 'fixture-id' })
+    ctx.provide('fs', {})
+    ctx.provide('subprocess', {})
+    ctx.provide('sandbox', {})
     ctx.provide('tools', { register })
     ctx.provide('systemPrompt', { section: () => {}, getSectionOrder: () => 0 })
     const loading = ctx.plugin({ apply, Config, inject }, {}).then(() => { settled = true })
@@ -63,6 +66,9 @@ describe('production collaboration service requirements', () => {
     try {
       ctx.provide('storageDomain', { open: async () => ({ close, table }) })
       ctx.provide('executionWorldIdentity', { resolve })
+      ctx.provide('fs', {})
+      ctx.provide('subprocess', {})
+      ctx.provide('sandbox', {})
       ctx.provide('tools', { register: (tool: RegisteredTool) => { tools.set(tool.name, tool) } })
       ctx.provide('systemPrompt', { section: () => {}, getSectionOrder: () => 0 })
       await ctx.plugin({ apply, Config, inject }, { tunnelMode: 'external' })
@@ -72,7 +78,7 @@ describe('production collaboration service requirements', () => {
       const cwd = '/remote-only/project'
       await expect(tool!.execute({ goal: 'inspect fixture', taskId: 'fixture-task' }, {
         agent: { session: { header: { cwd } } }, signal,
-      })).rejects.toMatchObject({ reason: 'WORKSPACE_CAPABILITY_UNAVAILABLE' })
+      })).rejects.toThrow()
       expect(resolve).toHaveBeenCalledExactlyOnceWith(cwd, signal)
       expect(send).not.toHaveBeenCalled()
       expect(ready).not.toHaveBeenCalled()

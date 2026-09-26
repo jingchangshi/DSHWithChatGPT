@@ -36,8 +36,10 @@ const rows = [
   ['storage-json', '@deepseek-ai/dsh-storage-json', { root: path.join(root, 'storage') }],
   ['storage-domain', '@deepseek-ai/dsh-storage-domain', { backend: 'json' }],
   ['filesystem', '@deepseek-ai/dsh-fs-local', { cwd: workspace }],
+  ['subprocess', '@deepseek-ai/dsh-subprocess-local'],
+  ['sandbox', '@deepseek-ai/dsh-sandbox-local'],
   ['identity', packageEntry('@deepseek-ai/dsh-execution-world'), { mode: 'persisted-local', allocationLockPath: path.join(root, 'identity.lock') }],
-  ['collaboration', packageEntry('dsh-with-chatgpt'), { tunnelMode: 'external', gitPolicy: 'worktree' }],
+  ['collaboration', packageEntry('dsh-with-chatgpt'), { tunnelMode: 'external', gitPolicy: 'worktree', gitRead: true }],
   ['probe', new URL('../tests/fixtures/profile-identity-probe.mjs', import.meta.url).href, { workspace, alias, otherWorkspace }],
 ].map(([id, name, config]) => ({ id, name, ...(config ? { config } : {}) }))
 await writeFile(path.join(profile, 'cordis.patch.yml'), JSON.stringify([{ insert: rows }], null, 2))
@@ -64,4 +66,4 @@ for (const iteration of [1, 2]) {
 }
 assert.deepEqual(reports[0].statuses.map(status => status.workspaceId), reports[1].statuses.map(status => status.workspaceId))
 assert.notEqual(reports[0].runId, reports[1].runId)
-console.log('Real DSH profile: identity stable across aliases/restart/plugin reload, distinct workspaces isolated, content unavailable, PLAN/REVIEW denied without browser dispatch')
+console.log('Real DSH profile: identity stable across aliases/restart/plugin reload, distinct workspaces isolated, content lease available, Git/output denied until separately authorized')
