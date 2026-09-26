@@ -60,6 +60,8 @@ Browser Harness 工具调用始终绑定**当前 DSH agent/session**；coordinat
 
 ## Data plane
 
+Workspace identity and containment share `workspace/errors.ts` for `WorkspaceError`; the error module has no filesystem dependency. The workspace export preserves the same constructor and machine-readable `reason` codes.
+
 本地 BridgeServer：
 - 只监听 `127.0.0.1`
 - 仅注册固定十个只读 MCP 工具

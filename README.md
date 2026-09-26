@@ -32,6 +32,7 @@ Because it doesn't need it, and independence requires containment:
 
 - The MCP bridge exposes exactly ten read-only tools (workspace_info, list_directory, read_file, search_workspace, git_status, git_diff, git_log, test_status, execution_summary, execution_output). The tool registry **rejects any name outside the read-only allowlist at registration time**.
 - All path access goes through canonical realpath containment (symlink-escape tested) plus a sensitive-file deny list (.env, keys, credentials...) and a project-level `.d2cignore`.
+- Workspace identity and containment failures use the same `WorkspaceError` constructor and stable `reason` codes; the error definition has no filesystem dependency.
 - Execution is verified, not narrated: ChatGPT reads structured execution records (exit codes, classified test runs), never "trust me, tests pass".
 
 ## Division of labor

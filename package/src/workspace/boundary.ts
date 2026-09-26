@@ -11,6 +11,9 @@
 import fs from 'node:fs'
 import path from 'node:path'
 import { canonicalWorkspaceRoot } from './identity.ts'
+import { WorkspaceError } from './errors.ts'
+
+export { WorkspaceError } from './errors.ts'
 
 /** Whether this platform's filesystem is case-insensitive in practice. */
 const CASE_INSENSITIVE = process.platform === 'win32' || process.platform === 'darwin'
@@ -18,18 +21,6 @@ const CASE_INSENSITIVE = process.platform === 'win32' || process.platform === 'd
 /** Normalize case on case-insensitive platforms for containment comparison. */
 function normCase(value: string): string {
   return CASE_INSENSITIVE ? value.toLowerCase() : value
-}
-
-/** Machine error for boundary violations. */
-export class WorkspaceError extends Error {
-  /** Stable reason (PATH_OUTSIDE_WORKSPACE, INVALID_PATH, ACCESS_DENIED_SENSITIVE_FILE). */
-  readonly reason: string
-
-  constructor(reason: string, message: string) {
-    super(reason + ': ' + message)
-    this.name = 'WorkspaceError'
-    this.reason = reason
-  }
 }
 
 /** Sensitive deny patterns, gitignore semantics, evaluated with the matcher implemented below. */

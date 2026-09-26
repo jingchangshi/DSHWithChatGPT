@@ -4,6 +4,7 @@ import os from 'node:os'
 import path from 'node:path'
 import { canonicalWorkspaceRoot, observedWorkspaceRoot, sessionWorkspaceRoot, workspaceIdentity } from '../src/workspace/identity.ts'
 import { WorkspaceError, resolveContained } from '../src/workspace/boundary.ts'
+import { WorkspaceError as IdentityError } from '../src/workspace/errors.ts'
 import { CoordinatorState, createMemoryStore } from '../src/orchestrator/state.ts'
 import { loadWorkspaceSpec } from '../src/bridge/tools.ts'
 import { ExecutionRecorder } from '../src/execution/recorder.ts'
@@ -19,6 +20,15 @@ afterEach(() => {
 })
 
 describe('canonical workspace identity', () => {
+  it('shares workspace failure codes and error identity with containment', () => {
+    expect(WorkspaceError).toBe(IdentityError)
+    expect(() => sessionWorkspaceRoot(undefined)).toThrow(IdentityError)
+    const error = new IdentityError('INVALID_WORKSPACE_ROOT', 'workspace root must be an accessible directory')
+    expect(error.name).toBe('WorkspaceError')
+    expect(error.reason).toBe('INVALID_WORKSPACE_ROOT')
+    expect(error.message).toBe('INVALID_WORKSPACE_ROOT: workspace root must be an accessible directory')
+  })
+
   it('requires a Session cwd and an accessible directory', () => {
     expect(() => sessionWorkspaceRoot(undefined)).toThrow(/SESSION_WORKSPACE_UNAVAILABLE/)
     expect(() => sessionWorkspaceRoot('')).toThrow(/SESSION_WORKSPACE_UNAVAILABLE/)

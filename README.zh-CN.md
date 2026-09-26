@@ -68,6 +68,8 @@ bridge 仍只监听 `127.0.0.1` 并要求 Bearer。Bearer 不进入 ChatGPT prom
 
 ## 安全边界
 
+工作区身份检查和路径包含检查共享 `WorkspaceError` 构造器及稳定的 `reason` 错误码；错误定义模块不依赖文件系统。
+
 ChatGPT 只有十个只读 MCP 工具：`workspace_info`、`list_directory`、`read_file`、`search_workspace`、`git_status`、`git_diff`、`git_log`、`test_status`、`execution_summary`、`execution_output`。没有 write、shell、commit、push 工具。
 
 每次 D2C 回复还要同时通过：

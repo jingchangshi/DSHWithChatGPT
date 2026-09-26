@@ -1,7 +1,7 @@
 import fs from 'node:fs'
 import path from 'node:path'
 import { createHash } from 'node:crypto'
-import { WorkspaceError } from './boundary.ts'
+import { WorkspaceError } from './errors.ts'
 
 /** Canonical directory and stable lookup key for one checkout. */
 export function canonicalWorkspaceRoot(input: string): { root: string; key: string; id: string } {
