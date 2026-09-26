@@ -10,6 +10,11 @@ import os from 'node:os'
 import path from 'node:path'
 import { workspaceIdentity } from '../src/workspace/identity.ts'
 
+const operationalTools = [
+  { name: 'list_directory', description: 'test directory', inputSchema: { type: 'object' }, async handler() { return { entries: [] } } },
+  { name: 'git_status', description: 'test Git', inputSchema: { type: 'object' }, async handler() { return { dirty: false } } },
+]
+
 describe('chatgpt_doctor', () => {
   it('reports local readiness without raw execution-output access', async () => {
     const token = 'doctor-optional-output-token'
@@ -19,7 +24,7 @@ describe('chatgpt_doctor', () => {
         leaseBound: true, workspaceContentRead: { available: true }, gitRead: { available: true },
         executionOutput: { available: false, reason: 'EXECUTION_OUTPUT_UNAVAILABLE' },
       } } },
-    }])
+    }, ...operationalTools])
     try {
       const result = await runDoctor({
         workspaceRoot: '/remote/workspace', workspaceId: 'opaque-id', appName: 'DSH with ChatGPT',
@@ -30,6 +35,40 @@ describe('chatgpt_doctor', () => {
       expect(result.ready).toBe(true)
       expect(result.checks.find(check => check.id === 'execution_output_access')).toMatchObject({ ok: false, code: 'EXECUTION_OUTPUT_UNAVAILABLE' })
       expect(result.checks.find(check => check.id === 'remote_workspace_access')?.ok).toBe(false)
+    } finally { await server.close() }
+  })
+
+  it.each([
+    ['list_directory', 'workspace_content_read'],
+    ['git_status', 'workspace_git_read'],
+  ] as const)('rejects metadata-only readiness when %s fails', async (failedTool, failedCheck) => {
+    const token = 'doctor-operation-token'
+    const calls: string[] = []
+    const tools = [
+      { name: 'workspace_info', description: 'test metadata', inputSchema: { type: 'object' }, async handler() {
+        return { workspaceId: 'opaque-id', capabilities: {
+          leaseBound: true, workspaceContentRead: { available: true }, gitRead: { available: true },
+          executionOutput: { available: false },
+        } }
+      } },
+      ...operationalTools.map(tool => ({ ...tool, async handler() {
+        calls.push(tool.name)
+        if (tool.name === failedTool) throw new Error('PRIVATE_PROVIDER_DETAIL')
+        return { ok: true }
+      } })),
+    ]
+    const server = await startBridgeServer({ port: 0, tokens: new Map([[token, 'workspace']]) }, tools)
+    try {
+      const result = await runDoctor({
+        workspaceRoot: '/remote/workspace', workspaceId: 'opaque-id', appName: 'DSH with ChatGPT',
+        browser: { readiness: async () => ({ url: 'https://chatgpt.com/c/test', composer: true, loggedOut: false }) },
+        bridgeHttp: { port: server.port, token }, probeApp: async () => undefined,
+        runtime: { bridge: { workspaceId: 'opaque-id' }, tunnel: { mode: 'managed', configured: true, ready: true, detail: 'ready' } },
+      })
+      expect(calls).toEqual(['list_directory', 'git_status'])
+      expect(result.ready).toBe(false)
+      expect(result.checks.find(check => check.id === failedCheck)).toMatchObject({ ok: false, code: 'WORKSPACE_OPERATION_FAILED' })
+      expect(JSON.stringify(result)).not.toContain('PRIVATE_PROVIDER_DETAIL')
     } finally { await server.close() }
   })
 
@@ -45,7 +84,7 @@ describe('chatgpt_doctor', () => {
       async handler() { return { workspaceId: 'opaque-id', capabilities: {
         leaseBound: available, workspaceContentRead: capability, gitRead: capability, executionOutput: capability,
       } } },
-    }])
+    }, ...operationalTools])
     try {
       const result = await runDoctor({
         workspaceRoot: '/remote/workspace', workspaceId: 'opaque-id', appName: 'DSH with ChatGPT',

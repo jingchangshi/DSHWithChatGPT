@@ -85,7 +85,7 @@ The runtime is unattended **after** account/app/tunnel setup. Login, 2FA/CAPTCHA
    ```
 
    Keep `tunnel-client` on `PATH`. In the default `managed` mode the plugin starts/restarts it automatically and injects the loopback Bearer header only on the final tunnel-client → localhost MCP hop.
-4. **Verify once**: ask DSH to call `chatgpt_doctor` in a fresh Session. Expect local readiness checks to pass; raw `execution_output_access` is informational and `remote_workspace_access` remains unverified until a real ChatGPT App call.
+4. **Verify once**: ask DSH to call `chatgpt_doctor` in a fresh Session. Local readiness requires authenticated directory listing and Git status to execute successfully, not just capability metadata; raw `execution_output_access` is informational and `remote_workspace_access` remains unverified until a real ChatGPT App call.
 
 No per-round ChatGPT UI action is required after setup. The Browser Harness adapter activates the exact app with `@mention` before every INIT/REVIEW message and fails closed if the app cannot be selected.
 

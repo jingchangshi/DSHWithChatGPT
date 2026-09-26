@@ -43,18 +43,24 @@ function dataPlaneCheck(id: string, capability: unknown, leaseBound: boolean): R
   }
 }
 
-async function probeBridge(inputs: DoctorInputs): Promise<Response> {
+async function probeBridge(inputs: DoctorInputs, name: string, args: Record<string, unknown> = {}): Promise<unknown> {
   const controller = new AbortController()
   const onAbort = () => controller.abort()
   inputs.signal?.addEventListener('abort', onAbort, { once: true })
   const timeout = setTimeout(() => controller.abort(), BRIDGE_PROBE_TIMEOUT_MS)
   try {
-    return await fetch('http://127.0.0.1:' + inputs.bridgeHttp.port + '/mcp', {
+    const response = await fetch('http://127.0.0.1:' + inputs.bridgeHttp.port + '/mcp', {
       method: 'POST',
       headers: { authorization: 'Bearer ' + inputs.bridgeHttp.token, 'content-type': 'application/json' },
-      body: JSON.stringify({ jsonrpc: '2.0', id: 1, method: 'tools/call', params: { name: 'workspace_info', arguments: {} } }),
+      body: JSON.stringify({ jsonrpc: '2.0', id: 1, method: 'tools/call', params: { name, arguments: args } }),
       signal: controller.signal,
     })
+    if (!response.ok) throw new Error('bridge request failed')
+    const envelope = await response.json() as { result?: { content?: Array<{ text?: string }>; isError?: boolean }; error?: unknown }
+    if (envelope.error !== undefined || envelope.result?.isError === true) throw new Error('bridge tool failed')
+    const text = envelope.result?.content?.find(item => typeof item.text === 'string')?.text
+    if (text === undefined) throw new Error('bridge tool returned no result')
+    return JSON.parse(text) as unknown
   } finally {
     clearTimeout(timeout)
     inputs.signal?.removeEventListener('abort', onAbort)
@@ -75,12 +81,7 @@ export async function runDoctor(inputs: DoctorInputs): Promise<DoctorResult> {
     { id: 'remote_workspace_access', ok: false, detail: 'requires one real ChatGPT App MCP call; not verified by local doctor', code: 'REMOTE_ACCESS_REQUIRES_E2E' },
   ]
   try {
-    const response = await probeBridge(inputs)
-    if (!response.ok) throw new Error(`bridge returned HTTP ${response.status}`)
-    const envelope = await response.json() as { result?: { content?: Array<{ text?: string }> }; error?: { message?: string } }
-    if (envelope.error !== undefined) throw new Error(envelope.error.message ?? 'bridge workspace_info failed')
-    const text = envelope.result?.content?.find(item => typeof item.text === 'string')?.text
-    const workspace = text === undefined ? undefined : JSON.parse(text) as { workspaceId?: string; capabilities?: { leaseBound?: unknown; workspaceContentRead?: unknown; gitRead?: unknown; executionOutput?: unknown } }
+    const workspace = await probeBridge(inputs, 'workspace_info') as { workspaceId?: string; capabilities?: { leaseBound?: unknown; workspaceContentRead?: unknown; gitRead?: unknown; executionOutput?: unknown } }
     const bridge = checks.find(item => item.id === 'bridge')!
     bridge.ok = workspace?.workspaceId === inputs.workspaceId
     bridge.detail = bridge.ok ? 'authenticated loopback workspace_info identity matches session workspace' : 'workspace_info identity mismatch'
@@ -94,6 +95,23 @@ export async function runDoctor(inputs: DoctorInputs): Promise<DoctorResult> {
         dataPlaneCheck('workspace_git_read', capabilities?.gitRead, leaseBound),
         dataPlaneCheck('execution_output_access', capabilities?.executionOutput, leaseBound),
       ]) checks[checks.findIndex(item => item.id === check.id)] = check
+      for (const [id, name, args] of [
+        ['workspace_content_read', 'list_directory', { path: '' }],
+        ['workspace_git_read', 'git_status', {}],
+      ] as const) {
+        const check = checks.find(item => item.id === id)!
+        if (!check.ok) continue
+        try {
+          await probeBridge(inputs, name, args)
+          throwIfCancelled(inputs.signal)
+          check.detail = 'authenticated execution workspace operation succeeded'
+        } catch (error) {
+          if (inputs.signal?.aborted || error instanceof OperationCancelledError) throw new OperationCancelledError()
+          check.ok = false
+          check.detail = 'authenticated execution workspace operation failed'
+          check.code = 'WORKSPACE_OPERATION_FAILED'
+        }
+      }
     }
   } catch (error) {
     if (inputs.signal?.aborted || error instanceof OperationCancelledError) throw new OperationCancelledError()
