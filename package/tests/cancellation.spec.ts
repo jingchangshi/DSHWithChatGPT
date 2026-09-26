@@ -73,7 +73,7 @@ describe('caller cancellation', () => {
       async conversationId() { return 'conversation' },
       async recover() {},
     }
-    const makeCoordinator = () => new ChatGptCoordinator({ browser, store: state, workspaceRoot: 'workspace', replyTimeoutMs: 60_000 })
+    const makeCoordinator = () => new ChatGptCoordinator({ workspaceId: 'test-workspace', browser, store: state, workspaceRoot: 'workspace', replyTimeoutMs: 60_000 })
     const coordinator = makeCoordinator()
     const started = await coordinator.startTask('test cancellation')
     const planController = new AbortController()
@@ -86,7 +86,7 @@ describe('caller cancellation', () => {
     await expect(pendingPlan).rejects.toBeInstanceOf(OperationCancelledError)
     expect((await state.loadTask(started.taskId))?.waitingFor).toBe('chatgpt-plan')
 
-    reply = async () => ({ text: formatEnvelope({
+    reply = async () => ({ text: formatEnvelope({ headers: { WORKSPACE_ID: 'test-workspace' },
       state: 'PLAN', sender: 'chatgpt', taskId: started.taskId, iteration: 1, inReplyTo: 0,
       sections: { ACTIONS: 'Execute focused tests.' },
     }), complete: true })
@@ -112,7 +112,7 @@ describe('caller cancellation', () => {
 
     reply = async () => ({ text: formatEnvelope({
       state: 'DONE', sender: 'chatgpt', taskId: started.taskId, iteration: 2, inReplyTo: 2,
-      headers: { HEAD: 'head123' }, sections: { SUMMARY: 'Reviewed.' },
+      headers: { HEAD: 'head123', WORKSPACE_ID: 'test-workspace' }, sections: { SUMMARY: 'Reviewed.' },
     }), complete: true })
     const completed = await makeCoordinator().reportExecuted(started.taskId, {
       changedFiles: [], head: 'different-caller-head', testsRecorded: false,
@@ -136,7 +136,7 @@ describe('caller cancellation', () => {
       },
       async waitForReply(_timeout, signal) {
         if (signal?.aborted) throw new OperationCancelledError()
-        return { text: formatEnvelope({
+        return { text: formatEnvelope({ headers: { WORKSPACE_ID: 'test-workspace' },
           state: 'PLAN', sender: 'chatgpt', taskId, iteration: 1, inReplyTo: 0,
           sections: { ACTIONS: 'Execute.' },
         }), complete: true }
@@ -145,7 +145,7 @@ describe('caller cancellation', () => {
       async conversationId() { return 'conversation' },
       async recover() {},
     }
-    const coordinator = new ChatGptCoordinator({ browser, store: state, workspaceRoot: 'workspace' })
+    const coordinator = new ChatGptCoordinator({ workspaceId: 'test-workspace', browser, store: state, workspaceRoot: 'workspace' })
     taskId = (await coordinator.startTask('boundary')).taskId
     await coordinator.awaitPlan(taskId)
     await expect(coordinator.reportExecuted(taskId, {

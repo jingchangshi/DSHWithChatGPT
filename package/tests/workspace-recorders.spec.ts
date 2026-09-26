@@ -1,3 +1,4 @@
+import { localGitExecutor } from './local-git.ts'
 import { afterEach, describe, expect, it } from 'vitest'
 import fs from 'node:fs'
 import os from 'node:os'
@@ -18,6 +19,18 @@ function directory(): string {
 }
 
 describe('workspace execution recorder isolation', () => {
+  it('reopens evidence by provider ID without resolving a Host workspace', () => {
+    const stateDir = directory()
+    const first = new WorkspaceRecorders(stateDir)
+    const record = first.forWorkspaceId('world-a-root').record({
+      taskId: 'task', iteration: 1, command: 'pnpm test', cwd: '/remote/build', startedAt: 1, endedAt: 2,
+      status: 'success', exitCode: 0, stdout: 'passed', stderr: '',
+    })
+    const restarted = new WorkspaceRecorders(stateDir)
+    expect(restarted.forWorkspaceId('world-a-root').get(record.id)).toMatchObject({ cwd: '/remote/build' })
+    expect(restarted.forWorkspaceId('world-b-root').get(record.id)).toBeUndefined()
+  })
+
   it('keeps unfiltered ChatGPT-facing evidence and IDs within each workspace', async () => {
     const first = directory()
     const second = directory()
@@ -34,8 +47,8 @@ describe('workspace execution recorder isolation', () => {
     expect(firstRecorder.get(secondRecord.id)).toBeUndefined()
     expect(secondRecorder.get(firstRecord.id)).toBeUndefined()
 
-    const firstTools = buildWorkspaceTools(loadWorkspaceSpec(first, firstRecorder))
-    const secondTools = buildWorkspaceTools(loadWorkspaceSpec(second, secondRecorder))
+    const firstTools = buildWorkspaceTools(loadWorkspaceSpec(first, firstRecorder, localGitExecutor(first)))
+    const secondTools = buildWorkspaceTools(loadWorkspaceSpec(second, secondRecorder, localGitExecutor(second)))
     const invoke = async (tools: typeof firstTools, name: string, args: Record<string, unknown>) => {
       const tool = tools.find(candidate => candidate.name === name)
       if (tool === undefined) throw new Error('missing tool ' + name)

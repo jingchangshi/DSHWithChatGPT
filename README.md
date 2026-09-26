@@ -6,6 +6,8 @@ A DeepSeek Harness plugin that pairs your DSH coding agent (GLM-5.3-Flash) with 
 
 ## What is this?
 
+Provider-neutral integration is in progress. The production bridge dispatches content requests through an execution-scoped runtime registry instead of Host workspace helpers. Each workspace permits one acquisition; pending reads cannot publish after replacement, even within the same service generation. The five collaboration tools resolve Session cwd through the public DSH execution-world identity service; bridge namespaces and their recorder selection use its opaque ID. Missing root-safe read authorization denies Git and raw execution output; metadata excludes command labels. PLAN/REVIEW refuse to send messages without read and Git authorization. MCP queries are normalized into bounded DTOs before backend dispatch; static tool metadata is shared without constructing Host-backed handlers. Fixed Git commands now use an injected execution-world executor; no production Git helper spawns Host processes or derives the empty device from the Host platform. Coordinator workspace IDs are mandatory; no path-key fallback remains. Doctor includes content, Git, and execution-output authorization in local readiness, so matching identity alone cannot report ready. The production coordinator bindings and shell evidence now use the same provider ID; shell workdirs are display-only metadata rather than Host-canonicalized identity inputs. Production activation requires durable storage and explicit service injection, with no automatic memory fallback. The DSH content/process adapter remains incomplete, so no production content lease is installed yet. Remote isolation and the full product loop are not yet validated.
+
 You keep working in DeepSeek Harness exactly as before. When a task deserves a second brain, the agent starts a **collaboration round**:
 
 ```
@@ -66,6 +68,8 @@ dsh plugin --profile <your-profile> add D:\workspace\DSHWithChatGPT\package
 Manual install: copy the package anywhere permanent and append its `cordis.patch.yml` row (`id: dsh-with-chatgpt, name: dsh-with-chatgpt`) to your profile's `cordis.patch.yml`.
 
 ## One-time setup
+
+The target profile must mount `executionWorldIdentity` and `storageDomain` from compatible DSH packages (minimum 0.1.6-alpha.2), in addition to `tools` and `systemPrompt`. Installing the plugin package alone does not configure those services. Development uses producer-built tarballs rather than sibling checkout links; after building, `pnpm test:package` checks a separate installation and runtime imports. Content access is still unavailable until the production execution-world adapter is implemented.
 
 The runtime is unattended **after** account/app/tunnel setup. Login, 2FA/CAPTCHA, creating the ChatGPT custom app, and creating the Secure MCP Tunnel remain explicit user setup steps.
 

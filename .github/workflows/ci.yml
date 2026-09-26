@@ -15,7 +15,7 @@ jobs:
       - uses: actions/checkout@v4
       - uses: pnpm/action-setup@v4
         with:
-          version: 10
+          version: 10.34.5
       - uses: actions/setup-node@v4
         with:
           node-version: 24
@@ -25,4 +25,4 @@ jobs:
       - run: pnpm typecheck
       - run: pnpm test
       - run: pnpm build
-      - run: mkdir -p /tmp/d2c-pack && pnpm pack --pack-destination /tmp/d2c-pack
+      - run: pnpm test:package

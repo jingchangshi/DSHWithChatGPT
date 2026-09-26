@@ -38,7 +38,7 @@ export interface ExecutionRecord {
   label: string
   /** Sanitized command line (no env values, secrets redacted). */
   command: string
-  /** Working directory relative to the workspace. */
+  /** Display-only execution workdir; never used to select an evidence owner. */
   cwd: string
   startedAt: number
   endedAt: number

@@ -1,3 +1,4 @@
+import { localGitExecutor } from './local-git.ts'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import fs from 'node:fs'
 import os from 'node:os'
@@ -54,7 +55,7 @@ describe('canonical workspace identity', () => {
       expect(workspaceIdentity(alias)).toBe(workspaceIdentity(root))
       expect(resolveContained(alias, '.').rel).toBe('')
       const recorder = new ExecutionRecorder({ stateDir: path.join(root, 'records') })
-      expect(loadWorkspaceSpec(alias, recorder).root).toBe(loadWorkspaceSpec(root, recorder).root)
+      expect(loadWorkspaceSpec(alias, recorder, localGitExecutor(alias)).root).toBe(loadWorkspaceSpec(root, recorder, localGitExecutor(root)).root)
       const namespaces = new Map([[sessionWorkspaceRoot(root), 'existing bridge']])
       expect(namespaces.get(sessionWorkspaceRoot(alias))).toBe('existing bridge')
       expect(observedWorkspaceRoot(alias)).toBe(sessionWorkspaceRoot(root))

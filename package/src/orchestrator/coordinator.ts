@@ -11,7 +11,7 @@ import type { Envelope } from '../protocol/index.ts'
 import type { BrowserControl } from '../browser/index.ts'
 import { DuplicateSendGuard, extractEnvelopeText } from '../browser/index.ts'
 import { parseEnvelope } from '../protocol/index.ts'
-import { CoordinatorState, createMemoryStore, type PersistedTask, type TaskState } from './state.ts'
+import { CoordinatorState, type PersistedTask, type TaskState } from './state.ts'
 import { OperationCancelledError, throwIfCancelled } from '../cancellation.ts'
 
 /** Coordinator configuration. */
@@ -19,13 +19,13 @@ export interface CoordinatorOptions {
   /** Browser control plane implementation. */
   browser: BrowserControl
   /** Durable state backing (Cordis storage table). */
-  store?: CoordinatorState
+  store: CoordinatorState
   /** Reply wait timeout (default 4 min — ChatGPT thinking time). */
   replyTimeoutMs?: number
   /** Workspace root the coordinator is bound to. */
   workspaceRoot: string
   /** Non-secret workspace identity echoed through D2C replies. */
-  workspaceId?: string
+  workspaceId: string
   /** Hard safety bound for autonomous review/fix rounds. */
   maxIterations?: number
 }
@@ -70,7 +70,7 @@ export class ChatGptCoordinator {
   private readonly maxIterations: number
 
   constructor(private readonly options: CoordinatorOptions) {
-    this.state = options.store ?? new CoordinatorState(createMemoryStore())
+    this.state = options.store
     this.replyTimeoutMs = options.replyTimeoutMs ?? 4 * 60 * 1000
     this.maxIterations = options.maxIterations ?? 12
   }
@@ -107,7 +107,7 @@ export class ChatGptCoordinator {
     await this.state.saveTask(persisted)
     const ids = await this.state.listTaskIds()
     if (!ids.includes(taskId)) await this.state.saveTaskIndex([...ids, taskId])
-    await this.state.bindWorkspace(this.options.workspaceRoot, {
+    await this.state.bindWorkspace(this.options.workspaceId, {
       workspaceRoot: this.options.workspaceRoot,
       conversationId,
       lastTaskId: taskId,
@@ -121,7 +121,7 @@ export class ChatGptCoordinator {
       'STATE: INIT',
       `TASK_ID: ${taskId}`,
       'ITERATION: 0',
-      ...(this.options.workspaceId !== undefined ? [`WORKSPACE_ID: ${this.options.workspaceId}`] : []),
+      `WORKSPACE_ID: ${this.options.workspaceId}`,
       '',
       'GOAL:',
       goal,
@@ -201,7 +201,7 @@ export class ChatGptCoordinator {
       `TASK_ID: ${taskId}`,
       `ITERATION: ${iteration}`,
       `IN_REPLY_TO: ${inReplyTo}`,
-      ...(this.options.workspaceId !== undefined ? [`WORKSPACE_ID: ${this.options.workspaceId}`] : []),
+      `WORKSPACE_ID: ${this.options.workspaceId}`,
       ...(summary.head !== null ? [`HEAD: ${summary.head}`] : []),
       '',
       'RESULT:',
@@ -264,7 +264,7 @@ export class ChatGptCoordinator {
 
   /** Latest task id for the bound workspace (restart recovery entry). */
   async latestTaskId(): Promise<string | undefined> {
-    const binding = await this.state.loadWorkspace(this.options.workspaceRoot)
+    const binding = await this.state.loadWorkspace(this.options.workspaceId)
     return binding?.lastTaskId ?? undefined
   }
 
@@ -284,7 +284,6 @@ export class ChatGptCoordinator {
 
   private validateWorkspaceReply(envelope: Envelope): void {
     const expected = this.options.workspaceId
-    if (expected === undefined) return
     const actual = envelope.headers.get('WORKSPACE_ID')
     if (actual !== expected) {
       throw new ProtocolError(

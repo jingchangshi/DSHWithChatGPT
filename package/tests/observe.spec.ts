@@ -3,12 +3,20 @@ import fs from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
 import { ExecutionRecorder } from '../src/execution/recorder.ts'
-import { freezeShellExecution, observeShellResult, type ObservedExecution } from '../src/execution/observe.ts'
+import { freezeShellExecution as freezeWithIdentity, observeShellResult, type ObservedExecution } from '../src/execution/observe.ts'
 import { CoordinatorState, createMemoryStore, type PersistedTask } from '../src/orchestrator/state.ts'
 import { ChatGptCoordinator } from '../src/orchestrator/coordinator.ts'
 import type { BrowserControl } from '../src/browser/adapter.ts'
 import { formatEnvelope } from '../src/protocol/index.ts'
-import { sessionWorkspaceRoot } from '../src/workspace/identity.ts'
+import { resolveExecutionWorkspace } from '../src/workspace/execution-identity.ts'
+import type { ExecutionWorkspaceId } from '@deepseek-ai/dsh-execution-world'
+
+const workspaceId = '12345678-1234-4234-8234-123456789abc' as ExecutionWorkspaceId
+function freezeShellExecution(exec: ObservedExecution, state: CoordinatorState) {
+  return freezeWithIdentity(exec, state, execution => resolveExecutionWorkspace(
+    { resolve: async () => workspaceId }, execution.agent?.session?.header?.cwd, execution.signal,
+  ))
+}
 
 let root: string
 let recorder: ExecutionRecorder
@@ -28,14 +36,14 @@ afterEach(() => {
 })
 
 async function bindTask(taskId: string, iteration: number, taskState: PersistedTask['state'] = 'planned'): Promise<void> {
-  const workspaceRoot = sessionWorkspaceRoot(root)
+  const workspaceRoot = root
   await state.saveTask({
     taskId, goal: 'test', state: taskState, iteration,
     waitingFor: taskState === 'planned' ? 'dsh-execution' : 'chatgpt-review',
     conversationId: 'conversation', lastReviewedHead: null,
     createdAt: 1, updatedAt: 1, lastError: null,
   })
-  await state.bindWorkspace(workspaceRoot, { workspaceRoot, conversationId: 'conversation', lastTaskId: taskId })
+  await state.bindWorkspace(workspaceId, { workspaceRoot, conversationId: 'conversation', lastTaskId: taskId })
 }
 
 function shell(overrides: Partial<ObservedExecution> = {}): ObservedExecution {
@@ -47,12 +55,26 @@ function shell(overrides: Partial<ObservedExecution> = {}): ObservedExecution {
 }
 
 describe('shell evidence observation', () => {
-  it('skips missing Session cwd, binding, and out-of-workspace workdirs', async () => {
-    expect(await freezeShellExecution(shell({ agent: undefined }), state)).toBeUndefined()
+  it('does not attribute evidence to another world with the same cwd', async () => {
+    const exec = shell()
+    const otherId = '22345678-1234-4234-8234-123456789abc'
+    expect(await freezeWithIdentity(exec, state, async () => ({ workspaceId: otherId, displayRoot: root }))).toBeUndefined()
+    const owner = await freezeWithIdentity(exec, state, async () => ({ workspaceId, displayRoot: '/remote/alias' }))
+    expect(owner).toMatchObject({ workspaceId, workspaceRoot: '/remote/alias', taskId: 'd2c_task_a' })
+  })
+
+  it('does not resume a legacy path-keyed binding under a provider ID', async () => {
+    const legacy = new CoordinatorState(createMemoryStore())
+    await legacy.bindWorkspace(root, { workspaceRoot: root, conversationId: 'legacy', lastTaskId: 'd2c_task_a' })
+    expect(await freezeShellExecution(shell(), legacy)).toBeUndefined()
+  })
+
+  it('rejects missing Session cwd and skips missing bindings', async () => {
+    await expect(freezeShellExecution(shell({ agent: undefined }), state)).rejects.toThrow('SESSION_WORKSPACE_UNAVAILABLE')
     expect(await freezeShellExecution(shell(), new CoordinatorState(createMemoryStore()))).toBeUndefined()
     expect(() => observeShellResult(shell(), { value: { kind: 'foreground', exitCode: 0 } }, undefined, recorder)).not.toThrow()
-    await expect(freezeShellExecution(shell({ arguments: { command: 'pnpm test', workdir: os.tmpdir() } }), state))
-      .rejects.toThrow(/PATH_OUTSIDE_WORKSPACE/)
+    await expect(freezeShellExecution(shell({ arguments: { command: 'pnpm test', workdir: '/remote/compiler/build' } }), state))
+      .resolves.toMatchObject({ workspaceId, cwd: '/remote/compiler/build' })
     expect(recorder.list()).toEqual([])
   })
 
@@ -94,13 +116,14 @@ describe('shell evidence observation', () => {
       async sendControlMessage(text) { sent.push(text) },
       async waitForReply() { return { text: formatEnvelope({
         state: 'PLAN', sender: 'chatgpt', taskId: 'd2c_ab12cd', iteration: 2, inReplyTo: 2,
+        headers: { WORKSPACE_ID: workspaceId },
         sections: { ACTIONS: 'Correct the test.' },
       }), complete: true } },
       async health() { return { ok: true, detail: 'ready' } },
       async conversationId() { return 'conversation' },
       async recover() {},
     }
-    const coordinator = new ChatGptCoordinator({ browser, store: state, workspaceRoot: sessionWorkspaceRoot(root) })
+    const coordinator = new ChatGptCoordinator({ workspaceId, browser, store: state, workspaceRoot: root })
     const review = await coordinator.reportExecuted('d2c_ab12cd', {
       changedFiles: [], head: null, testsRecorded: true,
     })

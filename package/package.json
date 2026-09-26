@@ -2,6 +2,7 @@
   "name": "dsh-with-chatgpt",
   "version": "0.1.0",
   "private": true,
+  "packageManager": "pnpm@10.34.5",
   "type": "module",
   "description": "DeepSeek Harness plugin: ChatGPT Web plans and reviews over a read-only MCP data plane; DSH/GLM owns execution.",
   "main": "lib/index.js",
@@ -34,7 +35,9 @@
   "scripts": {
     "build": "tsc -p tsconfig.json",
     "test": "vitest run",
-    "typecheck": "tsc -p tsconfig.json --noEmit"
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "test:package": "node scripts/verify-package.mjs",
+    "test:profile": "node scripts/verify-profile.mjs"
   },
   "license": "MIT",
   "engines": {
@@ -44,11 +47,14 @@
     "zod": "^4.6.5"
   },
   "peerDependencies": {
-    "@deepseek-ai/cordis": ">=4.0.0"
+    "@deepseek-ai/cordis": ">=4.0.0",
+    "@deepseek-ai/dsh-execution-world": ">=0.1.6-alpha.2",
+    "@deepseek-ai/dsh-storage-domain": ">=0.1.6-alpha.2"
   },
   "devDependencies": {
     "@deepseek-ai/cordis": "^4.0.2",
-    "@deepseek-ai/dsh-storage-domain": "file:tarballs/deepseek-ai-dsh-storage-domain-0.1.6-alpha.1.tgz",
+    "@deepseek-ai/dsh-execution-world": "file:tarballs/deepseek-ai-dsh-execution-world-0.1.6-alpha.2.tgz",
+    "@deepseek-ai/dsh-storage-domain": "file:tarballs/deepseek-ai-dsh-storage-domain-0.1.6-alpha.2.tgz",
     "@types/node": "^24.0.0",
     "typescript": "^5.9.0",
     "vitest": "^5.0.1"

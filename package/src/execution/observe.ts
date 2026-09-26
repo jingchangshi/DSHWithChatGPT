@@ -1,5 +1,4 @@
-import { resolveContained } from '../workspace/boundary.ts'
-import { observedWorkspaceRoot, workspaceIdentity } from '../workspace/identity.ts'
+import type { WorkspaceRuntimeIdentity } from '../workspace/runtime.ts'
 import type { CoordinatorState } from '../orchestrator/state.ts'
 import type { ExecutionRecorder } from './recorder.ts'
 
@@ -7,6 +6,7 @@ export interface ObservedExecution {
   name: string
   arguments: Record<string, unknown>
   agent?: { session?: { header?: { cwd?: string } } }
+  signal?: AbortSignal
 }
 
 export interface ObservedResult {
@@ -34,22 +34,22 @@ export function evidenceIteration(planIteration: number): number {
 export async function freezeShellExecution(
   exec: ObservedExecution,
   state: CoordinatorState,
+  resolveWorkspace: (exec: ObservedExecution) => Promise<WorkspaceRuntimeIdentity>,
 ): Promise<FrozenExecutionContext | undefined> {
   if (exec.name !== 'bash' && exec.name !== 'pwsh') return undefined
   const command = exec.arguments['command']
   if (typeof command !== 'string' || command.trim() === '') return undefined
   const startedAt = Date.now()
-  const workspaceRoot = observedWorkspaceRoot(exec.agent?.session?.header?.cwd)
-  if (workspaceRoot === undefined) return undefined
-  const binding = await state.loadWorkspace(workspaceRoot)
-  if (binding?.workspaceRoot !== workspaceRoot || binding.lastTaskId === null) return undefined
+  const { workspaceId, displayRoot: workspaceRoot } = await resolveWorkspace(exec)
+  const binding = await state.loadWorkspace(workspaceId)
+  if (binding === undefined || binding.lastTaskId === null) return undefined
   const task = await state.loadTask(binding.lastTaskId)
   if (task?.taskId !== binding.lastTaskId || (task.state !== 'planned' && task.state !== 'executing')) return undefined
   const workdir = exec.arguments['workdir']
-  const cwd = resolveContained(workspaceRoot, typeof workdir === 'string' ? workdir : '.').rel || '.'
+  const cwd = typeof workdir === 'string' && workdir !== '' ? workdir : '.'
   return {
     workspaceRoot,
-    workspaceId: workspaceIdentity(workspaceRoot),
+    workspaceId,
     taskId: task.taskId,
     iteration: evidenceIteration(task.iteration),
     cwd,

@@ -1,5 +1,5 @@
 /**
- * The nine read-only MCP tools ChatGPT calls through the bridge. Every tool
+ * The ten read-only MCP tools ChatGPT calls through the bridge. Every tool
  * goes through the workspace boundary (containment + sensitive policy) and
  * returns bounded JSON. There is deliberately NO tool here (or anywhere) that
  * writes, deletes, executes, or commits.
@@ -9,10 +9,13 @@
 import fs from 'node:fs'
 import path from 'node:path'
 import { SensitivePolicy, WorkspaceError, NOISE_PATTERNS, IgnoreMatcher, canonicalWorkspaceRoot, resolveContained } from '../workspace/index.ts'
-import { GitError, gitDiff, gitLog, gitStatus } from '../workspace/git.ts'
+import { GitError, gitDiff, gitLog, gitStatus, type WorkspaceGitExecutor } from '../workspace/git.ts'
 import type { ExecutionRecorder } from '../execution/recorder.ts'
 import type { McpToolDefinition } from './server.ts'
 import { workspaceIdentity } from '../workspace/identity.ts'
+import { WorkspaceRuntimeRegistry, type WorkspaceReadOperation } from '../workspace/runtime.ts'
+import { normalizeWorkspaceQuery } from '../workspace/query.ts'
+import { WORKSPACE_TOOL_DEFINITIONS } from './tool-definitions.ts'
 
 /** Workspace context every tool call is scoped to. */
 export interface WorkspaceSpec {
@@ -22,10 +25,11 @@ export interface WorkspaceSpec {
   policy: SensitivePolicy
   /** Execution recorder backing test_status / execution_* tools. */
   recorder: ExecutionRecorder
+  git: WorkspaceGitExecutor
 }
 
 /** Load .d2cignore from the workspace root (additive deny list). */
-export function loadWorkspaceSpec(root: string, recorder: ExecutionRecorder): WorkspaceSpec {
+export function loadWorkspaceSpec(root: string, recorder: ExecutionRecorder, git: WorkspaceGitExecutor): WorkspaceSpec {
   root = canonicalWorkspaceRoot(root).root
   let extra: string[] = []
   try {
@@ -36,7 +40,7 @@ export function loadWorkspaceSpec(root: string, recorder: ExecutionRecorder): Wo
   } catch {
     extra = []
   }
-  return { root, policy: new SensitivePolicy(extra), recorder }
+  return { root, policy: new SensitivePolicy(extra), recorder, git }
 }
 
 /** Max bytes returned by read_file. */
@@ -51,11 +55,9 @@ const SEARCH_FILE_CAP = 512 * 1024
 /** Tool 1: workspace_info. */
 export function workspaceInfoTool(spec: WorkspaceSpec): McpToolDefinition {
   return {
-    name: 'workspace_info',
-    description: 'Get workspace root info: name, git state summary, ignored-file policy. Read-only.',
-    inputSchema: { type: 'object', properties: {}, additionalProperties: false },
+    ...WORKSPACE_TOOL_DEFINITIONS.workspace_info,
     async handler() {
-      const git = await gitStatus(spec.root).catch((error: unknown) => {
+      const git = await gitStatus(spec.git).catch((error: unknown) => {
         if (error instanceof GitError && error.reason === 'NOT_A_REPOSITORY') return null
         throw error
       })
@@ -76,13 +78,7 @@ export function workspaceInfoTool(spec: WorkspaceSpec): McpToolDefinition {
 /** Tool 2: list_directory. */
 export function listDirectoryTool(spec: WorkspaceSpec): McpToolDefinition {
   return {
-    name: 'list_directory',
-    description: 'List one directory inside the workspace (relative path, "." for root). Skips noise dirs (node_modules, .git, dist...) and sensitive files. Read-only.',
-    inputSchema: {
-      type: 'object',
-      properties: { path: { type: 'string', description: 'Directory path relative to workspace root; "." or "" for root.' } },
-      additionalProperties: false,
-    },
+    ...WORKSPACE_TOOL_DEFINITIONS.list_directory,
     async handler(args) {
       const requested = typeof args['path'] === 'string' && args['path'] !== '' ? args['path'] : '.'
       const { abs, rel } = resolveContained(spec.root, requested)
@@ -120,14 +116,7 @@ export function listDirectoryTool(spec: WorkspaceSpec): McpToolDefinition {
 /** Tool 3: read_file. */
 export function readFileTool(spec: WorkspaceSpec): McpToolDefinition {
   return {
-    name: 'read_file',
-    description: 'Read one file inside the workspace (UTF-8, capped at 128KiB with head+tail). Sensitive files are denied. Read-only.',
-    inputSchema: {
-      type: 'object',
-      properties: { path: { type: 'string', description: 'File path relative to workspace root.' } },
-      required: ['path'],
-      additionalProperties: false,
-    },
+    ...WORKSPACE_TOOL_DEFINITIONS.read_file,
     async handler(args) {
       const requested = args['path']
       if (typeof requested !== 'string') throw new WorkspaceError('INVALID_PATH', 'path must be a string')
@@ -171,18 +160,7 @@ export function readFileTool(spec: WorkspaceSpec): McpToolDefinition {
 /** Tool 4: search_workspace (literal/regex text search, bounded). */
 export function searchWorkspaceTool(spec: WorkspaceSpec): McpToolDefinition {
   return {
-    name: 'search_workspace',
-    description: 'Search file contents inside the workspace for a pattern (literal by default, regex with is_regex). Bounded: skips noise/sensitive/binary/huge files, max 200 matches. Read-only.',
-    inputSchema: {
-      type: 'object',
-      properties: {
-        query: { type: 'string', description: 'Text or regex to search for.' },
-        is_regex: { type: 'boolean', description: 'Treat query as a regular expression (default false).' },
-        subdirectory: { type: 'string', description: 'Optional subdirectory scope.' },
-      },
-      required: ['query'],
-      additionalProperties: false,
-    },
+    ...WORKSPACE_TOOL_DEFINITIONS.search_workspace,
     async handler(args) {
       const query = args['query']
       if (typeof query !== 'string' || query === '') throw new WorkspaceError('INVALID_PATH', 'query must be a non-empty string')
@@ -248,11 +226,9 @@ export function searchWorkspaceTool(spec: WorkspaceSpec): McpToolDefinition {
 /** Tool 5: git_status. */
 export function gitStatusTool(spec: WorkspaceSpec): McpToolDefinition {
   return {
-    name: 'git_status',
-    description: 'Git status snapshot: HEAD, branch, dirty flag, staged/unstaged/untracked file lists. Read-only.',
-    inputSchema: { type: 'object', properties: {}, additionalProperties: false },
+    ...WORKSPACE_TOOL_DEFINITIONS.git_status,
     async handler() {
-      return gitStatus(spec.root)
+      return gitStatus(spec.git)
     },
   }
 }
@@ -260,16 +236,7 @@ export function gitStatusTool(spec: WorkspaceSpec): McpToolDefinition {
 /** Tool 6: git_diff. */
 export function gitDiffTool(spec: WorkspaceSpec): McpToolDefinition {
   return {
-    name: 'git_diff',
-    description: 'Working-tree diff vs HEAD (or an explicit ref), byte-capped. Includes untracked file content. Read-only.',
-    inputSchema: {
-      type: 'object',
-      properties: {
-        against_ref: { type: 'string', description: 'Diff against this git ref instead of HEAD.' },
-        max_bytes: { type: 'number', description: 'Cap diff size in bytes (default 262144).' },
-      },
-      additionalProperties: false,
-    },
+    ...WORKSPACE_TOOL_DEFINITIONS.git_diff,
     async handler(args) {
       const againstRef = typeof args['against_ref'] === 'string' && args['against_ref'] !== ''
         ? args['against_ref']
@@ -277,7 +244,7 @@ export function gitDiffTool(spec: WorkspaceSpec): McpToolDefinition {
       const maxBytes = typeof args['max_bytes'] === 'number' && args['max_bytes'] > 0
         ? Math.min(args['max_bytes'], 1024 * 1024)
         : undefined
-      return gitDiff(spec.root, { ...(againstRef !== undefined ? { againstRef } : {}), ...(maxBytes !== undefined ? { maxBytes } : {}) })
+      return gitDiff(spec.git, { ...(againstRef !== undefined ? { againstRef } : {}), ...(maxBytes !== undefined ? { maxBytes } : {}) })
     },
   }
 }
@@ -285,16 +252,10 @@ export function gitDiffTool(spec: WorkspaceSpec): McpToolDefinition {
 /** Tool 7: git_log. */
 export function gitLogTool(spec: WorkspaceSpec): McpToolDefinition {
   return {
-    name: 'git_log',
-    description: 'Recent commits (hash + subject), newest first. Read-only.',
-    inputSchema: {
-      type: 'object',
-      properties: { limit: { type: 'number', description: 'Max commits (default 10, max 50).' } },
-      additionalProperties: false,
-    },
+    ...WORKSPACE_TOOL_DEFINITIONS.git_log,
     async handler(args) {
       const limit = typeof args['limit'] === 'number' && args['limit'] > 0 ? Math.min(Math.floor(args['limit']), 50) : 10
-      return { commits: await gitLog(spec.root, limit) }
+      return { commits: await gitLog(spec.git, limit) }
     },
   }
 }
@@ -302,13 +263,7 @@ export function gitLogTool(spec: WorkspaceSpec): McpToolDefinition {
 /** Tool 8: test_status. */
 export function testStatusTool(spec: WorkspaceSpec): McpToolDefinition {
   return {
-    name: 'test_status',
-    description: 'Execution-record summary focused on test runs: latest test command, status, exit code, plus overall counts. Backed by structured execution records, not natural-language claims. Read-only.',
-    inputSchema: {
-      type: 'object',
-      properties: { task_id: { type: 'string', description: 'Optional D2C task id filter.' } },
-      additionalProperties: false,
-    },
+    ...WORKSPACE_TOOL_DEFINITIONS.test_status,
     async handler(args) {
       const taskId = typeof args['task_id'] === 'string' && args['task_id'] !== '' ? args['task_id'] : undefined
       const summary = spec.recorder.summarize(taskId !== undefined ? { taskId } : {})
@@ -320,16 +275,7 @@ export function testStatusTool(spec: WorkspaceSpec): McpToolDefinition {
 /** Tool 9: execution_summary. */
 export function executionSummaryTool(spec: WorkspaceSpec): McpToolDefinition {
   return {
-    name: 'execution_summary',
-    description: 'Summary of recorded execution steps (kinds, statuses, latest entries). Read-only.',
-    inputSchema: {
-      type: 'object',
-      properties: {
-        task_id: { type: 'string', description: 'Optional task id filter.' },
-        iteration: { type: 'number', description: 'Optional iteration filter.' },
-      },
-      additionalProperties: false,
-    },
+    ...WORKSPACE_TOOL_DEFINITIONS.execution_summary,
     async handler(args) {
       const taskId = typeof args['task_id'] === 'string' && args['task_id'] !== '' ? args['task_id'] : undefined
       const iteration = typeof args['iteration'] === 'number' ? Math.floor(args['iteration']) : undefined
@@ -344,14 +290,7 @@ export function executionSummaryTool(spec: WorkspaceSpec): McpToolDefinition {
 /** Tool 10: execution_output. */
 export function executionOutputTool(spec: WorkspaceSpec): McpToolDefinition {
   return {
-    name: 'execution_output',
-    description: 'One execution record by id, including capped stdout/stderr tails (secrets redacted). Read-only.',
-    inputSchema: {
-      type: 'object',
-      properties: { execution_id: { type: 'string', description: 'Execution record id.' } },
-      required: ['execution_id'],
-      additionalProperties: false,
-    },
+    ...WORKSPACE_TOOL_DEFINITIONS.execution_output,
     async handler(args) {
       const id = args['execution_id']
       if (typeof id !== 'string') throw new WorkspaceError('INVALID_PATH', 'execution_id must be a string')
@@ -384,4 +323,88 @@ export function buildWorkspaceTools(spec: WorkspaceSpec): McpToolDefinition[] {
     }
   }
   return tools
+}
+
+/** Bridge state contains no filesystem handles or permanent execution service references. */
+export interface RuntimeWorkspaceSpec {
+  workspaceId: string
+  registry: WorkspaceRuntimeRegistry
+  recorder: ExecutionRecorder
+}
+
+/**
+ * Bind stable MCP schemas to execution-scoped backends, never the Host workspace helpers.
+ * @param spec - durable identity, ephemeral runtime registry, and Host evidence storage.
+ * @returns tools that reject content requests without a matching authorized runtime.
+ */
+export function buildRuntimeWorkspaceTools(spec: RuntimeWorkspaceSpec): McpToolDefinition[] {
+  const templates = Object.values(WORKSPACE_TOOL_DEFINITIONS)
+  const content = new Map<WorkspaceReadOperation, 'workspaceContentRead' | 'gitRead'>([
+    ['list_directory', 'workspaceContentRead'], ['read_file', 'workspaceContentRead'],
+    ['search_workspace', 'workspaceContentRead'], ['git_status', 'gitRead'],
+    ['git_diff', 'gitRead'], ['git_log', 'gitRead'],
+  ])
+  return templates.map((template): McpToolDefinition => ({
+    name: template.name,
+    description: template.description,
+    inputSchema: template.inputSchema,
+    async handler(args) {
+      if (template.name === 'workspace_info') {
+        return {
+          workspaceId: spec.workspaceId,
+          readOnly: true,
+          capabilities: spec.registry.capabilities(spec.workspaceId),
+        }
+      }
+      if (template.name === 'test_status' || template.name === 'execution_summary') {
+        const taskId = typeof args['task_id'] === 'string' ? args['task_id'] : undefined
+        const iteration = template.name === 'execution_summary' && typeof args['iteration'] === 'number'
+          ? Math.floor(args['iteration']) : undefined
+        const summary = spec.recorder.summarize({ taskId, iteration })
+        const latest = summary.latestTest
+        return {
+          total: summary.total, byKind: summary.byKind, byStatus: summary.byStatus,
+          ...(latest === undefined ? {} : { latestTest: {
+            id: latest.id, status: latest.status, exitCode: latest.exitCode, endedAt: latest.endedAt,
+          } }),
+        }
+      }
+      if (template.name === 'execution_output') {
+        const { lease } = spec.registry.require(spec.workspaceId, 'executionOutput')
+        const id = args['execution_id']
+        if (typeof id !== 'string') throw new WorkspaceError('INVALID_PATH', 'execution_id must be a string')
+        const record = spec.recorder.get(id)
+        if (record === undefined) throw new WorkspaceError('INVALID_PATH', 'unknown execution id')
+        lease.signal.throwIfAborted()
+        return record
+      }
+      const operation = template.name as WorkspaceReadOperation
+      const capability = content.get(operation)
+      if (capability === undefined) throw new WorkspaceError('WORKSPACE_CAPABILITY_UNAVAILABLE', 'UNKNOWN_CONTENT_OPERATION')
+      const { lease, token } = spec.registry.require(spec.workspaceId, capability)
+      const query = normalizeWorkspaceQuery(operation, args)
+      const gitQuery = query.operation === 'git_status' || query.operation === 'git_diff' || query.operation === 'git_log'
+      if (gitQuery && !lease.git) throw new WorkspaceError('WORKSPACE_CAPABILITY_UNAVAILABLE', 'SUBPROCESS_CAPABILITY_UNAVAILABLE')
+      if (!gitQuery && !lease.backend) throw new WorkspaceError('WORKSPACE_CAPABILITY_UNAVAILABLE', 'WORKSPACE_BACKEND_UNAVAILABLE')
+      let result: unknown
+      try {
+        if (query.operation === 'git_status' || query.operation === 'git_diff' || query.operation === 'git_log') {
+          const executor = { ...lease.git!, signal: AbortSignal.any([lease.signal, lease.git!.signal]), execute: lease.git!.execute.bind(lease.git) }
+          if (query.operation === 'git_status') result = await gitStatus(executor)
+          else if (query.operation === 'git_diff') result = await gitDiff(executor, query)
+          else result = { commits: await gitLog(executor, query.limit) }
+        } else {
+          result = await lease.backend!.read(query, lease.signal)
+        }
+      } catch {
+        if (lease.signal.aborted) throw new WorkspaceError('WORKSPACE_OPERATION_CANCELLED', 'execution cancelled')
+        throw new WorkspaceError('WORKSPACE_BACKEND_FAILED', 'workspace read failed')
+      }
+      if (lease.signal.aborted) throw new WorkspaceError('WORKSPACE_OPERATION_CANCELLED', 'execution cancelled')
+      if (spec.registry.require(spec.workspaceId, capability).token !== token) {
+        throw new WorkspaceError('WORKSPACE_CAPABILITY_UNAVAILABLE', 'RUNTIME_LEASE_CHANGED')
+      }
+      return result
+    },
+  }))
 }

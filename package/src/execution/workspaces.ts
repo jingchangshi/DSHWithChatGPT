@@ -10,6 +10,11 @@ export class WorkspaceRecorders {
 
   forWorkspace(workspaceRoot: string): ExecutionRecorder {
     const workspaceId = workspaceIdentity(workspaceRoot)
+    return this.forWorkspaceId(workspaceId)
+  }
+
+  /** Reuse evidence storage for an identity already resolved by the execution provider. */
+  forWorkspaceId(workspaceId: string): ExecutionRecorder {
     let recorder = this.recorders.get(workspaceId)
     if (recorder === undefined) {
       recorder = new ExecutionRecorder({ stateDir: path.join(this.stateDir, 'executions', workspaceId) })

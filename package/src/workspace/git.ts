@@ -8,10 +8,16 @@
  * @module workspace
  */
 
-import { execFile } from 'node:child_process'
-import { promisify } from 'node:util'
-
-const execFileAsync = promisify(execFile)
+/** An execution-world-bound Git process; callers cannot select an executable or shell. */
+export interface WorkspaceGitExecutor {
+  readonly emptyFile?: 'NUL' | '/dev/null'
+  readonly signal: AbortSignal
+  execute(args: readonly string[], options: { maxBytes: number; timeoutMs: number; signal: AbortSignal }): Promise<{
+    stdout: string
+    stderr: string
+    exitCode: number
+  }>
+}
 
 /** Max argv bytes for one git invocation before batching (conservative). */
 const MAX_ARGV_BYTES = 32 * 1024
@@ -31,28 +37,30 @@ export class GitError extends Error {
 }
 
 /** Run one fixed-argument git command in the workspace. */
-async function git(root: string, args: readonly string[], maxBytes = 4 * 1024 * 1024): Promise<string> {
+async function git(executor: WorkspaceGitExecutor, args: readonly string[], maxBytes = 4 * 1024 * 1024, allowDifferences = false): Promise<string> {
+  if (executor.signal.aborted) throw new GitError('CANCELLED', 'execution cancelled')
   try {
-    const { stdout, stderr } = await execFileAsync('git', ['-C', root, ...args], {
-      maxBuffer: maxBytes,
-      timeout: 20_000,
-      windowsHide: true,
+    const { stdout, stderr, exitCode } = await executor.execute(['--no-optional-locks', '-c', 'core.fsmonitor=false', ...args], {
+      maxBytes,
+      timeoutMs: 20_000,
+      signal: executor.signal,
     })
-    if (stderr.trim() !== '' && stdout === '' && /fatal|error/i.test(stderr)) {
-      throw new GitError('COMMAND_FAILED', stderr.trim().slice(0, 500))
+    if (executor.signal.aborted) throw new GitError('CANCELLED', 'execution cancelled')
+    if (exitCode !== 0 && !(allowDifferences && exitCode === 1)) {
+      if (/not a git repository/i.test(stderr)) throw new GitError('NOT_A_REPOSITORY', 'workspace is not a git repository')
+      throw new GitError('COMMAND_FAILED', 'Git command failed')
     }
     return stdout
   } catch (error) {
     if (error instanceof GitError) throw error
-    const message = error instanceof Error ? error.message : String(error)
-    if (/not a git repository/i.test(message)) {
-      throw new GitError('NOT_A_REPOSITORY', 'workspace is not a git repository')
-    }
-    if (/ENOENT/i.test(message)) {
-      throw new GitError('GIT_UNAVAILABLE', 'git executable not found')
-    }
-    throw new GitError('COMMAND_FAILED', message.slice(0, 500))
+    if (executor.signal.aborted) throw new GitError('CANCELLED', 'execution cancelled')
+    throw new GitError('EXECUTION_FAILED', 'Git execution unavailable')
   }
+}
+
+function absentRef(error: unknown): null {
+  if (error instanceof GitError && (error.reason === 'COMMAND_FAILED' || error.reason === 'NOT_A_REPOSITORY')) return null
+  throw error
 }
 
 /** Shallow repository status. */
@@ -75,12 +83,12 @@ export interface GitStatusSnapshot {
 }
 
 /** Read git status (porcelain v1 with -z NUL separation). */
-export async function gitStatus(root: string): Promise<GitStatusSnapshot> {
-  const headOut = await git(root, ['rev-parse', '--verify', 'HEAD']).catch(() => null)
+export async function gitStatus(executor: WorkspaceGitExecutor): Promise<GitStatusSnapshot> {
+  const headOut = await git(executor, ['rev-parse', '--verify', 'HEAD']).catch(absentRef)
   if (headOut === null) {
     // Either not a repo, or a repo with no commits yet. Distinguish via
     // rev-parse --is-inside-work-tree, which succeeds in any repo.
-    const isRepo = await git(root, ['rev-parse', '--is-inside-work-tree']).catch(() => null)
+    const isRepo = await git(executor, ['rev-parse', '--is-inside-work-tree']).catch(absentRef)
     if (isRepo === null) {
       return {
         isRepo: false, head: null, branch: null, dirty: false,
@@ -88,8 +96,8 @@ export async function gitStatus(root: string): Promise<GitStatusSnapshot> {
         staged: [], unstaged: [], untracked: [],
       }
     }
-    const branch = await git(root, ['rev-parse', '--abbrev-ref', 'HEAD']).catch(() => null)
-    const statusOut = await git(root, ['status', '--porcelain=v1', '-z'])
+    const branch = await git(executor, ['rev-parse', '--abbrev-ref', 'HEAD']).catch(absentRef)
+    const statusOut = await git(executor, ['status', '--porcelain=v1', '-z'])
     const untracked = parsePorcelainZ(statusOut).filter(e => e.x === '?').map(e => e.path)
     return {
       isRepo: true,
@@ -105,15 +113,15 @@ export async function gitStatus(root: string): Promise<GitStatusSnapshot> {
       untracked,
     }
   }
-  const branchOut = await git(root, ['rev-parse', '--abbrev-ref', 'HEAD']).catch(() => '')
-  const upstreamOut = await git(root, ['rev-parse', '--abbrev-ref', '--symbolic-full-name', '@{u}']).catch(() => null)
+  const branchOut = await git(executor, ['rev-parse', '--abbrev-ref', 'HEAD']).catch(() => '')
+  const upstreamOut = await git(executor, ['rev-parse', '--abbrev-ref', '--symbolic-full-name', '@{u}']).catch(absentRef)
   const upstream = upstreamOut?.trim() || null
   const upstreamHeadOut = upstream === null
     ? null
-    : await git(root, ['rev-parse', '--verify', '@{u}']).catch(() => null)
+    : await git(executor, ['rev-parse', '--verify', '@{u}']).catch(absentRef)
   const countsOut = upstream === null
     ? null
-    : await git(root, ['rev-list', '--left-right', '--count', 'HEAD...@{u}']).catch(() => null)
+    : await git(executor, ['rev-list', '--left-right', '--count', 'HEAD...@{u}']).catch(absentRef)
   const counts = countsOut?.trim().split(/\s+/).map(Number)
   const ahead = counts !== undefined && counts.length >= 2 && Number.isSafeInteger(counts[0])
     ? counts[0]!
@@ -121,7 +129,7 @@ export async function gitStatus(root: string): Promise<GitStatusSnapshot> {
   const behind = counts !== undefined && counts.length >= 2 && Number.isSafeInteger(counts[1])
     ? counts[1]!
     : null
-  const statusOut = await git(root, ['status', '--porcelain=v1', '-z'])
+  const statusOut = await git(executor, ['status', '--porcelain=v1', '-z'])
   const staged: string[] = []
   const unstaged: string[] = []
   const untracked: string[] = []
@@ -189,10 +197,10 @@ export interface DiffResult {
  * Working-tree diff, batched with literal pathspecs when the changed-path
  * list is large. Fail-closed: git errors become GitError, no shell involved.
  */
-export async function gitDiff(root: string, options: DiffOptions = {}): Promise<DiffResult> {
+export async function gitDiff(executor: WorkspaceGitExecutor, options: DiffOptions = {}): Promise<DiffResult> {
   const against = options.againstRef ?? 'HEAD'
   const maxBytes = options.maxBytes ?? MAX_DIFF_BYTES
-  const status = await gitStatus(root)
+  const status = await gitStatus(executor)
   if (!status.isRepo) throw new GitError('NOT_A_REPOSITORY', 'workspace is not a git repository')
 
   const changed = [...new Set([...status.staged, ...status.untracked, ...status.unstaged])]
@@ -218,7 +226,7 @@ export async function gitDiff(root: string, options: DiffOptions = {}): Promise<
     let acc = 0
     let anyTruncated = false
     for (const p of changed) {
-      const out = await gitNoIndex(root, p, maxBytes + 1024)
+      const out = await gitNoIndex(executor, p, maxBytes + 1024)
       parts.push(out)
       acc += Buffer.byteLength(out, 'utf8')
       if (acc > maxBytes) {
@@ -230,13 +238,13 @@ export async function gitDiff(root: string, options: DiffOptions = {}): Promise<
     truncatedInternal = anyTruncated
     batches = changed.length
   } else if (changed.length === 0) {
-    text = await git(root, baseArgs, maxBytes + 1024)
+    text = await git(executor, baseArgs, maxBytes + 1024)
   } else if (changed.length <= MAX_BATCH_PATHS) {
     const argvBytes = baseArgs.join(' ').length + changed.join(' ').length
     if (argvBytes <= MAX_ARGV_BYTES) {
-      text = await git(root, [...baseArgs, ...changed.map(p => ':(literal)' + p)], maxBytes + 1024)
+      text = await git(executor, [...baseArgs, ...changed.map(p => ':(literal)' + p)], maxBytes + 1024)
     } else {
-      text = await git(root, baseArgs, maxBytes + 1024)
+      text = await git(executor, baseArgs, maxBytes + 1024)
     }
   } else {
     // Batch pathspecs to keep argv bounded.
@@ -248,7 +256,7 @@ export async function gitDiff(root: string, options: DiffOptions = {}): Promise<
     const parts: string[] = []
     let acc = 0
     for (const chunk of chunks) {
-      const out = await git(root, [...baseArgs, ...chunk.map(p => ':(literal)' + p)], maxBytes + 1024)
+      const out = await git(executor, [...baseArgs, ...chunk.map(p => ':(literal)' + p)], maxBytes + 1024)
       parts.push(out)
       acc += Buffer.byteLength(out, 'utf8')
       if (acc > maxBytes) break
@@ -269,29 +277,14 @@ export async function gitDiff(root: string, options: DiffOptions = {}): Promise<
  * One untracked file's diff via --no-index against the empty device. Exit
  * code 1 means "differences found" and is expected; output is still returned.
  */
-async function gitNoIndex(root: string, relPath: string, maxBytes: number): Promise<string> {
-  const emptyDevice = process.platform === 'win32' ? 'NUL' : '/dev/null'
-  try {
-    const { stdout } = await execFileAsync(
-      'git',
-      ['-C', root, 'diff', '--no-index', '--', emptyDevice, relPath],
-      { maxBuffer: maxBytes, timeout: 20_000, windowsHide: true },
-    )
-    return stdout
-  } catch (error) {
-    const err = error as { code?: number | string; stdout?: string; message?: string }
-    // Exit 1 = differences found (expected). maxBuffer overflow also lands
-    // here; the partial stdout we DID capture is capped by the caller.
-    if (err.code === 1 || /maxBuffer/i.test(String(err.message))) {
-      return typeof err.stdout === 'string' ? err.stdout : ''
-    }
-    throw new GitError('COMMAND_FAILED', ('no-index diff failed: ' + (err.message ?? 'unknown')).slice(0, 300))
-  }
+async function gitNoIndex(executor: WorkspaceGitExecutor, relPath: string, maxBytes: number): Promise<string> {
+  if (executor.emptyFile === undefined) throw new GitError('EMPTY_FILE_UNAVAILABLE', 'provider empty-file capability unavailable')
+  return git(executor, ['diff', '--no-ext-diff', '--no-textconv', '--no-index', '--', executor.emptyFile, relPath], maxBytes, true)
 }
 
 /** Recent commits (hash, subject) newest first. */
-export async function gitLog(root: string, limit = 10): Promise<Array<{ hash: string; subject: string }>> {
-  const out = await git(root, ['log', '--max-count=' + limit, '--pretty=format:%H %s'])
+export async function gitLog(executor: WorkspaceGitExecutor, limit = 10): Promise<Array<{ hash: string; subject: string }>> {
+  const out = await git(executor, ['log', '--max-count=' + limit, '--pretty=format:%H %s'])
   return out.split('\n').filter(l => l.trim() !== '').map(line => {
     const idx = line.indexOf(' ')
     return { hash: line.slice(0, idx), subject: line.slice(idx + 1) }

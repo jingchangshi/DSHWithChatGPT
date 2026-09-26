@@ -4,8 +4,8 @@
  * ChatGPT thinks. DeepSeek Harness works.
  *
  * Host wiring: publishes the chatgptCoordinator service, registers the
- * four model-facing tools (chatgpt_plan / chatgpt_review / chatgpt_status /
- * chatgpt_reconnect), injects the collaboration section into the system
+ * five model-facing tools (chatgpt_plan / chatgpt_review / chatgpt_status /
+ * chatgpt_reconnect / chatgpt_doctor), injects the collaboration section into the system
  * prompt, mounts the read-only MCP bridge, and persists task state through a
  * storage domain so tasks survive DSH restarts.
  * @module dsh-with-chatgpt
@@ -21,10 +21,13 @@ import type { Domain } from '@deepseek-ai/dsh-storage-domain'
 import { ChatGptCoordinator } from './orchestrator/index.ts'
 import { CoordinatorState, type PersistedTask, type TaskState } from './orchestrator/state.ts'
 import type { StateStore } from './orchestrator/state.ts'
-import { loadWorkspaceSpec, buildWorkspaceTools } from './bridge/index.ts'
+import { buildRuntimeWorkspaceTools } from './bridge/tools.ts'
+import { WorkspaceRuntimeRegistry } from './workspace/runtime.ts'
+import type { WorkspaceRuntimeIdentity } from './workspace/runtime.ts'
+import { resolveExecutionWorkspace } from './workspace/execution-identity.ts'
 import { startBridgeServer, type BridgeServer } from './bridge/index.ts'
 import { BrowserHarnessAdapter } from './browser/index.ts'
-import { gitStatus, sessionWorkspaceRoot, workspaceIdentity } from './workspace/index.ts'
+import { gitStatus } from './workspace/index.ts'
 import { freezeShellExecution, observeShellResult, type FrozenExecutionContext, type ObservedExecution, type ObservedResult } from './execution/observe.ts'
 import { WorkspaceRecorders } from './execution/workspaces.ts'
 import { TunnelSupervisor } from './tunnel/index.ts'
@@ -145,39 +148,28 @@ class DomainStateStore implements StateStore {
   }
 }
 
-/** Memory fallback until (or without) the storage domain. */
-const memoryCoordinatorState = new CoordinatorState(((): StateStore => {
-  const map = new Map<string, unknown>()
-  return {
-    async get<T>(key: string): Promise<T | undefined> { return map.get(key) as T | undefined },
-    async put<T>(key: string, value: T): Promise<void> { map.set(key, value) },
-    async delete(key: string): Promise<void> { map.delete(key) },
-  }
-})())
-
 // ---------------------------------------------------------------- apply
 
 
 export const name = 'dsh-with-chatgpt'
 
-/** Services this plugin hard-requires (storage-domain is optional in v1). */
-export const inject: string[] = []
+/** Required services for durable collaboration in the mounted execution world. */
+export const inject = ['tools', 'systemPrompt', 'storageDomain', 'executionWorldIdentity']
 
-export function apply(ctx: Context, config: Config): void | Promise<void> {
+/** Activate only after durable storage opens; Cordis awaits tool registration. */
+export async function apply(ctx: Context, config: Config): Promise<void> {
   const activate = async (): Promise<void> => {
-    // ---- state: durable storage domain when available
-    let coordinatorState = memoryCoordinatorState
-    let domain: Domain<typeof d2cDomain> | undefined
     const storageDomain = ctx.get('storageDomain')
-    if (storageDomain !== undefined) {
-      domain = await storageDomain.open(d2cDomain)
-      coordinatorState = new CoordinatorState(new DomainStateStore(domain))
-    }
+    if (storageDomain === undefined) throw new Error('DURABLE_STORAGE_UNAVAILABLE')
+    const domain = await storageDomain.open(d2cDomain)
+    ctx.effect(() => () => domain.close(), 'dsh-with-chatgpt durable state')
+    const coordinatorState = new CoordinatorState(new DomainStateStore(domain))
 
     // ---- execution recorder lives in DSH storage area (outside workspaces)
     const stateDir = joinStateDir()
     const recorders = new WorkspaceRecorders(stateDir)
     const activeTasks = new Map<string, { taskId: string; iteration: number }>()
+    const workspaceRuntimes = new WorkspaceRuntimeRegistry()
     const tunnel = new TunnelSupervisor({
       mode: config.tunnelMode,
       clientPath: config.tunnelClientPath,
@@ -195,9 +187,9 @@ export function apply(ctx: Context, config: Config): void | Promise<void> {
 
     // ---- bridge + Secure MCP Tunnel runtime
     const bridges = new Map<string, BridgeServer>()
-    const bridgeTokens = new Map<string, { subject: string; workspaceRoot: string }>()
+    const bridgeTokens = new Map<string, { subject: string; workspaceId: string }>()
 
-    async function ensureBridge(workspaceRoot: string): Promise<{
+    async function ensureBridge(workspace: WorkspaceRuntimeIdentity): Promise<{
       port: number
       token: string
       configPath: string
@@ -205,12 +197,12 @@ export function apply(ctx: Context, config: Config): void | Promise<void> {
       localUrl: string
       workspaceId: string
     }> {
-      const workspaceId = workspaceIdentity(workspaceRoot)
+      const { workspaceId } = workspace
       const configPath = joinPath(stateDir, 'connectors', workspaceId + '.json')
       const tokenFile = joinPath(stateDir, 'connectors', workspaceId + '.bearer')
-      const existing = bridges.get(workspaceRoot)
+      const existing = bridges.get(workspaceId)
       if (existing !== undefined) {
-        const token = [...bridgeTokens.entries()].find(([, v]) => v.workspaceRoot === workspaceRoot)?.[0]
+        const token = [...bridgeTokens.entries()].find(([, v]) => v.workspaceId === workspaceId)?.[0]
         if (token !== undefined) {
           writeBridgeFiles(configPath, tokenFile, existing.port, token, workspaceId)
           return {
@@ -227,10 +219,10 @@ export function apply(ctx: Context, config: Config): void | Promise<void> {
       const token = 'd2c_' + randomToken(32)
       const server = await startBridgeServer(
         { port: config.bridgePort, tokens: new Map([[token, 'workspace:' + workspaceId]]) },
-        buildWorkspaceTools(loadWorkspaceSpec(workspaceRoot, recorders.forWorkspace(workspaceRoot))),
+        buildRuntimeWorkspaceTools({ workspaceId, registry: workspaceRuntimes, recorder: recorders.forWorkspaceId(workspaceId) }),
       )
-      bridges.set(workspaceRoot, server)
-      bridgeTokens.set(token, { subject: 'workspace:' + workspaceId, workspaceRoot })
+      bridges.set(workspaceId, server)
+      bridgeTokens.set(token, { subject: 'workspace:' + workspaceId, workspaceId })
       writeBridgeFiles(configPath, tokenFile, server.port, token, workspaceId)
       return {
         port: server.port,
@@ -266,10 +258,10 @@ export function apply(ctx: Context, config: Config): void | Promise<void> {
       try { fs.chmodSync(configPath, 0o600) } catch {}
     }
 
-    async function ensureRuntime(workspaceRoot: string, signal?: AbortSignal) {
+    async function ensureRuntime(workspace: WorkspaceRuntimeIdentity, signal?: AbortSignal) {
       throwIfCancelled(signal)
       if (config.tunnelMode === 'managed') {
-        const otherActive = [...activeTasks.entries()].find(([root]) => root !== workspaceRoot)
+        const otherActive = [...activeTasks.entries()].find(([workspaceId]) => workspaceId !== workspace.workspaceId)
         if (otherActive !== undefined) {
           throw new Error(
             'TUNNEL_WORKSPACE_BUSY: managed tunnel is owned by another active C2C workspace/task '
@@ -277,7 +269,7 @@ export function apply(ctx: Context, config: Config): void | Promise<void> {
           )
         }
       }
-      const bridge = await ensureBridge(workspaceRoot)
+      const bridge = await ensureBridge(workspace)
       throwIfCancelled(signal)
       const tunnelStatus = await tunnel.ensure({
         workspaceId: bridge.workspaceId,
@@ -288,12 +280,12 @@ export function apply(ctx: Context, config: Config): void | Promise<void> {
     }
 
     // ---- coordinator
-    function coordinatorFor(workspaceRoot: string, agent: unknown): ChatGptCoordinator {
+    function coordinatorFor(workspace: WorkspaceRuntimeIdentity, agent: unknown): ChatGptCoordinator {
       return new ChatGptCoordinator({
         browser: makeBrowser(agent),
         store: coordinatorState,
-        workspaceRoot,
-        workspaceId: workspaceIdentity(workspaceRoot),
+        workspaceRoot: workspace.displayRoot,
+        workspaceId: workspace.workspaceId,
         replyTimeoutMs: config.replyTimeoutMs,
         maxIterations: config.maxIterations,
       })
@@ -309,7 +301,7 @@ export function apply(ctx: Context, config: Config): void | Promise<void> {
     }
     toolEvents.on('tools/execute', async (exec, next) => {
       try {
-        const owner = await freezeShellExecution(exec, coordinatorState)
+        const owner = await freezeShellExecution(exec, coordinatorState, execution => workspaceOf(ctx, execution))
         if (owner !== undefined) ownership.set(exec as object, owner)
       } catch (_observationFailure) {
       }
@@ -320,7 +312,7 @@ export function apply(ctx: Context, config: Config): void | Promise<void> {
         const owner = ownership.get(exec as object)
         if (owner === undefined) return
         ownership.delete(exec as object)
-        observeShellResult(exec, result, owner, recorders.forWorkspace(owner.workspaceRoot))
+        observeShellResult(exec, result, owner, recorders.forWorkspaceId(owner.workspaceId))
       } catch (_recordingFailure) {
         return
       }
@@ -373,14 +365,16 @@ export function apply(ctx: Context, config: Config): void | Promise<void> {
         render: renderRound as never,
       },
       async execute(args: Record<string, unknown>, exec: ToolExec | undefined) {
-        const workspaceRoot = workspaceOf(exec)
-        const coordinator = coordinatorFor(workspaceRoot, exec?.agent)
+        const workspace = await workspaceOf(ctx, exec)
+        const coordinator = coordinatorFor(workspace, exec?.agent)
+        workspaceRuntimes.require(workspace.workspaceId, 'workspaceContentRead')
+        workspaceRuntimes.require(workspace.workspaceId, 'gitRead')
         // Bridge + tunnel must be ready before INIT so ChatGPT can immediately
         // verify workspace_info for the exact workspace id.
-        await ensureRuntime(workspaceRoot, exec?.signal)
+        await ensureRuntime(workspace, exec?.signal)
         const started = await coordinator.startTask(String(args.goal), { signal: exec?.signal })
         const round = await coordinator.awaitPlan(started.taskId, exec?.signal)
-        activeTasks.set(workspaceRoot, { taskId: round.taskId, iteration: round.record.iteration })
+        activeTasks.set(workspace.workspaceId, { taskId: round.taskId, iteration: round.record.iteration })
         return {
           taskId: round.taskId,
           state: round.record.state,
@@ -409,10 +403,14 @@ export function apply(ctx: Context, config: Config): void | Promise<void> {
         render: renderRound as never,
       },
       async execute(args: Record<string, unknown>, exec: ToolExec | undefined) {
-        const workspaceRoot = workspaceOf(exec)
-        await ensureRuntime(workspaceRoot, exec?.signal)
+        const workspace = await workspaceOf(ctx, exec)
+        workspaceRuntimes.require(workspace.workspaceId, 'workspaceContentRead')
+        workspaceRuntimes.require(workspace.workspaceId, 'gitRead')
+        await ensureRuntime(workspace, exec?.signal)
         if (config.gitPolicy === 'commit-push') {
-          const current = await gitStatus(workspaceRoot)
+          const executor = workspaceRuntimes.require(workspace.workspaceId, 'gitRead').lease.git
+          if (!executor) throw new Error('SUBPROCESS_CAPABILITY_UNAVAILABLE')
+          const current = await gitStatus(executor)
           if (!current.isRepo || current.head === null || current.branch === null) {
             throw new Error('AUTONOMOUS_GIT_POLICY: commit-push mode requires a normal checked-out git branch with at least one commit')
           }
@@ -435,7 +433,7 @@ export function apply(ctx: Context, config: Config): void | Promise<void> {
             throw new Error('AUTONOMOUS_GIT_POLICY: supplied HEAD does not match current git HEAD')
           }
         }
-        const coordinator = coordinatorFor(workspaceRoot, exec?.agent)
+        const coordinator = coordinatorFor(workspace, exec?.agent)
         const round = await coordinator.reportExecuted(String(args.taskId), {
           changedFiles: Array.isArray(args.changedFiles) ? args.changedFiles.map(String) : [],
           head: typeof args.head === 'string' ? args.head : null,
@@ -443,9 +441,9 @@ export function apply(ctx: Context, config: Config): void | Promise<void> {
           ...(args.note !== undefined ? { note: String(args.note).slice(0, 200) } : {}),
         }, exec?.signal)
         if (round.record.state === 'planned') {
-          activeTasks.set(workspaceRoot, { taskId: round.taskId, iteration: round.record.iteration })
+          activeTasks.set(workspace.workspaceId, { taskId: round.taskId, iteration: round.record.iteration })
         } else {
-          activeTasks.delete(workspaceRoot)
+          activeTasks.delete(workspace.workspaceId)
         }
         return {
           taskId: round.taskId,
@@ -487,14 +485,14 @@ export function apply(ctx: Context, config: Config): void | Promise<void> {
         }],
       },
       async execute(_args: Record<string, unknown>, exec: ToolExec | undefined) {
-        const workspaceRoot = workspaceOf(exec)
+        const workspaceRoot = await workspaceOf(ctx, exec)
         const coordinator = coordinatorFor(workspaceRoot, exec?.agent)
         const latestTaskId = await coordinator.latestTaskId()
         const task = latestTaskId !== undefined ? await coordinator.status(latestTaskId) : undefined
         const runtime = await ensureRuntime(workspaceRoot, exec?.signal)
         return {
           plugin: 'dsh-with-chatgpt',
-          workspaceRoot,
+          workspaceRoot: workspaceRoot.displayRoot,
           latestTask: task ?? null,
           bridgeRunning: true,
           bridgePort: runtime.bridge.port,
@@ -530,12 +528,12 @@ export function apply(ctx: Context, config: Config): void | Promise<void> {
         }],
       },
       async execute(_args: Record<string, unknown>, exec: ToolExec | undefined) {
-        const workspaceRoot = workspaceOf(exec)
+        const workspaceRoot = await workspaceOf(ctx, exec)
         await ensureRuntime(workspaceRoot, exec?.signal)
         const coordinator = coordinatorFor(workspaceRoot, exec?.agent)
         const task = await coordinator.recover(exec?.signal)
         if (task !== undefined && ['planned', 'executing', 'executed', 'awaiting-review'].includes(task.state)) {
-          activeTasks.set(workspaceRoot, { taskId: task.taskId, iteration: task.iteration })
+          activeTasks.set(workspaceRoot.workspaceId, { taskId: task.taskId, iteration: task.iteration })
         }
         return {
           recovered: task !== undefined,
@@ -554,10 +552,10 @@ export function apply(ctx: Context, config: Config): void | Promise<void> {
         render: (_args: Record<string, unknown>, value: Record<string, unknown>) => [{ type: 'text' as const, text: JSON.stringify(value) }],
       },
       async execute(_args: Record<string, unknown>, exec: ToolExec | undefined) {
-        const workspaceRoot = workspaceOf(exec)
+        const workspaceRoot = await workspaceOf(ctx, exec)
         const runtime = await ensureRuntime(workspaceRoot, exec?.signal)
         return runDoctor({
-          workspaceRoot,
+          workspaceRoot: workspaceRoot.displayRoot,
           workspaceId: runtime.bridge.workspaceId,
           appName: config.chatgptAppName,
           browser: makeBrowser(exec?.agent),
@@ -602,7 +600,6 @@ export function apply(ctx: Context, config: Config): void | Promise<void> {
       await tunnel.close()
       await Promise.allSettled([...bridges.values()].map(bridge => bridge.close()))
       bridges.clear()
-      if (domain !== undefined) await domain.close()
     }, 'dsh-with-chatgpt runtime cleanup')
   }
 
@@ -613,8 +610,8 @@ export function apply(ctx: Context, config: Config): void | Promise<void> {
 type ToolExec = { agent?: { session?: { header?: { cwd?: string } } }; signal?: AbortSignal }
 
 /** Workspace root for a tool execution (session cwd). */
-function workspaceOf(exec: { agent?: { session?: { header?: { cwd?: string } } } } | undefined): string {
-  return sessionWorkspaceRoot(exec?.agent?.session?.header?.cwd)
+function workspaceOf(ctx: Context, exec: ToolExec | undefined): Promise<WorkspaceRuntimeIdentity> {
+  return resolveExecutionWorkspace(ctx.get('executionWorldIdentity'), exec?.agent?.session?.header?.cwd, exec?.signal)
 }
 
 /** State dir under the OS config home (never inside a workspace). */

@@ -1,3 +1,4 @@
+import { localGitExecutor } from './local-git.ts'
 import { describe, expect, it, beforeEach, afterEach } from 'vitest'
 import fs from 'node:fs'
 import os from 'node:os'
@@ -34,7 +35,7 @@ beforeEach(async () => {
   execFileSync('git', ['-C', root, 'config', 'user.name', 'T'], { stdio: 'pipe' })
   execFileSync('git', ['-C', root, 'add', '.'], { stdio: 'pipe' })
   const recorder = new ExecutionRecorder({ stateDir })
-  const spec = loadWorkspaceSpec(root, recorder)
+  const spec = loadWorkspaceSpec(root, recorder, localGitExecutor(root))
   server = await startBridgeServer({ port: 0, tokens: new Map([[TOKEN, 'workspace:demo']]) }, buildWorkspaceTools(spec))
   port = server.port
 })

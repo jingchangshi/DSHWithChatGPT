@@ -41,14 +41,14 @@ export interface PersistedWorkspaceBinding {
   updatedAt: number
 }
 
-/** Minimal async KV contract (Cordis storage table or in-memory fallback). */
+/** Minimal async KV contract for an explicitly selected state store. */
 export interface StateStore {
   get<T>(key: string): Promise<T | undefined>
   put<T>(key: string, value: T): Promise<void>
   delete(key: string): Promise<void>
 }
 
-/** In-memory StateStore (used by tests and as a fallback before storage mounts). */
+/** In-memory StateStore for explicit test composition, never a production fallback. */
 export function createMemoryStore(): StateStore {
   const map = new Map<string, unknown>()
   return {
@@ -65,7 +65,7 @@ export function createMemoryStore(): StateStore {
 }
 
 const TASK_KEY = (taskId: string): string => 'task:' + taskId
-const WORKSPACE_KEY = (root: string): string => 'workspace:' + root
+const WORKSPACE_KEY = (workspaceId: string): string => 'workspace:' + workspaceId
 
 /** State repository over a StateStore. */
 export class CoordinatorState {
@@ -95,11 +95,11 @@ export class CoordinatorState {
     await this.store.put('index:tasks', { ids })
   }
 
-  async bindWorkspace(root: string, binding: Omit<PersistedWorkspaceBinding, 'updatedAt'>): Promise<void> {
-    await this.store.put(WORKSPACE_KEY(root), { ...binding, updatedAt: Date.now() })
+  async bindWorkspace(workspaceId: string, binding: Omit<PersistedWorkspaceBinding, 'updatedAt'>): Promise<void> {
+    await this.store.put(WORKSPACE_KEY(workspaceId), { ...binding, updatedAt: Date.now() })
   }
 
-  async loadWorkspace(root: string): Promise<PersistedWorkspaceBinding | undefined> {
-    return this.store.get<PersistedWorkspaceBinding>(WORKSPACE_KEY(root))
+  async loadWorkspace(workspaceId: string): Promise<PersistedWorkspaceBinding | undefined> {
+    return this.store.get<PersistedWorkspaceBinding>(WORKSPACE_KEY(workspaceId))
   }
 }
