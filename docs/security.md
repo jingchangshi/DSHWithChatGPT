@@ -37,8 +37,8 @@ Managed tunnel ownership is persisted separately in `d2c_control` v1; `d2c_state
 
 The browser mutex protects only this plugin’s PLAN, REVIEW, doctor, and reconnect operations, including reply waits. It does not intercept executor browser tools, human input, other plugins, or other processes. Run one active plugin process per profile/state store; do not share its ChatGPT control tab with concurrent executor browser automation. The durable owner is not a distributed lock.
 
-- Binds `127.0.0.1` only. A public URL (e.g. a tunnel) is never authorization: every request needs a Bearer token from the token→workspace map; comparison is length-checked and constant-time-ish (no early content exit).
-- Non-POST rejected; request bodies capped at 1MiB; `Cache-Control: no-store`, `X-Content-Type-Options: nosniff`.
+- Binds `127.0.0.1` only. A public URL (e.g. a tunnel) is never authorization: every POST /mcp request that reaches RPC dispatch needs a Bearer token from the token→workspace map; comparison is length-checked and constant-time-ish (no early content exit).
+- Only POST requests at the exact /mcp pathname reach authenticated RPC dispatch; query strings are allowed. Other paths, including absent OAuth discovery metadata, return 404 without an authentication challenge. Non-POST /mcp requests return 405; request bodies are capped at 1MiB; `Cache-Control: no-store`, `X-Content-Type-Options: nosniff`.
 - Tokens are random per bridge instance (32 bytes hex). Rotation/revoke = restart of the bridge (future: persisted pairing store with TTL).
 - Tokens are never written to the workspace or repository. The plugin writes `Bearer <token>` to a local mode-0600 state file and managed `tunnel-client` injects it only on the final local MCP hop via `MCP_EXTRA_HEADERS` / `MCP_DISCOVERY_EXTRA_HEADERS`.
 - `CONTROL_PLANE_API_KEY` remains an environment secret consumed by tunnel-client; it is not included in argv, status output, prompts, or connector metadata.

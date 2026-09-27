@@ -55,6 +55,43 @@ describe('bridge auth', () => {
   it('rejects non-POST', async () => {
     const r = await fetch(`http://127.0.0.1:${port}/mcp`)
     expect(r.status).toBe(405)
+    expect(r.headers.has('www-authenticate')).toBe(false)
+  })
+
+  it.each([
+    '/.well-known/oauth-protected-resource',
+    '/.well-known/oauth-protected-resource/mcp',
+    '/.well-known/oauth-authorization-server',
+    '/.well-known/openid-configuration',
+    '/does-not-exist',
+  ])('reports an absent route without advertising OAuth: %s', async pathname => {
+    const response = await fetch('http://127.0.0.1:' + port + pathname)
+    expect(response.status).toBe(404)
+    expect(response.headers.has('www-authenticate')).toBe(false)
+    expect(await response.json()).toEqual({ error: 'not found' })
+  })
+
+  it.each(['/not-mcp', '/mcp/', '/MCP'])('does not dispatch RPC outside the exact MCP route: %s', async pathname => {
+    for (const authorization of [undefined, 'Bearer ' + TOKEN]) {
+      const response = await fetch('http://127.0.0.1:' + port + pathname, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', ...(authorization ? { Authorization: authorization } : {}) },
+        body: JSON.stringify({ jsonrpc: '2.0', id: 1, method: 'initialize' }),
+      })
+      expect(response.status).toBe(404)
+      expect(response.headers.has('www-authenticate')).toBe(false)
+      expect(await response.json()).toEqual({ error: 'not found' })
+    }
+  })
+
+  it('accepts query strings on the authenticated MCP endpoint', async () => {
+    const response = await fetch('http://127.0.0.1:' + port + '/mcp?client=tunnel', {
+      method: 'POST',
+      headers: { Authorization: 'Bearer ' + TOKEN, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ jsonrpc: '2.0', id: 1, method: 'ping' }),
+    })
+    expect(response.status).toBe(200)
+    expect((await response.json()).result).toEqual({})
   })
 
   it('only listens on loopback', async () => {

@@ -175,6 +175,12 @@ async function handleRequest(
   options: BridgeServerOptions,
   rpcHandler: (req: RpcRequest, ctx: BridgeToolContext) => Promise<RpcResponse>,
 ): Promise<void> {
+  const pathname = new URL(req.url ?? '/', 'http://127.0.0.1').pathname
+  if (pathname !== '/mcp') {
+    res.writeHead(404, { 'Content-Type': 'application/json' })
+    res.end(JSON.stringify({ error: 'not found' }))
+    return
+  }
   if (req.method !== 'POST') {
     res.writeHead(405, { 'Content-Type': 'application/json' })
     res.end(JSON.stringify({ error: 'method not allowed; POST only' }))
