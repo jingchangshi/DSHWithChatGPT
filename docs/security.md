@@ -22,6 +22,8 @@ Deny list with gitignore semantics (`SENSITIVE_PATTERNS`): `.env*` (but **not** 
 
 ## Execution records & secrets
 
+Production raw execution output is authorized only during `chatgpt_review`. The operation derives its task and evidence iteration from the durable workspace binding: planned/executing round N authorizes N+1, and executed/awaiting-review authorizes N. `execution_output` accepts only an execution ID and rejects another task or iteration with the same response as an unknown ID. Cancellation, release, and replacement of the active runtime lease revoke access. PLAN, status, doctor, and reconnect do not authorize raw output. Records remain in the workspace-specific plugin state directory and survive process restart; an empty recorder does not remove an otherwise valid review authorization.
+
 - Every recorded command and output passes `redact()` (GitHub PATs, AWS keys, bearer tokens, `sk-`, `xox`, `AIza`, `npm_`, `api_key=/token=/password=` shapes).
 - Any record containing private-key block markers is **rejected entirely** (never stored, never returned).
 - Output tails capped at 16KiB / 200 lines with a truncation flag; the recorder lives in `%LOCALAPPDATA%\dsh-with-chatgpt` (outside every workspace).

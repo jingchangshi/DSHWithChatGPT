@@ -16,6 +16,15 @@ function fixture() {
 }
 
 describe('workspace operation read lease', () => {
+  it('publishes an explicitly authorized evidence round only during the operation', async () => {
+    const { registry, identity, lease } = fixture()
+    const scope = { taskId: 'review-task', iteration: 4 }
+    await withWorkspaceReadLease(registry, identity, async () => lease, async () => {
+      expect(registry.require(identity.workspaceId, 'executionOutput').lease.executionOutputScope).toEqual(scope)
+    }, undefined, undefined, 'require-full', 'GIT_READ_DISABLED', async () => scope)
+    expect(() => registry.require(identity.workspaceId, 'executionOutput')).toThrow('RUNTIME_LEASE_UNAVAILABLE')
+  })
+
   it('does not settle until provider cleanup completes', async () => {
     const { registry, identity, lease } = fixture()
     const cleanup = Promise.withResolvers<void>()
@@ -41,6 +50,7 @@ describe('workspace operation read lease', () => {
       active = signal
       expect(registry.require(identity.workspaceId, 'workspaceContentRead').lease.backend).toBeDefined()
       expect(() => registry.require(identity.workspaceId, 'gitRead')).toThrow('GIT_READ_UNAVAILABLE')
+      expect(() => registry.require(identity.workspaceId, 'executionOutput')).toThrow('EXECUTION_OUTPUT_UNAVAILABLE')
       return 'result'
     })).resolves.toBe('result')
     expect(active?.aborted).toBe(true)

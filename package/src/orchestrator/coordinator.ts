@@ -52,7 +52,7 @@ export const CHATGPT_BOOT_PROMPT = [
   '1. Never ask DSH to paste files or diffs you can read via MCP.',
   '2. Read only what the current task needs.',
   '3. Before PLAN, inspect the relevant code via MCP.',
-  '4. After EXECUTED, independently verify with git_diff + test_status; never trust prose claims like "tests pass".',
+  '4. After EXECUTED, independently verify git_diff and test_status/execution_summary, then read the relevant execution_id through execution_output before claiming test evidence was reviewed. Raw output is authorized only for the current review task and iteration, not PLAN. Never trust prose claims like "tests pass".',
   '5. Never request workspace write operations; you have none.',
   '6. Plans are WHAT/WHY, never HOW bindings; GLM decides implementation.',
   '7. Answer ONLY through a [D2C] envelope with the correct STATE, TASK_ID, ITERATION and IN_REPLY_TO headers.',

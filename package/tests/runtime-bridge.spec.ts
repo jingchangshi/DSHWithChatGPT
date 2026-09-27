@@ -27,7 +27,7 @@ function setup() {
     if (!tool) throw new Error('missing tool')
     return tool.handler(args, { subject: 'workspace:remote-workspace' })
   }
-  return { registry, tools, call, summary }
+  return { registry, tools, call, summary, recorder, stateDir }
 }
 
 function lease(): WorkspaceRuntimeLease {
@@ -42,6 +42,48 @@ function lease(): WorkspaceRuntimeLease {
 }
 
 describe('runtime-bound MCP bridge', () => {
+  it('reads durable output only for the authorized task and iteration after restart', async () => {
+    const { registry, recorder, stateDir } = setup()
+    const record = recorder.record({ taskId: 'task', iteration: 4, command: 'pnpm test', cwd: '.',
+      startedAt: 1, endedAt: 2, status: 'failure', exitCode: 1, stdout: '', stderr: 'Bearer abcdefghijklmnopqrst' })
+    const restarted = new ExecutionRecorder({ stateDir })
+    const tool = buildRuntimeWorkspaceTools({ workspaceId: 'remote-workspace', registry, recorder: restarted }).find(tool => tool.name === 'execution_output')!
+    const read = (id = record.id) => tool.handler({ execution_id: id }, { subject: 'workspace:remote-workspace' })
+    for (const scope of [{ taskId: 'other', iteration: 4 }, { taskId: 'task', iteration: 3 }]) {
+      const release = registry.acquire({ ...lease(), executionOutputScope: scope })
+      await expect(read()).rejects.toThrow('unknown execution id')
+      release()
+    }
+    const release = registry.acquire({ ...lease(), executionOutputScope: { taskId: 'task', iteration: 4 } })
+    await expect(read()).resolves.toMatchObject({ id: record.id, status: 'failure', stderrTail: 'Bearer *REDACTED*' })
+    await expect(read('missing')).rejects.toThrow('unknown execution id')
+    const other = setup()
+    const otherOutput = buildRuntimeWorkspaceTools({ workspaceId: 'remote-workspace', registry, recorder: other.recorder }).find(tool => tool.name === 'execution_output')!
+    await expect(otherOutput.handler({ execution_id: record.id }, { subject: 'workspace:remote-workspace' })).rejects.toThrow('unknown execution id')
+    release()
+    await expect(read()).rejects.toThrow('RUNTIME_LEASE_UNAVAILABLE')
+  })
+
+  it.each(['cancel', 'replace'] as const)('withholds output when its lease changes during record access: %s', async change => {
+    const { registry, recorder, call } = setup()
+    const controller = new AbortController()
+    const current = { ...lease(), signal: controller.signal, executionOutputScope: { taskId: 'task', iteration: 4 } }
+    const release = registry.acquire(current)
+    const record = recorder.record({ taskId: 'task', iteration: 4, command: 'test', cwd: '.',
+      startedAt: 1, endedAt: 2, status: 'success', exitCode: 0, stdout: 'private', stderr: '' })
+    vi.spyOn(recorder, 'get').mockImplementation(() => {
+      if (change === 'cancel') controller.abort(new Error('cancelled'))
+      else { release(); registry.acquire(current) }
+      return record
+    })
+    await expect(call('execution_output', { execution_id: record.id })).rejects.toThrow(change === 'cancel' ? 'cancelled' : 'RUNTIME_LEASE_CHANGED')
+  })
+
+  it('requires an explicit output scope even when capability metadata claims availability', async () => {
+    const { registry, call } = setup()
+    registry.acquire(lease())
+    await expect(call('execution_output', { execution_id: 'unknown' })).rejects.toThrow('EXECUTION_OUTPUT_UNAVAILABLE')
+  })
   it('keeps ten stable tools and denies all seven content channels without a lease', async () => {
     const { tools, call } = setup()
     expect(tools).toHaveLength(10)

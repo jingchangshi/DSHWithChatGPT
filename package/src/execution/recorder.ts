@@ -190,7 +190,7 @@ export class ExecutionRecorder {
       taskId: input.taskId,
       iteration: input.iteration,
       kind: input.kind ?? classifyCommand(input.command),
-      label: input.command.split(/\s+/).slice(0, 3).join(' '),
+      label: redact(input.command).split(/\s+/).slice(0, 3).join(' '),
       command: redact(input.command),
       cwd: redact(input.cwd),
       startedAt: input.startedAt,
@@ -227,7 +227,8 @@ export class ExecutionRecorder {
 
   /** One record by id. */
   get(id: string): ExecutionRecord | undefined {
-    return this.list({ limit: 10_000 }).find(r => r.id === id)
+    const record = this.list({ limit: 10_000 }).find(r => r.id === id)
+    return record === undefined ? undefined : { ...record, label: redact(record.label) }
   }
 
   /** Compact summary for MCP test_status / execution_summary. */

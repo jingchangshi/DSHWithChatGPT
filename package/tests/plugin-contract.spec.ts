@@ -4,6 +4,11 @@ import { setImmediate } from 'node:timers/promises'
 import { apply, Config, inject, resolveGitReadPolicy } from '../src/index.ts'
 import { BrowserHarnessAdapter } from '../src/browser/harness.ts'
 import { TunnelSupervisor } from '../src/tunnel/supervisor.ts'
+import * as readLeases from '@deepseek-ai/dsh-execution-world/read-lease'
+import * as gitLeases from '@deepseek-ai/dsh-execution-world/git-lease'
+
+vi.mock('@deepseek-ai/dsh-execution-world/read-lease', { spy: true })
+vi.mock('@deepseek-ai/dsh-execution-world/git-lease', { spy: true })
 
 interface RegisteredTool {
   name: string
@@ -14,6 +19,45 @@ interface RegisteredTool {
 }
 
 describe('production collaboration service requirements', () => {
+  it('denies review without a durable evidence owner before any browser or tunnel calls', async () => {
+    const ctx = new Context()
+    const tools = new Map<string, RegisteredTool>()
+    const workspaceId = 'fixture-execution-workspace'
+    const disposeRead = vi.fn(async () => {})
+    const disposeGit = vi.fn(async () => {})
+    const read = vi.spyOn(readLeases, 'bindExecutionReadLease').mockResolvedValue({
+      workspaceId: workspaceId as readLeases.ExecutionReadLease['workspaceId'],
+      fs: { stat: async () => undefined, readText: async () => '', listDir: async () => [] }, dispose: disposeRead,
+    })
+    const git = vi.spyOn(gitLeases, 'bindExecutionGitLease').mockResolvedValue({
+      workspaceId: workspaceId as gitLeases.ExecutionGitLease['workspaceId'], assurance: 'full', dispose: disposeGit,
+      git: { workspaceId: workspaceId as gitLeases.ExecutionGitLease['workspaceId'], emptyFile: 'NUL', signal: new AbortController().signal, execute: vi.fn() },
+    })
+    const ready = vi.spyOn(BrowserHarnessAdapter.prototype, 'ensureReady')
+    const send = vi.spyOn(BrowserHarnessAdapter.prototype, 'sendControlMessage')
+    const tunnel = vi.spyOn(TunnelSupervisor.prototype, 'ensure')
+    try {
+      ctx.provide('storageDomain', { open: async () => ({ close: async () => {}, table: () => ({ get: async () => undefined }) }) })
+      ctx.provide('executionWorldIdentity', { resolve: async () => workspaceId })
+      ctx.provide('fs', {})
+      ctx.provide('subprocess', {})
+      ctx.provide('sandbox', {})
+      ctx.provide('tools', { register: (tool: RegisteredTool) => { tools.set(tool.name, tool) } })
+      ctx.provide('systemPrompt', { section: () => {}, getSectionOrder: () => 0 })
+      await ctx.plugin({ apply, Config, inject }, { tunnelMode: 'external', gitRead: true })
+      await expect(tools.get('chatgpt_review')!.execute({ taskId: 'unbound' }, {
+        agent: { session: { header: { cwd: '/fixture' } } }, signal: new AbortController().signal,
+      })).rejects.toThrow('EXECUTION_OUTPUT_UNAVAILABLE')
+      expect(ready).not.toHaveBeenCalled()
+      expect(send).not.toHaveBeenCalled()
+      expect(tunnel).not.toHaveBeenCalled()
+      expect(disposeRead).toHaveBeenCalledOnce()
+      expect(disposeGit).toHaveBeenCalledOnce()
+    } finally {
+      await ctx.fiber.dispose()
+      for (const spy of [read, git, ready, send, tunnel]) spy.mockRestore()
+    }
+  })
   it('normalizes Git read policy with legacy compatibility and default denial', () => {
     expect(resolveGitReadPolicy(Config.parse({}))).toBe('disabled')
     expect(resolveGitReadPolicy(Config.parse({ gitRead: true }))).toBe('require-full')

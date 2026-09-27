@@ -26,6 +26,7 @@ import type { StateStore } from './orchestrator/state.ts'
 import { buildRuntimeWorkspaceTools } from './bridge/tools.ts'
 import { WorkspaceRuntimeRegistry } from './workspace/runtime.ts'
 import { withWorkspaceReadLease } from './workspace/with-read-lease.ts'
+import { reviewOutputScope } from './execution/scope.ts'
 import type { WorkspaceRuntimeIdentity } from './workspace/runtime.ts'
 import { resolveExecutionWorkspace } from './workspace/execution-identity.ts'
 import { startBridgeServer, type BridgeServer } from './bridge/index.ts'
@@ -357,7 +358,9 @@ export async function apply(ctx: Context, config: Config): Promise<void> {
               ? Promise.reject(new Error('Git read authorization is disabled'))
               : bindExecutionGitLease(ctx, workspace.displayRoot, signal, gitReadPolicy === 'allow-hardened-windows' ? 'allow-hardened-windows' : 'require-full'),
             gitReadPolicy === 'disabled' ? undefined : gitReadPolicy,
-            gitReadPolicy === 'disabled' ? 'GIT_READ_DISABLED' : gitReadPolicy === 'require-full' ? 'GIT_FULL_CONFINEMENT_REQUIRED' : 'GIT_HARDENED_WINDOWS_UNAVAILABLE')
+            gitReadPolicy === 'disabled' ? 'GIT_READ_DISABLED' : gitReadPolicy === 'require-full' ? 'GIT_FULL_CONFINEMENT_REQUIRED' : 'GIT_HARDENED_WINDOWS_UNAVAILABLE',
+            definition.name === 'chatgpt_review'
+              ? () => reviewOutputScope(coordinatorState, workspace.workspaceId, String(args.taskId)) : undefined)
         },
       }))
     }
@@ -444,6 +447,7 @@ export async function apply(ctx: Context, config: Config): Promise<void> {
       async execute(args: Record<string, unknown>, exec: ToolExec | undefined, workspace: WorkspaceRuntimeIdentity) {
         workspaceRuntimes.require(workspace.workspaceId, 'workspaceContentRead')
         workspaceRuntimes.require(workspace.workspaceId, 'gitRead')
+        workspaceRuntimes.require(workspace.workspaceId, 'executionOutput')
         await ensureRuntime(workspace, exec?.signal)
         if (config.gitPolicy === 'commit-push') {
           const executor = workspaceRuntimes.require(workspace.workspaceId, 'gitRead').lease.git

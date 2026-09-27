@@ -2,7 +2,7 @@ import { ExecutionGitCleanupError, type ExecutionGitLease } from '@deepseek-ai/d
 import type { ExecutionReadLease } from '@deepseek-ai/dsh-execution-world/read-lease'
 import { WorkspaceError } from './errors.ts'
 import { createReadLeaseBackend } from './read-lease.ts'
-import type { WorkspaceRuntimeIdentity, WorkspaceRuntimeRegistry } from './runtime.ts'
+import type { ExecutionOutputScope, WorkspaceRuntimeIdentity, WorkspaceRuntimeRegistry } from './runtime.ts'
 
 /** Own one collaboration operation's file and fixed-Git access and join cleanup before settlement. */
 export async function withWorkspaceReadLease<Result>(
@@ -14,6 +14,7 @@ export async function withWorkspaceReadLease<Result>(
   acquireGit?: (signal: AbortSignal) => Promise<ExecutionGitLease>,
   gitReadPolicy: 'require-full' | 'allow-hardened-windows' = 'require-full',
   gitUnavailableReason: 'GIT_READ_DISABLED' | 'GIT_FULL_CONFINEMENT_REQUIRED' | 'GIT_HARDENED_WINDOWS_UNAVAILABLE' | 'GIT_READ_UNAVAILABLE' = 'GIT_READ_UNAVAILABLE',
+  authorizeOutput?: () => Promise<ExecutionOutputScope | undefined>,
 ): Promise<Result> {
   const lifetime = new AbortController()
   const active = signal === undefined ? lifetime.signal : AbortSignal.any([signal, lifetime.signal])
@@ -49,12 +50,16 @@ export async function withWorkspaceReadLease<Result>(
         gitLease = undefined
       }
     }
+    const executionOutputScope = await authorizeOutput?.()
+    active.throwIfAborted()
     release = registry.acquire({
       identity, generation: Symbol(), signal: active, backend, git: gitLease?.git,
+      executionOutputScope,
       capabilities: {
         workspaceContentRead: { available: true },
         gitRead: gitLease === undefined ? { available: false, reason: gitUnavailableReason } : { available: true, assurance: gitLease.assurance },
-        executionOutput: { available: false, reason: 'EXECUTION_OUTPUT_UNAVAILABLE' },
+        executionOutput: executionOutputScope === undefined
+          ? { available: false, reason: 'EXECUTION_OUTPUT_UNAVAILABLE' } : { available: true },
       },
     })
     const result = await operation(active)

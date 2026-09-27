@@ -33,6 +33,11 @@ export interface WorkspaceRuntimeIdentity {
   readonly displayRoot: string
 }
 
+export interface ExecutionOutputScope {
+  readonly taskId: string
+  readonly iteration: number
+}
+
 /** Ephemeral service ownership for one executing collaboration tool. */
 export interface WorkspaceRuntimeLease {
   readonly identity: WorkspaceRuntimeIdentity
@@ -41,6 +46,7 @@ export interface WorkspaceRuntimeLease {
   readonly capabilities: Readonly<Record<WorkspaceContentCapability, WorkspaceCapability>>
   readonly backend?: WorkspaceReadBackend
   readonly git?: WorkspaceGitExecutor
+  readonly executionOutputScope?: ExecutionOutputScope
 }
 
 /** Metadata excludes service tokens, provider IDs, and transport details. */

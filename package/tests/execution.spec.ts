@@ -72,6 +72,20 @@ describe('private key handling', () => {
 })
 
 describe('recorder', () => {
+  it('redacts labels in records persisted before label sanitization', () => {
+    const recorder = makeRecorder()
+    const token = 'ghp_abcdefghijklmnopqrst'
+    const record = recorder.record(base)
+    fs.writeFileSync(path.join(stateDir, 'executions.jsonl'), JSON.stringify({ ...record, label: 'echo ' + token }) + '\n')
+    expect(JSON.stringify(new ExecutionRecorder({ stateDir }).get(record.id))).not.toContain(token)
+  })
+  it('redacts command labels before persisting output records', () => {
+    const recorder = makeRecorder()
+    const token = 'ghp_abcdefghijklmnopqrst'
+    const record = recorder.record({ ...base, command: 'echo ' + token })
+    expect(JSON.stringify(record)).not.toContain(token)
+    expect(fs.readFileSync(path.join(stateDir, 'executions.jsonl'), 'utf8')).not.toContain(token)
+  })
   it('records and lists executions', () => {
     const recorder = makeRecorder()
     const rec = recorder.record(base)

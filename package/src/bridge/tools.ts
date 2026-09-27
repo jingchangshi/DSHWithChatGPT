@@ -370,12 +370,19 @@ export function buildRuntimeWorkspaceTools(spec: RuntimeWorkspaceSpec): McpToolD
         }
       }
       if (template.name === 'execution_output') {
-        const { lease } = spec.registry.require(spec.workspaceId, 'executionOutput')
+        const { lease, token } = spec.registry.require(spec.workspaceId, 'executionOutput')
+        const scope = lease.executionOutputScope
+        if (scope === undefined) throw new WorkspaceError('WORKSPACE_CAPABILITY_UNAVAILABLE', 'EXECUTION_OUTPUT_UNAVAILABLE')
         const id = args['execution_id']
         if (typeof id !== 'string') throw new WorkspaceError('INVALID_PATH', 'execution_id must be a string')
         const record = spec.recorder.get(id)
-        if (record === undefined) throw new WorkspaceError('INVALID_PATH', 'unknown execution id')
+        if (record === undefined || record.taskId !== scope.taskId || record.iteration !== scope.iteration) {
+          throw new WorkspaceError('INVALID_PATH', 'unknown execution id')
+        }
         lease.signal.throwIfAborted()
+        if (spec.registry.require(spec.workspaceId, 'executionOutput').token !== token) {
+          throw new WorkspaceError('WORKSPACE_CAPABILITY_UNAVAILABLE', 'RUNTIME_LEASE_CHANGED')
+        }
         return record
       }
       const operation = template.name as WorkspaceReadOperation

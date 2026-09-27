@@ -17,5 +17,5 @@ export const WORKSPACE_TOOL_DEFINITIONS = {
   git_log: { name: 'git_log', description: 'Read recent commit hashes and subjects; at most 50 commits.', inputSchema: object({ limit: number }) },
   test_status: { name: 'test_status', description: 'Read aggregate execution counts and latest test outcome, without command text or output.', inputSchema: object({ task_id: string }) },
   execution_summary: { name: 'execution_summary', description: 'Read aggregate execution outcomes filtered by task and iteration, without command text or output.', inputSchema: object({ task_id: string, iteration: number }) },
-  execution_output: { name: 'execution_output', description: 'Read one recorded execution including capped and redacted output; requires content authorization.', inputSchema: object({ execution_id: string }, ['execution_id']) },
+  execution_output: { name: 'execution_output', description: 'Read capped, redacted execution output for the active review task and iteration. Obtain execution_id from test_status or execution_summary; unavailable during PLAN.', inputSchema: object({ execution_id: string }, ['execution_id']) },
 } satisfies Record<string, Omit<McpToolDefinition, 'handler'>>
