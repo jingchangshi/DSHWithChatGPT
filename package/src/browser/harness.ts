@@ -143,7 +143,9 @@ export class BrowserHarnessAdapter implements BrowserControl {
     const deadline = Date.now() + timeoutMs
     const baseline = this.replyBaseline ?? { assistantCount: -1, text: '' }
     let last = ''
-    let unchanged = 0
+    let lastChangedAt = 0
+    let stableObservations = 0
+    let sawStreaming = false
     let sawNewReply = false
 
     while (Date.now() < deadline) {
@@ -157,20 +159,29 @@ export class BrowserHarnessAdapter implements BrowserControl {
           || (state.text.trim() !== '' && state.text !== baseline.text)
 
         if (!changedFromBaseline) {
-          unchanged = 0
+          stableObservations = 0
           continue
         }
         sawNewReply = true
 
         if (state.streaming) {
-          unchanged = 0
+          sawStreaming = true
+          stableObservations = 0
           last = state.text
           continue
         }
 
-        unchanged = state.text === last && state.text.trim() !== '' ? unchanged + 1 : 0
+        const now = Date.now()
+        if (state.text !== last || stableObservations === 0) {
+          lastChangedAt = now
+          stableObservations = 1
+        } else {
+          stableObservations++
+        }
         last = state.text
-        if (unchanged >= 1) {
+        if (state.text.trim() !== '' && (sawStreaming
+          ? stableObservations >= 2 && now - lastChangedAt >= 1500
+          : stableObservations >= 3 && now - lastChangedAt >= 4500)) {
           this.replyBaseline = undefined
           return { text: state.text, complete: true }
         }
@@ -329,9 +340,10 @@ export class BrowserHarnessAdapter implements BrowserControl {
       '}',
       'messages.sort((left, right) => left.node.compareDocumentPosition(right.node) & Node.DOCUMENT_POSITION_FOLLOWING ? -1 : 1);',
       'const latest = messages.length > 0 ? messages[messages.length - 1].node : null;',
+      'const animated = latest?.getAttribute("data-markdown-text-style") === "assistant-message" && latest.hasAttribute("data-markdown-animated");',
       'const stop = Array.from(document.querySelectorAll("button")).some((button) => { const label = (button.getAttribute("aria-label") || button.textContent || "").toLowerCase(); return label.includes("stop streaming") || label === "stop"; });',
       'const login = Array.from(document.querySelectorAll("a,button")).some((node) => { const text = (node.textContent || "").trim().toLowerCase(); return ["log in", "login", "sign up", "登录", "注册"].includes(text); });',
-      'return { text: latest ? (latest.innerText || latest.textContent || "") : "", assistantCount: messages.length, streaming: stop, loggedOut: !composer && login, composer: !!composer, composerCount: composerNodes.length };',
+      'return { text: latest ? (latest.innerText || latest.textContent || "") : "", assistantCount: messages.length, streaming: animated || stop, loggedOut: !composer && login, composer: !!composer, composerCount: composerNodes.length };',
       '})()',
     ].join(' ')
     const value = await this.call<unknown>('browser_js', { expression }, signal)

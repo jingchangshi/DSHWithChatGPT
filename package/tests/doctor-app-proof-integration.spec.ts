@@ -13,13 +13,14 @@ vi.mock('@deepseek-ai/dsh-execution-world/git-lease', { spy: true })
 afterEach(() => vi.restoreAllMocks())
 
 describe('registered doctor App proof', () => {
-  it.each([false, true])('uses the production bridge through the browser provider (wrong=%s)', async wrong => {
+  it.each(['valid', 'wrong', 'malformed', 'delayed'])('uses the production bridge through the browser provider (%s)', async scenario => {
     const ctx = new Context()
     const workspaceId = randomUUID()
     const records = new Map<string, unknown>()
     const tools = new Map<string, { execute(args: Record<string, unknown>, exec: unknown): Promise<unknown> }>()
     let binding: TunnelBinding | undefined
     let reply = ''
+    let replyReads = 0
     let challenge = ''
     let prompt = ''
     const mcp = async (name: string) => {
@@ -48,7 +49,8 @@ describe('registered doctor App proof', () => {
           const workspace = await mcp('workspace_info')
           challenge = workspace.appProof.challenge
           expect(prompt).not.toContain(challenge)
-          reply = '[D2C_APP_PROOF_V1]' + JSON.stringify({ challenge: wrong ? 'wrong' : challenge, workspaceId: workspace.workspaceId, root: rootFact(await mcp('list_directory')), git: gitFact(await mcp('git_status')) })
+          reply = '[D2C_APP_PROOF_V1]' + JSON.stringify({ challenge: scenario === 'wrong' ? 'wrong' : challenge, workspaceId: workspace.workspaceId, root: rootFact(await mcp('list_directory')), git: gitFact(await mcp('git_status')) })
+          if (scenario === 'malformed') reply = reply.slice(0, -1)
         }
         if (name === 'browser_js') {
           const expression = request.arguments.expression!
@@ -56,7 +58,9 @@ describe('registered doctor App proof', () => {
           if (expression.includes('const candidates')) return { value: { found: true, x: 1, y: 1 } }
           if (expression.includes('const decorators')) return { value: true }
           if (expression.includes('const external =')) return { value: true }
-          return { value: { text: reply, assistantCount: reply ? 1 : 0, streaming: false, loggedOut: false, composer: true } }
+          if (reply !== '') replyReads++
+          const text = scenario === 'delayed' && replyReads <= 3 ? reply.slice(0, 32) : reply
+          return { value: { text, assistantCount: reply ? 1 : 0, streaming: false, loggedOut: false, composer: true } }
         }
         return { value: {} }
       },
@@ -71,7 +75,8 @@ describe('registered doctor App proof', () => {
       expect(metadata.endsWith('\\n')).toBe(false)
       expect(JSON.parse(metadata)).toMatchObject({ authorization: { type: 'bearer-file', tokenFile: binding!.bearerValueFile } })
       const result = await tools.get('chatgpt_doctor')!.execute({ mode: 'app-proof' }, exec)
-      expect(result).toMatchObject({ localReady: true, appDataPlaneVerified: !wrong, fullC2CVerified: false })
+      expect(result).toMatchObject({ localReady: true, appDataPlaneVerified: scenario === 'valid' || scenario === 'delayed', fullC2CVerified: false })
+      if (scenario === 'malformed') expect(result).toMatchObject({ checks: expect.arrayContaining([expect.objectContaining({ code: 'APP_PROOF_MALFORMED' })]) })
       expect(challenge).toMatch(/^[a-f0-9]{64}$/)
       expect(JSON.stringify(result)).not.toContain(challenge)
       expect(JSON.stringify([...records])).not.toContain(challenge)

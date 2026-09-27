@@ -40,7 +40,7 @@ Every tool call has a unique call id, the current DSH agent/session, an abort si
 
 ## Reply fencing
 
-Before a send, the adapter stores `assistantCount` + latest assistant text. `waitForReply()` ignores the pre-existing assistant message and only accepts a changed/new assistant response that is no longer streaming and is stable across polls. This prevents an old PLAN/DONE from satisfying a new round.
+Before a send, the adapter stores `assistantCount` + latest assistant text. `waitForReply()` ignores the pre-existing assistant message. The latest current assistant body’s `data-markdown-animated` attribute signals generation; legacy English stop controls remain supported. After observed generation ends, two identical non-streaming observations at least 1.5 seconds apart are required. If generation was never observed, at least three identical observations and 4.5 seconds without text changes are required. A text change resets settling; message identity attributes do not establish completion. Existing reply timeouts and caller cancellation still apply, and proof validation remains strict.
 
 ## Failure handling
 

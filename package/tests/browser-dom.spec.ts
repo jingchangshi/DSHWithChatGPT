@@ -4,6 +4,22 @@ import { BrowserHarnessAdapter } from '../src/browser/harness.ts'
 import { BrowserStaleError, ChatGptAppUnavailableError, ChatGptLoggedOutError } from '../src/browser/adapter.ts'
 import { OperationCancelledError } from '../src/cancellation.ts'
 
+vi.mock('node:timers/promises', () => ({
+  setTimeout: (milliseconds: number, value: unknown, options: { signal?: AbortSignal } = {}) => new Promise((resolve, reject) => {
+    const onAbort = () => {
+      clearTimeout(timer)
+      options.signal?.removeEventListener('abort', onAbort)
+      reject(new Error('aborted'))
+    }
+    const timer = setTimeout(() => {
+      options.signal?.removeEventListener('abort', onAbort)
+      resolve(value)
+    }, milliseconds)
+    if (options.signal?.aborted) onAbort()
+    else options.signal?.addEventListener('abort', onAbort, { once: true })
+  }),
+}))
+
 const windows: Window[] = []
 afterEach(async () => { vi.useRealTimers(); await Promise.all(windows.splice(0).map(window => window.happyDOM.close())) })
 
@@ -188,7 +204,7 @@ describe('ChatGPT composer DOM resolution', () => {
     const { browser, window } = fixture('<div role="textbox" contenteditable="true"></div><div data-chatgpt-selection-message-id="old"><div data-markdown-text-style="assistant-message">old</div></div>', { appName: '' })
     await browser.sendControlMessage('request')
     vi.useFakeTimers()
-    const pending = browser.waitForReply(10_000)
+    const pending = browser.waitForReply(15_000)
     let completed = false
     void pending.then(() => { completed = true })
     window.document.querySelector('[data-chatgpt-selection-message-id]')!.setAttribute('data-message-author-role', 'assistant')
@@ -197,8 +213,75 @@ describe('ChatGPT composer DOM resolution', () => {
     window.document.body.insertAdjacentHTML('beforeend', '<div data-markdown-text-style="assistant-message">new</div>')
     await vi.advanceTimersByTimeAsync(1500)
     expect(completed).toBe(false)
-    await vi.advanceTimersByTimeAsync(1500)
+    await vi.advanceTimersByTimeAsync(4500)
     await expect(pending).resolves.toEqual({ text: 'new', complete: true })
+  })
+
+  it.each(['animated', 'legacy-stop'] as const)('never settles a paused response with %s generation evidence', async marker => {
+    const { browser, window } = fixture('<div role="textbox" contenteditable="true"></div>', { appName: '' })
+    await browser.sendControlMessage('request')
+    window.document.body.insertAdjacentHTML('beforeend', '<div data-markdown-text-style="assistant-message">partial</div>')
+    const body = window.document.querySelector('[data-markdown-text-style]')!
+    if (marker === 'animated') body.setAttribute('data-markdown-animated', '')
+    else window.document.body.insertAdjacentHTML('beforeend', '<button aria-label="Stop streaming"></button>')
+    vi.useFakeTimers()
+    let complete = false
+    const pending = browser.waitForReply(30_000).then(reply => { complete = true; return reply })
+    await vi.advanceTimersByTimeAsync(7500)
+    expect(complete).toBe(false)
+    body.textContent = 'final'
+    body.removeAttribute('data-markdown-animated')
+    window.document.querySelector('button')?.remove()
+    await vi.advanceTimersByTimeAsync(1500)
+    expect(complete).toBe(false)
+    await vi.advanceTimersByTimeAsync(1500)
+    await expect(pending).resolves.toEqual({ text: 'final', complete: true })
+    expect(window.document.querySelector('[data-chatgpt-selection-message-id]')).toBeNull()
+  })
+
+  it.each([false, true])('resets fallback settling after a three-second pause regardless of message identity (%s)', async identity => {
+    const { browser, window } = fixture('<div role="textbox" contenteditable="true"></div>', { appName: '' })
+    await browser.sendControlMessage('request')
+    window.document.body.insertAdjacentHTML('beforeend', '<div data-markdown-text-style="assistant-message">partial</div>')
+    const body = window.document.querySelector('[data-markdown-text-style]')!
+    if (identity) body.setAttribute('data-chatgpt-selection-message-id', 'reply')
+    vi.useFakeTimers()
+    let complete = false
+    const pending = browser.waitForReply(30_000).then(reply => { complete = true; return reply })
+    await vi.advanceTimersByTimeAsync(4500)
+    expect(complete).toBe(false)
+    body.textContent = 'final'
+    await vi.advanceTimersByTimeAsync(4500)
+    expect(complete).toBe(false)
+    await vi.advanceTimersByTimeAsync(1500)
+    await expect(pending).resolves.toEqual({ text: 'final', complete: true })
+  })
+
+  it('ignores animated markdown outside the latest assistant body', async () => {
+    const { browser, window } = fixture('<div role="textbox" contenteditable="true"></div>', { appName: '' })
+    await browser.sendControlMessage('request')
+    window.document.body.insertAdjacentHTML('beforeend', '<div data-markdown-animated>unrelated</div><div data-markdown-text-style="assistant-message">final</div>')
+    vi.useFakeTimers()
+    const pending = browser.waitForReply(15_000)
+    await vi.advanceTimersByTimeAsync(6000)
+    await expect(pending).resolves.toEqual({ text: 'final', complete: true })
+  })
+
+  it.each([false, true])('cancels reply settling after observed streaming=%s', async streaming => {
+    const { browser, window } = fixture('<div role="textbox" contenteditable="true"></div>', { appName: '' })
+    await browser.sendControlMessage('request')
+    window.document.body.insertAdjacentHTML('beforeend', '<div data-markdown-text-style="assistant-message">partial</div>')
+    const body = window.document.querySelector('[data-markdown-text-style]')!
+    if (streaming) body.setAttribute('data-markdown-animated', '')
+    vi.useFakeTimers()
+    const controller = new AbortController()
+    const result = expect(browser.waitForReply(30_000, controller.signal)).rejects.toBeInstanceOf(OperationCancelledError)
+    await vi.advanceTimersByTimeAsync(1500)
+    body.removeAttribute('data-markdown-animated')
+    await vi.advanceTimersByTimeAsync(1500)
+    controller.abort()
+    await result
+    expect(vi.getTimerCount()).toBe(0)
   })
 
 
