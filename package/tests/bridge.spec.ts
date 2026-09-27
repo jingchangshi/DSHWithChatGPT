@@ -146,12 +146,16 @@ describe('read-only tools over HTTP', () => {
   })
 
   it('list_directory hides sensitive and noise entries', async () => {
+    fs.writeFileSync(path.join(root, 'REQUIREMENTS.md'), 'requirements')
+    fs.mkdirSync(path.join(root, 'dsh-with-chatgpt'))
     fs.writeFileSync(path.join(root, 'server.key'), 'k')
     fs.mkdirSync(path.join(root, 'node_modules'))
     const r = await rpc('tools/call', { name: 'list_directory', arguments: { path: '.' } })
     const parsed = JSON.parse(r.body.result.content[0].text)
     const names = parsed.entries.map((e: { name: string }) => e.name)
     expect(names).toContain('src')
+    expect(names).toEqual([...names].sort())
+    expect(names.indexOf('REQUIREMENTS.md')).toBeLessThan(names.indexOf('dsh-with-chatgpt'))
     expect(names).not.toContain('.env')
     expect(names).not.toContain('server.key')
     expect(names).not.toContain('node_modules')

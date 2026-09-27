@@ -10,6 +10,7 @@ const reply = (value: unknown) => '[D2C_APP_PROOF_V1]\n' + JSON.stringify(value)
 
 describe('App proof', () => {
   it('projects only bounded visible directory and Git facts', () => {
+    expect(rootFact({ path: '', entries: [{ name: 'same', type: 'file' }, { name: 'same', type: 'dir' }], truncated: false }).firstVisibleEntry).toEqual({ name: 'same', type: 'dir' })
     expect(expected.root.firstVisibleEntry).toEqual({ name: 'a', type: 'file' })
     expect(rootFact({ path: '', entries: [], truncated: false }).firstVisibleEntry).toBeNull()
     expect(rootFact({ path: '', entries: Array.from({ length: 500 }, (_, index) => ({ name: String(index), type: 'file' })), truncated: true })).toMatchObject({ visibleEntryCount: 500, truncated: true })
@@ -18,6 +19,8 @@ describe('App proof', () => {
     expect(() => rootFact({ path: '', entries: [{ name: 'x', type: 'symlink' }], truncated: false })).toThrow()
   })
   it('accepts matching facts without supplying answers in the prompt', () => {
+    expect(appProofPrompt).toContain('first returned entry')
+    expect(appProofPrompt).not.toContain('sorted by')
     expect(verifyAppProof(reply(expected), expected)).toBeUndefined()
     for (const value of [expected.challenge, expected.workspaceId, expected.git.head!, expected.git.branch!]) expect(appProofPrompt).not.toContain(value)
   })
@@ -30,6 +33,7 @@ describe('App proof', () => {
     [reply({ ...expected, challenge: 'old' }), 'APP_PROOF_CHALLENGE_MISMATCH'],
     [reply({ ...expected, workspaceId: 'other' }), 'APP_PROOF_WORKSPACE_MISMATCH'],
     [reply({ ...expected, root: { ...expected.root, visibleEntryCount: 8 } }), 'APP_PROOF_ROOT_MISMATCH'],
+    [reply({ ...expected, root: { ...expected.root, firstVisibleEntry: { name: 'wrong', type: 'file' } } }), 'APP_PROOF_ROOT_MISMATCH'],
     [reply({ ...expected, git: { ...expected.git, head: 'other' } }), 'APP_PROOF_GIT_MISMATCH'],
   ])('rejects invalid proof %#', (text, code) => {
     expect(verifyAppProof(text, expected)).toBe(code)

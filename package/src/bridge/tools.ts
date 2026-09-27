@@ -16,6 +16,7 @@ import { workspaceIdentity } from '../workspace/identity.ts'
 import { WorkspaceRuntimeRegistry, type WorkspaceReadOperation } from '../workspace/runtime.ts'
 import { normalizeWorkspaceQuery } from '../workspace/query.ts'
 import { WORKSPACE_TOOL_DEFINITIONS } from './tool-definitions.ts'
+import { compareDirectoryEntries } from '../workspace/directory-order.ts'
 
 /** Workspace context every tool call is scoped to. */
 export interface WorkspaceSpec {
@@ -94,17 +95,21 @@ export function listDirectoryTool(spec: WorkspaceSpec): McpToolDefinition {
       const listed: Array<{ name: string; type: 'file' | 'dir'; sensitive: boolean }> = []
       let hiddenSensitive = 0
       let truncated = false
+      entries.sort((left, right) => compareDirectoryEntries(
+        { name: left.name, type: left.isDirectory() ? 'dir' : 'file' },
+        { name: right.name, type: right.isDirectory() ? 'dir' : 'file' },
+      ))
       for (const entry of entries) {
-        if (listed.length >= LIST_CAP) {
-          truncated = true
-          break
-        }
         const relEntry = rel === '' ? entry.name : rel + '/' + entry.name
         const isDir = entry.isDirectory()
         if (noise.matches(relEntry, isDir)) continue
         if (spec.policy.isSensitive(relEntry, isDir)) {
           hiddenSensitive++
           continue
+        }
+        if (listed.length >= LIST_CAP) {
+          truncated = true
+          break
         }
         listed.push({ name: entry.name, type: isDir ? 'dir' : 'file', sensitive: false })
       }

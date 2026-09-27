@@ -3,6 +3,7 @@ import { IgnoreMatcher, NOISE_PATTERNS, SensitivePolicy } from './boundary.ts'
 import { WorkspaceError } from './errors.ts'
 import { normalizeWorkspacePath } from './query.ts'
 import type { WorkspaceReadBackend } from './runtime.ts'
+import { compareDirectoryEntries } from './directory-order.ts'
 
 /** Adapt one producer-owned filesystem; callers retain acquisition and disposal ownership. */
 export async function createReadLeaseBackend(lease: ExecutionReadLease, signal: AbortSignal): Promise<WorkspaceReadBackend> {
@@ -38,7 +39,7 @@ export async function createReadLeaseBackend(lease: ExecutionReadLease, signal: 
         const entries: Array<{ name: string; type: 'file' | 'dir'; sensitive: boolean }> = []
         let hiddenSensitiveCount = 0
         let truncated = false
-        for (const entry of await lease.fs.listDir(path, active)) {
+        for (const entry of [...await lease.fs.listDir(path, active)].sort(compareDirectoryEntries)) {
           active.throwIfAborted()
           if (entry.type === 'other' || noise.matches(entry.path, entry.type === 'directory')) continue
           if (policy.isSensitive(entry.path, entry.type === 'directory')) { hiddenSensitiveCount++; continue }

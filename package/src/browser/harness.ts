@@ -36,6 +36,7 @@ interface ReplyBaseline {
 
 interface ComposerDraft {
   texts: string[]
+  preserve?: boolean
 }
 
 const composerSelector = '[data-d2c-composer-target="1"]'
@@ -134,7 +135,8 @@ export class BrowserHarnessAdapter implements BrowserControl {
       const expected = appName === '' ? text : appName + ' ' + text
       const filled = await this.resolveComposer(signal, { texts: [expected] })
       if (!filled.owned) throw new BrowserStaleError('ChatGPT control message input could not be verified')
-      await this.focusComposer(signal)
+      await this.ensureCurrentTargetVisible(draft, signal)
+      if (!(await this.resolveComposer(signal, { texts: [expected] }, true)).owned) throw new BrowserStaleError('ChatGPT control message changed before sending')
       await this.call<unknown>('browser_press', { key: 'Enter' }, signal)
     }, false, signal)
   }
@@ -249,7 +251,7 @@ export class BrowserHarnessAdapter implements BrowserControl {
       originalError = error
       throw error
     } finally {
-      if (clearOnSuccess || !succeeded) {
+      if ((clearOnSuccess || !succeeded) && !draft.preserve) {
         try {
           await this.clearComposer(draft, AbortSignal.timeout(1_500))
         } catch (error) {
@@ -272,6 +274,7 @@ export class BrowserHarnessAdapter implements BrowserControl {
     }
 
     for (let attempt = 0; attempt < 2; attempt++) {
+      await this.ensureCurrentTargetVisible(draft, signal)
       await this.requirePlainAppQuery(appName, signal)
       const candidate = await this.findAppCandidate(appName, signal)
       if (!candidate.found || typeof candidate.x !== 'number' || typeof candidate.y !== 'number') break
@@ -399,8 +402,45 @@ export class BrowserHarnessAdapter implements BrowserControl {
     return { empty: value.empty, owned: value.owned === true }
   }
 
-  private async focusComposer(signal?: AbortSignal): Promise<void> {
-    await this.resolveComposer(signal, undefined, true)
+  private async ensureCurrentTargetVisible(draft: ComposerDraft, signal?: AbortSignal): Promise<void> {
+    const deadline = new AbortController()
+    const timer = setTimeout(() => deadline.abort(), 1_000)
+    const active = signal === undefined ? deadline.signal : AbortSignal.any([signal, deadline.signal])
+    const readVisibility = () => this.call<{ visibility?: string; url?: string }>('browser_js', {
+      expression: '({ visibility: document.visibilityState, url: location.href })',
+    }, active)
+    try {
+      const initial = await readVisibility()
+      if (initial?.visibility === 'visible') return
+      if (initial?.visibility !== 'hidden') throw new BrowserStaleError('ChatGPT document visibility is unavailable')
+      const page = await this.call<{ url?: string }>('browser_page_info', {}, active)
+      const target = await this.call<{ targetId?: string; url?: string }>('browser_current_tab', {}, active)
+      if (typeof page?.url !== 'string' || !page.url.startsWith('https://chatgpt.com/') || initial.url !== page.url
+        || typeof target?.targetId !== 'string' || target.targetId.trim() === '' || target.url !== page.url) {
+        throw new BrowserStaleError('ChatGPT current tab identity could not be verified')
+      }
+      const activated = await this.call<unknown>('browser_cdp', { method: 'Target.activateTarget', params: { targetId: target.targetId } }, active)
+      if (typeof activated !== 'object' || activated === null || Array.isArray(activated) || 'error' in activated) {
+        throw new BrowserStaleError('ChatGPT current tab activation failed')
+      }
+      while (true) {
+        const current = await this.call<{ targetId?: string; url?: string }>('browser_current_tab', {}, active)
+        const state = await readVisibility()
+        if (current?.targetId !== target.targetId || current.url !== page.url || state?.url !== page.url) {
+          throw new BrowserStaleError('ChatGPT current tab changed during visibility recovery')
+        }
+        if (state.visibility === 'visible') return
+        if (state.visibility !== 'hidden') throw new BrowserStaleError('ChatGPT document visibility is unavailable')
+        await abortableDelay(100, active)
+      }
+    } catch (error) {
+      draft.preserve = true
+      throwIfCancelled(signal)
+      if (deadline.signal.aborted) throw new BrowserStaleError('ChatGPT current tab did not become visible')
+      throw error
+    } finally {
+      clearTimeout(timer)
+    }
   }
 
   private async typeComposer(before: string, text: string, draft: ComposerDraft, signal?: AbortSignal): Promise<void> {
@@ -441,6 +481,7 @@ export class BrowserHarnessAdapter implements BrowserControl {
     const current = await this.resolveComposer(signal, draft)
     if (current.empty) return
     if (!current.owned) throw new BrowserStaleError('ChatGPT composer draft is not owned by this operation')
+    await this.ensureCurrentTargetVisible(draft, signal)
     if (!(await this.resolveComposer(signal, draft, true)).owned) throw new BrowserStaleError('ChatGPT composer changed before cleanup')
     await this.call<unknown>('browser_press', { key: 'a', modifiers: 2 }, signal)
     const selected = await this.call<unknown>('browser_js', { expression: [

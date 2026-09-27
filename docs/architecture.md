@@ -2,6 +2,8 @@
 
 Doctor reports localReady separately from appDataPlaneVerified; ready remains an alias for localReady and fullC2CVerified remains false. Local mode sends no diagnostic message. Explicit app-proof mode keeps one execution read lease live while the exact App retrieves a fresh memory-only challenge and workspace/root/Git facts. The browser prompt contains the requested fields, never their expected values. A matching reply verifies only that operation's App data access, not a completed PLAN/execution/REVIEW round.
 
+Directory listings order names, then types, using case-sensitive UTF-16 comparison before the visible-entry cap. App proof copies the first returned entry without asking the model to sort; challenge, identity, directory facts and Git facts remain strictly validated.
+
 ## 目标
 
 控制所有权分为两个部分：独立 `d2c_control` v1 存储持久化 managed tunnel 的 workspace/task/claim 及 pre-task/task 阶段；进程内浏览器互斥拒绝本插件 PLAN、REVIEW、doctor、reconnect 的重叠操作。任务存储 `d2c_state` v1 不变。隧道绑定检查与启动串行执行，非终态任务在重启后保留所有权；发送 INIT 结果不明确时不自动释放或重发。浏览器互斥不隔离普通执行器工具、人工操作或其他进程，当前支持每个 profile/state store 一个活动插件进程。
@@ -59,6 +61,8 @@ Browser Harness 控制 ChatGPT Web，但 composer 只传小型 D2C envelope，�
 5. 只接受 baseline 之后出现的新 assistant 回复；等待 streaming 停止且文本稳定。
 
 App 找不到时 fail closed：不会退化成一个没有 workspace MCP 的“盲规划/盲评审”。
+
+Windows LOCAL 的专用 ChatGPT Chrome 窗口及目标标签页必须在原生点击、按键交互期间保持前台可见。候选点击、发送和已确认归属的草稿清理前检查页面可见性；隐藏时仅对 Browser Harness 返回的当前 target 尝试一次激活，并在一秒内确认 target、ChatGPT URL 未变化且页面可见。此尝试不保证恢复前台可见性，不枚举、切换绑定或新建标签页；仍隐藏时保留草稿供检查，不继续点击或按键。清理仍要求完整且包含于 composer 的选区证明，发送前仍复核草稿归属。
 
 Browser Harness 工具调用始终绑定**当前 DSH agent/session**；coordinator 不再按 workspace 缓存旧 BrowserUse owner。
 

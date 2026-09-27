@@ -35,6 +35,22 @@ function fixture(files: Record<string, string>) {
 }
 
 describe('execution read lease backend', () => {
+  it('orders visible names ordinally before applying the directory cap', async () => {
+    const state = fixture({
+      ...Object.fromEntries(Array.from({ length: 501 }, (_, index) => ['entry-' + String(500 - index).padStart(3, '0'), ''])),
+      'dsh-with-chatgpt/data': '', 'REQUIREMENTS.md': '', 'intervals.js': '',
+      '.env': 'secret', 'node_modules/data': 'noise',
+    })
+    const backend = await state.backend()
+    const listing = await backend.read({ operation: 'list_directory', path: '', maxEntries: 500 }, state.signal) as { entries: Array<{ name: string }>; truncated: boolean }
+    expect(listing.entries).toHaveLength(500)
+    expect(listing.entries.slice(0, 3).map(entry => entry.name)).toEqual(['REQUIREMENTS.md', 'dsh-with-chatgpt', 'entry-000'])
+    expect(listing.entries.at(-1)?.name).toBe('entry-497')
+    expect(listing.truncated).toBe(true)
+    expect(listing.entries.map(entry => entry.name)).not.toContain('.env')
+    expect(listing.entries.map(entry => entry.name)).not.toContain('node_modules')
+  })
+
   it('uses one lease for ignore policy, reads, listings and search', async () => {
     const state = fixture({ '.d2cignore': 'private/', '.env': 'needle secret', '.env.example': 'needle public',
       'private/data.txt': 'needle private', 'node_modules/data.txt': 'needle noise', 'src/data.txt': 'needle public',

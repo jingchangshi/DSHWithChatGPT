@@ -55,6 +55,7 @@ describe('registered doctor App proof', () => {
         if (name === 'browser_js') {
           const expression = request.arguments.expression!
           if (expression.includes('composer.setAttribute')) return { value: { count: 1, empty: true, owned: true, focused: true } }
+          if (expression.includes('visibility: document.visibilityState')) return { value: { visibility: 'visible', url: 'https://chatgpt.com/c/fixture' } }
           if (expression.includes('return content.trim() ===')) return { value: true }
           if (expression.includes('const candidates')) return { value: { found: true, x: 1, y: 1 } }
           if (expression.includes('const decorators')) return { value: true }

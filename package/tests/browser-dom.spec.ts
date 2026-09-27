@@ -39,6 +39,12 @@ function fixture(html: string, options: { selection?: 'outside' | 'partial' | 'n
   let enteredText = ''
   const browser = new BrowserHarnessAdapter({ get: () => ({ execute: async ({ name, arguments: args }: { name: string; arguments: Record<string, unknown> }) => {
     if (name.endsWith('browser_page_info')) return { value: { url: 'https://chatgpt.com/' } }
+    if (name.endsWith('browser_current_tab')) {
+      mutations.push(name)
+      const target = { targetId: 'owned-target', url: window.location.href }
+      window.document.dispatchEvent(new window.CustomEvent('current-target', { detail: target }))
+      return { value: target }
+    }
     if (options.providerFailure === 'throw') throw new Error('provider failed')
     if (options.providerFailure === 'top') return { isError: true }
     if (options.providerFailure === 'nested') return { value: { isError: true } }
@@ -51,6 +57,7 @@ function fixture(html: string, options: { selection?: 'outside' | 'partial' | 'n
       return { value: window.eval(String(args.expression)) }
     }
     mutations.push(name)
+    if (name.endsWith('browser_cdp')) window.document.dispatchEvent(new window.CustomEvent('target-activate', { detail: args }))
     if (name.endsWith('browser_fill')) throw new Error('contenteditable fill must not be used')
     if (name.endsWith('browser_type')) {
       inputs.push(String(args.text))
@@ -59,6 +66,7 @@ function fixture(html: string, options: { selection?: 'outside' | 'partial' | 'n
       else (target.querySelector('p') ?? target).append(window.document.createTextNode(options.partialPrompt && inputs.length === 3 ? String(args.text).slice(0, 3) : String(args.text)))
       if (options.failPrompt && inputs.length === 3) throw new Error('provider failed after prompt mutation')
       typed = args.text !== '@'
+      window.document.dispatchEvent(new window.CustomEvent('composer-type', { detail: args.text }))
       if (options.ambiguousAfterInput) {
         const extra = window.document.createElement('div')
         extra.setAttribute('role', 'textbox')
@@ -68,7 +76,7 @@ function fixture(html: string, options: { selection?: 'outside' | 'partial' | 'n
       }
     }
     if (name.endsWith('browser_click')) window.document.dispatchEvent(new window.Event('candidate-click'))
-    if (name.endsWith('browser_click') && options.mention) {
+    if (name.endsWith('browser_click') && options.mention && window.document.visibilityState === 'visible') {
       const composer = window.document.querySelector('[data-d2c-composer-target]')!
       composer.innerHTML = '<p><span contenteditable="false" app-mention-display-name="DSH with ChatGPT"><span contenteditable="false"><svg></svg></span><span>DSH with ChatGPT</span></span></p>'
       const paragraph = composer.querySelector('p')!
@@ -79,6 +87,7 @@ function fixture(html: string, options: { selection?: 'outside' | 'partial' | 'n
     }
     if (name.endsWith('browser_press')) {
       keys.push(String(args.key))
+      if (window.document.visibilityState !== 'visible') return { value: {} }
       expect(window.document.activeElement).toBe(window.document.querySelector('[data-d2c-composer-target]'))
       const composer = window.document.activeElement!
       if (args.key === 'a' && args.modifiers === 2) {
@@ -110,6 +119,133 @@ function fixture(html: string, options: { selection?: 'outside' | 'partial' | 'n
 }
 
 describe('ChatGPT composer DOM resolution', () => {
+
+  it('activates exactly the hidden current target before selecting an App', async () => {
+    vi.useFakeTimers()
+    const { browser, window, mutations } = fixture('<div role="textbox" contenteditable="true"></div><div role="listbox"><button>DSH with ChatGPT</button></div>', { mention: true })
+    let visible = false
+    Object.defineProperty(window.document, 'visibilityState', { get: () => visible ? 'visible' : 'hidden' })
+    window.document.addEventListener('target-activate', event => {
+      expect((event as unknown as { detail: unknown }).detail).toEqual({ method: 'Target.activateTarget', params: { targetId: 'owned-target' } })
+      visible = true
+    })
+    const pending = browser.probeApp('DSH with ChatGPT').catch(error => error)
+    await vi.runAllTimersAsync()
+    expect(await pending).toBeUndefined()
+    expect(mutations.filter(name => name.endsWith('browser_cdp'))).toHaveLength(1)
+    expect(mutations.filter(name => name.endsWith('browser_click'))).toHaveLength(1)
+    expect(mutations.some(name => /list_tabs|new_tab|switch_tab/.test(name))).toBe(false)
+  })
+
+  it('activates a hidden owned composer before guarded cleanup', async () => {
+    const { browser, window, keys } = fixture('<div role="textbox" contenteditable="true">@DSH with ChatGPT</div>')
+    let visible = false
+    Object.defineProperty(window.document, 'visibilityState', { get: () => visible ? 'visible' : 'hidden' })
+    window.document.addEventListener('target-activate', () => { visible = true })
+    const cleanup = browser as unknown as { clearComposer(draft: { texts: string[] }): Promise<void> }
+    await cleanup.clearComposer({ texts: ['@DSH with ChatGPT'] })
+    expect(keys).toEqual(['a', 'Backspace'])
+    expect(window.document.querySelector('[role="textbox"]')!.textContent).toBe('')
+  })
+
+  it('leaves the already visible target active without tab operations', async () => {
+    const { browser, mutations } = fixture('<div role="textbox" contenteditable="true"></div><div role="listbox"><button>DSH with ChatGPT</button></div>', { mention: true })
+    await browser.probeApp('DSH with ChatGPT')
+    expect(mutations.some(name => /browser_cdp|current_tab|list_tabs|new_tab|switch_tab/.test(name))).toBe(false)
+  })
+
+  it.each(['hidden', 'url', 'target'])('preserves the draft without clicking or keys when visibility recovery fails: %s', async failure => {
+    vi.useFakeTimers()
+    const { browser, window, mutations, keys } = fixture('<div role="textbox" contenteditable="true"></div><div role="listbox"><button>DSH with ChatGPT</button></div>', { mention: true })
+    let visible = false
+    let activated = false
+    Object.defineProperty(window.document, 'visibilityState', { get: () => visible ? 'visible' : 'hidden' })
+    window.document.addEventListener('target-activate', () => {
+      activated = true
+      visible = failure !== 'hidden'
+      if (failure === 'url') window.location.href = 'https://chatgpt.com/c/other'
+    })
+    window.document.addEventListener('current-target', event => {
+      if (activated && failure === 'target') (event as unknown as { detail: { targetId: string } }).detail.targetId = 'different-target'
+    })
+    const pending = browser.probeApp('DSH with ChatGPT').catch(error => error)
+    await vi.runAllTimersAsync()
+    expect(await pending).toBeInstanceOf(BrowserStaleError)
+    expect(mutations.filter(name => name.endsWith('browser_click'))).toHaveLength(0)
+    expect(mutations.filter(name => name.endsWith('browser_cdp'))).toHaveLength(1)
+    expect(keys).toEqual([])
+    expect(window.document.querySelector('[role="textbox"]')!.textContent).toBe('@DSH with ChatGPT')
+    expect(vi.getTimerCount()).toBe(0)
+  })
+
+  it('rejects hidden foreign cleanup before any tab or key mutation', async () => {
+    const { browser, window, mutations, keys } = fixture('<div role="textbox" contenteditable="true">foreign draft</div>')
+    Object.defineProperty(window.document, 'visibilityState', { value: 'hidden' })
+    const cleanup = browser as unknown as { clearComposer(draft: { texts: string[] }): Promise<void> }
+    await expect(cleanup.clearComposer({ texts: ['@DSH with ChatGPT'] })).rejects.toBeInstanceOf(BrowserStaleError)
+    expect(mutations).toEqual([])
+    expect(keys).toEqual([])
+  })
+
+  it('preserves hidden owned cleanup when activation cannot make it visible', async () => {
+    vi.useFakeTimers()
+    const { browser, window, keys } = fixture('<div role="textbox" contenteditable="true">@DSH with ChatGPT</div>')
+    Object.defineProperty(window.document, 'visibilityState', { value: 'hidden' })
+    const cleanup = browser as unknown as { clearComposer(draft: { texts: string[] }): Promise<void> }
+    const pending = cleanup.clearComposer({ texts: ['@DSH with ChatGPT'] }).catch(error => error)
+    await vi.runAllTimersAsync()
+    expect(await pending).toBeInstanceOf(BrowserStaleError)
+    expect(keys).toEqual([])
+    expect(window.document.querySelector('[role="textbox"]')!.textContent).toBe('@DSH with ChatGPT')
+  })
+
+  it.each([false, true])('recovers visibility before sending and rechecks draft ownership (foreign=%s)', async foreign => {
+    const { browser, window, keys, enteredText, mutations } = fixture('<div role="textbox" contenteditable="true"></div>', { appName: '' })
+    let visible = true
+    Object.defineProperty(window.document, 'visibilityState', { get: () => visible ? 'visible' : 'hidden' })
+    window.document.addEventListener('composer-type', () => { visible = false })
+    window.document.addEventListener('target-activate', () => {
+      visible = true
+      if (foreign) window.document.querySelector('[role="textbox"]')!.textContent = 'foreign draft'
+    })
+    if (foreign) {
+      await expect(browser.sendControlMessage('request')).rejects.toBeInstanceOf(BrowserStaleError)
+      expect(keys).toEqual([])
+      expect(window.document.querySelector('[role="textbox"]')!.textContent).toBe('foreign draft')
+    } else {
+      await browser.sendControlMessage('request')
+      expect(keys).toEqual(['Enter'])
+      expect(enteredText()).toBe('request')
+    }
+    expect(mutations.filter(name => name.endsWith('browser_cdp'))).toHaveLength(1)
+  })
+
+  it('cancels visibility recovery without activating or cleaning another target', async () => {
+    const { browser, window, mutations, keys } = fixture('<div role="textbox" contenteditable="true"></div><div role="listbox"><button>DSH with ChatGPT</button></div>')
+    Object.defineProperty(window.document, 'visibilityState', { value: 'hidden' })
+    const controller = new AbortController()
+    window.document.addEventListener('current-target', () => controller.abort())
+    await expect(browser.probeApp('DSH with ChatGPT', controller.signal)).rejects.toBeInstanceOf(OperationCancelledError)
+    expect(mutations.filter(name => name.endsWith('browser_cdp'))).toHaveLength(0)
+    expect(keys).toEqual([])
+  })
+
+  it('rejects an activation provider error without querying or mutating the composer', async () => {
+    const calls: string[] = []
+    const browser = new BrowserHarnessAdapter({ get: () => ({ execute: async (request: { name: string }) => {
+      const name = request.name.replace('mcp__browser-harness__', '')
+      calls.push(name)
+      if (name === 'browser_js') return { value: { visibility: 'hidden', url: 'https://chatgpt.com/' } }
+      if (name === 'browser_page_info') return { value: { url: 'https://chatgpt.com/' } }
+      if (name === 'browser_current_tab') return { value: { targetId: 'owned-target', url: 'https://chatgpt.com/' } }
+      return { value: { error: 'activation unavailable' } }
+    } }) } as never, undefined, '')
+    const guard = browser as unknown as { ensureCurrentTargetVisible(draft: { texts: string[]; preserve?: boolean }): Promise<void> }
+    const draft = { texts: ['request'], preserve: false }
+    await expect(guard.ensureCurrentTargetVisible(draft)).rejects.toThrow('activation failed')
+    expect(draft.preserve).toBe(true)
+    expect(calls).toEqual(['browser_js', 'browser_page_info', 'browser_current_tab', 'browser_cdp'])
+  })
 
   it('waits for a composer mounted after navigation without modifying its draft', async () => {
     vi.useFakeTimers()
