@@ -357,13 +357,16 @@ export async function apply(ctx: Context, config: Config): Promise<void> {
     const registerTool = (definition: {
       name: string
       description: string
-      parameters: Record<string, unknown>
+      parameters: { type: 'object'; properties: Record<string, unknown>; required: string[]; additionalProperties: false }
       output: { schema: unknown; render: unknown }
       execute(args: Record<string, unknown>, exec: ToolExec | undefined, workspace: WorkspaceRuntimeIdentity): Promise<unknown>
     }): void => {
       ctx.effect(() => tools.register({
         ...definition,
         async execute(args: Record<string, unknown>, exec: ToolExec | undefined) {
+          for (const key of definition.parameters.required) {
+            if (!Object.hasOwn(args, key) || args[key] === undefined) throw new Error('INVALID_TOOL_ARGUMENTS: missing ' + key)
+          }
           const operation = async () => {
             if (definition.name === 'chatgpt_doctor' && args.mode !== undefined && args.mode !== 'local' && args.mode !== 'app-proof') throw new Error('INVALID_DOCTOR_MODE')
             const workspace = await workspaceOf(ctx, exec)
@@ -420,7 +423,10 @@ export async function apply(ctx: Context, config: Config): Promise<void> {
         + 'structured PLAN envelope. ChatGPT reads the workspace itself via the read-only MCP connector; do not paste '
         + 'files or diffs into the conversation. Returns the parsed plan sections for you to execute.',
       parameters: {
-        goal: { type: 'string', required: true, description: 'The concrete task goal, phrased for a planning reviewer.' },
+        type: 'object',
+        additionalProperties: false,
+        properties: { goal: { type: 'string', description: 'The concrete task goal, phrased for a planning reviewer.' } },
+        required: ['goal'],
       },
       output: {
         schema: roundOutputSchema,
@@ -459,11 +465,16 @@ export async function apply(ctx: Context, config: Config): Promise<void> {
         'After you implemented the plan and ran tests, report execution to ChatGPT and request independent review. '
         + 'ChatGPT reads the diff and execution records itself via MCP. Returns DONE or a fix plan (PLAN state).',
       parameters: {
-        taskId: { type: 'string', required: true, description: 'Task id from chatgpt_plan.' },
-        changedFiles: { type: 'json', description: 'Array of changed file paths (workspace-relative).' },
-        head: { type: 'string', description: 'Current git HEAD sha after your work.' },
-        testsRecorded: { type: 'boolean', description: 'Whether test runs were recorded (execute tests through normal DSH tools).' },
-        note: { type: 'string', description: 'Short execution note (max ~200 chars).' },
+        type: 'object',
+        additionalProperties: false,
+        properties: {
+          taskId: { type: 'string', description: 'Task id from chatgpt_plan.' },
+          changedFiles: { type: 'array', items: { type: 'string' }, description: 'Array of changed file paths (workspace-relative).' },
+          head: { type: 'string', description: 'Current git HEAD sha after your work.' },
+          testsRecorded: { type: 'boolean', description: 'Whether test runs were recorded (execute tests through normal DSH tools).' },
+          note: { type: 'string', description: 'Short execution note (max ~200 chars).' },
+        },
+        required: ['taskId'],
       },
       output: {
         schema: roundOutputSchema,
@@ -525,7 +536,7 @@ export async function apply(ctx: Context, config: Config): Promise<void> {
     registerTool({
       name: 'chatgpt_status',
       description: 'Report dsh-with-chatgpt status: latest task, coordinator state, bridge ports, boot prompt id.',
-      parameters: {},
+      parameters: { type: 'object', additionalProperties: false, properties: {}, required: [] },
       output: {
         schema: {
           type: 'object',
@@ -578,7 +589,7 @@ export async function apply(ctx: Context, config: Config): Promise<void> {
     registerTool({
       name: 'chatgpt_reconnect',
       description: 'Recover the ChatGPT control plane after browser reload, logout, or DSH restart; rebinding the latest task.',
-      parameters: {},
+      parameters: { type: 'object', additionalProperties: false, properties: {}, required: [] },
       output: {
         schema: {
           type: 'object',
@@ -620,7 +631,12 @@ export async function apply(ctx: Context, config: Config): Promise<void> {
     registerTool({
       name: 'chatgpt_doctor',
       description: 'Run bounded, read-only readiness checks for the current DSH Session and ChatGPT control plane.',
-      parameters: { mode: { type: 'string', enum: ['local', 'app-proof'], description: 'Local checks by default; app-proof also sends a diagnostic message to the configured ChatGPT App.' } },
+      parameters: {
+        type: 'object',
+        additionalProperties: false,
+        properties: { mode: { type: 'string', enum: ['local', 'app-proof'], description: 'Local checks by default; app-proof also sends a diagnostic message to the configured ChatGPT App.' } },
+        required: [],
+      },
       output: {
         schema: { type: 'object', additionalProperties: false, properties: { ready: { type: 'boolean' }, localReady: { type: 'boolean' }, appDataPlaneVerified: { type: 'boolean' }, fullC2CVerified: { type: 'boolean' }, checks: { type: 'array' } }, required: ['ready', 'localReady', 'appDataPlaneVerified', 'fullC2CVerified', 'checks'] },
         render: (_args: Record<string, unknown>, value: Record<string, unknown>) => [{ type: 'text' as const, text: JSON.stringify(value) }],

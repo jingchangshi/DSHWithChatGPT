@@ -19,6 +19,61 @@ interface RegisteredTool {
 }
 
 describe('production collaboration service requirements', () => {
+  it.each([
+    ['chatgpt_plan', {}], ['chatgpt_plan', { goal: undefined }],
+    ['chatgpt_review', {}], ['chatgpt_review', { taskId: undefined }],
+  ])('rejects missing required arguments for %s before side effects', async (name, args) => {
+    const ctx = new Context()
+    const tools = new Map<string, RegisteredTool>()
+    const resolve = vi.fn(async () => 'workspace')
+    const read = vi.spyOn(readLeases, 'bindExecutionReadLease')
+    const git = vi.spyOn(gitLeases, 'bindExecutionGitLease')
+    const tunnel = vi.spyOn(TunnelSupervisor.prototype, 'ensure')
+    const ready = vi.spyOn(BrowserHarnessAdapter.prototype, 'ensureReady')
+    const send = vi.spyOn(BrowserHarnessAdapter.prototype, 'sendControlMessage')
+    for (const spy of [read, git, tunnel, ready, send]) spy.mockClear()
+    ctx.provide('storageDomain', { open: async () => ({ close: async () => {} }) })
+    ctx.provide('executionWorldIdentity', { resolve })
+    for (const service of ['fs', 'subprocess', 'sandbox']) ctx.provide(service, {})
+    ctx.provide('tools', { register: (tool: RegisteredTool) => { tools.set(tool.name, tool) } })
+    ctx.provide('systemPrompt', { section: () => {}, getSectionOrder: () => 0 })
+    try {
+      await ctx.plugin({ apply, Config, inject }, {})
+      await expect(tools.get(name)!.execute(args, {
+        agent: { session: { header: { cwd: '/fixture' } } }, signal: new AbortController().signal,
+      })).rejects.toThrow('INVALID_TOOL_ARGUMENTS')
+      expect(resolve).not.toHaveBeenCalled()
+      for (const spy of [read, git, tunnel, ready, send]) expect(spy).not.toHaveBeenCalled()
+    } finally {
+      await ctx.fiber.dispose()
+      for (const spy of [read, git, tunnel, ready, send]) spy.mockRestore()
+    }
+  })
+  it('publishes object JSON Schemas for all five collaboration tools', async () => {
+    const ctx = new Context()
+    const tools = new Map<string, { name: string; parameters: Record<string, unknown> }>()
+    ctx.provide('storageDomain', { open: async () => ({ close: async () => {} }) })
+    ctx.provide('executionWorldIdentity', { resolve: async () => 'workspace' })
+    for (const service of ['fs', 'subprocess', 'sandbox']) ctx.provide(service, {})
+    ctx.provide('tools', { register: (tool: { name: string; parameters: Record<string, unknown> }) => { tools.set(tool.name, tool) } })
+    ctx.provide('systemPrompt', { section: () => {}, getSectionOrder: () => 0 })
+    try {
+      await ctx.plugin({ apply, Config, inject }, {})
+      expect(tools.size).toBe(5)
+      for (const tool of tools.values()) {
+        expect(tool.parameters.type).toBe('object')
+        expect(tool.parameters.additionalProperties).toBe(false)
+        expect(tool.parameters.properties).toBeTypeOf('object')
+        expect(Array.isArray(tool.parameters.required)).toBe(true)
+      }
+      expect(tools.get('chatgpt_plan')!.parameters).toMatchObject({ properties: { goal: { type: 'string' } }, required: ['goal'] })
+      expect(tools.get('chatgpt_review')!.parameters).toMatchObject({ properties: { taskId: { type: 'string' }, changedFiles: { type: 'array', items: { type: 'string' } }, testsRecorded: { type: 'boolean' } }, required: ['taskId'] })
+      expect(tools.get('chatgpt_doctor')!.parameters).toMatchObject({ properties: { mode: { type: 'string', enum: ['local', 'app-proof'] } }, required: [] })
+      for (const name of ['chatgpt_status', 'chatgpt_reconnect']) expect(tools.get(name)!.parameters).toMatchObject({ properties: {}, required: [] })
+      expect(JSON.stringify([...tools.values()].map(tool => tool.parameters))).not.toContain('"required":true')
+      expect(JSON.stringify([...tools.values()].map(tool => tool.parameters))).not.toContain('"type":"json"')
+    } finally { await ctx.fiber.dispose() }
+  })
   it('preserves task storage v1 and opens a separate control domain', async () => {
     const ctx = new Context()
     const specs: Array<{ name: string; version: number; tables: Record<string, unknown> }> = []

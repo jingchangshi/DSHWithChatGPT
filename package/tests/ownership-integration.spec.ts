@@ -52,7 +52,7 @@ describe('registered ownership enforcement', () => {
     current.records.set('d2c_state/bindings/owner-fixture-a', { lastTaskId: 'legacy' })
     try {
       for (const tool of ['chatgpt_status', 'chatgpt_plan']) {
-        await expect(current.call(tool, 'owner-fixture-b')).rejects.toThrow('TUNNEL_LEGACY_TASK_PENDING')
+        await expect(current.call(tool, 'owner-fixture-b', undefined, tool === 'chatgpt_plan' ? { goal: 'fixture' } : {})).rejects.toThrow('TUNNEL_LEGACY_TASK_PENDING')
       }
       expect(current.records.has('d2c_control/managed_tunnel/owner')).toBe(false)
       expect(current.tunnel).not.toHaveBeenCalled()
@@ -73,7 +73,7 @@ describe('registered ownership enforcement', () => {
       await entered.promise
       expect(current.records.get('d2c_control/managed_tunnel/owner')).toMatchObject({ phase: 'task', workspaceId: 'owner-fixture-a' })
       for (const tool of ['chatgpt_review', 'chatgpt_doctor', 'chatgpt_reconnect']) {
-        await expect(current.call(tool)).rejects.toThrow('CONTROL_BROWSER_BUSY')
+        await expect(current.call(tool, undefined, undefined, tool === 'chatgpt_review' ? { taskId: 'fixture' } : {})).rejects.toThrow('CONTROL_BROWSER_BUSY')
       }
       await expect(current.call('chatgpt_status', 'owner-fixture-b')).rejects.toThrow('TUNNEL_WORKSPACE_BUSY')
       controller.abort()
@@ -81,7 +81,7 @@ describe('registered ownership enforcement', () => {
       expect(current.records.get('d2c_control/managed_tunnel/owner')).toMatchObject({ phase: 'task' })
       const calls = current.tunnel.mock.calls.length
       for (const tool of ['chatgpt_plan', 'chatgpt_doctor', 'chatgpt_reconnect', 'chatgpt_status']) {
-        await expect(current.call(tool, 'owner-fixture-b')).rejects.toThrow('TUNNEL_WORKSPACE_BUSY')
+        await expect(current.call(tool, 'owner-fixture-b', undefined, tool === 'chatgpt_plan' ? { goal: 'fixture' } : {})).rejects.toThrow('TUNNEL_WORKSPACE_BUSY')
       }
       expect(current.tunnel).toHaveBeenCalledTimes(calls)
     } finally { controller.abort(); await current.ctx.fiber.dispose() }

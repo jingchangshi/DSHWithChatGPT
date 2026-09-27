@@ -25,7 +25,7 @@ ctx.tools.register(defineTool({
 - `exec.agent?: Agent` — the session that made the call; `exec.agent.session.header.cwd` is the session workspace.
 - Execution pipeline extension points: `tools/pre-execute` (allow/deny/ask decision), `tools/execute` (around-dispatch; **may replace `exec.signal`** — this is the recorder hook), `tools/post-execute`, `tools/result` (frozen immutable outcome, emit mode).
 - Waterfall listeners must call and return `next()`.
-- Raw JSON-Schema definitions are also accepted (that's how MCP tools register).
+- Direct tools.register definitions require complete object JSON Schemas with properties and root-level required arrays; the parameter map shown above belongs only to defineTool. The five collaboration tools use the direct form, including an array-of-strings schema for changedFiles. Missing required PLAN/REVIEW arguments fail before workspace resolution or control-plane activity. Empty doctor arguments retain local-check behavior; App proof requires mode: "app-proof".
 
 ## 3. System prompt (packages/core/system-prompt/src/index.ts) **[runtime-verified: `section`, `getSectionOrder`, order constants exist]**
 
