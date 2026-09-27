@@ -2,6 +2,8 @@
 
 ## Build and install
 
+The build removes the package's previous lib directory before compilation, so removed source modules do not remain in packed artifacts.
+
 ```powershell
 cd <repo>\package
 pnpm install
@@ -45,7 +47,7 @@ $env:CONTROL_PLANE_API_KEY="<runtime_api_key>"
 
 5. Restart/reload DSH, create a new Session in the workspace, and call `chatgpt_doctor` before starting a collaboration round.
 
-`chatgpt_doctor` calls Browser Harness through that Session's agent, checks the logged-in ChatGPT composer and the exact App mention without sending a message, calls the authenticated loopback `workspace_info` tool, and checks local tunnel readiness. It can focus or navigate the controlled browser tab. Its `remote_workspace_access` check remains unverified until ChatGPT actually invokes the App; `ready` reports only locally checkable prerequisites. Use `chatgpt_status` for task and runtime state.
+`chatgpt_doctor {}` uses local mode: it checks Browser Harness login and exact App selection without sending a message, authenticated loopback workspace reads, and tunnel readiness. `ready` equals `localReady`; neither proves remote App access. Explicit `chatgpt_doctor { mode: "app-proof" }` sends one diagnostic message through the configured App and compares a fresh operation-scoped challenge plus workspace/root/Git facts. Only a matching reply sets `appDataPlaneVerified`; `fullC2CVerified` remains false because doctor does not execute a collaboration round. The diagnostic browser operation is bounded by the smaller of replyTimeoutMs and 90 seconds. Use `chatgpt_status` for task and runtime state.
 
 Expected status from `chatgpt_status`:
 - `bridgeRunning: true`

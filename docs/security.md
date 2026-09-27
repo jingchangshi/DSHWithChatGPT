@@ -1,5 +1,7 @@
 # Security
 
+App-proof challenges exist only in the current doctor runtime lease, the authenticated workspace_info response, and ChatGPT's diagnostic reply. Plugin status, durable task/control state, and execution records exclude the challenge and raw reply. Completion, cancellation, and timeout revoke the lease; later operations generate new challenges. Diagnostic proof does not grant execution-output access.
+
 ## Read-only boundary (structural, not policy)
 
 - The bridge tool registry has a fixed allowlist (`READONLY_VERBS`); registering any tool outside `workspace_* / list_* / read_* / search_* / git_* / test_* / execution_*` throws at startup. There is no write, shell, or git-mutation tool anywhere in the package.

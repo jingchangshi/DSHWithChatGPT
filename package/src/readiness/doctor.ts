@@ -1,6 +1,7 @@
 import type { BrowserControl } from '../browser/index.ts'
 import type { TunnelStatus } from '../tunnel/supervisor.ts'
-import { OperationCancelledError, throwIfCancelled } from '../cancellation.ts'
+import { OperationCancelledError, throwIfCancelled, withCancellation } from '../cancellation.ts'
+import { appProofPrompt, gitFact, rootFact, verifyAppProof, type AppProof } from './app-proof.ts'
 
 export interface ReadinessCheck {
   id: string
@@ -11,10 +12,15 @@ export interface ReadinessCheck {
 
 export interface DoctorResult {
   ready: boolean
+  localReady: boolean
+  appDataPlaneVerified: boolean
+  fullC2CVerified: false
   checks: ReadinessCheck[]
 }
 
 export interface DoctorInputs {
+  mode?: 'local' | 'app-proof'
+  appProofTimeoutMs?: number
   workspaceRoot: string
   workspaceId: string
   appName: string
@@ -68,6 +74,9 @@ async function probeBridge(inputs: DoctorInputs, name: string, args: Record<stri
 }
 export async function runDoctor(inputs: DoctorInputs): Promise<DoctorResult> {
   throwIfCancelled(inputs.signal)
+  let challenge: string | undefined
+  let root: AppProof['root'] | undefined
+  let git: AppProof['git'] | undefined
   const checks: ReadinessCheck[] = [
     { id: 'session_workspace', ok: inputs.workspaceRoot !== '', detail: inputs.workspaceRoot !== '' ? 'session workspace is available' : 'session workspace is unavailable', ...(inputs.workspaceRoot !== '' ? {} : { code: 'SESSION_WORKSPACE_MISSING' }) },
     { id: 'chatgpt_session', ok: false, detail: 'browser session probe not completed', code: 'BROWSER_SESSION_UNPROBED' },
@@ -81,7 +90,8 @@ export async function runDoctor(inputs: DoctorInputs): Promise<DoctorResult> {
     { id: 'remote_workspace_access', ok: false, detail: 'requires one real ChatGPT App MCP call; not verified by local doctor', code: 'REMOTE_ACCESS_REQUIRES_E2E' },
   ]
   try {
-    const workspace = await probeBridge(inputs, 'workspace_info') as { workspaceId?: string; capabilities?: { leaseBound?: unknown; workspaceContentRead?: unknown; gitRead?: unknown; executionOutput?: unknown } }
+    const workspace = await probeBridge(inputs, 'workspace_info') as { workspaceId?: string; appProof?: { version?: unknown; challenge?: unknown }; capabilities?: { leaseBound?: unknown; workspaceContentRead?: unknown; gitRead?: unknown; executionOutput?: unknown } }
+    if (workspace.appProof?.version === 1 && typeof workspace.appProof.challenge === 'string' && workspace.appProof.challenge.length > 0) challenge = workspace.appProof.challenge
     const bridge = checks.find(item => item.id === 'bridge')!
     bridge.ok = workspace?.workspaceId === inputs.workspaceId
     bridge.detail = bridge.ok ? 'authenticated loopback workspace_info identity matches session workspace' : 'workspace_info identity mismatch'
@@ -102,7 +112,11 @@ export async function runDoctor(inputs: DoctorInputs): Promise<DoctorResult> {
         const check = checks.find(item => item.id === id)!
         if (!check.ok) continue
         try {
-          await probeBridge(inputs, name, args)
+          const value = await probeBridge(inputs, name, args)
+          if (inputs.mode === 'app-proof') {
+            if (name === 'list_directory') root = rootFact(value)
+            else git = gitFact(value)
+          }
           throwIfCancelled(inputs.signal)
           check.detail = 'authenticated execution workspace operation succeeded'
         } catch (error) {
@@ -146,5 +160,43 @@ export async function runDoctor(inputs: DoctorInputs): Promise<DoctorResult> {
     check.detail = 'Browser Harness session probe failed; check the provider and Session ownership'
     check.code = 'BROWSER_HARNESS_UNAVAILABLE'
   }
-  return { ready: checks.filter(check => check.id !== 'remote_workspace_access' && check.id !== 'execution_output_access').every(check => check.ok), checks }
+  throwIfCancelled(inputs.signal)
+  const localReady = checks.filter(check => check.id !== 'remote_workspace_access' && check.id !== 'execution_output_access').every(check => check.ok)
+  const remote = checks.find(check => check.id === 'remote_workspace_access')!
+  if (inputs.mode === 'app-proof') {
+    let code: string | undefined = 'APP_PROOF_PREREQUISITE_FAILED'
+    if (localReady) {
+      if (challenge === undefined || root === undefined || git === undefined) code = 'APP_PROOF_CHALLENGE_UNAVAILABLE'
+      else code = await proveApp(inputs, { challenge, workspaceId: inputs.workspaceId, root, git })
+    }
+    remote.ok = code === undefined
+    remote.detail = remote.ok ? 'current App workspace read verified' : 'current App workspace read not verified'
+    if (code === undefined) delete remote.code
+    else remote.code = code
+  }
+  return { ready: localReady, localReady, appDataPlaneVerified: remote.ok, fullC2CVerified: false, checks }
+}
+
+async function proveApp(inputs: DoctorInputs, expected: AppProof): Promise<string | undefined> {
+  const timeoutMs = inputs.appProofTimeoutMs
+  if (timeoutMs === undefined || !Number.isFinite(timeoutMs) || timeoutMs <= 0) return 'APP_PROOF_PREREQUISITE_FAILED'
+  const timeout = new AbortController()
+  const signal = inputs.signal === undefined ? timeout.signal : AbortSignal.any([inputs.signal, timeout.signal])
+  const timer = setTimeout(() => timeout.abort(), timeoutMs)
+  let sent = false
+  try {
+    await withCancellation(() => inputs.browser.sendControlMessage(appProofPrompt, signal), signal)
+    sent = true
+    const reply = await withCancellation(() => inputs.browser.waitForReply(timeoutMs, signal), signal)
+    throwIfCancelled(inputs.signal)
+    if (!reply.complete) return 'APP_PROOF_TIMEOUT'
+    return verifyAppProof(reply.text, expected)
+  } catch (error) {
+    if (inputs.signal?.aborted) throw new OperationCancelledError()
+    if (timeout.signal.aborted) return 'APP_PROOF_TIMEOUT'
+    if (error instanceof OperationCancelledError) throw error
+    return sent ? 'APP_PROOF_REPLY_MISSING' : 'APP_PROOF_SEND_FAILED'
+  } finally {
+    clearTimeout(timer)
+  }
 }

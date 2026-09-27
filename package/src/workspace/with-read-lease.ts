@@ -15,6 +15,7 @@ export async function withWorkspaceReadLease<Result>(
   gitReadPolicy: 'require-full' | 'allow-hardened-windows' = 'require-full',
   gitUnavailableReason: 'GIT_READ_DISABLED' | 'GIT_FULL_CONFINEMENT_REQUIRED' | 'GIT_HARDENED_WINDOWS_UNAVAILABLE' | 'GIT_READ_UNAVAILABLE' = 'GIT_READ_UNAVAILABLE',
   authorizeOutput?: () => Promise<ExecutionOutputScope | undefined>,
+  createAppProofChallenge?: () => string | undefined,
 ): Promise<Result> {
   const lifetime = new AbortController()
   const active = signal === undefined ? lifetime.signal : AbortSignal.any([signal, lifetime.signal])
@@ -55,6 +56,7 @@ export async function withWorkspaceReadLease<Result>(
     release = registry.acquire({
       identity, generation: Symbol(), signal: active, backend, git: gitLease?.git,
       executionOutputScope,
+      appProofChallenge: createAppProofChallenge?.(),
       capabilities: {
         workspaceContentRead: { available: true },
         gitRead: gitLease === undefined ? { available: false, reason: gitUnavailableReason } : { available: true, assurance: gitLease.assurance },

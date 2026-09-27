@@ -350,10 +350,12 @@ export function buildRuntimeWorkspaceTools(spec: RuntimeWorkspaceSpec): McpToolD
     inputSchema: template.inputSchema,
     async handler(args) {
       if (template.name === 'workspace_info') {
+        const appProof = spec.registry.appProof(spec.workspaceId)
         return {
           workspaceId: spec.workspaceId,
           readOnly: true,
           capabilities: spec.registry.capabilities(spec.workspaceId),
+          ...(appProof === undefined ? {} : { appProof }),
         }
       }
       if (template.name === 'test_status' || template.name === 'execution_summary') {

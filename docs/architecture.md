@@ -1,5 +1,7 @@
 # 架构 / Architecture
 
+Doctor reports localReady separately from appDataPlaneVerified; ready remains an alias for localReady and fullC2CVerified remains false. Local mode sends no diagnostic message. Explicit app-proof mode keeps one execution read lease live while the exact App retrieves a fresh memory-only challenge and workspace/root/Git facts. The browser prompt contains the requested fields, never their expected values. A matching reply verifies only that operation's App data access, not a completed PLAN/execution/REVIEW round.
+
 ## 目标
 
 控制所有权分为两个部分：独立 `d2c_control` v1 存储持久化 managed tunnel 的 workspace/task/claim 及 pre-task/task 阶段；进程内浏览器互斥拒绝本插件 PLAN、REVIEW、doctor、reconnect 的重叠操作。任务存储 `d2c_state` v1 不变。隧道绑定检查与启动串行执行，非终态任务在重启后保留所有权；发送 INIT 结果不明确时不自动释放或重发。浏览器互斥不隔离普通执行器工具、人工操作或其他进程，当前支持每个 profile/state store 一个活动插件进程。

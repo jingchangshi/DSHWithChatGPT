@@ -47,6 +47,7 @@ export interface WorkspaceRuntimeLease {
   readonly backend?: WorkspaceReadBackend
   readonly git?: WorkspaceGitExecutor
   readonly executionOutputScope?: ExecutionOutputScope
+  readonly appProofChallenge?: string
 }
 
 /** Metadata excludes service tokens, provider IDs, and transport details. */
@@ -60,6 +61,12 @@ export interface WorkspaceRuntimeCapabilities {
 /** Active leases only; durable task state must not serialize this registry. */
 export class WorkspaceRuntimeRegistry {
   private readonly entries = new Map<string, WorkspaceRuntimeSnapshot>()
+
+  appProof(workspaceId: string): { version: 1; challenge: string } | undefined {
+    const lease = this.entries.get(workspaceId)?.lease
+    if (lease === undefined || lease.signal.aborted || lease.appProofChallenge === undefined) return undefined
+    return { version: 1, challenge: lease.appProofChallenge }
+  }
 
   /**
    * Acquire matching runtime ownership; overlapping service generations are rejected.

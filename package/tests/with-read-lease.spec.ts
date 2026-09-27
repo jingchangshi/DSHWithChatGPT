@@ -16,6 +16,21 @@ function fixture() {
 }
 
 describe('workspace operation read lease', () => {
+  it.each([false, true])('confines the doctor challenge to the operation (cancel=%s)', async cancel => {
+    const { registry, identity, lease } = fixture()
+    const controller = new AbortController()
+    const pending = withWorkspaceReadLease(registry, identity, async () => lease, async () => {
+      expect(registry.appProof(identity.workspaceId)).toEqual({ version: 1, challenge: 'ephemeral' })
+      expect(registry.capabilities(identity.workspaceId).executionOutput.available).toBe(false)
+      if (cancel) controller.abort()
+    }, controller.signal, undefined, 'require-full', 'GIT_READ_DISABLED', undefined, () => 'ephemeral')
+    if (cancel) await expect(pending).rejects.toThrow()
+    else await pending
+    expect(registry.appProof(identity.workspaceId)).toBeUndefined()
+    await withWorkspaceReadLease(registry, identity, async () => lease, async () => {
+      expect(registry.appProof(identity.workspaceId)).toBeUndefined()
+    })
+  })
   it('publishes an explicitly authorized evidence round only during the operation', async () => {
     const { registry, identity, lease } = fixture()
     const scope = { taskId: 'review-task', iteration: 4 }

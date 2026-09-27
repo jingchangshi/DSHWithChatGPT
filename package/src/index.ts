@@ -13,7 +13,7 @@
 
 import fs from 'node:fs'
 import { join as joinPath } from 'node:path'
-import { randomFillSync } from 'node:crypto'
+import { randomBytes, randomFillSync } from 'node:crypto'
 import type { Context } from '@deepseek-ai/cordis'
 import { bindExecutionReadLease } from '@deepseek-ai/dsh-execution-world/read-lease'
 import { bindExecutionGitLease } from '@deepseek-ai/dsh-execution-world/git-lease'
@@ -365,6 +365,7 @@ export async function apply(ctx: Context, config: Config): Promise<void> {
         ...definition,
         async execute(args: Record<string, unknown>, exec: ToolExec | undefined) {
           const operation = async () => {
+            if (definition.name === 'chatgpt_doctor' && args.mode !== undefined && args.mode !== 'local' && args.mode !== 'app-proof') throw new Error('INVALID_DOCTOR_MODE')
             const workspace = await workspaceOf(ctx, exec)
             return withWorkspaceReadLease(workspaceRuntimes, workspace,
               signal => bindExecutionReadLease(ctx, workspace.displayRoot, signal),
@@ -375,7 +376,8 @@ export async function apply(ctx: Context, config: Config): Promise<void> {
               gitReadPolicy === 'disabled' ? undefined : gitReadPolicy,
               gitReadPolicy === 'disabled' ? 'GIT_READ_DISABLED' : gitReadPolicy === 'require-full' ? 'GIT_FULL_CONFINEMENT_REQUIRED' : 'GIT_HARDENED_WINDOWS_UNAVAILABLE',
               definition.name === 'chatgpt_review'
-                ? () => reviewOutputScope(coordinatorState, workspace.workspaceId, String(args.taskId)) : undefined)
+                ? () => reviewOutputScope(coordinatorState, workspace.workspaceId, String(args.taskId)) : undefined,
+              definition.name === 'chatgpt_doctor' && args.mode === 'app-proof' ? () => randomBytes(32).toString('hex') : undefined)
           }
           return definition.name === 'chatgpt_status' ? operation() : browserOwnership.run(operation)
         },
@@ -618,14 +620,16 @@ export async function apply(ctx: Context, config: Config): Promise<void> {
     registerTool({
       name: 'chatgpt_doctor',
       description: 'Run bounded, read-only readiness checks for the current DSH Session and ChatGPT control plane.',
-      parameters: {},
+      parameters: { mode: { type: 'string', enum: ['local', 'app-proof'], description: 'Local checks by default; app-proof also sends a diagnostic message to the configured ChatGPT App.' } },
       output: {
-        schema: { type: 'object', additionalProperties: false, properties: { ready: { type: 'boolean' }, checks: { type: 'array' } }, required: ['ready', 'checks'] },
+        schema: { type: 'object', additionalProperties: false, properties: { ready: { type: 'boolean' }, localReady: { type: 'boolean' }, appDataPlaneVerified: { type: 'boolean' }, fullC2CVerified: { type: 'boolean' }, checks: { type: 'array' } }, required: ['ready', 'localReady', 'appDataPlaneVerified', 'fullC2CVerified', 'checks'] },
         render: (_args: Record<string, unknown>, value: Record<string, unknown>) => [{ type: 'text' as const, text: JSON.stringify(value) }],
       },
       async execute(_args: Record<string, unknown>, exec: ToolExec | undefined, workspaceRoot: WorkspaceRuntimeIdentity) {
         const runtime = await ensureRuntime(workspaceRoot, exec?.signal)
         return runDoctor({
+          mode: _args.mode === 'app-proof' ? 'app-proof' : 'local',
+          appProofTimeoutMs: Math.min(config.replyTimeoutMs, 90_000),
           workspaceRoot: workspaceRoot.displayRoot,
           workspaceId: runtime.bridge.workspaceId,
           appName: config.chatgptAppName,

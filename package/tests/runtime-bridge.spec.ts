@@ -42,6 +42,22 @@ function lease(): WorkspaceRuntimeLease {
 }
 
 describe('runtime-bound MCP bridge', () => {
+  it('exposes only the current operation challenge and clears it on release or cancellation', async () => {
+    const { registry, call } = setup()
+    expect(await call('workspace_info')).not.toHaveProperty('appProof')
+    const release = registry.acquire({ ...lease(), appProofChallenge: 'first' })
+    expect(await call('workspace_info')).toHaveProperty('appProof', { version: 1, challenge: 'first' })
+    release()
+    expect(await call('workspace_info')).not.toHaveProperty('appProof')
+    const controller = new AbortController()
+    registry.acquire({ ...lease(), signal: controller.signal, appProofChallenge: 'replacement' })
+    release()
+    expect(await call('workspace_info')).toHaveProperty('appProof.challenge', 'replacement')
+    controller.abort()
+    expect(await call('workspace_info')).not.toHaveProperty('appProof')
+    registry.acquire(lease())
+    expect(await call('workspace_info')).not.toHaveProperty('appProof')
+  })
   it('reads durable output only for the authorized task and iteration after restart', async () => {
     const { registry, recorder, stateDir } = setup()
     const record = recorder.record({ taskId: 'task', iteration: 4, command: 'pnpm test', cwd: '.',
