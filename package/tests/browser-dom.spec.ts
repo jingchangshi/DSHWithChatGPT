@@ -1,10 +1,10 @@
 import { Window } from 'happy-dom'
-import { afterEach, describe, expect, it } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 import { BrowserHarnessAdapter } from '../src/browser/harness.ts'
 import { BrowserStaleError, ChatGptAppUnavailableError } from '../src/browser/adapter.ts'
 
 const windows: Window[] = []
-afterEach(async () => { await Promise.all(windows.splice(0).map(window => window.happyDOM.close())) })
+afterEach(async () => { vi.useRealTimers(); await Promise.all(windows.splice(0).map(window => window.happyDOM.close())) })
 
 function fixture(html: string, options: { selection?: 'outside' | 'partial' | 'none' | 'icon' | 'tail'; appName?: string; mention?: boolean; keepDraft?: boolean; ambiguousAfterInput?: boolean; failAfterType?: boolean; foreignDraft?: boolean | string; omitAtomText?: boolean; separator?: string; beforeAtom?: boolean; extraAtom?: string; failPrompt?: boolean; partialPrompt?: boolean; providerFailure?: 'throw' | 'top' | 'nested' } = {}) {
   const window = new Window({ url: 'https://chatgpt.com/' })
@@ -91,6 +91,42 @@ function fixture(html: string, options: { selection?: 'outside' | 'partial' | 'n
 }
 
 describe('ChatGPT composer DOM resolution', () => {
+
+  it.each([
+    ['current', '<div data-chatgpt-selection-message-id="old"><div data-markdown-text-style="assistant-message">old</div></div><div data-chatgpt-selection-message-id="new"><div data-markdown-text-style="assistant-message">new</div></div>', 2, 'new'],
+    ['legacy', '<div data-message-author-role="assistant">legacy</div>', 1, 'legacy'],
+    ['nested overlap', '<div data-message-author-role="assistant">heading<div data-markdown-text-style="assistant-message">reply</div></div>', 1, 'reply'],
+    ['shared identity', '<div data-chatgpt-selection-message-id="one"><div data-message-author-role="assistant">legacy</div><div data-markdown-text-style="assistant-message">current</div></div>', 1, 'current'],
+    ['mixed order', '<div data-markdown-text-style="assistant-message">first</div><div data-message-author-role="assistant">second</div><div data-markdown-text-style="assistant-message">third</div>', 3, 'third'],
+    ['later legacy', '<div data-markdown-text-style="assistant-message">first</div><div data-message-author-role="assistant">last</div>', 2, 'last'],
+    ['current user', '<div data-markdown-text-style="user-message">[D2C_APP_PROOF_V1]</div>', 0, ''],
+    ['legacy user', '<div data-message-author-role="user">proof</div>', 0, ''],
+    ['identity alone', '<div data-chatgpt-selection-message-id="one">proof</div>', 0, ''],
+    ['search metadata', '<div data-chatgpt-search-unit-key="turn:assistant">proof</div>', 0, ''],
+    ['later user', '<div data-markdown-text-style="assistant-message">reply</div><div data-message-author-role="user">later</div>', 1, 'reply'],
+  ])('reads only logical assistant messages: %s', async (_name, html, assistantCount, text) => {
+    const { browser } = fixture(html)
+    const inspector = browser as unknown as { inspectChatPage(): Promise<{ assistantCount: number; text: string }> }
+    expect(await inspector.inspectChatPage()).toMatchObject({ assistantCount, text })
+  })
+
+  it('ignores unchanged overlapping baseline and waits for a settled new assistant reply', async () => {
+    const { browser, window } = fixture('<div role="textbox" contenteditable="true"></div><div data-chatgpt-selection-message-id="old"><div data-markdown-text-style="assistant-message">old</div></div>', { appName: '' })
+    await browser.sendControlMessage('request')
+    vi.useFakeTimers()
+    const pending = browser.waitForReply(10_000)
+    let completed = false
+    void pending.then(() => { completed = true })
+    window.document.querySelector('[data-chatgpt-selection-message-id]')!.setAttribute('data-message-author-role', 'assistant')
+    await vi.advanceTimersByTimeAsync(3000)
+    expect(completed).toBe(false)
+    window.document.body.insertAdjacentHTML('beforeend', '<div data-markdown-text-style="assistant-message">new</div>')
+    await vi.advanceTimersByTimeAsync(1500)
+    expect(completed).toBe(false)
+    await vi.advanceTimersByTimeAsync(1500)
+    await expect(pending).resolves.toEqual({ text: 'new', complete: true })
+  })
+
 
   it.each(['', ' '])('cleans recognized App-only separator %j', async separator => {
     const { browser, keys, window } = fixture('<div role="textbox" contenteditable="true"></div><div role="listbox"><button>DSH with ChatGPT</button></div>', { mention: true, separator })
