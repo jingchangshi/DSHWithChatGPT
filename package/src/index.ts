@@ -52,8 +52,10 @@ export interface Config {
   maxIterations: number
   /** Whether autonomous C2C reviews the worktree or committed+pushed iterations. */
   gitPolicy: 'worktree' | 'commit-push'
-  /** Explicit operator grant for fixed execution-workspace Git reads. */
-  gitRead: boolean
+  /** Explicit policy for fixed execution-workspace Git reads. */
+  gitReadPolicy?: 'require-full' | 'allow-hardened-windows' | 'disabled'
+  /** Legacy Git read grant, accepted only for compatibility. */
+  gitRead?: boolean
   /** Branches the autonomous commit/push policy must never use directly. */
   protectedBranches: string[]
   /** Secure MCP Tunnel lifecycle policy. */
@@ -78,7 +80,8 @@ export const Config: z.ZodType<Config> = z.object({
   chatgptAppName: z.string().default('DSH with ChatGPT'),
   maxIterations: z.number().int().min(1).max(64).default(12),
   gitPolicy: z.enum(['worktree', 'commit-push']).default('worktree'),
-  gitRead: z.boolean().default(false),
+  gitReadPolicy: z.enum(['require-full', 'allow-hardened-windows', 'disabled']).optional(),
+  gitRead: z.boolean().optional(),
   protectedBranches: z.array(z.string()).default(['main', 'master']),
   tunnelMode: z.enum(['auto', 'managed', 'external']).default('auto'),
   tunnelId: z.string().optional(),
@@ -87,6 +90,14 @@ export const Config: z.ZodType<Config> = z.object({
   tunnelRuntimeApiKeyEnv: z.string().default('CONTROL_PLANE_API_KEY'),
   tunnelStartupTimeoutMs: z.number().int().min(1000).default(20_000),
 }) as unknown as z.ZodType<Config>
+
+export function resolveGitReadPolicy(config: Config): NonNullable<Config['gitReadPolicy']> {
+  if (config.gitReadPolicy !== undefined && config.gitRead !== undefined) {
+    const legacy = config.gitRead ? 'require-full' : 'disabled'
+    if (legacy !== config.gitReadPolicy) throw new Error('gitRead and gitReadPolicy conflict')
+  }
+  return config.gitReadPolicy ?? (config.gitRead === true ? 'require-full' : 'disabled')
+}
 
 // ---------------------------------------------------------------- state
 
@@ -164,6 +175,7 @@ export const inject = ['tools', 'systemPrompt', 'storageDomain', 'executionWorld
 
 /** Activate only after durable storage opens; Cordis awaits tool registration. */
 export async function apply(ctx: Context, config: Config): Promise<void> {
+  const gitReadPolicy = resolveGitReadPolicy(config)
   const activate = async (): Promise<void> => {
     const storageDomain = ctx.get('storageDomain')
     if (storageDomain === undefined) throw new Error('DURABLE_STORAGE_UNAVAILABLE')
@@ -341,7 +353,11 @@ export async function apply(ctx: Context, config: Config): Promise<void> {
           return withWorkspaceReadLease(workspaceRuntimes, workspace,
             signal => bindExecutionReadLease(ctx, workspace.displayRoot, signal),
             signal => definition.execute(args, { ...exec, signal }, workspace), exec?.signal,
-            signal => config.gitRead ? bindExecutionGitLease(ctx, workspace.displayRoot, signal) : Promise.reject(new Error('Git read authorization is disabled')))
+            signal => gitReadPolicy === 'disabled'
+              ? Promise.reject(new Error('Git read authorization is disabled'))
+              : bindExecutionGitLease(ctx, workspace.displayRoot, signal, gitReadPolicy === 'allow-hardened-windows' ? 'allow-hardened-windows' : 'require-full'),
+            gitReadPolicy === 'disabled' ? undefined : gitReadPolicy,
+            gitReadPolicy === 'disabled' ? 'GIT_READ_DISABLED' : gitReadPolicy === 'require-full' ? 'GIT_FULL_CONFINEMENT_REQUIRED' : 'GIT_HARDENED_WINDOWS_UNAVAILABLE')
         },
       }))
     }
@@ -495,12 +511,12 @@ export async function apply(ctx: Context, config: Config): Promise<void> {
             workspaceId: { type: 'string', description: 'Non-secret workspace identity echoed through D2C.' },
             chatgptAppName: { type: 'string', description: 'Exact app name auto-activated for every message.' },
             gitPolicy: { type: 'string', description: 'Autonomous git policy.' },
-            gitRead: { type: 'boolean', description: 'Explicit operator grant for fixed Git reads.' },
+            gitReadPolicy: { type: 'string', description: 'Normalized policy for fixed Git reads.' },
             maxIterations: { type: 'integer', description: 'Autonomous review/fix round limit.' },
             tunnel: { description: 'Secure MCP Tunnel readiness summary.' },
             bootPromptVersion: { type: 'integer', description: 'Boot prompt version.' },
           },
-          required: ['plugin', 'workspaceRoot', 'latestTask', 'bridgeRunning', 'bridgePort', 'connectorConfigPath', 'workspaceId', 'chatgptAppName', 'gitPolicy', 'maxIterations', 'tunnel', 'bootPromptVersion'],
+          required: ['plugin', 'workspaceRoot', 'latestTask', 'bridgeRunning', 'bridgePort', 'connectorConfigPath', 'workspaceId', 'chatgptAppName', 'gitPolicy', 'gitReadPolicy', 'maxIterations', 'tunnel', 'bootPromptVersion'],
         },
         render: (_args: Record<string, unknown>, value: Record<string, unknown>) => [{
           type: 'text' as const,
@@ -522,7 +538,7 @@ export async function apply(ctx: Context, config: Config): Promise<void> {
           workspaceId: runtime.bridge.workspaceId,
           chatgptAppName: config.chatgptAppName,
           gitPolicy: config.gitPolicy,
-          gitRead: config.gitRead,
+          gitReadPolicy,
           maxIterations: config.maxIterations,
           tunnel: runtime.tunnelStatus,
           bootPromptVersion: 2,

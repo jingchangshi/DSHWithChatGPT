@@ -12,6 +12,8 @@ export async function withWorkspaceReadLease<Result>(
   operation: (signal: AbortSignal) => Promise<Result>,
   signal?: AbortSignal,
   acquireGit?: (signal: AbortSignal) => Promise<ExecutionGitLease>,
+  gitReadPolicy: 'require-full' | 'allow-hardened-windows' = 'require-full',
+  gitUnavailableReason: 'GIT_READ_DISABLED' | 'GIT_FULL_CONFINEMENT_REQUIRED' | 'GIT_HARDENED_WINDOWS_UNAVAILABLE' | 'GIT_READ_UNAVAILABLE' = 'GIT_READ_UNAVAILABLE',
 ): Promise<Result> {
   const lifetime = new AbortController()
   const active = signal === undefined ? lifetime.signal : AbortSignal.any([signal, lifetime.signal])
@@ -34,8 +36,12 @@ export async function withWorkspaceReadLease<Result>(
         if (gitLease.workspaceId !== identity.workspaceId) {
           throw new WorkspaceError('WORKSPACE_IDENTITY_MISMATCH', 'execution workspace changed during Git acquisition')
         }
+        if (gitLease.assurance !== 'full' && gitLease.assurance !== 'hardened-windows'
+          || gitReadPolicy === 'require-full' && gitLease.assurance !== 'full') {
+          throw new WorkspaceError('GIT_READ_UNAVAILABLE', 'execution Git assurance does not satisfy the requested policy')
+        }
       } catch (error) {
-        if (error instanceof WorkspaceError && error.reason === 'WORKSPACE_IDENTITY_MISMATCH') throw error
+        if (error instanceof WorkspaceError && (error.reason === 'WORKSPACE_IDENTITY_MISMATCH' || error.reason === 'GIT_READ_UNAVAILABLE')) throw error
         if (error instanceof ExecutionGitCleanupError) {
           throw new WorkspaceError('WORKSPACE_CLEANUP_FAILED', 'execution workspace cleanup could not be confirmed')
         }
@@ -47,7 +53,7 @@ export async function withWorkspaceReadLease<Result>(
       identity, generation: Symbol(), signal: active, backend, git: gitLease?.git,
       capabilities: {
         workspaceContentRead: { available: true },
-        gitRead: gitLease === undefined ? { available: false, reason: 'GIT_READ_UNAVAILABLE' } : { available: true },
+        gitRead: gitLease === undefined ? { available: false, reason: gitUnavailableReason } : { available: true, assurance: gitLease.assurance },
         executionOutput: { available: false, reason: 'EXECUTION_OUTPUT_UNAVAILABLE' },
       },
     })

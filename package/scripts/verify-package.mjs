@@ -51,10 +51,12 @@ import type { FsReadRootOpenOptions } from '@deepseek-ai/dsh-fs';
 const options: FsReadRootOpenOptions = { aliasPolicy: 'deny' };
 const bind: typeof bindExecutionReadLease = bindExecutionReadLease;
 const bindGit: typeof bindExecutionGitLease = bindExecutionGitLease;
+const policy: Parameters<typeof bindExecutionGitLease>[3] = 'allow-hardened-windows';
 declare const lease: ExecutionReadLease;
 declare const gitLease: ExecutionGitLease;
+const assurance: 'full' | 'hardened-windows' = gitLease.assurance;
 const read: Promise<string> = lease.fs.readText('README.md', 1024);
-void [options, bind, bindGit, read, gitLease];
+void [options, bind, bindGit, policy, assurance, read, gitLease];
 `)
 run(['exec', 'tsc', '--noEmit', '--strict', '--module', 'NodeNext', '--moduleResolution', 'NodeNext', '--target', 'ES2024', 'probe.ts'], isolated)
 const probe = `

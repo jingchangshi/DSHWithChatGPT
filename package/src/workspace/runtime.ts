@@ -13,11 +13,12 @@ export interface WorkspaceReadBackend {
 
 /** Provider-confirmed access, never inferred from filesystem service presence. */
 export type WorkspaceCapability =
-  | { readonly available: true }
+  | { readonly available: true; readonly assurance?: 'full' | 'hardened-windows' }
   | { readonly available: false; readonly reason: WorkspaceUnavailableReason }
 
 /** Stable public diagnostics exclude provider paths and transport errors. */
 export type WorkspaceUnavailableReason = 'RUNTIME_LEASE_UNAVAILABLE' | 'ROOT_SAFE_READ_UNAVAILABLE'
+  | 'GIT_READ_DISABLED' | 'GIT_FULL_CONFINEMENT_REQUIRED' | 'GIT_HARDENED_WINDOWS_UNAVAILABLE'
   | 'GIT_READ_UNAVAILABLE' | 'SUBPROCESS_CAPABILITY_UNAVAILABLE' | 'EXECUTION_OUTPUT_UNAVAILABLE'
 
 /** One acquisition, distinct from the lifetime of its underlying service generation. */

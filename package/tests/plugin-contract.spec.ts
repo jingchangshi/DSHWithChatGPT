@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from 'vitest'
 import { Context } from '@deepseek-ai/cordis'
 import { setImmediate } from 'node:timers/promises'
-import { apply, Config, inject } from '../src/index.ts'
+import { apply, Config, inject, resolveGitReadPolicy } from '../src/index.ts'
 import { BrowserHarnessAdapter } from '../src/browser/harness.ts'
 import { TunnelSupervisor } from '../src/tunnel/supervisor.ts'
 
@@ -14,6 +14,15 @@ interface RegisteredTool {
 }
 
 describe('production collaboration service requirements', () => {
+  it('normalizes Git read policy with legacy compatibility and default denial', () => {
+    expect(resolveGitReadPolicy(Config.parse({}))).toBe('disabled')
+    expect(resolveGitReadPolicy(Config.parse({ gitRead: true }))).toBe('require-full')
+    expect(resolveGitReadPolicy(Config.parse({ gitRead: false }))).toBe('disabled')
+    expect(resolveGitReadPolicy(Config.parse({ gitReadPolicy: 'allow-hardened-windows' }))).toBe('allow-hardened-windows')
+    expect(resolveGitReadPolicy(Config.parse({ gitRead: true, gitReadPolicy: 'require-full' }))).toBe('require-full')
+    expect(() => resolveGitReadPolicy(Config.parse({ gitRead: true, gitReadPolicy: 'disabled' }))).toThrow('gitRead and gitReadPolicy conflict')
+  })
+
   it('declares tool, prompt, durability and execution identity dependencies', () => {
     expect(inject).toEqual(['tools', 'systemPrompt', 'storageDomain', 'executionWorldIdentity', 'fs', 'subprocess', 'sandbox'])
   })

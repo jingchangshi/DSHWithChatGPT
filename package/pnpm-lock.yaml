@@ -25,8 +25,8 @@ importers:
         specifier: ^4.0.2
         version: 4.0.2
       '@deepseek-ai/dsh-execution-world':
-        specifier: file:tarballs/deepseek-ai-dsh-execution-world-0.1.6-alpha.2.tgz
-        version: file:tarballs/deepseek-ai-dsh-execution-world-0.1.6-alpha.2.tgz(43accf15dfbd043fc795d15162e99311)
+        specifier: file:tarballs/deepseek-ai-dsh-execution-world-0.1.6-alpha.3.tgz
+        version: file:tarballs/deepseek-ai-dsh-execution-world-0.1.6-alpha.3.tgz(43accf15dfbd043fc795d15162e99311)
       '@deepseek-ai/dsh-sandbox':
         specifier: 0.1.6-alpha.2
         version: 0.1.6-alpha.2(@deepseek-ai/cordis@4.0.2)(@deepseek-ai/dsh-llm@0.1.6-alpha.2(@deepseek-ai/cordis@4.0.2))(@deepseek-ai/dsh-session@0.1.6-alpha.2(@deepseek-ai/cordis@4.0.2)(@deepseek-ai/dsh-scope@0.1.6-alpha.2(@deepseek-ai/cordis@4.0.2)(@deepseek-ai/dsh-invariants@0.1.6-alpha.2(@deepseek-ai/cordis@4.0.2))))
@@ -81,9 +81,9 @@ packages:
     peerDependencies:
       '@deepseek-ai/cordis': ^4.0.2
 
-  '@deepseek-ai/dsh-execution-world@file:tarballs/deepseek-ai-dsh-execution-world-0.1.6-alpha.2.tgz':
-    resolution: {integrity: sha512-dOa+qB+mPE9N3i6e3JNowDj8XKesHY8Rq2tvT+HYF4EQmAcEeidd3VeWwGZwFX8A6S1sp6gBRfuf+M+wLjpJuQ==, tarball: file:tarballs/deepseek-ai-dsh-execution-world-0.1.6-alpha.2.tgz}
-    version: 0.1.6-alpha.2
+  '@deepseek-ai/dsh-execution-world@file:tarballs/deepseek-ai-dsh-execution-world-0.1.6-alpha.3.tgz':
+    resolution: {integrity: sha512-uO3AR2072m2riHF5Pqxn4UKpsTtDzi5tYllRlfqsPLaRC0C/o2ens/MfFZ1cspMzp3uJUtCeJBQ2R82snI3XhA==, tarball: file:tarballs/deepseek-ai-dsh-execution-world-0.1.6-alpha.3.tgz}
+    version: 0.1.6-alpha.3
     peerDependencies:
       '@deepseek-ai/cordis': ^4.0.2
       '@deepseek-ai/dsh-fs': ^0.1.6-alpha.2
@@ -744,7 +744,7 @@ snapshots:
     dependencies:
       '@deepseek-ai/cordis': 4.0.2
 
-  '@deepseek-ai/dsh-execution-world@file:tarballs/deepseek-ai-dsh-execution-world-0.1.6-alpha.2.tgz(43accf15dfbd043fc795d15162e99311)':
+  '@deepseek-ai/dsh-execution-world@file:tarballs/deepseek-ai-dsh-execution-world-0.1.6-alpha.3.tgz(43accf15dfbd043fc795d15162e99311)':
     dependencies:
       '@deepseek-ai/cordis': 4.0.2
       '@deepseek-ai/dsh-brand': 0.1.6-alpha.2(@deepseek-ai/cordis@4.0.2)

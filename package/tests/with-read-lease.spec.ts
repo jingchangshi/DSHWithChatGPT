@@ -61,6 +61,7 @@ describe('workspace operation read lease', () => {
     const { registry, identity, lease } = fixture()
     const gitLease: ExecutionGitLease = {
       workspaceId: lease.workspaceId,
+      assurance: 'full',
       git: { workspaceId: lease.workspaceId, emptyFile: '/dev/null', signal: new AbortController().signal, execute: vi.fn() },
       dispose: vi.fn(async () => {}),
     }
@@ -68,6 +69,32 @@ describe('workspace operation read lease', () => {
       expect(registry.require(identity.workspaceId, 'gitRead').lease.git).toBe(gitLease.git)
     }, undefined, async () => gitLease)
     expect(gitLease.dispose).toHaveBeenCalledTimes(1)
+  })
+
+  it('rejects hardened assurance under require-full', async () => {
+    const { registry, identity, lease } = fixture()
+    const gitLease: ExecutionGitLease = {
+      workspaceId: lease.workspaceId,
+      assurance: 'hardened-windows',
+      git: { workspaceId: lease.workspaceId, emptyFile: '/dev/null', signal: new AbortController().signal, execute: vi.fn() },
+      dispose: vi.fn(async () => {}),
+    }
+    await expect(withWorkspaceReadLease(registry, identity, async () => lease, async () => 'done', undefined, async () => gitLease))
+      .rejects.toMatchObject({ reason: 'GIT_READ_UNAVAILABLE' })
+    expect(gitLease.dispose).toHaveBeenCalledTimes(1)
+  })
+
+  it('publishes hardened assurance only when the policy allows it', async () => {
+    const { registry, identity, lease } = fixture()
+    const gitLease: ExecutionGitLease = {
+      workspaceId: lease.workspaceId,
+      assurance: 'hardened-windows',
+      git: { workspaceId: lease.workspaceId, emptyFile: '/dev/null', signal: new AbortController().signal, execute: vi.fn() },
+      dispose: vi.fn(async () => {}),
+    }
+    await withWorkspaceReadLease(registry, identity, async () => lease, async () => {
+      expect(registry.capabilities(identity.workspaceId).gitRead).toEqual({ available: true, assurance: 'hardened-windows' })
+    }, undefined, async () => gitLease, 'allow-hardened-windows')
   })
 
   it('does not downgrade unconfirmed Git acquisition cleanup to optional access', async () => {
@@ -122,6 +149,7 @@ describe('workspace operation read lease', () => {
     const entered = Promise.withResolvers<void>()
     const gitLease: ExecutionGitLease = {
       workspaceId: lease.workspaceId,
+      assurance: 'full',
       git: { workspaceId: lease.workspaceId, emptyFile: '/dev/null', signal: new AbortController().signal, execute: vi.fn() },
       dispose: vi.fn(async () => {
         if (failing === 'git') throw new Error('Git transport details')
