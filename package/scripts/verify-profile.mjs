@@ -19,6 +19,24 @@ const workspace = path.join(root, 'workspace')
 const otherWorkspace = path.join(root, 'other-workspace')
 const alias = path.join(root, 'alias')
 await Promise.all([profile, workspace, otherWorkspace].map(directory => mkdir(directory, { recursive: true })))
+function git(...args) {
+  const result = spawnSync('git', args, { cwd: workspace, encoding: 'utf8', windowsHide: true })
+  if (result.error) throw result.error
+  assert.equal(result.status, 0, result.stderr)
+}
+git('init', '-q', '-b', 'profile-fixture')
+git('config', 'user.name', 'Profile fixture')
+git('config', 'user.email', 'fixture@example.invalid')
+git('config', 'commit.gpgsign', 'false')
+git('config', 'core.autocrlf', 'false')
+await writeFile(path.join(workspace, 'tracked.txt'), 'tracked baseline\n')
+await writeFile(path.join(workspace, 'staged.txt'), 'staged baseline\n')
+git('add', '.')
+git('commit', '-qm', 'profile baseline')
+await writeFile(path.join(workspace, 'tracked.txt'), 'tracked mutation marker\n')
+await writeFile(path.join(workspace, 'staged.txt'), 'staged mutation marker\n')
+git('add', 'staged.txt')
+await writeFile(path.join(workspace, 'untracked.txt'), 'untracked mutation marker\n')
 await symlink(workspace, alias, process.platform === 'win32' ? 'junction' : 'dir')
 await writeFile(path.join(profile, 'package.json'), JSON.stringify({ name: 'c2c-smoke', private: true, dsh: { profile: { bundles: [] } } }))
 const packageEntry = name => pathToFileURL(path.join(installationRoot, 'node_modules', name, 'lib', 'index.js')).href
@@ -39,7 +57,7 @@ const rows = [
   ['subprocess', '@deepseek-ai/dsh-subprocess-local'],
   ['sandbox', '@deepseek-ai/dsh-sandbox-local'],
   ['identity', packageEntry('@deepseek-ai/dsh-execution-world'), { mode: 'persisted-local', allocationLockPath: path.join(root, 'identity.lock') }],
-  ['collaboration', packageEntry('dsh-with-chatgpt'), { tunnelMode: 'external', gitPolicy: 'worktree', gitRead: true }],
+  ['collaboration', packageEntry('dsh-with-chatgpt'), { tunnelMode: 'external', gitPolicy: 'worktree', gitReadPolicy: 'allow-hardened-windows' }],
   ['probe', new URL('../tests/fixtures/profile-identity-probe.mjs', import.meta.url).href, { workspace, alias, otherWorkspace }],
 ].map(([id, name, config]) => ({ id, name, ...(config ? { config } : {}) }))
 await writeFile(path.join(profile, 'cordis.patch.yml'), JSON.stringify([{ insert: rows }], null, 2))
@@ -62,8 +80,10 @@ for (const iteration of [1, 2]) {
   assert.equal(result.pid, child.pid, 'The report must come from the launched DSH process')
   console.log(JSON.stringify(result))
   assert.equal(result.ok, true, result.error)
+  assert.equal(result.gitAcceptance?.ok, true)
+  assert.ok(['hardened-windows', 'full'].includes(result.gitAcceptance.assurance))
   reports.push(result)
 }
 assert.deepEqual(reports[0].statuses.map(status => status.workspaceId), reports[1].statuses.map(status => status.workspaceId))
 assert.notEqual(reports[0].runId, reports[1].runId)
-console.log('Real DSH profile: identity stable across aliases/restart/plugin reload, distinct workspaces isolated, content lease available, Git/output denied until separately authorized')
+console.log('Real DSH profile: identity stable across aliases/restart/plugin reload; authenticated Git status/diff/log preserve repository state; execution output remains unavailable')
