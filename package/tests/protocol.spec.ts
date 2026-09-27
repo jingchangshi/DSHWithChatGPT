@@ -114,6 +114,43 @@ describe('state machine', () => {
     }), { sender: 'chatgpt' })
   }
 
+  it.each([
+    { iteration: 2, inReplyTo: 0, reason: 'stale-iteration' },
+    { iteration: 0, inReplyTo: 0, reason: 'stale-iteration' },
+    { iteration: 1, inReplyTo: 1, reason: 'reply-round-mismatch' },
+    { iteration: 1, inReplyTo: undefined, reason: 'reply-round-mismatch' },
+  ])('rejects invalid initial round $iteration/$inReplyTo without mutation', ({ iteration, inReplyTo, reason }) => {
+    const taskId = mintTaskId()
+    machine.startTask(taskId, 'exact round')
+    const before = { ...machine.get(taskId)! }
+    const reply = parseEnvelope(formatEnvelope({
+      state: 'PLAN', sender: 'chatgpt', taskId, iteration, inReplyTo,
+      sections: { ACTIONS: 'execute' },
+    }), { sender: 'chatgpt' })
+    expect(() => machine.applyReply(reply)).toThrow(reason)
+    expect(machine.get(taskId)).toEqual(before)
+  })
+
+  it.each(['PLAN', 'DONE'] as const)('requires exact review round for %s and rejects duplicate replies', state => {
+    const taskId = mintTaskId()
+    machine.startTask(taskId, 'review')
+    machine.applyReply(planReply(taskId, 1, 0))
+    machine.applyLocal(taskId, 'executing')
+    machine.advanceIteration(taskId)
+    machine.applyLocal(taskId, 'executed')
+    const before = { ...machine.get(taskId)! }
+    for (const [iteration, inReplyTo] of [[3, 2], [1, 2], [2, 1], [2, undefined]]) {
+      const reply = parseEnvelope(formatEnvelope({
+        state, sender: 'chatgpt', taskId, iteration: iteration!, inReplyTo,
+      }), { sender: 'chatgpt' })
+      expect(() => machine.applyReply(reply)).toThrow(ProtocolError)
+      expect(machine.get(taskId)).toEqual(before)
+    }
+    const reply = parseEnvelope(formatEnvelope({ state, sender: 'chatgpt', taskId, iteration: 2, inReplyTo: 2 }), { sender: 'chatgpt' })
+    machine.applyReply(reply)
+    expect(() => machine.applyReply(reply)).toThrow('unexpected-reply')
+  })
+
   it('walks INIT → PLAN → EXECUTED → DONE', () => {
     const taskId = mintTaskId()
     machine.startTask(taskId, 'add a feature')

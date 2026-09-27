@@ -67,6 +67,18 @@ function makeCoordinator(replies: string[]): { coordinator: ChatGptCoordinator; 
 }
 
 describe('coordinator happy path', () => {
+  it('rejects a reply for another loaded task without advancing either task', async () => {
+    const browser = fakeBrowser([])
+    const store = new CoordinatorState(createMemoryStore())
+    const coordinator = new ChatGptCoordinator({ browser, store, workspaceRoot: 'workspace', workspaceId: 'test-workspace' })
+    const first = await coordinator.startTask('first')
+    const second = await coordinator.startTask('second')
+    browser.waitForReply = async () => ({ text: planReply(second.taskId, 1, 0), complete: true })
+    await expect(coordinator.awaitPlan(first.taskId)).rejects.toThrow('task-mismatch')
+    expect((await coordinator.status(first.taskId))?.state).toBe('awaiting-plan')
+    expect((await coordinator.status(second.taskId))?.state).toBe('awaiting-plan')
+  })
+
   it('isolates durable task bindings by provider ID and ignores legacy path bindings', async () => {
     const store = new CoordinatorState(createMemoryStore())
     const browser = fakeBrowser([])
@@ -266,6 +278,26 @@ describe('coordinator autonomous safety bound', () => {
 })
 
 describe('coordinator rejects stale replies', () => {
+  it.each(['PLAN', 'DONE'] as const)('rejects wrong HEAD in review %s and resumes without resending', async state => {
+    const browser = fakeBrowser([])
+    const coordinator = new ChatGptCoordinator({ browser, store: new CoordinatorState(createMemoryStore()), workspaceRoot: 'workspace', workspaceId: 'test-workspace' })
+    const { taskId } = await coordinator.startTask('review exact head')
+    browser.waitForReply = async () => ({ text: planReply(taskId, 1, 0), complete: true })
+    await coordinator.awaitPlan(taskId)
+    let head = 'wrong-head'
+    browser.waitForReply = async () => ({ text: formatEnvelope({
+      state, sender: 'chatgpt', taskId, iteration: 2, inReplyTo: 2,
+      headers: { HEAD: head, WORKSPACE_ID: 'test-workspace' },
+      sections: state === 'PLAN' ? { ACTIONS: 'fix' } : { SUMMARY: 'verified' },
+    }), complete: true })
+    const summary = { changedFiles: [], head: 'expected-head', testsRecorded: true }
+    await expect(coordinator.reportExecuted(taskId, summary)).rejects.toThrow('review-head-mismatch')
+    expect((await coordinator.status(taskId))?.waitingFor).toBe('chatgpt-review')
+    head = 'expected-head'
+    expect((await coordinator.reportExecuted(taskId, summary)).record.state).toBe(state === 'PLAN' ? 'planned' : 'done')
+    expect(browser.sent).toHaveLength(2)
+  })
+
   it('a reply with an old iteration is rejected and state unchanged', async () => {
     const browser = fakeBrowser([])
     const coordinator = new ChatGptCoordinator({ workspaceId: 'test-workspace',

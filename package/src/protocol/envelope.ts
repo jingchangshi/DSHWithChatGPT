@@ -126,6 +126,9 @@ export function formatEnvelope(input: {
   }
   for (const [key, value] of Object.entries(input.headers ?? {})) {
     if (!/^[A-Z][A-Z0-9_]*$/.test(key)) throw new ProtocolError('bad-header', `invalid header name ${key}`)
+    if (['VERSION', 'STATE', 'TASK_ID', 'ITERATION', 'IN_REPLY_TO'].includes(key)) {
+      throw new ProtocolError('duplicate-header', `reserved header ${key}`)
+    }
     if (value.includes('\n') || value.length > MAX_HEADER_BYTES) {
       throw new ProtocolError('bad-header', `header ${key} too long or multiline`)
     }
@@ -173,6 +176,7 @@ export function parseEnvelope(text: string, options: ParseOptions): Envelope {
 
   const headers = new Map<string, string>()
   const sections = new Map<string, string>()
+  const fields = new Set<string>()
   let currentSection: string | undefined
   let sectionLines: string[] = []
   const headerOrder: string[] = []
@@ -212,6 +216,10 @@ export function parseEnvelope(text: string, options: ParseOptions): Envelope {
     }
     const name = match[1]!
     const value = match[2]!
+    if (fields.has(name)) {
+      throw new ProtocolError(value === '' ? 'duplicate-section' : 'duplicate-header', `duplicate field ${name}`)
+    }
+    fields.add(name)
     if (value === '') {
       // Empty-value NAME: opens a section body; the name is validated
       // against the state's section vocabulary once STATE is known.

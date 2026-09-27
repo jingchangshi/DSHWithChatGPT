@@ -125,12 +125,12 @@ export class StateMachine {
     if (!satisfying.includes(envelope.state)) {
       throw new ProtocolError('stale-reply', `waiting ${record.waitingFor} but got ${envelope.state}`)
     }
-    // Iteration currency: a reply must reference the iteration we are at or
-    // the one we asked about (IN_REPLY_TO), never an older one. The INIT
-    // round (iteration 0 plan) is the only reply allowed to carry 0.
-    const expected = envelope.inReplyTo ?? record.iteration
-    if (envelope.iteration < expected) {
-      throw new ProtocolError('stale-iteration', `reply iteration ${envelope.iteration} < expected ${expected}`)
+    const expected = record.iteration + (record.waitingFor === 'chatgpt-plan' ? 1 : 0)
+    if (envelope.iteration !== expected) {
+      throw new ProtocolError('stale-iteration', `reply iteration ${envelope.iteration} != expected ${expected}`)
+    }
+    if (envelope.inReplyTo !== record.iteration) {
+      throw new ProtocolError('reply-round-mismatch', `IN_REPLY_TO must equal ${record.iteration}`)
     }
     record.iteration = envelope.iteration
     record.updatedAt = Date.now()

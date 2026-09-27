@@ -32,7 +32,7 @@ Theme toggles without reload.
 | VERSION | yes | Protocol version, must equal `1` |
 | STATE | yes | Envelope state (below) |
 | TASK_ID | yes | `d2c_` + 4–32 lowercase alphanumerics |
-| ITERATION | yes | Monotonic round counter (INIT sends 0) |
+| ITERATION | yes | Initial PLAN is INIT + 1; review replies equal the EXECUTED iteration |
 | IN_REPLY_TO | when replying | ITERATION of the envelope being answered |
 | WORKSPACE_ID | DSH sends; ChatGPT must echo | Stable non-secret id from `workspace_info.workspaceId`; prevents cross-workspace App/connector mistakes |
 | HEAD | EXECUTED review rounds | Exact committed HEAD; ChatGPT must echo it in DONE/fix PLAN after independent verification |
@@ -69,7 +69,7 @@ Section vocabulary per state (parser rejects unknown sections):
 awaiting-plan --PLAN--> planned --(DSH executes)--> executing
 executing --(EXECUTED sent)--> awaiting-review
 awaiting-review --DONE--> done
-awaiting-review --PLAN--> planned        (fix round, iteration++)
+awaiting-review --PLAN--> planned        (fix plan; next EXECUTED advances iteration)
 any --BLOCKED/ERROR--> blocked/error (user)
 ```
 
@@ -78,7 +78,10 @@ Rejection rules (machine-enforced, `ProtocolError` with stable reasons):
 - `unknown-task` — reply for an untracked TASK_ID
 - `unexpected-reply` — reply while not waiting for ChatGPT
 - `stale-reply` — reply state cannot satisfy the current wait (e.g. DONE before any plan)
-- `stale-iteration` — `ITERATION < expected` where expected is `IN_REPLY_TO ?? current`
+- `stale-iteration` — reply iteration differs from the exact expected iteration, including future values
+- `reply-round-mismatch` — missing or incorrect `IN_REPLY_TO`; it must equal the outbound iteration
+- `task-mismatch` — reply does not identify the task currently awaited, even if another known task exists
+- `duplicate-header`, `duplicate-section` — repeated envelope fields are rejected rather than overwritten
 - `wrong-sender` — a side sent a state it may not send
 - `workspace-mismatch` — ChatGPT did not echo the exact workspace id verified through MCP
 - `review-head-mismatch` — review did not acknowledge the exact EXECUTED HEAD
@@ -87,7 +90,7 @@ Rejection rules (machine-enforced, `ProtocolError` with stable reasons):
 
 ## Size discipline
 
-The composer carries only envelopes + short prose. Files, diffs, and logs flow through the read-only MCP data plane (`git_diff` is byte-capped at 256KiB default; `read_file` at 128KiB with head+tail; execution output tails at 16KiB/200 lines).
+The composer carries only envelopes + short prose. Files, diffs, and logs flow through the read-only MCP data plane (`git_diff` is byte-capped at 256KiB default; `read_file` reads complete UTF-8 files up to 128KiB and rejects larger files with `FS_TOO_LARGE`; execution output tails at 16KiB/200 lines).
 
 
 ## Unattended runtime invariants

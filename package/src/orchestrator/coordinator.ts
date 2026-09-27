@@ -10,7 +10,7 @@ import { ProtocolError, StateMachine, mintTaskId } from '../protocol/index.ts'
 import type { Envelope } from '../protocol/index.ts'
 import type { BrowserControl } from '../browser/index.ts'
 import { DuplicateSendGuard, extractEnvelopeText } from '../browser/index.ts'
-import { parseEnvelope } from '../protocol/index.ts'
+import { formatEnvelope, parseEnvelope } from '../protocol/index.ts'
 import { CoordinatorState, type PersistedTask, type TaskState } from './state.ts'
 import { OperationCancelledError, throwIfCancelled } from '../cancellation.ts'
 
@@ -56,6 +56,7 @@ export const CHATGPT_BOOT_PROMPT = [
   '5. Never request workspace write operations; you have none.',
   '6. Plans are WHAT/WHY, never HOW bindings; GLM decides implementation.',
   '7. Answer ONLY through a [D2C] envelope with the correct STATE, TASK_ID, ITERATION and IN_REPLY_TO headers.',
+  'Initial PLAN: ITERATION equals INIT ITERATION + 1 and IN_REPLY_TO equals INIT ITERATION. Review replies: both ITERATION and IN_REPLY_TO equal EXECUTED ITERATION.',
   '8. Every PLAN/DONE/BLOCKED/ERROR reply must echo the exact WORKSPACE_ID header after checking workspace_info.workspaceId through MCP.',
   '9. When reviewing an EXECUTED envelope that carries HEAD, echo that exact HEAD header in your DONE or fix PLAN reply after verifying it via MCP/git.',
   '10. PLAN replies iterate on the plan instead of infinite TODO lists; DONE means you verified the result.',
@@ -116,15 +117,10 @@ export class ChatGptCoordinator {
       CHATGPT_BOOT_PROMPT,
       '',
       'New task:',
-      '[D2C]',
-      'VERSION: 1',
-      'STATE: INIT',
-      `TASK_ID: ${taskId}`,
-      'ITERATION: 0',
-      `WORKSPACE_ID: ${this.options.workspaceId}`,
-      '',
-      'GOAL:',
-      goal,
+      formatEnvelope({
+        state: 'INIT', sender: 'dsh', taskId, iteration: 0,
+        headers: { WORKSPACE_ID: this.options.workspaceId }, sections: { GOAL: goal },
+      }),
     ].join('\n')
     if (this.sendGuard.isDuplicate(initEnvelope)) {
       throw new ProtocolError('duplicate-send', 'INIT envelope just sent; verify browser state before re-sending')
@@ -151,6 +147,7 @@ export class ChatGptCoordinator {
       throw new ProtocolError('no-marker', 'ChatGPT reply contained no [D2C] envelope')
     }
     const envelope = parseEnvelope(envelopeText, { sender: 'chatgpt' })
+    this.validateTaskReply(envelope, taskId)
     this.validateWorkspaceReply(envelope)
     const folded = this.machine.applyReply(envelope)
     const conversationId = await this.options.browser.conversationId(signal).catch(error => {
@@ -194,24 +191,19 @@ export class ChatGptCoordinator {
       const record = this.machine.get(taskId)
       const iteration = record?.iteration ?? persisted.iteration + 1
       const inReplyTo = persisted.iteration
-      const envelopeText = [
-      '[D2C]',
-      'VERSION: 1',
-      'STATE: EXECUTED',
-      `TASK_ID: ${taskId}`,
-      `ITERATION: ${iteration}`,
-      `IN_REPLY_TO: ${inReplyTo}`,
-      `WORKSPACE_ID: ${this.options.workspaceId}`,
-      ...(summary.head !== null ? [`HEAD: ${summary.head}`] : []),
-      '',
-      'RESULT:',
-      `Implementation executed by DeepSeek Harness. Changed files: ${summary.changedFiles.length > 0 ? summary.changedFiles.join(', ') : '(none)'}`,
-      `Git HEAD: ${summary.head ?? '(no commits)'}`,
-      `Tests recorded: ${summary.testsRecorded ? 'yes — verify via test_status MCP tool' : 'no'}`,
-      ...(summary.note !== undefined ? ['', 'NOTE:', summary.note] : []),
-      '',
-      'Independently review via MCP (git_diff, test_status), then reply DONE or PLAN (fix).',
-    ].join('\n')
+      const envelopeText = formatEnvelope({
+        state: 'EXECUTED', sender: 'dsh', taskId, iteration, inReplyTo,
+        headers: { WORKSPACE_ID: this.options.workspaceId, ...(summary.head !== null ? { HEAD: summary.head } : {}) },
+        sections: {
+          RESULT: [
+            `Implementation executed by DeepSeek Harness. Changed files: ${summary.changedFiles.length > 0 ? summary.changedFiles.join(', ') : '(none)'}`,
+            `Git HEAD: ${summary.head ?? '(no commits)'}`,
+            `Tests recorded: ${summary.testsRecorded ? 'yes — verify via test_status MCP tool' : 'no'}`,
+            'Independently review via MCP (git_diff, test_status), then reply DONE or PLAN (fix).',
+          ].join('\n'),
+          ...(summary.note !== undefined ? { NOTE: summary.note } : {}),
+        },
+      })
       if (this.sendGuard.isDuplicate(envelopeText)) {
         throw new ProtocolError('duplicate-send', 'EXECUTED envelope just sent')
       }
@@ -233,6 +225,7 @@ export class ChatGptCoordinator {
       throw new ProtocolError('no-marker', 'ChatGPT review contained no [D2C] envelope')
     }
     const envelope = parseEnvelope(envelopeReply, { sender: 'chatgpt' })
+    this.validateTaskReply(envelope, taskId)
     this.validateWorkspaceReply(envelope)
     if (reviewHead !== null && envelope.headers.get('HEAD') !== reviewHead) {
       throw new ProtocolError(
@@ -281,6 +274,12 @@ export class ChatGptCoordinator {
     return task
   }
 
+
+  private validateTaskReply(envelope: Envelope, taskId: string): void {
+    if (envelope.taskId !== taskId) {
+      throw new ProtocolError('task-mismatch', 'reply does not match the awaited task')
+    }
+  }
 
   private validateWorkspaceReply(envelope: Envelope): void {
     const expected = this.options.workspaceId
