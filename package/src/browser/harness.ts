@@ -363,8 +363,13 @@ export class BrowserHarnessAdapter implements BrowserControl {
       'if (!selection || selection.rangeCount !== 1 || selection.isCollapsed) return false;',
       'const range = selection.getRangeAt(0);',
       'if (![selection.anchorNode, selection.focusNode, range.commonAncestorContainer].every(node => node && composer.contains(node))) return false;',
-      'if (selection.toString().trim() !== content.trim()) return false;',
-      'return Array.from(composer.querySelectorAll(\'[contenteditable="false"], [data-lexical-decorator="true"], [data-mention]\')).every(node => selection.containsNode(node, false));',
+      String.raw`const atomSelector = '[contenteditable="false"], [data-lexical-decorator="true"], [data-mention], [app-mention-display-name]';`,
+      'const atoms = Array.from(composer.querySelectorAll(atomSelector)).filter(node => !node.parentElement.closest(atomSelector));',
+      'if (!atoms.every(node => { const identity = (node.getAttribute("app-mention-display-name") ?? node.textContent ?? "").trim(); return identity.length > 0 && draft.texts.some(text => text.trim() === identity) && selection.containsNode(node, false); })) return false;',
+      'const walker = document.createTreeWalker(composer, NodeFilter.SHOW_TEXT);',
+      'let node;',
+      'while ((node = walker.nextNode())) { if (node.textContent.trim() && !atoms.some(atom => atom.contains(node)) && !selection.containsNode(node, false)) return false; }',
+      'return true;',
       '})()',
     ].join(' ') }, signal)
     if (selected !== true) throw new BrowserStaleError('ChatGPT composer selection is not complete and contained')

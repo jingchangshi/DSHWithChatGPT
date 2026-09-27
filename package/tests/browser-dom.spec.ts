@@ -6,7 +6,7 @@ import { BrowserStaleError, ChatGptAppUnavailableError } from '../src/browser/ad
 const windows: Window[] = []
 afterEach(async () => { await Promise.all(windows.splice(0).map(window => window.happyDOM.close())) })
 
-function fixture(html: string, options: { selection?: 'outside' | 'partial' | 'none'; appName?: string; mention?: boolean; keepDraft?: boolean; ambiguousAfterInput?: boolean; failAfterType?: boolean; foreignDraft?: boolean | string; providerFailure?: 'throw' | 'top' | 'nested' } = {}) {
+function fixture(html: string, options: { selection?: 'outside' | 'partial' | 'none' | 'icon' | 'tail'; appName?: string; mention?: boolean; keepDraft?: boolean; ambiguousAfterInput?: boolean; failAfterType?: boolean; foreignDraft?: boolean | string; omitAtomText?: boolean; providerFailure?: 'throw' | 'top' | 'nested' } = {}) {
   const window = new Window({ url: 'https://chatgpt.com/' })
   windows.push(window)
   window.document.body.innerHTML = html
@@ -66,7 +66,10 @@ function fixture(html: string, options: { selection?: 'outside' | 'partial' | 'n
           const range = window.document.createRange()
           range.selectNodeContents(options.selection === 'outside' ? window.document.body : composer)
           if (options.selection === 'partial') range.setEnd(composer.firstChild!, 1)
+          if (options.selection === 'icon') range.selectNode(composer.firstChild!.firstChild!)
+          if (options.selection === 'tail') range.setEnd(composer.lastChild!, 3)
           selection.addRange(range)
+          if (options.omitAtomText) selection.toString = () => ''
         }
       } else if (args.key === 'Backspace') {
         if (!options.keepDraft) {
@@ -81,6 +84,37 @@ function fixture(html: string, options: { selection?: 'outside' | 'partial' | 'n
 }
 
 describe('ChatGPT composer DOM resolution', () => {
+
+  it.each([
+    ['partial atom', '<span contenteditable="false">DSH with ChatGPT</span>', 'partial', 'DSH with ChatGPT'],
+    ['nested icon only', '<span contenteditable="false"><span contenteditable="false"></span>DSH with ChatGPT</span>', 'icon', 'DSH with ChatGPT'],
+    ['partial trailing text', '<span contenteditable="false">DSH with ChatGPT</span> control message', 'tail', 'DSH with ChatGPT control message'],
+    ['foreign text', '<span contenteditable="false">DSH with ChatGPT</span> foreign', 'partial', 'DSH with ChatGPT'],
+  ] as const)('refuses structural cleanup for %s', async (_name, html, selection, expected) => {
+    const { browser, keys } = fixture('<div role="textbox" contenteditable="true">' + html + '</div>', { selection, omitAtomText: true })
+    const cleanup = browser as unknown as { clearComposer(draft: { texts: string[] }): Promise<void> }
+    await expect(cleanup.clearComposer({ texts: ['', 'DSH with ChatGPT', expected] })).rejects.toBeInstanceOf(BrowserStaleError)
+    expect(keys).not.toContain('Backspace')
+  })
+
+  it('cleans fully selected nested App atoms even when selection text omits labels', async () => {
+    const { browser, window, keys } = fixture('<div role="textbox" contenteditable="true"><p><span contenteditable="false" app-mention-display-name="DSH with ChatGPT"><span contenteditable="false"><svg></svg></span><span>DSH with ChatGPT</span></span> </p></div>', { omitAtomText: true })
+    const cleanup = browser as unknown as { clearComposer(draft: { texts: string[] }): Promise<void> }
+    await cleanup.clearComposer({ texts: ['', 'DSH with ChatGPT'] })
+    expect(window.document.querySelector('[role="textbox"]')!.textContent!.trim()).toBe('')
+    expect(keys).toEqual(['a', 'Backspace'])
+  })
+
+  it.each([
+    ['foreign empty atom', '<span contenteditable="false">DSH with ChatGPT</span><span contenteditable="false"></span>', ['', 'DSH with ChatGPT']],
+    ['unknown semantic atom', '<span contenteditable="false" app-mention-display-name="Other">DSH with ChatGPT</span>', ['', 'DSH with ChatGPT']],
+  ])('preserves %s during cleanup', async (_name, html, texts) => {
+    const { browser, keys } = fixture('<div role="textbox" contenteditable="true">' + html + '</div>')
+    const cleanup = browser as unknown as { clearComposer(draft: { texts: string[] }): Promise<void> }
+    await expect(cleanup.clearComposer({ texts })).rejects.toBeInstanceOf(BrowserStaleError)
+    expect(keys).not.toContain('Backspace')
+  })
+
   it('selects a navigation title beside its description and cleans the structural mention', async () => {
     const menu = '<button data-list-navigation-item="true"><div data-menu-row-content="true"><span><svg></svg></span><span><span><span>DSH with ChatGPT</span><span>Read-only workspace access</span></span></span></div></button>'
     const { browser, mutations, keys, window } = fixture('<div role="textbox" contenteditable="true"></div>' + menu, { mention: true })
