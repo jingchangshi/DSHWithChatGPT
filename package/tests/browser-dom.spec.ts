@@ -81,6 +81,36 @@ function fixture(html: string, options: { selection?: 'outside' | 'partial' | 'n
 }
 
 describe('ChatGPT composer DOM resolution', () => {
+  it('selects a navigation title beside its description and cleans the structural mention', async () => {
+    const menu = '<button data-list-navigation-item="true"><div data-menu-row-content="true"><span><svg></svg></span><span><span><span>DSH with ChatGPT</span><span>Read-only workspace access</span></span></span></div></button>'
+    const { browser, mutations, keys, window } = fixture('<div role="textbox" contenteditable="true"></div>' + menu, { mention: true })
+    await browser.probeApp('DSH with ChatGPT')
+    expect(mutations.some(name => name.endsWith('browser_click'))).toBe(true)
+    expect(window.document.querySelector('[role="textbox"]')!.textContent).toBe('')
+    expect(keys).toEqual(['a', 'Backspace'])
+  })
+
+  it('ignores a hidden duplicate navigation title', async () => {
+    const menu = '<button data-list-navigation-item="true"><div data-menu-row-content="true"><span>DSH with ChatGPT</span><span>Description</span></div></button>'
+    const { browser } = fixture('<div role="textbox" contenteditable="true"></div>' + menu.replace('<button ', '<button style="display:none" ') + menu)
+    const matcher = browser as unknown as { findAppCandidate(name: string): Promise<{ found: boolean }> }
+    expect(await matcher.findAppCandidate('DSH with ChatGPT')).toMatchObject({ found: true })
+  })
+
+  it.each([
+    ['exact title with description', '<button data-list-navigation-item="true"><div data-menu-row-content="true"><span>DSH with ChatGPT</span><span>Read-only workspace access</span></div></button>', true],
+    ['title prefix', '<button data-list-navigation-item="true"><div data-menu-row-content="true"><span>DSH with ChatGPT Other</span><span>Description</span></div></button>', false],
+    ['description-only match', '<button data-list-navigation-item="true"><div data-menu-row-content="true"><span>Other App</span><span>DSH with ChatGPT</span></div></button>', false],
+    ['hidden exact title', '<button data-list-navigation-item="true" style="display:none"><div data-menu-row-content="true"><span>DSH with ChatGPT</span></div></button>', false],
+    ['missing semantic row', '<button data-list-navigation-item="true">DSH with ChatGPT</button>', false],
+    ['duplicate exact titles', '<button data-list-navigation-item="true"><div data-menu-row-content="true"><span>DSH with ChatGPT</span></div></button><button data-list-navigation-item="true"><div data-menu-row-content="true"><span>DSH with ChatGPT</span></div></button>', false],
+    ['legacy/new duplicate', '<div role="listbox"><button>DSH with ChatGPT</button></div><button data-list-navigation-item="true"><div data-menu-row-content="true"><span>DSH with ChatGPT</span></div></button>', false],
+  ])('matches semantic navigation candidates: %s', async (_name, menu, found) => {
+    const { browser } = fixture('<div role="textbox" contenteditable="true"></div>' + menu)
+    const matcher = browser as unknown as { findAppCandidate(name: string): Promise<{ found: boolean }> }
+    expect(await matcher.findAppCandidate('DSH with ChatGPT')).toMatchObject({ found })
+  })
+
   it('types into a legacy textarea and sends the exact value', async () => {
     const { browser, enteredText } = fixture('<textarea id="prompt-textarea"></textarea>', { appName: '' })
     await browser.sendControlMessage('control message')
