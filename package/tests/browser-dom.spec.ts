@@ -27,6 +27,7 @@ function fixture(html: string, options: { selection?: 'outside' | 'partial' | 'n
   const window = new Window({ url: 'https://chatgpt.com/' })
   windows.push(window)
   window.document.body.innerHTML = html
+  window.document.elementFromPoint = () => Array.from(window.document.querySelectorAll('[role="listbox"] button, [role="menu"] button, button[data-list-navigation-item="true"]')).find(node => window.getComputedStyle(node).display !== 'none' && window.getComputedStyle(node).visibility !== 'hidden') ?? null
   for (const element of window.document.querySelectorAll('*')) {
     element.getBoundingClientRect = () => ({ x: 0, y: 0, left: 0, top: 0, right: 100, bottom: 30, width: 100, height: 30, toJSON: () => ({}) })
   }
@@ -66,6 +67,7 @@ function fixture(html: string, options: { selection?: 'outside' | 'partial' | 'n
         window.document.body.append(extra)
       }
     }
+    if (name.endsWith('browser_click')) window.document.dispatchEvent(new window.Event('candidate-click'))
     if (name.endsWith('browser_click') && options.mention) {
       const composer = window.document.querySelector('[data-d2c-composer-target]')!
       composer.innerHTML = '<p><span contenteditable="false" app-mention-display-name="DSH with ChatGPT"><span contenteditable="false"><svg></svg></span><span>DSH with ChatGPT</span></span></p>'
@@ -465,6 +467,78 @@ describe('ChatGPT composer DOM resolution', () => {
     expect(window.document.querySelector('[role="textbox"]')!.textContent).toBe('')
     expect(keys).not.toContain('Enter')
   }, 10_000)
+
+  it('bounds unsuccessful activation to two clicks without sending', async () => {
+    vi.useFakeTimers()
+    const { browser, mutations, keys } = fixture('<div role="textbox" contenteditable="true"></div><div role="listbox"><button>DSH with ChatGPT</button></div>')
+    const pending = expect(browser.probeApp('DSH with ChatGPT')).rejects.toBeInstanceOf(ChatGptAppUnavailableError)
+    await vi.runAllTimersAsync()
+    await pending
+    expect(mutations.filter(name => name.endsWith('browser_click'))).toHaveLength(2)
+    expect(keys).not.toContain('Enter')
+  })
+
+  it.each([600, 1000])('waits for delayed activation at %sms without another click', async milliseconds => {
+    vi.useFakeTimers()
+    const { browser, window, mutations, keys } = fixture('<div role="textbox" contenteditable="true"></div><div role="listbox"><button>DSH with ChatGPT</button></div>')
+    window.document.addEventListener('candidate-click', () => {
+      setTimeout(() => { window.document.querySelector('[role="textbox"]')!.innerHTML = '<span contenteditable="false">DSH with ChatGPT</span>'; window.document.querySelector('[role="listbox"]')!.remove() }, milliseconds)
+    })
+    const pending = browser.probeApp('DSH with ChatGPT')
+    await vi.runAllTimersAsync()
+    await pending
+    expect(mutations.filter(name => name.endsWith('browser_click'))).toHaveLength(1)
+    expect(keys).not.toContain('Enter')
+  })
+
+  it('retries one no-op only after the full activation wait', async () => {
+    vi.useFakeTimers()
+    const { browser, window, mutations } = fixture('<div role="textbox" contenteditable="true"></div><div role="listbox"><button>DSH with ChatGPT</button></div>')
+    const times: number[] = []
+    window.document.addEventListener('candidate-click', () => {
+      times.push(Date.now())
+      if (times.length === 2) window.document.querySelector('[role="textbox"]')!.innerHTML = '<span contenteditable="false">DSH with ChatGPT</span>'
+    })
+    const pending = browser.probeApp('DSH with ChatGPT')
+    await vi.runAllTimersAsync()
+    await pending
+    expect(mutations.filter(name => name.endsWith('browser_click'))).toHaveLength(2)
+    expect(times[1]! - times[0]!).toBeGreaterThanOrEqual(1500)
+  })
+
+  it('does not retry when the candidate disappears without activation', async () => {
+    vi.useFakeTimers()
+    const { browser, window, mutations, keys } = fixture('<div role="textbox" contenteditable="true"></div><div role="listbox"><button>DSH with ChatGPT</button></div>')
+    window.document.addEventListener('candidate-click', () => { window.document.querySelector('[role="listbox"]')!.remove() })
+    const pending = browser.probeApp('DSH with ChatGPT').catch(error => error)
+    await vi.runAllTimersAsync()
+    expect(await pending).toBeInstanceOf(ChatGptAppUnavailableError)
+    expect(mutations.filter(name => name.endsWith('browser_click'))).toHaveLength(1)
+    expect(keys).not.toContain('Enter')
+  })
+
+  it('does not click when the candidate is occluded before activation', async () => {
+    vi.useFakeTimers()
+    const { browser, window, mutations } = fixture('<div role="textbox" contenteditable="true"></div><div role="listbox"><button>DSH with ChatGPT</button></div>')
+    let hits = 0
+    window.document.elementFromPoint = () => ++hits === 1 ? window.document.querySelector('button') : window.document.body
+    const pending = browser.probeApp('DSH with ChatGPT').catch(error => error)
+    await vi.runAllTimersAsync()
+    expect(await pending).toBeInstanceOf(ChatGptAppUnavailableError)
+    expect(mutations.filter(name => name.endsWith('browser_click'))).toHaveLength(0)
+  })
+
+  it('preserves unverified plain App-name text after a failed click', async () => {
+    vi.useFakeTimers()
+    const { browser, window, keys } = fixture('<div role="textbox" contenteditable="true"></div><div role="listbox"><button>DSH with ChatGPT</button></div>')
+    window.document.addEventListener('candidate-click', () => { window.document.querySelector('[role="textbox"]')!.textContent = 'DSH with ChatGPT' })
+    const pending = expect(browser.probeApp('DSH with ChatGPT')).rejects.toBeInstanceOf(BrowserStaleError)
+    await vi.runAllTimersAsync()
+    await pending
+    expect(window.document.querySelector('[role="textbox"]')!.textContent).toBe('DSH with ChatGPT')
+    expect(keys).not.toContain('Backspace')
+    expect(keys).not.toContain('Enter')
+  })
 
   it('does not select a similarly named App', async () => {
     const { browser, mutations, keys } = fixture('<div role="textbox" contenteditable="true"></div><div role="listbox"><button>DSH with ChatGPT Other</button></div>')

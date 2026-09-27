@@ -54,7 +54,7 @@ Browser Harness 控制 ChatGPT Web，但 composer 只传小型 D2C envelope，�
 每次 INIT / REVIEW 前：
 1. 读取当前 assistant message 数量和最新文本，形成 reply baseline。
 2. 输入 `@<chatgptAppName>`。
-3. 在可见 autocomplete/menu 中查找精确 App 名，点击并验证 mention decorator。
+3. 在可见 autocomplete/menu 中查找唯一精确 App 名；确认 composer 仍为本次输入的纯文本查询且点击位置命中候选后才点击。点击后以 150ms 间隔最多检查 10 次 mention decorator；仅查询与候选均保持有效时允许一次重试。候选消失或 composer 出现未知内容立即失败，不发送消息；只有验证成功的 mention 才纳入本次草稿清理范围。
 4. 追加 D2C envelope 并发送。
 5. 只接受 baseline 之后出现的新 assistant 回复；等待 streaming 停止且文本稳定。
 

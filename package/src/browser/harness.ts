@@ -265,22 +265,43 @@ export class BrowserHarnessAdapter implements BrowserControl {
     await this.typeComposer('', '@', draft, signal)
     await this.typeComposer('@', appName, draft, signal)
 
-    for (let attempt = 0; attempt < 12; attempt++) {
-      const candidate = await this.findAppCandidate(appName, signal)
-      if (candidate.found && typeof candidate.x === 'number' && typeof candidate.y === 'number') {
-        await this.resolveComposer(signal)
-        draft.texts.push(appName)
-        await this.call<unknown>('browser_click', {
-          x: Math.round(candidate.x),
-          y: Math.round(candidate.y),
-        }, signal)
-        await abortableDelay(200, signal)
-        if (await this.verifyAppMention(appName, signal)) return
-      }
+    for (let readiness = 0; readiness < 12; readiness++) {
+      await this.requirePlainAppQuery(appName, signal)
+      if ((await this.findAppCandidate(appName, signal)).found) break
       await abortableDelay(200, signal)
     }
 
+    for (let attempt = 0; attempt < 2; attempt++) {
+      await this.requirePlainAppQuery(appName, signal)
+      const candidate = await this.findAppCandidate(appName, signal)
+      if (!candidate.found || typeof candidate.x !== 'number' || typeof candidate.y !== 'number') break
+      await this.call<unknown>('browser_click', {
+        x: Math.round(candidate.x),
+        y: Math.round(candidate.y),
+      }, signal)
+      for (let sample = 0; sample < 10; sample++) {
+        await abortableDelay(150, signal)
+        if (await this.verifyAppMention(appName, signal)) {
+          draft.texts.push(appName)
+          return
+        }
+        await this.requirePlainAppQuery(appName, signal)
+        if (!(await this.findAppCandidate(appName, signal)).found) throw new ChatGptAppUnavailableError(appName)
+      }
+    }
+
     throw new ChatGptAppUnavailableError(appName)
+  }
+
+  private async requirePlainAppQuery(appName: string, signal?: AbortSignal): Promise<void> {
+    const valid = await this.call<unknown>('browser_js', { expression: [
+      '(() => {', composerScript,
+      'if (!composer) return false;',
+      'const content = typeof composer.value === "string" ? composer.value : (composer.innerText || composer.textContent || "");',
+      'return content.trim() === ' + JSON.stringify('@' + appName) + ' && !composer.querySelector(' + JSON.stringify('[contenteditable="false"], [data-lexical-decorator="true"], [data-mention], [app-mention-display-name]') + ');',
+      '})()',
+    ].join(' ') }, signal)
+    if (valid !== true) throw new BrowserStaleError('ChatGPT App query changed before activation')
   }
 
   private async findAppCandidate(appName: string, signal?: AbortSignal): Promise<{ found: boolean; x?: number; y?: number }> {
@@ -303,7 +324,10 @@ export class BrowserHarnessAdapter implements BrowserControl {
       'const match = matches.length === 1 ? matches[0] : null;',
       'if (!match) return { found: false };',
       'const r = match.getBoundingClientRect();',
-      'return { found: true, x: r.left + r.width / 2, y: r.top + r.height / 2 };',
+      'const x = Math.round(r.left + r.width / 2); const y = Math.round(r.top + r.height / 2);',
+      'const hit = document.elementFromPoint(x, y);',
+      'if (!hit || (hit !== match && !match.contains(hit))) return { found: false };',
+      'return { found: true, x, y };',
       '})()',
     ].join(' ')
     return await this.call<{ found: boolean; x?: number; y?: number }>('browser_js', { expression }, signal)
