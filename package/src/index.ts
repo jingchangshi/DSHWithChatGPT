@@ -281,7 +281,7 @@ export async function apply(ctx: Context, config: Config): Promise<void> {
       workspaceId: string,
     ): void {
       fs.mkdirSync(joinPath(configPath, '..'), { recursive: true })
-      fs.writeFileSync(tokenFile, 'Bearer ' + token + '\\n', { encoding: 'utf8', mode: 0o600 })
+      fs.writeFileSync(tokenFile, 'Bearer ' + token + '\n', { encoding: 'utf8', mode: 0o600 })
       try { fs.chmodSync(tokenFile, 0o600) } catch {}
       fs.writeFileSync(configPath, JSON.stringify({
         transport: 'streamable-http',
@@ -293,7 +293,7 @@ export async function apply(ctx: Context, config: Config): Promise<void> {
           tunnelIdSource: config.tunnelId !== undefined ? 'config' : config.tunnelIdEnv,
           runtimeApiKeyEnv: config.tunnelRuntimeApiKeyEnv,
         },
-      }, null, 2) + '\\n', { encoding: 'utf8', mode: 0o600 })
+      }, null, 2) + '\n', { encoding: 'utf8', mode: 0o600 })
       try { fs.chmodSync(configPath, 0o600) } catch {}
     }
 

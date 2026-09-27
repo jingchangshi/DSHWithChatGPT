@@ -23,7 +23,11 @@ describe('registered doctor App proof', () => {
     let challenge = ''
     let prompt = ''
     const mcp = async (name: string) => {
-      const header = (await readFile(binding!.bearerValueFile, 'utf8')).replace(/\\n$/, '').trim()
+      const raw = await readFile(binding!.bearerValueFile, 'utf8')
+      expect(/^Bearer d2c_[A-Za-z0-9_-]+\n$/.test(raw)).toBe(true)
+      expect(raw.endsWith('\\n')).toBe(false)
+      expect(raw.includes('\r')).toBe(false)
+      const header = raw.slice(0, -1)
       const response = await fetch(binding!.localUrl, { method: 'POST', headers: { authorization: header, 'content-type': 'application/json' }, body: JSON.stringify({ jsonrpc: '2.0', id: 1, method: 'tools/call', params: { name, arguments: name === 'list_directory' ? { path: '' } : {} } }) })
       const envelope = await response.json() as { result: { content: Array<{ text: string }> } }
       return JSON.parse(envelope.result.content[0]!.text)
@@ -59,6 +63,11 @@ describe('registered doctor App proof', () => {
     try {
       await ctx.plugin({ apply, Config, inject }, { tunnelMode: 'managed', gitRead: true, gitPolicy: 'worktree' })
       const exec = { agent: { session: { header: { cwd: workspaceId } } }, signal: new AbortController().signal }
+      const status = await tools.get('chatgpt_status')!.execute({}, exec) as { connectorConfigPath: string }
+      const metadata = await readFile(status.connectorConfigPath, 'utf8')
+      expect(metadata.endsWith('\n')).toBe(true)
+      expect(metadata.endsWith('\\n')).toBe(false)
+      expect(JSON.parse(metadata)).toMatchObject({ authorization: { type: 'bearer-file', tokenFile: binding!.bearerValueFile } })
       const result = await tools.get('chatgpt_doctor')!.execute({ mode: 'app-proof' }, exec)
       expect(result).toMatchObject({ localReady: true, appDataPlaneVerified: !wrong, fullC2CVerified: false })
       expect(challenge).toMatch(/^[a-f0-9]{64}$/)

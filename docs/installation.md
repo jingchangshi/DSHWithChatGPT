@@ -57,7 +57,7 @@ Expected status from `chatgpt_status`:
 - `tunnel.configured: true`
 - `tunnel.ready: true`
 
-The local bridge remains Bearer-protected. The secret value is written outside the repository to a mode-0600 file. Managed `tunnel-client` receives it through `MCP_EXTRA_HEADERS` / `MCP_DISCOVERY_EXTRA_HEADERS`; the token is not returned in model-facing status output.
+The local bridge remains Bearer-protected. The complete Authorization header value is written outside the repository to a mode-0600 file with one trailing LF. Connector metadata is a separate, LF-terminated JSON document. Managed `tunnel-client` receives the header through `MCP_EXTRA_HEADERS` / `MCP_DISCOVERY_EXTRA_HEADERS`; the token is not returned in model-facing status output.
 
 ## Browser session
 
