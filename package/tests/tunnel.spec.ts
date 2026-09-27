@@ -1,8 +1,23 @@
-import { describe, expect, it } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
+import { TunnelSupervisor } from '../src/tunnel/supervisor.ts'
 import path from 'node:path'
 import { buildTunnelLaunchPreview, type TunnelSupervisorOptions } from '../src/tunnel/index.ts'
 
 describe('Secure MCP Tunnel launch contract', () => {
+  afterEach(() => vi.unstubAllEnvs())
+
+  it('resolves auto and explicit ownership modes with the same credential policy as startup', () => {
+    const options: TunnelSupervisorOptions = { mode: 'auto', clientPath: 'unused', tunnelIdEnv: 'C2C_TEST_TUNNEL_ID',
+      runtimeApiKeyEnv: 'C2C_TEST_TUNNEL_KEY', startupTimeoutMs: 1, stateDir: 'unused' }
+    vi.stubEnv('C2C_TEST_TUNNEL_ID', '')
+    vi.stubEnv('C2C_TEST_TUNNEL_KEY', '')
+    expect(new TunnelSupervisor(options).effectiveMode()).toBe('external')
+    expect(new TunnelSupervisor({ ...options, mode: 'managed' }).effectiveMode()).toBe('managed')
+    vi.stubEnv('C2C_TEST_TUNNEL_ID', 'fixture-id')
+    vi.stubEnv('C2C_TEST_TUNNEL_KEY', 'fixture-key')
+    expect(new TunnelSupervisor(options).effectiveMode()).toBe('managed')
+    expect(new TunnelSupervisor({ ...options, mode: 'external' }).effectiveMode()).toBe('external')
+  })
   it('keeps bearer material out of argv and injects it through local-hop env', () => {
     const options: TunnelSupervisorOptions = {
       mode: 'managed',

@@ -31,6 +31,10 @@ Production raw execution output is authorized only during `chatgpt_review`. The 
 
 ## Bridge auth
 
+Managed tunnel ownership is persisted separately in `d2c_control` v1; `d2c_state` v1 remains unchanged. A pre-task reservation precedes tunnel startup and remains exclusive even if the task has not been persisted. Caught setup failure releases only the exact reservation while its task is absent. Once the task exists, an uncertain INIT send retains ownership and reports `C2C_PRETASK_RECOVERY_REQUIRED` on reconnect. Same-workspace reconnect can clear an orphan reservation with no task without starting a tunnel. Nonterminal task owners survive restart; terminal completion releases the matching claim.
+
+The browser mutex protects only this plugin’s PLAN, REVIEW, doctor, and reconnect operations, including reply waits. It does not intercept executor browser tools, human input, other plugins, or other processes. Run one active plugin process per profile/state store; do not share its ChatGPT control tab with concurrent executor browser automation. The durable owner is not a distributed lock.
+
 - Binds `127.0.0.1` only. A public URL (e.g. a tunnel) is never authorization: every request needs a Bearer token from the token→workspace map; comparison is length-checked and constant-time-ish (no early content exit).
 - Non-POST rejected; request bodies capped at 1MiB; `Cache-Control: no-store`, `X-Content-Type-Options: nosniff`.
 - Tokens are random per bridge instance (32 bytes hex). Rotation/revoke = restart of the bridge (future: persisted pairing store with TTL).

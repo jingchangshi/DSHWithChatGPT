@@ -19,6 +19,64 @@ interface RegisteredTool {
 }
 
 describe('production collaboration service requirements', () => {
+  it('preserves task storage v1 and opens a separate control domain', async () => {
+    const ctx = new Context()
+    const specs: Array<{ name: string; version: number; tables: Record<string, unknown> }> = []
+    const close = vi.fn(async () => {})
+    ctx.provide('storageDomain', { open: async (spec: typeof specs[number]) => { specs.push(spec); return { close } } })
+    ctx.provide('executionWorldIdentity', { resolve: async () => 'workspace' })
+    for (const service of ['fs', 'subprocess', 'sandbox']) ctx.provide(service, {})
+    ctx.provide('tools', { register: () => {} })
+    ctx.provide('systemPrompt', { section: () => {}, getSectionOrder: () => 0 })
+    try {
+      await ctx.plugin({ apply, Config, inject }, {})
+      expect(specs.map(spec => ({ name: spec.name, version: spec.version, tables: Object.keys(spec.tables).sort() }))).toEqual([
+        { name: 'd2c_state', version: 1, tables: ['bindings', 'index', 'tasks'] },
+        { name: 'd2c_control', version: 1, tables: ['managed_tunnel'] },
+      ])
+    } finally { await ctx.fiber.dispose() }
+    expect(close).toHaveBeenCalledTimes(2)
+  })
+
+  it('persists a pre-task claim before tunnel startup and rolls it back on startup failure', async () => {
+    const ctx = new Context()
+    const tools = new Map<string, RegisteredTool>()
+    const records = new Map<string, unknown>()
+    const workspaceId = 'fixture-execution-workspace'
+    const read = vi.spyOn(readLeases, 'bindExecutionReadLease').mockResolvedValue({
+      workspaceId: workspaceId as readLeases.ExecutionReadLease['workspaceId'],
+      fs: { stat: async () => undefined, readText: async () => '', listDir: async () => [] }, dispose: async () => {},
+    })
+    const git = vi.spyOn(gitLeases, 'bindExecutionGitLease').mockResolvedValue({
+      workspaceId: workspaceId as gitLeases.ExecutionGitLease['workspaceId'], assurance: 'full', dispose: async () => {},
+      git: { workspaceId: workspaceId as gitLeases.ExecutionGitLease['workspaceId'], emptyFile: 'NUL', signal: new AbortController().signal, execute: vi.fn() },
+    })
+    const ready = vi.spyOn(BrowserHarnessAdapter.prototype, 'ensureReady')
+    const tunnel = vi.spyOn(TunnelSupervisor.prototype, 'ensure').mockImplementation(async () => {
+      expect(records.get('d2c_control/managed_tunnel/owner')).toMatchObject({ workspaceId, phase: 'pre-task' })
+      throw new Error('fixture tunnel failure')
+    })
+    try {
+      ctx.provide('storageDomain', { open: async (spec: { name: string }) => ({ close: async () => {}, table: (name: string) => ({
+        get: (key: string) => records.get(spec.name + '/' + name + '/' + key),
+        put: async (key: string, value: unknown) => { records.set(spec.name + '/' + name + '/' + key, value) },
+        delete: async (key: string) => { records.delete(spec.name + '/' + name + '/' + key) },
+      }) }) })
+      ctx.provide('executionWorldIdentity', { resolve: async () => workspaceId })
+      for (const service of ['fs', 'subprocess', 'sandbox']) ctx.provide(service, {})
+      ctx.provide('tools', { register: (tool: RegisteredTool) => { tools.set(tool.name, tool) } })
+      ctx.provide('systemPrompt', { section: () => {}, getSectionOrder: () => 0 })
+      await ctx.plugin({ apply, Config, inject }, { tunnelMode: 'managed', gitRead: true })
+      await expect(tools.get('chatgpt_plan')!.execute({ goal: 'fixture' }, {
+        agent: { session: { header: { cwd: '/fixture' } } }, signal: new AbortController().signal,
+      })).rejects.toThrow('fixture tunnel failure')
+      expect(ready).not.toHaveBeenCalled()
+      expect(records.has('d2c_control/managed_tunnel/owner')).toBe(false)
+    } finally {
+      await ctx.fiber.dispose()
+      for (const spy of [read, git, ready, tunnel]) spy.mockRestore()
+    }
+  })
   it('denies review without a durable evidence owner before any browser or tunnel calls', async () => {
     const ctx = new Context()
     const tools = new Map<string, RegisteredTool>()
@@ -104,7 +162,7 @@ describe('production collaboration service requirements', () => {
       await loading
       await ctx.fiber.dispose()
     }
-    expect(close).toHaveBeenCalledOnce()
+    expect(close).toHaveBeenCalledTimes(2)
   })
 
   it.each(['chatgpt_plan', 'chatgpt_review'])('%s refuses unavailable content before browser or tunnel activity', async (toolName) => {
@@ -143,6 +201,6 @@ describe('production collaboration service requirements', () => {
       ready.mockRestore()
       tunnel.mockRestore()
     }
-    expect(close).toHaveBeenCalledOnce()
+    expect(close).toHaveBeenCalledTimes(2)
   })
 })

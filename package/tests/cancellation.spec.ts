@@ -75,7 +75,7 @@ describe('caller cancellation', () => {
     }
     const makeCoordinator = () => new ChatGptCoordinator({ workspaceId: 'test-workspace', browser, store: state, workspaceRoot: 'workspace', replyTimeoutMs: 60_000 })
     const coordinator = makeCoordinator()
-    const started = await coordinator.startTask('test cancellation')
+    const started = await coordinator.startTask(mintTaskId(), 'test cancellation')
     const planController = new AbortController()
     reply = signal => new Promise((_, reject) => {
       if (signal?.aborted) reject(new OperationCancelledError())
@@ -146,7 +146,7 @@ describe('caller cancellation', () => {
       async recover() {},
     }
     const coordinator = new ChatGptCoordinator({ workspaceId: 'test-workspace', browser, store: state, workspaceRoot: 'workspace' })
-    taskId = (await coordinator.startTask('boundary')).taskId
+    taskId = (await coordinator.startTask(mintTaskId(), 'boundary')).taskId
     await coordinator.awaitPlan(taskId)
     await expect(coordinator.reportExecuted(taskId, {
       changedFiles: [], head: 'sent-head', testsRecorded: true,
@@ -168,3 +168,4 @@ describe('caller cancellation', () => {
       .rejects.toBeInstanceOf(OperationCancelledError)
   })
 })
+import { mintTaskId } from '../src/protocol/index.ts'

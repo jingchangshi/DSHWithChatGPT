@@ -46,6 +46,10 @@ export class TunnelSupervisor {
 
   constructor(private readonly options: TunnelSupervisorOptions) {}
 
+  effectiveMode(): 'managed' | 'external' {
+    return this.resolveConfigured().mode
+  }
+
   async ensure(binding: TunnelBinding, signal?: AbortSignal): Promise<TunnelStatus> {
     throwIfCancelled(signal)
     const prior = this.serialized

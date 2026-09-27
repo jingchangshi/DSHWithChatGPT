@@ -6,7 +6,7 @@
  * @module orchestrator
  */
 
-import { ProtocolError, StateMachine, mintTaskId } from '../protocol/index.ts'
+import { ProtocolError, StateMachine } from '../protocol/index.ts'
 import type { Envelope } from '../protocol/index.ts'
 import type { BrowserControl } from '../browser/index.ts'
 import { DuplicateSendGuard, extractEnvelopeText } from '../browser/index.ts'
@@ -82,16 +82,16 @@ export class ChatGptCoordinator {
   }
 
   /**
-   * Start a task: mint id, persist INIT state, open/reuse the conversation,
+   * Start a caller-identified task: open the conversation, persist INIT state,
    * send INIT + boot prompt. Does NOT wait for the plan (the model tool
    * returns; the plan arrives via chatgpt_status polling or review tool).
    */
-  async startTask(goal: string, opts: { resumeConversationId?: string; signal?: AbortSignal } = {}): Promise<StartResult> {
+  async startTask(taskId: string, goal: string, opts: { resumeConversationId?: string; signal?: AbortSignal } = {}): Promise<StartResult> {
     throwIfCancelled(opts.signal)
+    if (taskId.trim() === '' || await this.state.loadTask(taskId) !== undefined) throw new Error('TASK_ID_UNAVAILABLE')
     await this.options.browser.ensureReady(opts.signal)
     const conversationId = await this.options.browser.openConversation(opts.resumeConversationId, opts.signal)
     throwIfCancelled(opts.signal)
-    const taskId = mintTaskId()
     const record = this.machine.startTask(taskId, goal)
     const persisted: PersistedTask = {
       taskId,

@@ -27,6 +27,9 @@ import { buildRuntimeWorkspaceTools } from './bridge/tools.ts'
 import { WorkspaceRuntimeRegistry } from './workspace/runtime.ts'
 import { withWorkspaceReadLease } from './workspace/with-read-lease.ts'
 import { reviewOutputScope } from './execution/scope.ts'
+import { ManagedTunnelOwnership } from './orchestrator/ownership.ts'
+import { ControlBrowserOwnership } from './browser/ownership.ts'
+import { mintTaskId } from './protocol/index.ts'
 import type { WorkspaceRuntimeIdentity } from './workspace/runtime.ts'
 import { resolveExecutionWorkspace } from './workspace/execution-identity.ts'
 import { startBridgeServer, type BridgeServer } from './bridge/index.ts'
@@ -136,6 +139,16 @@ const d2cDomain = defineDomain({
 
 type D2cDomain = Domain<typeof d2cDomain>
 
+const controlDomain = defineDomain({
+  name: 'd2c_control', version: 1,
+  tables: {
+    managed_tunnel: domainTable(z.object({
+      workspaceId: z.string(), taskId: z.string(), claimId: z.string(),
+      phase: z.enum(['pre-task', 'task']), createdAt: z.number(), updatedAt: z.number(),
+    })),
+  },
+})
+
 /** StateStore backed by the Cordis storage domain (durable across restarts). */
 class DomainStateStore implements StateStore {
   constructor(private readonly domain: D2cDomain) {}
@@ -183,11 +196,18 @@ export async function apply(ctx: Context, config: Config): Promise<void> {
     const domain = await storageDomain.open(d2cDomain)
     ctx.effect(() => () => domain.close(), 'dsh-with-chatgpt durable state')
     const coordinatorState = new CoordinatorState(new DomainStateStore(domain))
+    const control = await storageDomain.open(controlDomain)
+    ctx.effect(() => () => control.close(), 'dsh-with-chatgpt control state')
+    const ownership = new ManagedTunnelOwnership({
+      get: async () => control.table('managed_tunnel').get('owner'),
+      put: async owner => { await control.table('managed_tunnel').put('owner', owner) },
+      delete: async () => { await control.table('managed_tunnel').delete('owner') },
+    }, coordinatorState)
+    const browserOwnership = new ControlBrowserOwnership()
 
     // ---- execution recorder lives in DSH storage area (outside workspaces)
     const stateDir = joinStateDir()
     const recorders = new WorkspaceRecorders(stateDir)
-    const activeTasks = new Map<string, { taskId: string; iteration: number }>()
     const workspaceRuntimes = new WorkspaceRuntimeRegistry()
     const tunnel = new TunnelSupervisor({
       mode: config.tunnelMode,
@@ -279,23 +299,17 @@ export async function apply(ctx: Context, config: Config): Promise<void> {
 
     async function ensureRuntime(workspace: WorkspaceRuntimeIdentity, signal?: AbortSignal) {
       throwIfCancelled(signal)
-      if (config.tunnelMode === 'managed') {
-        const otherActive = [...activeTasks.entries()].find(([workspaceId]) => workspaceId !== workspace.workspaceId)
-        if (otherActive !== undefined) {
-          throw new Error(
-            'TUNNEL_WORKSPACE_BUSY: managed tunnel is owned by another active C2C workspace/task '
-            + otherActive[1].taskId,
-          )
-        }
+      const start = async () => {
+        const bridge = await ensureBridge(workspace)
+        throwIfCancelled(signal)
+        const tunnelStatus = await tunnel.ensure({
+          workspaceId: bridge.workspaceId,
+          localUrl: bridge.localUrl,
+          bearerValueFile: bridge.tokenFile,
+        }, signal)
+        return { bridge, tunnelStatus }
       }
-      const bridge = await ensureBridge(workspace)
-      throwIfCancelled(signal)
-      const tunnelStatus = await tunnel.ensure({
-        workspaceId: bridge.workspaceId,
-        localUrl: bridge.localUrl,
-        bearerValueFile: bridge.tokenFile,
-      }, signal)
-      return { bridge, tunnelStatus }
+      return tunnel.effectiveMode() === 'managed' ? ownership.withWorkspace(workspace.workspaceId, start) : start()
     }
 
     // ---- coordinator
@@ -313,7 +327,7 @@ export async function apply(ctx: Context, config: Config): Promise<void> {
     // ---- execution evidence: observe the real DSH shell tool pipeline.
     // ChatGPT's test_status/execution_summary must be backed by actual tool
     // outcomes, not by the executor's prose claims.
-    const ownership = new WeakMap<object, FrozenExecutionContext>()
+    const executionOwnership = new WeakMap<object, FrozenExecutionContext>()
     const toolEvents = ctx as unknown as {
       on(event: 'tools/execute', handler: (exec: ObservedExecution, next: () => Promise<ObservedResult>) => Promise<ObservedResult>): void
       on(event: 'tools/result', handler: (exec: ObservedExecution, result: ObservedResult) => void): void
@@ -321,16 +335,16 @@ export async function apply(ctx: Context, config: Config): Promise<void> {
     toolEvents.on('tools/execute', async (exec, next) => {
       try {
         const owner = await freezeShellExecution(exec, coordinatorState, execution => workspaceOf(ctx, execution))
-        if (owner !== undefined) ownership.set(exec as object, owner)
+        if (owner !== undefined) executionOwnership.set(exec as object, owner)
       } catch (_observationFailure) {
       }
       return next()
     })
     toolEvents.on('tools/result', (exec, result) => {
       try {
-        const owner = ownership.get(exec as object)
+        const owner = executionOwnership.get(exec as object)
         if (owner === undefined) return
-        ownership.delete(exec as object)
+        executionOwnership.delete(exec as object)
         observeShellResult(exec, result, owner, recorders.forWorkspaceId(owner.workspaceId))
       } catch (_recordingFailure) {
         return
@@ -350,17 +364,20 @@ export async function apply(ctx: Context, config: Config): Promise<void> {
       ctx.effect(() => tools.register({
         ...definition,
         async execute(args: Record<string, unknown>, exec: ToolExec | undefined) {
-          const workspace = await workspaceOf(ctx, exec)
-          return withWorkspaceReadLease(workspaceRuntimes, workspace,
-            signal => bindExecutionReadLease(ctx, workspace.displayRoot, signal),
-            signal => definition.execute(args, { ...exec, signal }, workspace), exec?.signal,
-            signal => gitReadPolicy === 'disabled'
-              ? Promise.reject(new Error('Git read authorization is disabled'))
-              : bindExecutionGitLease(ctx, workspace.displayRoot, signal, gitReadPolicy === 'allow-hardened-windows' ? 'allow-hardened-windows' : 'require-full'),
-            gitReadPolicy === 'disabled' ? undefined : gitReadPolicy,
-            gitReadPolicy === 'disabled' ? 'GIT_READ_DISABLED' : gitReadPolicy === 'require-full' ? 'GIT_FULL_CONFINEMENT_REQUIRED' : 'GIT_HARDENED_WINDOWS_UNAVAILABLE',
-            definition.name === 'chatgpt_review'
-              ? () => reviewOutputScope(coordinatorState, workspace.workspaceId, String(args.taskId)) : undefined)
+          const operation = async () => {
+            const workspace = await workspaceOf(ctx, exec)
+            return withWorkspaceReadLease(workspaceRuntimes, workspace,
+              signal => bindExecutionReadLease(ctx, workspace.displayRoot, signal),
+              signal => definition.execute(args, { ...exec, signal }, workspace), exec?.signal,
+              signal => gitReadPolicy === 'disabled'
+                ? Promise.reject(new Error('Git read authorization is disabled'))
+                : bindExecutionGitLease(ctx, workspace.displayRoot, signal, gitReadPolicy === 'allow-hardened-windows' ? 'allow-hardened-windows' : 'require-full'),
+              gitReadPolicy === 'disabled' ? undefined : gitReadPolicy,
+              gitReadPolicy === 'disabled' ? 'GIT_READ_DISABLED' : gitReadPolicy === 'require-full' ? 'GIT_FULL_CONFINEMENT_REQUIRED' : 'GIT_HARDENED_WINDOWS_UNAVAILABLE',
+              definition.name === 'chatgpt_review'
+                ? () => reviewOutputScope(coordinatorState, workspace.workspaceId, String(args.taskId)) : undefined)
+          }
+          return definition.name === 'chatgpt_status' ? operation() : browserOwnership.run(operation)
         },
       }))
     }
@@ -413,17 +430,23 @@ export async function apply(ctx: Context, config: Config): Promise<void> {
         workspaceRuntimes.require(workspace.workspaceId, 'gitRead')
         // Bridge + tunnel must be ready before INIT so ChatGPT can immediately
         // verify workspace_info for the exact workspace id.
-        await ensureRuntime(workspace, exec?.signal)
-        const started = await coordinator.startTask(String(args.goal), { signal: exec?.signal })
-        const round = await coordinator.awaitPlan(started.taskId, exec?.signal)
-        activeTasks.set(workspace.workspaceId, { taskId: round.taskId, iteration: round.record.iteration })
-        return {
-          taskId: round.taskId,
-          state: round.record.state,
-          iteration: round.record.iteration,
-          actions: round.envelope.sections.get('ACTIONS') ?? '',
-          successCriteria: round.envelope.sections.get('SUCCESS_CRITERIA') ?? '',
-          rationale: round.envelope.sections.get('RATIONALE') ?? '',
+        const taskId = mintTaskId()
+        const owner = tunnel.effectiveMode() === 'managed' ? await ownership.reserve(workspace.workspaceId, taskId) : undefined
+        try {
+          await ensureRuntime(workspace, exec?.signal)
+          const started = await coordinator.startTask(taskId, String(args.goal), { signal: exec?.signal })
+          if (owner !== undefined) await ownership.promote(owner)
+          const round = await coordinator.awaitPlan(started.taskId, exec?.signal)
+          return {
+            taskId: round.taskId,
+            state: round.record.state,
+            iteration: round.record.iteration,
+            actions: round.envelope.sections.get('ACTIONS') ?? '',
+            successCriteria: round.envelope.sections.get('SUCCESS_CRITERIA') ?? '',
+            rationale: round.envelope.sections.get('RATIONALE') ?? '',
+          }
+        } finally {
+          if (owner !== undefined) await ownership.settle(owner)
         }
       },
     })
@@ -448,51 +471,51 @@ export async function apply(ctx: Context, config: Config): Promise<void> {
         workspaceRuntimes.require(workspace.workspaceId, 'workspaceContentRead')
         workspaceRuntimes.require(workspace.workspaceId, 'gitRead')
         workspaceRuntimes.require(workspace.workspaceId, 'executionOutput')
-        await ensureRuntime(workspace, exec?.signal)
-        if (config.gitPolicy === 'commit-push') {
-          const executor = workspaceRuntimes.require(workspace.workspaceId, 'gitRead').lease.git
-          if (!executor) throw new Error('SUBPROCESS_CAPABILITY_UNAVAILABLE')
-          const current = await gitStatus(executor)
-          if (!current.isRepo || current.head === null || current.branch === null) {
-            throw new Error('AUTONOMOUS_GIT_POLICY: commit-push mode requires a normal checked-out git branch with at least one commit')
+        const owner = tunnel.effectiveMode() === 'managed' ? await ownership.requireTaskOwner(workspace.workspaceId, String(args.taskId)) : undefined
+        try {
+          await ensureRuntime(workspace, exec?.signal)
+          if (config.gitPolicy === 'commit-push') {
+            const executor = workspaceRuntimes.require(workspace.workspaceId, 'gitRead').lease.git
+            if (!executor) throw new Error('SUBPROCESS_CAPABILITY_UNAVAILABLE')
+            const current = await gitStatus(executor)
+            if (!current.isRepo || current.head === null || current.branch === null) {
+              throw new Error('AUTONOMOUS_GIT_POLICY: commit-push mode requires a normal checked-out git branch with at least one commit')
+            }
+            if (config.protectedBranches.includes(current.branch)) {
+              throw new Error('AUTONOMOUS_GIT_POLICY: refusing review on protected branch ' + current.branch)
+            }
+            if (current.dirty) {
+              throw new Error('AUTONOMOUS_GIT_POLICY: commit-push mode requires a clean committed worktree before review')
+            }
+            if (current.upstream === null || current.upstreamHead === null) {
+              throw new Error('AUTONOMOUS_GIT_POLICY: current task branch has no upstream; push it with upstream tracking before review')
+            }
+            if (current.ahead !== 0 || current.upstreamHead !== current.head) {
+              throw new Error('AUTONOMOUS_GIT_POLICY: current HEAD is not fully pushed to upstream')
+            }
+            if (typeof args.head !== 'string' || args.head === '') {
+              throw new Error('AUTONOMOUS_GIT_POLICY: commit-push mode requires the exact committed HEAD')
+            }
+            if (current.head !== args.head) {
+              throw new Error('AUTONOMOUS_GIT_POLICY: supplied HEAD does not match current git HEAD')
+            }
           }
-          if (config.protectedBranches.includes(current.branch)) {
-            throw new Error('AUTONOMOUS_GIT_POLICY: refusing review on protected branch ' + current.branch)
+          const coordinator = coordinatorFor(workspace, exec?.agent)
+          const round = await coordinator.reportExecuted(String(args.taskId), {
+            changedFiles: Array.isArray(args.changedFiles) ? args.changedFiles.map(String) : [],
+            head: typeof args.head === 'string' ? args.head : null,
+            testsRecorded: args.testsRecorded === true,
+            ...(args.note !== undefined ? { note: String(args.note).slice(0, 200) } : {}),
+          }, exec?.signal)
+          return {
+            taskId: round.taskId,
+            state: round.record.state,
+            iteration: round.record.iteration,
+            summary: round.envelope.sections.get('SUMMARY') ?? '',
+            actions: round.envelope.sections.get('ACTIONS') ?? '',
           }
-          if (current.dirty) {
-            throw new Error('AUTONOMOUS_GIT_POLICY: commit-push mode requires a clean committed worktree before review')
-          }
-          if (current.upstream === null || current.upstreamHead === null) {
-            throw new Error('AUTONOMOUS_GIT_POLICY: current task branch has no upstream; push it with upstream tracking before review')
-          }
-          if (current.ahead !== 0 || current.upstreamHead !== current.head) {
-            throw new Error('AUTONOMOUS_GIT_POLICY: current HEAD is not fully pushed to upstream')
-          }
-          if (typeof args.head !== 'string' || args.head === '') {
-            throw new Error('AUTONOMOUS_GIT_POLICY: commit-push mode requires the exact committed HEAD')
-          }
-          if (current.head !== args.head) {
-            throw new Error('AUTONOMOUS_GIT_POLICY: supplied HEAD does not match current git HEAD')
-          }
-        }
-        const coordinator = coordinatorFor(workspace, exec?.agent)
-        const round = await coordinator.reportExecuted(String(args.taskId), {
-          changedFiles: Array.isArray(args.changedFiles) ? args.changedFiles.map(String) : [],
-          head: typeof args.head === 'string' ? args.head : null,
-          testsRecorded: args.testsRecorded === true,
-          ...(args.note !== undefined ? { note: String(args.note).slice(0, 200) } : {}),
-        }, exec?.signal)
-        if (round.record.state === 'planned') {
-          activeTasks.set(workspace.workspaceId, { taskId: round.taskId, iteration: round.record.iteration })
-        } else {
-          activeTasks.delete(workspace.workspaceId)
-        }
-        return {
-          taskId: round.taskId,
-          state: round.record.state,
-          iteration: round.record.iteration,
-          summary: round.envelope.sections.get('SUMMARY') ?? '',
-          actions: round.envelope.sections.get('ACTIONS') ?? '',
+        } finally {
+          if (owner !== undefined) await ownership.settle(owner)
         }
       },
     })
@@ -571,12 +594,19 @@ export async function apply(ctx: Context, config: Config): Promise<void> {
         }],
       },
       async execute(_args: Record<string, unknown>, exec: ToolExec | undefined, workspaceRoot: WorkspaceRuntimeIdentity) {
-        await ensureRuntime(workspaceRoot, exec?.signal)
         const coordinator = coordinatorFor(workspaceRoot, exec?.agent)
-        const task = await coordinator.recover(exec?.signal)
-        if (task !== undefined && ['planned', 'executing', 'executed', 'awaiting-review'].includes(task.state)) {
-          activeTasks.set(workspaceRoot.workspaceId, { taskId: task.taskId, iteration: task.iteration })
+        if (tunnel.effectiveMode() === 'managed') {
+          if (await ownership.reconnect(workspaceRoot.workspaceId) === 'cleared') {
+            return { recovered: false, task: null, detail: 'orphaned pre-task reservation cleared; no task was persisted' }
+          }
+          const taskId = await coordinator.latestTaskId()
+          const previous = taskId === undefined ? undefined : await coordinatorState.loadTask(taskId)
+          if (previous !== undefined && !['done', 'blocked', 'error'].includes(previous.state)) {
+            await ownership.requireTaskOwner(workspaceRoot.workspaceId, previous.taskId)
+          }
         }
+        await ensureRuntime(workspaceRoot, exec?.signal)
+        const task = await coordinator.recover(exec?.signal)
         return {
           recovered: task !== undefined,
           task: task ?? null,

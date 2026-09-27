@@ -2,6 +2,8 @@
 
 ## 目标
 
+控制所有权分为两个部分：独立 `d2c_control` v1 存储持久化 managed tunnel 的 workspace/task/claim 及 pre-task/task 阶段；进程内浏览器互斥拒绝本插件 PLAN、REVIEW、doctor、reconnect 的重叠操作。任务存储 `d2c_state` v1 不变。隧道绑定检查与启动串行执行，非终态任务在重启后保留所有权；发送 INIT 结果不明确时不自动释放或重发。浏览器互斥不隔离普通执行器工具、人工操作或其他进程，当前支持每个 profile/state store 一个活动插件进程。
+
 运行时实现无人值守 C2C：一次性完成 ChatGPT 登录、自定义 MCP App 和 Secure MCP Tunnel 创建后，DSH 可以连续执行：
 
 ```
