@@ -106,7 +106,8 @@ export class BrowserHarnessAdapter implements BrowserControl {
       const appName = this.appName.trim()
       if (appName !== '') {
         await this.activateAppMention(appName, draft, signal)
-        await this.typeComposer(appName, ' ' + text, draft, signal)
+        const separatorPresent = await this.appSeparator(appName, signal)
+        await this.typeComposerExpected(appName, separatorPresent ? text : ' ' + text, appName + ' ' + text, draft, signal)
       } else {
         await this.typeComposer('', text, draft, signal)
       }
@@ -338,12 +339,37 @@ export class BrowserHarnessAdapter implements BrowserControl {
   }
 
   private async typeComposer(before: string, text: string, draft: ComposerDraft, signal?: AbortSignal): Promise<void> {
+    await this.typeComposerExpected(before, text, before + text, draft, signal)
+  }
+
+  private async typeComposerExpected(before: string, text: string, expected: string, draft: ComposerDraft, signal?: AbortSignal): Promise<void> {
     const current = await this.resolveComposer(signal, { texts: [before] }, true)
     if (!current.owned) throw new BrowserStaleError('ChatGPT composer changed before typing')
-    const expected = before + text
     draft.texts.push(expected)
     await this.call<unknown>('browser_type', { text }, signal)
     if (!(await this.resolveComposer(signal, { texts: [expected] })).owned) throw new BrowserStaleError('ChatGPT input could not be verified')
+  }
+
+
+  private async appSeparator(appName: string, signal?: AbortSignal): Promise<boolean> {
+    const value = await this.call<unknown>('browser_js', { expression: [
+      '(() => {', composerScript,
+      'if (!composer) return null;',
+      'const appName = ' + JSON.stringify(appName) + ';',
+      "const atomSelector = '[contenteditable=\"false\"], [data-lexical-decorator=\"true\"], [data-mention], [app-mention-display-name]';",
+      'const atoms = Array.from(composer.querySelectorAll(atomSelector)).filter(node => !node.parentElement.closest(atomSelector));',
+      'if (atoms.length !== 1 || atoms[0].getAttribute("app-mention-display-name") !== appName) return null;',
+      'const atom = atoms[0];',
+      'const walker = document.createTreeWalker(composer, NodeFilter.SHOW_TEXT);',
+      'const external = []; let node;',
+      'while ((node = walker.nextNode())) { if (!atom.contains(node) && node.data.length) external.push(node); }',
+      'if (external.length === 0) return false;',
+      'if (external.length !== 1 || external[0].data !== " " || external[0] !== atom.nextSibling) return null;',
+      'return true;',
+      '})()',
+    ].join(' ') }, signal)
+    if (typeof value !== 'boolean') throw new BrowserStaleError('ChatGPT App separator is not recognized')
+    return value
   }
 
   private async clearComposer(draft: ComposerDraft, signal?: AbortSignal): Promise<void> {
@@ -367,8 +393,11 @@ export class BrowserHarnessAdapter implements BrowserControl {
       'const atoms = Array.from(composer.querySelectorAll(atomSelector)).filter(node => !node.parentElement.closest(atomSelector));',
       'if (!atoms.every(node => { const identity = (node.getAttribute("app-mention-display-name") ?? node.textContent ?? "").trim(); return identity.length > 0 && draft.texts.some(text => text.trim() === identity) && selection.containsNode(node, false); })) return false;',
       'const walker = document.createTreeWalker(composer, NodeFilter.SHOW_TEXT);',
-      'let node;',
-      'while ((node = walker.nextNode())) { if (node.textContent.trim() && !atoms.some(atom => atom.contains(node)) && !selection.containsNode(node, false)) return false; }',
+      'const external = []; let node;',
+      'while ((node = walker.nextNode())) { if (!atoms.some(atom => atom.contains(node))) { if (node.data.length) external.push(node); if (node.data.trim() && !selection.containsNode(node, false)) return false; } }',
+      'if (atoms.length === 1 && atoms[0].hasAttribute("app-mention-display-name") && content.trim() === atoms[0].getAttribute("app-mention-display-name")) {',
+      'if (external.length !== 0 && (external.length !== 1 || external[0].data !== " " || external[0] !== atoms[0].nextSibling)) return false;',
+      '}',
       'return true;',
       '})()',
     ].join(' ') }, signal)

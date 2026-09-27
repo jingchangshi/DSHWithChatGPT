@@ -6,7 +6,7 @@ import { BrowserStaleError, ChatGptAppUnavailableError } from '../src/browser/ad
 const windows: Window[] = []
 afterEach(async () => { await Promise.all(windows.splice(0).map(window => window.happyDOM.close())) })
 
-function fixture(html: string, options: { selection?: 'outside' | 'partial' | 'none' | 'icon' | 'tail'; appName?: string; mention?: boolean; keepDraft?: boolean; ambiguousAfterInput?: boolean; failAfterType?: boolean; foreignDraft?: boolean | string; omitAtomText?: boolean; providerFailure?: 'throw' | 'top' | 'nested' } = {}) {
+function fixture(html: string, options: { selection?: 'outside' | 'partial' | 'none' | 'icon' | 'tail'; appName?: string; mention?: boolean; keepDraft?: boolean; ambiguousAfterInput?: boolean; failAfterType?: boolean; foreignDraft?: boolean | string; omitAtomText?: boolean; separator?: string; beforeAtom?: boolean; extraAtom?: string; failPrompt?: boolean; partialPrompt?: boolean; providerFailure?: 'throw' | 'top' | 'nested' } = {}) {
   const window = new Window({ url: 'https://chatgpt.com/' })
   windows.push(window)
   window.document.body.innerHTML = html
@@ -15,6 +15,7 @@ function fixture(html: string, options: { selection?: 'outside' | 'partial' | 'n
   }
   const mutations: string[] = []
   const keys: string[] = []
+  const inputs: string[] = []
   let typed = false
   let failed = false
   let enteredText = ''
@@ -34,9 +35,11 @@ function fixture(html: string, options: { selection?: 'outside' | 'partial' | 'n
     mutations.push(name)
     if (name.endsWith('browser_fill')) throw new Error('contenteditable fill must not be used')
     if (name.endsWith('browser_type')) {
+      inputs.push(String(args.text))
       const target = window.document.activeElement!
       if (target instanceof window.HTMLTextAreaElement) target.value += String(args.text)
-      else target.append(window.document.createTextNode(String(args.text)))
+      else (target.querySelector('p') ?? target).append(window.document.createTextNode(options.partialPrompt && inputs.length === 3 ? String(args.text).slice(0, 3) : String(args.text)))
+      if (options.failPrompt && inputs.length === 3) throw new Error('provider failed after prompt mutation')
       typed = args.text !== '@'
       if (options.ambiguousAfterInput) {
         const extra = window.document.createElement('div')
@@ -48,7 +51,11 @@ function fixture(html: string, options: { selection?: 'outside' | 'partial' | 'n
     }
     if (name.endsWith('browser_click') && options.mention) {
       const composer = window.document.querySelector('[data-d2c-composer-target]')!
-      composer.innerHTML = '<span contenteditable="false">DSH with ChatGPT</span>'
+      composer.innerHTML = '<p><span contenteditable="false" app-mention-display-name="DSH with ChatGPT"><span contenteditable="false"><svg></svg></span><span>DSH with ChatGPT</span></span></p>'
+      const paragraph = composer.querySelector('p')!
+      if (options.beforeAtom) paragraph.prepend(window.document.createTextNode(options.separator ?? ' '))
+      else if (options.separator !== undefined) paragraph.append(window.document.createTextNode(options.separator))
+      if (options.extraAtom) paragraph.insertAdjacentHTML('beforeend', options.extraAtom)
       window.document.querySelector('button')!.focus()
     }
     if (name.endsWith('browser_press')) {
@@ -65,7 +72,7 @@ function fixture(html: string, options: { selection?: 'outside' | 'partial' | 'n
         if (options.selection !== 'none') {
           const range = window.document.createRange()
           range.selectNodeContents(options.selection === 'outside' ? window.document.body : composer)
-          if (options.selection === 'partial') range.setEnd(composer.firstChild!, 1)
+          if (options.selection === 'partial') range.setEnd(window.document.createTreeWalker(composer, window.NodeFilter.SHOW_TEXT).nextNode()!, 1)
           if (options.selection === 'icon') range.selectNode(composer.firstChild!.firstChild!)
           if (options.selection === 'tail') range.setEnd(composer.lastChild!, 3)
           selection.addRange(range)
@@ -80,10 +87,50 @@ function fixture(html: string, options: { selection?: 'outside' | 'partial' | 'n
     }
     return { value: {} }
   } }) } as never, undefined, options.appName ?? 'DSH with ChatGPT')
-  return { browser, mutations, keys, window, enteredText: () => enteredText }
+  return { browser, mutations, keys, inputs, window, enteredText: () => enteredText }
 }
 
 describe('ChatGPT composer DOM resolution', () => {
+
+  it.each(['', ' '])('cleans recognized App-only separator %j', async separator => {
+    const { browser, keys, window } = fixture('<div role="textbox" contenteditable="true"></div><div role="listbox"><button>DSH with ChatGPT</button></div>', { mention: true, separator })
+    await browser.probeApp('DSH with ChatGPT')
+    expect(window.document.querySelector('[role="textbox"]')!.textContent).toBe('')
+    expect(keys).toEqual(['a', 'Backspace'])
+  })
+
+
+  it.each(['', ' '])('sends one exact separator with editor suffix %j', async separator => {
+    const { browser, keys, inputs, enteredText } = fixture('<div role="textbox" contenteditable="true"></div><div role="listbox"><button>DSH with ChatGPT</button></div>', { mention: true, separator })
+    await browser.sendControlMessage('control message')
+    expect(inputs[2]).toBe(separator === '' ? ' control message' : 'control message')
+    expect(enteredText()).toBe('DSH with ChatGPT control message')
+    expect(keys).toEqual(['Enter'])
+  })
+
+  it.each([
+    { separator: '  ' }, { separator: String.fromCharCode(160) }, { separator: String.fromCharCode(10) },
+    { separator: ' ', beforeAtom: true }, { separator: ' foreign' },
+    { extraAtom: '<span contenteditable="false"></span>' },
+    { extraAtom: '<i></i> ' },
+    { extraAtom: '<span contenteditable="false" app-mention-display-name="DSH with ChatGPT">DSH with ChatGPT</span>' },
+  ])('rejects unknown post-App content %j before typing prompt', async options => {
+    const { browser, keys, inputs, window } = fixture('<div role="textbox" contenteditable="true"></div><div role="listbox"><button>DSH with ChatGPT</button></div>', { mention: true, ...options })
+    await expect(browser.sendControlMessage('control message')).rejects.toBeInstanceOf(BrowserStaleError)
+    expect(inputs).toEqual(['@', 'DSH with ChatGPT'])
+    expect(keys).not.toContain('Enter')
+    expect(keys).not.toContain('Backspace')
+    expect(window.document.querySelector('[role="textbox"]')!.textContent).toContain('DSH with ChatGPT')
+  })
+
+  it.each([false, true])('cleans only fully committed prompt after separator (partial=%s)', async partialPrompt => {
+    const { browser, keys, window } = fixture('<div role="textbox" contenteditable="true"></div><div role="listbox"><button>DSH with ChatGPT</button></div>', { mention: true, separator: ' ', failPrompt: true, partialPrompt })
+    await expect(browser.sendControlMessage('control message')).rejects.toBeInstanceOf(BrowserStaleError)
+    expect(keys).not.toContain('Enter')
+    expect(keys.filter(key => key === 'Backspace')).toHaveLength(partialPrompt ? 0 : 1)
+    expect(window.document.querySelector('[role="textbox"]')!.textContent).toBe(partialPrompt ? 'DSH with ChatGPT con' : '')
+  })
+
 
   it.each([
     ['partial atom', '<span contenteditable="false">DSH with ChatGPT</span>', 'partial', 'DSH with ChatGPT'],
