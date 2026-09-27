@@ -42,8 +42,9 @@ describe('caller cancellation', () => {
     const controller = new AbortController()
     const browser = new BrowserHarnessAdapter({
       get: () => ({
-        execute: ({ name }: { name: string }) => {
+        execute: ({ name, arguments: args }: { name: string; arguments: Record<string, unknown> }) => {
           if (name.endsWith('browser_js')) {
+            if (String(args.expression).includes('composer.setAttribute')) return Promise.resolve({ value: { count: 1, empty: true, owned: true, focused: true } })
             return Promise.resolve({ value: { text: '', assistantCount: 0, streaming: false, loggedOut: false, composer: true } })
           }
           if (name.endsWith('browser_press')) {

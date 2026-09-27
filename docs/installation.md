@@ -65,6 +65,8 @@ Use a persistent, dedicated Chrome/Edge profile. Login/2FA/CAPTCHA is intentiona
 
 ## Verify the full loop
 
+The browser adapter requires exactly one visible composer, supporting both the legacy input ID and the editable textbox. Missing or ambiguous inputs stop browser actions. Probes and sends refuse an existing draft; clear it manually without sending before retrying. Probes verify a structural App mention, never App-name text alone. Typing and sending require verified composer focus. Failed operations clear only recognized operation-owned text, preserve foreign drafts, and verify empty cleanup. Cleanup or provider failures report an unavailable Browser Harness rather than an absent App. Cancellation keeps cleanup bounded; a successful send is not undone.
+
 In a non-protected task branch, ask:
 
 > Use ChatGPT to implement a trivial change, run tests, commit and push it, and keep applying ChatGPT review fixes until DONE.

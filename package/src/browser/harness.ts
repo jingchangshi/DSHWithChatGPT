@@ -33,6 +33,20 @@ interface ReplyBaseline {
   text: string
 }
 
+interface ComposerDraft {
+  texts: string[]
+}
+
+const composerSelector = '[data-d2c-composer-target="1"]'
+const composerScript = String.raw`
+const composerNodes = Array.from(document.querySelectorAll('#prompt-textarea, [role="textbox"][contenteditable]:not([contenteditable="false"])')).filter(element => {
+  const rect = element.getBoundingClientRect();
+  const style = getComputedStyle(element);
+  return element.isConnected && rect.width > 0 && rect.height > 0 && style.display !== 'none' && style.visibility !== 'hidden' && !element.closest('[aria-hidden="true"], [inert]');
+});
+const composer = composerNodes.length === 1 ? composerNodes[0] : null;
+`
+
 /**
  * BrowserControl backed by DSH's session-gated Browser Harness MCP tools.
  * Each outgoing C2C message can activate one exact ChatGPT app via @mention.
@@ -59,13 +73,7 @@ export class BrowserHarnessAdapter implements BrowserControl {
         }
         const state = await this.inspectChatPage(signal)
         if (state.loggedOut) throw new ChatGptLoggedOutError()
-        if (!state.composer) {
-          await this.call<unknown>('browser_wait_for_element', {
-            selector: '#prompt-textarea',
-            timeout: 10,
-            visible: true,
-          }, signal)
-        }
+        if (!state.composer) throw new BrowserStaleError('ChatGPT composer is missing or ambiguous')
         return
       } catch (error) {
         if (error instanceof ChatGptLoggedOutError || error instanceof OperationCancelledError) throw error
@@ -93,19 +101,25 @@ export class BrowserHarnessAdapter implements BrowserControl {
     const state = await this.inspectChatPage(signal)
     if (state.loggedOut) throw new ChatGptLoggedOutError()
     if (!state.composer) throw new BrowserStaleError('ChatGPT composer not found')
-    this.replyBaseline = { assistantCount: state.assistantCount, text: state.text }
-
-    if (this.appName.trim() !== '') {
-      await this.activateAppMention(this.appName.trim(), signal)
-      await this.call<unknown>('browser_type', { text: ' ' + text }, signal)
-    } else {
-      await this.call<unknown>('browser_fill', {
-        selector: '#prompt-textarea',
-        text,
-        clear_first: true,
-      }, signal)
-    }
-    await this.call<unknown>('browser_press', { key: 'ENTER' }, signal)
+    await this.withComposerDraft(async draft => {
+      this.replyBaseline = { assistantCount: state.assistantCount, text: state.text }
+      const appName = this.appName.trim()
+      if (appName !== '') {
+        await this.activateAppMention(appName, draft, signal)
+        await this.focusComposer(signal)
+        draft.texts.push(appName + ' ' + text)
+        await this.call<unknown>('browser_type', { text: ' ' + text }, signal)
+      } else {
+        await this.resolveComposer(signal)
+        draft.texts.push(text)
+        await this.call<unknown>('browser_fill', { selector: composerSelector, text, clear_first: true }, signal)
+      }
+      const expected = appName === '' ? text : appName + ' ' + text
+      const filled = await this.resolveComposer(signal, { texts: [expected] })
+      if (!filled.owned) throw new BrowserStaleError('ChatGPT control message input could not be verified')
+      await this.focusComposer(signal)
+      await this.call<unknown>('browser_press', { key: 'ENTER' }, signal)
+    }, false, signal)
   }
 
   async waitForReply(timeoutMs: number, signal?: AbortSignal): Promise<BrowserReply> {
@@ -191,36 +205,52 @@ export class BrowserHarnessAdapter implements BrowserControl {
 
   async probeApp(appName: string, signal?: AbortSignal): Promise<void> {
     await this.ensureReady(signal)
+    await this.withComposerDraft(draft => this.activateAppMention(appName.trim(), draft, signal), true, signal)
+  }
+
+  private async withComposerDraft(operation: (draft: ComposerDraft) => Promise<void>, clearOnSuccess: boolean, signal?: AbortSignal): Promise<void> {
+    const initial = await this.resolveComposer(signal)
+    if (!initial.empty) throw new BrowserStaleError('ChatGPT composer contains an existing draft; clear it before probing')
+    const draft: ComposerDraft = { texts: [''] }
     let originalError: unknown
+    let succeeded = false
     try {
-      await this.activateAppMention(appName.trim(), signal)
+      await operation(draft)
+      succeeded = true
     } catch (error) {
       originalError = error
       throw error
     } finally {
-      try {
-        await this.call<unknown>('browser_fill', {
-          selector: '#prompt-textarea',
-          text: '',
-          clear_first: true,
-        }, AbortSignal.timeout(1_500))
-      } catch (error) {
-        if (originalError === undefined) throw new BrowserStaleError('App probe composer cleanup failed: ' + String(error))
+      if (clearOnSuccess || !succeeded) {
+        try {
+          await this.clearComposer(draft, AbortSignal.timeout(1_500))
+        } catch (error) {
+          if (!(originalError instanceof OperationCancelledError)) throw new BrowserStaleError('App composer cleanup failed or draft ownership changed')
+        }
       }
     }
   }
 
-  private async activateAppMention(appName: string, signal?: AbortSignal): Promise<void> {
+  private async activateAppMention(appName: string, draft: ComposerDraft, signal?: AbortSignal): Promise<void> {
+    const initial = await this.resolveComposer(signal)
+    if (!initial.empty) throw new BrowserStaleError('ChatGPT composer contains an existing draft')
+    draft.texts.push('@')
     await this.call<unknown>('browser_fill', {
-      selector: '#prompt-textarea',
+      selector: composerSelector,
       text: '@',
       clear_first: true,
     }, signal)
+    if (!(await this.resolveComposer(signal, { texts: ['@'] })).owned) throw new BrowserStaleError('ChatGPT App input could not be verified')
+    await this.focusComposer(signal)
+    draft.texts.push('@' + appName)
     await this.call<unknown>('browser_type', { text: appName }, signal)
+    if (!(await this.resolveComposer(signal, { texts: ['@' + appName] })).owned) throw new BrowserStaleError('ChatGPT App input could not be verified')
 
     for (let attempt = 0; attempt < 12; attempt++) {
       const candidate = await this.findAppCandidate(appName, signal)
       if (candidate.found && typeof candidate.x === 'number' && typeof candidate.y === 'number') {
+        await this.resolveComposer(signal)
+        draft.texts.push(appName)
         await this.call<unknown>('browser_click', {
           x: Math.round(candidate.x),
           y: Math.round(candidate.y),
@@ -231,13 +261,6 @@ export class BrowserHarnessAdapter implements BrowserControl {
       await abortableDelay(200, signal)
     }
 
-    await this.call<unknown>('browser_fill', {
-      selector: '#prompt-textarea',
-      text: '',
-      clear_first: true,
-    }, signal).catch(error => {
-      if (error instanceof OperationCancelledError) throw error
-    })
     throw new ChatGptAppUnavailableError(appName)
   }
 
@@ -248,9 +271,10 @@ export class BrowserHarnessAdapter implements BrowserControl {
       'const wanted = ' + wanted + '.trim().toLowerCase();',
       'const visible = (el) => { const r = el.getBoundingClientRect(); const s = getComputedStyle(el); return r.width > 0 && r.height > 0 && s.visibility !== "hidden" && s.display !== "none"; };',
       'const normalize = (text) => String(text || "").replace(/\\s+/g, " ").trim().toLowerCase();',
-      'const roots = Array.from(document.querySelectorAll("[role=\"listbox\"], [role=\"menu\"], [data-radix-popper-content-wrapper]")).filter(visible);',
-      'const candidates = roots.flatMap((root) => Array.from(root.querySelectorAll("[role=\"option\"], [role=\"menuitem\"], button, [data-radix-collection-item]")));',
-      'const match = candidates.find((el) => { if (!visible(el)) return false; const full = normalize(el.textContent); if (full === wanted) return true; const lines = String(el.textContent || "").split(/\\n+/).map(normalize).filter(Boolean); return lines.includes(wanted) || full.startsWith(wanted + " "); });',
+      String.raw`const roots = Array.from(document.querySelectorAll('[role="listbox"], [role="menu"], [data-radix-popper-content-wrapper]')).filter(visible);`,
+      String.raw`const candidates = [...new Set(roots.flatMap((root) => Array.from(root.querySelectorAll('[role="option"], [role="menuitem"], button, [data-radix-collection-item]'))))];`,
+      'const matches = candidates.filter((el) => visible(el) && normalize(el.textContent) === wanted);',
+      'const match = matches.length === 1 ? matches[0] : null;',
       'if (!match) return { found: false };',
       'const r = match.getBoundingClientRect();',
       'return { found: true, x: r.left + r.width / 2, y: r.top + r.height / 2 };',
@@ -263,14 +287,12 @@ export class BrowserHarnessAdapter implements BrowserControl {
     const wanted = JSON.stringify(appName)
     const expression = [
       '(() => {',
-      'const composer = document.querySelector("#prompt-textarea");',
+      composerScript,
       'if (!composer) return false;',
       'const wanted = ' + wanted + '.trim().toLowerCase();',
       'const normalize = (text) => String(text || "").replace(/\\s+/g, " ").trim().toLowerCase();',
-      'const decorators = Array.from(composer.querySelectorAll("[contenteditable=\"false\"], [data-lexical-decorator=\"true\"], [data-mention], button"));',
-      'if (decorators.some((el) => normalize(el.textContent).includes(wanted))) return true;',
-      'const raw = normalize(composer.textContent);',
-      'return raw.includes(wanted) && !raw.startsWith("@" + wanted);',
+      String.raw`const decorators = Array.from(composer.querySelectorAll('[contenteditable="false"], [data-lexical-decorator="true"], [data-mention], button'));`,
+      'return decorators.some((el) => normalize(el.textContent) === wanted);',
       '})()',
     ].join(' ')
     const result = await this.call<unknown>('browser_js', { expression }, signal)
@@ -280,11 +302,11 @@ export class BrowserHarnessAdapter implements BrowserControl {
   private async inspectChatPage(signal?: AbortSignal): Promise<ChatPageState> {
     const expression = [
       '(() => {',
-      'const composer = document.querySelector("#prompt-textarea");',
-      'const messages = Array.from(document.querySelectorAll("[data-message-author-role=\"assistant\"]"));',
+      composerScript,
+      String.raw`const messages = Array.from(document.querySelectorAll('[data-message-author-role="assistant"]'));`,
       'const latest = messages.length > 0 ? messages[messages.length - 1] : null;',
       'const stop = Array.from(document.querySelectorAll("button")).some((button) => { const label = (button.getAttribute("aria-label") || button.textContent || "").toLowerCase(); return label.includes("stop streaming") || label === "stop"; });',
-      'const login = Array.from(document.querySelectorAll("a,button")).some((node) => { const text = (node.textContent || "").trim().toLowerCase(); return text === "log in" || text === "login" || text === "sign up"; });',
+      'const login = Array.from(document.querySelectorAll("a,button")).some((node) => { const text = (node.textContent || "").trim().toLowerCase(); return ["log in", "login", "sign up", "登录", "注册"].includes(text); });',
       'return { text: latest ? (latest.innerText || latest.textContent || "") : "", assistantCount: messages.length, streaming: stop, loggedOut: !composer && login, composer: !!composer };',
       '})()',
     ].join(' ')
@@ -300,10 +322,38 @@ export class BrowserHarnessAdapter implements BrowserControl {
     throw new BrowserStaleError('unexpected browser_js response')
   }
 
+  private async resolveComposer(signal?: AbortSignal, draft?: ComposerDraft, focus = false): Promise<{ empty: boolean; owned: boolean }> {
+    const value = await this.call<{ count?: number; empty?: boolean; owned?: boolean; focused?: boolean }>('browser_js', { expression: [
+      '(() => {', composerScript,
+      'for (const node of document.querySelectorAll(' + JSON.stringify(composerSelector) + ')) node.removeAttribute("data-d2c-composer-target");',
+      'if (!composer) return { count: composerNodes.length, empty: false };',
+      'composer.setAttribute("data-d2c-composer-target", "1");',
+      'const draft = ' + JSON.stringify(draft ?? { texts: [] }) + ';',
+      'const content = (composer.innerText || composer.textContent || composer.value || "").trim();',
+      focus ? 'composer.focus();' : '',
+      String.raw`return { count: 1, empty: !content && !composer.querySelector('[contenteditable="false"], [data-lexical-decorator="true"], [data-mention]'), owned: draft.texts.some(text => text.trim() === content), focused: document.activeElement === composer || composer.contains(document.activeElement) };`,
+      '})()',
+    ].join(' ') }, signal)
+    if (value?.count !== 1 || typeof value.empty !== 'boolean') throw new BrowserStaleError('ChatGPT composer is missing or ambiguous')
+    if (focus && value.focused !== true) throw new BrowserStaleError('ChatGPT composer focus could not be verified')
+    return { empty: value.empty, owned: value.owned === true }
+  }
+
+  private async focusComposer(signal?: AbortSignal): Promise<void> {
+    await this.resolveComposer(signal, undefined, true)
+  }
+
+  private async clearComposer(draft: ComposerDraft, signal?: AbortSignal): Promise<void> {
+    const current = await this.resolveComposer(signal, draft)
+    if (!current.empty && !current.owned) throw new BrowserStaleError('ChatGPT composer draft is not owned by this operation')
+    await this.call<unknown>('browser_fill', { selector: composerSelector, text: '', clear_first: true }, signal)
+    if (!(await this.resolveComposer(signal)).empty) throw new BrowserStaleError('ChatGPT composer cleanup could not be verified')
+  }
+
   private async call<T>(tool: string, args: Record<string, unknown>, signal?: AbortSignal): Promise<T> {
     throwIfCancelled(signal)
     const tools = this.ctx.get('tools')
-    if (tools === undefined) throw new Error('tools service unavailable for browser control')
+    if (tools === undefined) throw new BrowserStaleError('tools service unavailable for browser control')
 
     const controller = new AbortController()
     const onAbort = () => controller.abort()
@@ -329,17 +379,18 @@ export class BrowserHarnessAdapter implements BrowserControl {
       ]) as ToolResultLike
 
       if (raw.isError === true) {
-        const detail = raw.error?.message
-          ?? raw.content?.filter(block => block.type === 'text').map(block => block.text ?? '').join('\n')
-          ?? tool
-        throw new BrowserStaleError(detail)
+        throw new BrowserStaleError('browser tool ' + tool + ' returned an error')
+      }
+      if (typeof raw.value === 'object' && raw.value !== null && (raw.value as ToolResultLike).isError === true) {
+        throw new BrowserStaleError('browser tool ' + tool + ' returned an error')
       }
       return decodeToolValue<T>(raw)
     } catch (error) {
-      if (signal?.aborted && error instanceof Error && error.name === 'AbortError') {
+      if (signal?.aborted || error instanceof OperationCancelledError) {
         throw new OperationCancelledError()
       }
-      throw error
+      if (error instanceof BrowserStaleError) throw error
+      throw new BrowserStaleError('browser tool ' + tool + ' failed')
     } finally {
       signal?.removeEventListener('abort', onAbort)
       if (rejectTimer !== undefined) clearTimeout(rejectTimer)

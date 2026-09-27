@@ -52,6 +52,7 @@ describe('registered doctor App proof', () => {
         }
         if (name === 'browser_js') {
           const expression = request.arguments.expression!
+          if (expression.includes('composer.setAttribute')) return { value: { count: 1, empty: true, owned: true, focused: true } }
           if (expression.includes('const candidates')) return { value: { found: true, x: 1, y: 1 } }
           if (expression.includes('const decorators')) return { value: true }
           return { value: { text: reply, assistantCount: reply ? 1 : 0, streaming: false, loggedOut: false, composer: true } }

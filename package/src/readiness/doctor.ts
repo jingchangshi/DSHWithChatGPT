@@ -1,4 +1,5 @@
 import type { BrowserControl } from '../browser/index.ts'
+import { BrowserStaleError, ChatGptLoggedOutError, ChatGptAppUnavailableError } from '../browser/adapter.ts'
 import type { TunnelStatus } from '../tunnel/supervisor.ts'
 import { OperationCancelledError, throwIfCancelled, withCancellation } from '../cancellation.ts'
 import { appProofPrompt, gitFact, rootFact, verifyAppProof, type AppProof } from './app-proof.ts'
@@ -144,7 +145,10 @@ export async function runDoctor(inputs: DoctorInputs): Promise<DoctorResult> {
     if (inputs.signal?.aborted || error instanceof OperationCancelledError) throw new OperationCancelledError()
     const app = checks.find(item => item.id === 'chatgpt_app')!
     app.detail = 'exact ChatGPT App could not be selected; verify the app and browser session'
-    app.code = 'CHATGPT_APP_UNAVAILABLE'
+    app.code = error instanceof ChatGptLoggedOutError ? 'CHATGPT_LOGGED_OUT'
+      : error instanceof ChatGptAppUnavailableError ? 'CHATGPT_APP_UNAVAILABLE'
+      : 'BROWSER_HARNESS_UNAVAILABLE'
+    if (error instanceof BrowserStaleError) app.detail = 'Browser Harness App probe or composer cleanup failed'
   }
   try {
     if (inputs.browser.readiness === undefined) throw new Error('browser adapter does not expose readiness probe')

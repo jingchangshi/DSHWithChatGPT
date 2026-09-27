@@ -108,6 +108,7 @@ describe('Browser Harness App probe', () => {
       if (name.endsWith('browser_page_info')) return { url: 'https://chatgpt.com/c/test' }
       if (name.endsWith('browser_js')) {
         const expression = String(args.expression)
+        if (expression.includes('composer.setAttribute')) return { count: 1, empty: true, owned: true, focused: true }
         if (expression.includes('const candidates =')) return { found: true, x: 10, y: 20 }
         if (expression.includes('const decorators')) return true
         return { text: '', assistantCount: 0, streaming: false, loggedOut: false, composer: true }
@@ -124,6 +125,7 @@ describe('Browser Harness App probe', () => {
       if (name.endsWith('browser_page_info')) return { url: 'https://chatgpt.com/c/test' }
       if (name.endsWith('browser_js')) {
         const expression = String(args.expression)
+        if (expression.includes('composer.setAttribute')) return { count: 1, empty: true, owned: true, focused: true }
         if (expression.includes('const candidates =')) return { found: false }
         return { text: '', assistantCount: 0, streaming: false, loggedOut: false, composer: true }
       }
@@ -143,7 +145,7 @@ describe('Browser Harness App probe', () => {
         execute: async ({ name, arguments: args }: { name: string; arguments: Record<string, unknown> }) => {
           calls.push(name)
           if (name.endsWith('browser_page_info')) return { value: { url: 'https://chatgpt.com/c/test' } }
-          if (name.endsWith('browser_js')) return { value: { loggedOut: false, composer: true } }
+          if (name.endsWith('browser_js')) return { value: String(args.expression).includes('composer.setAttribute') ? { count: 1, empty: true, owned: true, focused: true } : { loggedOut: false, composer: true } }
           if (name.endsWith('browser_type')) {
             controller.abort()
             return new Promise<never>(() => {})
