@@ -44,7 +44,7 @@ describe('registered doctor App proof', () => {
         const name = request.name.replace('mcp__browser-harness__', '')
         if (name === 'browser_page_info') return { value: { url: 'https://chatgpt.com/c/fixture' } }
         if (name === 'browser_type' && request.arguments.text?.includes('[D2C_APP_PROOF_V1]')) prompt = request.arguments.text
-        if (name === 'browser_press' && request.arguments.key === 'ENTER') {
+        if (name === 'browser_press' && request.arguments.key === 'Enter') {
           const workspace = await mcp('workspace_info')
           challenge = workspace.appProof.challenge
           expect(prompt).not.toContain(challenge)

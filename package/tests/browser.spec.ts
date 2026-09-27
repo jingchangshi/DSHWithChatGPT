@@ -117,7 +117,7 @@ describe('Browser Harness App probe', () => {
     })
     await browser.probeApp('DSH with ChatGPT')
     expect(calls.some(name => name.endsWith('browser_press'))).toBe(false)
-    expect(calls.filter(name => name.endsWith('browser_fill')).at(-1)).toContain('browser_fill')
+    expect(calls.filter(name => name.endsWith('browser_fill'))).toHaveLength(0)
   })
 
   it('cleans the composer after an unavailable App without pressing Enter', async () => {
@@ -133,7 +133,7 @@ describe('Browser Harness App probe', () => {
     })
     await expect(browser.probeApp('DSH with ChatGPT')).rejects.toBeInstanceOf(ChatGptAppUnavailableError)
     expect(calls.some(name => name.endsWith('browser_press'))).toBe(false)
-    expect(calls.filter(name => name.endsWith('browser_fill')).at(-1)).toContain('browser_fill')
+    expect(calls.filter(name => name.endsWith('browser_fill'))).toHaveLength(0)
   })
 
   it('bounds cleanup after cancellation even when the browser provider never answers', async () => {
@@ -145,12 +145,12 @@ describe('Browser Harness App probe', () => {
         execute: async ({ name, arguments: args }: { name: string; arguments: Record<string, unknown> }) => {
           calls.push(name)
           if (name.endsWith('browser_page_info')) return { value: { url: 'https://chatgpt.com/c/test' } }
-          if (name.endsWith('browser_js')) return { value: String(args.expression).includes('composer.setAttribute') ? { count: 1, empty: true, owned: true, focused: true } : { loggedOut: false, composer: true } }
+          if (name.endsWith('browser_js')) return { value: String(args.expression).includes('composer.setAttribute') ? { count: 1, empty: !controller.signal.aborted, owned: true, focused: true } : { loggedOut: false, composer: true } }
           if (name.endsWith('browser_type')) {
             controller.abort()
             return new Promise<never>(() => {})
           }
-          if (name.endsWith('browser_fill') && args.text === '') {
+          if (name.endsWith('browser_press') && args.key === 'a') {
             cleanupAttempted = true
             return new Promise<never>(() => {})
           }
@@ -162,6 +162,6 @@ describe('Browser Harness App probe', () => {
     await expect(browser.probeApp('DSH with ChatGPT', controller.signal)).rejects.toBeInstanceOf(OperationCancelledError)
     expect(cleanupAttempted).toBe(true)
     expect(Date.now() - started).toBeLessThan(3_500)
-    expect(calls.some(name => name.endsWith('browser_press'))).toBe(false)
+    expect(calls.filter(name => name.endsWith('browser_press'))).toHaveLength(1)
   }, 5_000)
 })

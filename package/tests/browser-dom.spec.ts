@@ -6,7 +6,7 @@ import { BrowserStaleError, ChatGptAppUnavailableError } from '../src/browser/ad
 const windows: Window[] = []
 afterEach(async () => { await Promise.all(windows.splice(0).map(window => window.happyDOM.close())) })
 
-function fixture(html: string, options: { appName?: string; mention?: boolean; keepDraft?: boolean; ambiguousAfterFill?: boolean; failAfterType?: boolean; foreignDraft?: boolean | string; providerFailure?: 'throw' | 'top' | 'nested' } = {}) {
+function fixture(html: string, options: { selection?: 'outside' | 'partial' | 'none'; appName?: string; mention?: boolean; keepDraft?: boolean; ambiguousAfterInput?: boolean; failAfterType?: boolean; foreignDraft?: boolean | string; providerFailure?: 'throw' | 'top' | 'nested' } = {}) {
   const window = new Window({ url: 'https://chatgpt.com/' })
   windows.push(window)
   window.document.body.innerHTML = html
@@ -14,6 +14,7 @@ function fixture(html: string, options: { appName?: string; mention?: boolean; k
     element.getBoundingClientRect = () => ({ x: 0, y: 0, left: 0, top: 0, right: 100, bottom: 30, width: 100, height: 30, toJSON: () => ({}) })
   }
   const mutations: string[] = []
+  const keys: string[] = []
   let typed = false
   let failed = false
   let enteredText = ''
@@ -31,21 +32,19 @@ function fixture(html: string, options: { appName?: string; mention?: boolean; k
       return { value: window.eval(String(args.expression)) }
     }
     mutations.push(name)
-    if (name.endsWith('browser_fill')) {
-      const target = window.document.querySelector(String(args.selector))!
-      if (!(options.keepDraft && args.text === '')) target.textContent = String(args.text)
-      ;(target as unknown as { focus(): void }).focus()
-      if (options.ambiguousAfterFill) {
+    if (name.endsWith('browser_fill')) throw new Error('contenteditable fill must not be used')
+    if (name.endsWith('browser_type')) {
+      const target = window.document.activeElement!
+      if (target instanceof window.HTMLTextAreaElement) target.value += String(args.text)
+      else target.append(window.document.createTextNode(String(args.text)))
+      typed = args.text !== '@'
+      if (options.ambiguousAfterInput) {
         const extra = window.document.createElement('div')
         extra.setAttribute('role', 'textbox')
         extra.setAttribute('contenteditable', 'true')
-        extra.getBoundingClientRect = target.getBoundingClientRect
+        extra.getBoundingClientRect = window.document.activeElement!.getBoundingClientRect
         window.document.body.append(extra)
       }
-    }
-    if (name.endsWith('browser_type')) {
-      window.document.activeElement!.append(window.document.createTextNode(String(args.text)))
-      typed = true
     }
     if (name.endsWith('browser_click') && options.mention) {
       const composer = window.document.querySelector('[data-d2c-composer-target]')!
@@ -53,15 +52,60 @@ function fixture(html: string, options: { appName?: string; mention?: boolean; k
       window.document.querySelector('button')!.focus()
     }
     if (name.endsWith('browser_press')) {
+      keys.push(String(args.key))
       expect(window.document.activeElement).toBe(window.document.querySelector('[data-d2c-composer-target]'))
-      enteredText = window.document.activeElement!.textContent!
+      const composer = window.document.activeElement!
+      if (args.key === 'a' && args.modifiers === 2) {
+        if (composer instanceof window.HTMLTextAreaElement) {
+          composer.setSelectionRange(0, composer.value.length)
+          return { value: {} }
+        }
+        const selection = window.getSelection()!
+        selection.removeAllRanges()
+        if (options.selection !== 'none') {
+          const range = window.document.createRange()
+          range.selectNodeContents(options.selection === 'outside' ? window.document.body : composer)
+          if (options.selection === 'partial') range.setEnd(composer.firstChild!, 1)
+          selection.addRange(range)
+        }
+      } else if (args.key === 'Backspace') {
+        if (!options.keepDraft) {
+          if (composer instanceof window.HTMLTextAreaElement) composer.value = ''
+          else window.getSelection()!.deleteFromDocument()
+        }
+      } else if (args.key === 'Enter') enteredText = composer instanceof window.HTMLTextAreaElement ? composer.value : composer.textContent!
     }
     return { value: {} }
   } }) } as never, undefined, options.appName ?? 'DSH with ChatGPT')
-  return { browser, mutations, window, enteredText: () => enteredText }
+  return { browser, mutations, keys, window, enteredText: () => enteredText }
 }
 
 describe('ChatGPT composer DOM resolution', () => {
+  it('types into a legacy textarea and sends the exact value', async () => {
+    const { browser, enteredText } = fixture('<textarea id="prompt-textarea"></textarea>', { appName: '' })
+    await browser.sendControlMessage('control message')
+    expect(enteredText()).toBe('control message')
+  })
+
+  it('cleans an owned legacy textarea value after failed input verification', async () => {
+    const { browser, window, keys } = fixture('<textarea id="prompt-textarea"></textarea>', { appName: '', failAfterType: true })
+    await expect(browser.sendControlMessage('control message')).rejects.toBeInstanceOf(BrowserStaleError)
+    expect(window.document.querySelector('textarea')!.value).toBe('')
+    expect(keys).toEqual(['a', 'Backspace'])
+  })
+  it('types a no-App message without using contenteditable fill', async () => {
+    const { browser, mutations, enteredText } = fixture('<div role="textbox" contenteditable="true"></div>', { appName: '' })
+    await browser.sendControlMessage('control message')
+    expect(enteredText()).toBe('control message')
+    expect(mutations.some(name => name.endsWith('browser_fill'))).toBe(false)
+  })
+
+  it.each(['outside', 'partial', 'none'] as const)('refuses cleanup with %s selection', async selection => {
+    const { browser, window, keys } = fixture('<div role="textbox" contenteditable="true"></div><div role="listbox"><button>DSH with ChatGPT</button></div>', { mention: true, selection })
+    await expect(browser.probeApp('DSH with ChatGPT')).rejects.toBeInstanceOf(BrowserStaleError)
+    expect(window.document.querySelector('[role="textbox"]')!.textContent).toBe('DSH with ChatGPT')
+    expect(keys).not.toContain('Backspace')
+  })
   it.each([
     '<div id="prompt-textarea" contenteditable="true"></div>',
     '<div role="textbox" contenteditable="true"></div>',
@@ -73,54 +117,56 @@ describe('ChatGPT composer DOM resolution', () => {
   })
 
   it('rejects two visible composers before any input', async () => {
-    const { browser, mutations } = fixture('<div id="prompt-textarea" contenteditable="true"></div><div role="textbox" contenteditable="true"></div>')
+    const { browser, mutations, keys } = fixture('<div id="prompt-textarea" contenteditable="true"></div><div role="textbox" contenteditable="true"></div>')
     await expect(browser.sendControlMessage('do not send')).rejects.toBeInstanceOf(BrowserStaleError)
     expect(mutations).toEqual([])
   })
 
   it('rejects a hidden composer before any input', async () => {
-    const { browser, mutations } = fixture('<div id="prompt-textarea" style="visibility:hidden"></div>')
+    const { browser, mutations, keys } = fixture('<div id="prompt-textarea" style="visibility:hidden"></div>')
     await expect(browser.sendControlMessage('do not send')).rejects.toBeInstanceOf(BrowserStaleError)
     expect(mutations).toEqual([])
   })
 
   it.each(['throw', 'top', 'nested'] as const)('fails closed on %s provider errors', async providerFailure => {
-    const { browser, mutations } = fixture('<div role="textbox" contenteditable="true"></div>', { providerFailure })
+    const { browser, mutations, keys } = fixture('<div role="textbox" contenteditable="true"></div>', { providerFailure })
     await expect(browser.sendControlMessage('do not send')).rejects.toBeInstanceOf(BrowserStaleError)
     expect(mutations).toEqual([])
   })
 
   it('preserves an existing user draft without probing', async () => {
-    const { browser, mutations, window } = fixture('<div role="textbox" contenteditable="true">user draft</div>')
+    const { browser, mutations, keys, window } = fixture('<div role="textbox" contenteditable="true">user draft</div>')
     await expect(browser.probeApp('DSH with ChatGPT')).rejects.toBeInstanceOf(BrowserStaleError)
     expect(window.document.querySelector('[role="textbox"]')!.textContent).toBe('user draft')
     expect(mutations).toEqual([])
   })
 
   it('selects a structural App mention and verifies empty cleanup without sending', async () => {
-    const { browser, mutations, window } = fixture('<div role="textbox" contenteditable="true"></div><div role="listbox"><button>DSH with ChatGPT</button></div>', { mention: true })
+    const { browser, mutations, keys, window } = fixture('<div role="textbox" contenteditable="true"></div><div role="listbox"><button>DSH with ChatGPT</button></div>', { mention: true })
     await browser.probeApp('DSH with ChatGPT')
     expect(window.document.querySelector('[role="textbox"]')!.textContent).toBe('')
-    expect(mutations.some(name => name.endsWith('browser_press'))).toBe(false)
+    expect(keys).not.toContain('Enter')
   })
 
   it('reports cleanup failure rather than App success', async () => {
-    const { browser, mutations } = fixture('<div role="textbox" contenteditable="true"></div><div role="listbox"><button>DSH with ChatGPT</button></div>', { mention: true, keepDraft: true })
+    const { browser, mutations, keys } = fixture('<div role="textbox" contenteditable="true"></div><div role="listbox"><button>DSH with ChatGPT</button></div>', { mention: true, keepDraft: true })
     await expect(browser.probeApp('DSH with ChatGPT')).rejects.toBeInstanceOf(BrowserStaleError)
-    expect(mutations.some(name => name.endsWith('browser_press'))).toBe(false)
+    expect(keys).not.toContain('Enter')
+    expect(keys.filter(key => key === 'Backspace')).toHaveLength(1)
   })
 
   it('does not accept plain App-name text as a mention', async () => {
-    const { browser, mutations, window } = fixture('<div role="textbox" contenteditable="true"></div><div role="listbox"><button>DSH with ChatGPT</button></div>')
+    const { browser, mutations, keys, window } = fixture('<div role="textbox" contenteditable="true"></div><div role="listbox"><button>DSH with ChatGPT</button></div>')
     await expect(browser.probeApp('DSH with ChatGPT')).rejects.toBeInstanceOf(ChatGptAppUnavailableError)
     expect(window.document.querySelector('[role="textbox"]')!.textContent).toBe('')
-    expect(mutations.some(name => name.endsWith('browser_press'))).toBe(false)
+    expect(keys).not.toContain('Enter')
   }, 10_000)
 
   it('does not select a similarly named App', async () => {
-    const { browser, mutations } = fixture('<div role="textbox" contenteditable="true"></div><div role="listbox"><button>DSH with ChatGPT Other</button></div>')
+    const { browser, mutations, keys } = fixture('<div role="textbox" contenteditable="true"></div><div role="listbox"><button>DSH with ChatGPT Other</button></div>')
     await expect(browser.probeApp('DSH with ChatGPT')).rejects.toBeInstanceOf(ChatGptAppUnavailableError)
-    expect(mutations.some(name => name.endsWith('browser_click') || name.endsWith('browser_press'))).toBe(false)
+    expect(mutations.some(name => name.endsWith('browser_click'))).toBe(false)
+    expect(keys).not.toContain('Enter')
   })
 
   it('restores composer focus after App selection before typing and sending', async () => {
@@ -130,33 +176,34 @@ describe('ChatGPT composer DOM resolution', () => {
   })
 
   it('preserves existing drafts in the no-App send path', async () => {
-    const { browser, mutations, window } = fixture('<div role="textbox" contenteditable="true">user draft</div>', { appName: '' })
+    const { browser, mutations, keys, window } = fixture('<div role="textbox" contenteditable="true">user draft</div>', { appName: '' })
     await expect(browser.sendControlMessage('control message')).rejects.toBeInstanceOf(BrowserStaleError)
     expect(window.document.querySelector('[role="textbox"]')!.textContent).toBe('user draft')
     expect(mutations).toEqual([])
   })
 
   it.each([false, true])('cleans only owned input after a send failure (foreign=%s)', async foreignDraft => {
-    const { browser, mutations, window } = fixture('<div role="textbox" contenteditable="true"></div>', { failAfterType: true, foreignDraft })
+    const { browser, mutations, keys, window } = fixture('<div role="textbox" contenteditable="true"></div>', { failAfterType: true, foreignDraft })
     await expect(browser.sendControlMessage('control message')).rejects.toBeInstanceOf(BrowserStaleError)
     expect(window.document.querySelector('[role="textbox"]')!.textContent).toBe(foreignDraft ? 'foreign user draft' : '')
-    expect(mutations.filter(name => name.endsWith('browser_fill'))).toHaveLength(foreignDraft ? 1 : 2)
-    expect(mutations.some(name => name.endsWith('browser_press'))).toBe(false)
+    expect(keys.includes('Backspace')).toBe(!foreignDraft)
+    expect(keys).not.toContain('Enter')
   })
 
   it('removes stale target markers when a rerender makes the composer ambiguous', async () => {
-    const { browser, mutations, window } = fixture('<div role="textbox" contenteditable="true"></div>', { ambiguousAfterFill: true })
+    const { browser, mutations, keys, window } = fixture('<div role="textbox" contenteditable="true"></div>', { ambiguousAfterInput: true })
     await expect(browser.sendControlMessage('control message')).rejects.toBeInstanceOf(BrowserStaleError)
     expect(window.document.querySelector('[data-d2c-composer-target]')).toBeNull()
-    expect(mutations.filter(name => name.endsWith('browser_fill'))).toHaveLength(1)
-    expect(mutations.some(name => name.endsWith('browser_type') || name.endsWith('browser_press'))).toBe(false)
+    expect(mutations.filter(name => name.endsWith('browser_fill'))).toHaveLength(0)
+    expect(mutations.filter(name => name.endsWith('browser_type'))).toHaveLength(1)
+    expect(keys).toEqual([])
   })
 
   it('preserves a foreign draft that is a prefix of the intended App input', async () => {
-    const { browser, mutations, window } = fixture('<div role="textbox" contenteditable="true"></div>', { failAfterType: true, foreignDraft: '@DSH with' })
+    const { browser, mutations, keys, window } = fixture('<div role="textbox" contenteditable="true"></div>', { failAfterType: true, foreignDraft: '@DSH with' })
     await expect(browser.sendControlMessage('control message')).rejects.toBeInstanceOf(BrowserStaleError)
     expect(window.document.querySelector('[role="textbox"]')!.textContent).toBe('@DSH with')
-    expect(mutations.filter(name => name.endsWith('browser_fill'))).toHaveLength(1)
-    expect(mutations.some(name => name.endsWith('browser_press'))).toBe(false)
+    expect(mutations.filter(name => name.endsWith('browser_fill'))).toHaveLength(0)
+    expect(keys).not.toContain('Enter')
   })
 })

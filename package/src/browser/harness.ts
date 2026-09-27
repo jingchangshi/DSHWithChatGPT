@@ -106,19 +106,15 @@ export class BrowserHarnessAdapter implements BrowserControl {
       const appName = this.appName.trim()
       if (appName !== '') {
         await this.activateAppMention(appName, draft, signal)
-        await this.focusComposer(signal)
-        draft.texts.push(appName + ' ' + text)
-        await this.call<unknown>('browser_type', { text: ' ' + text }, signal)
+        await this.typeComposer(appName, ' ' + text, draft, signal)
       } else {
-        await this.resolveComposer(signal)
-        draft.texts.push(text)
-        await this.call<unknown>('browser_fill', { selector: composerSelector, text, clear_first: true }, signal)
+        await this.typeComposer('', text, draft, signal)
       }
       const expected = appName === '' ? text : appName + ' ' + text
       const filled = await this.resolveComposer(signal, { texts: [expected] })
       if (!filled.owned) throw new BrowserStaleError('ChatGPT control message input could not be verified')
       await this.focusComposer(signal)
-      await this.call<unknown>('browser_press', { key: 'ENTER' }, signal)
+      await this.call<unknown>('browser_press', { key: 'Enter' }, signal)
     }, false, signal)
   }
 
@@ -234,17 +230,8 @@ export class BrowserHarnessAdapter implements BrowserControl {
   private async activateAppMention(appName: string, draft: ComposerDraft, signal?: AbortSignal): Promise<void> {
     const initial = await this.resolveComposer(signal)
     if (!initial.empty) throw new BrowserStaleError('ChatGPT composer contains an existing draft')
-    draft.texts.push('@')
-    await this.call<unknown>('browser_fill', {
-      selector: composerSelector,
-      text: '@',
-      clear_first: true,
-    }, signal)
-    if (!(await this.resolveComposer(signal, { texts: ['@'] })).owned) throw new BrowserStaleError('ChatGPT App input could not be verified')
-    await this.focusComposer(signal)
-    draft.texts.push('@' + appName)
-    await this.call<unknown>('browser_type', { text: appName }, signal)
-    if (!(await this.resolveComposer(signal, { texts: ['@' + appName] })).owned) throw new BrowserStaleError('ChatGPT App input could not be verified')
+    await this.typeComposer('', '@', draft, signal)
+    await this.typeComposer('@', appName, draft, signal)
 
     for (let attempt = 0; attempt < 12; attempt++) {
       const candidate = await this.findAppCandidate(appName, signal)
@@ -329,7 +316,7 @@ export class BrowserHarnessAdapter implements BrowserControl {
       'if (!composer) return { count: composerNodes.length, empty: false };',
       'composer.setAttribute("data-d2c-composer-target", "1");',
       'const draft = ' + JSON.stringify(draft ?? { texts: [] }) + ';',
-      'const content = (composer.innerText || composer.textContent || composer.value || "").trim();',
+      'const content = (typeof composer.value === "string" ? composer.value : (composer.innerText || composer.textContent || "")).trim();',
       focus ? 'composer.focus();' : '',
       String.raw`return { count: 1, empty: !content && !composer.querySelector('[contenteditable="false"], [data-lexical-decorator="true"], [data-mention]'), owned: draft.texts.some(text => text.trim() === content), focused: document.activeElement === composer || composer.contains(document.activeElement) };`,
       '})()',
@@ -343,10 +330,38 @@ export class BrowserHarnessAdapter implements BrowserControl {
     await this.resolveComposer(signal, undefined, true)
   }
 
+  private async typeComposer(before: string, text: string, draft: ComposerDraft, signal?: AbortSignal): Promise<void> {
+    const current = await this.resolveComposer(signal, { texts: [before] }, true)
+    if (!current.owned) throw new BrowserStaleError('ChatGPT composer changed before typing')
+    const expected = before + text
+    draft.texts.push(expected)
+    await this.call<unknown>('browser_type', { text }, signal)
+    if (!(await this.resolveComposer(signal, { texts: [expected] })).owned) throw new BrowserStaleError('ChatGPT input could not be verified')
+  }
+
   private async clearComposer(draft: ComposerDraft, signal?: AbortSignal): Promise<void> {
     const current = await this.resolveComposer(signal, draft)
-    if (!current.empty && !current.owned) throw new BrowserStaleError('ChatGPT composer draft is not owned by this operation')
-    await this.call<unknown>('browser_fill', { selector: composerSelector, text: '', clear_first: true }, signal)
+    if (current.empty) return
+    if (!current.owned) throw new BrowserStaleError('ChatGPT composer draft is not owned by this operation')
+    if (!(await this.resolveComposer(signal, draft, true)).owned) throw new BrowserStaleError('ChatGPT composer changed before cleanup')
+    await this.call<unknown>('browser_press', { key: 'a', modifiers: 2 }, signal)
+    const selected = await this.call<unknown>('browser_js', { expression: [
+      '(() => {', composerScript,
+      'if (!composer || document.activeElement !== composer) return false;',
+      'const content = typeof composer.value === "string" ? composer.value : (composer.innerText || composer.textContent || "");',
+      'const draft = ' + JSON.stringify(draft) + ';',
+      'if (!draft.texts.some(text => text.trim() === content.trim())) return false;',
+      'if (typeof composer.value === "string") return composer.selectionStart === 0 && composer.selectionEnd === composer.value.length;',
+      'const selection = window.getSelection();',
+      'if (!selection || selection.rangeCount !== 1 || selection.isCollapsed) return false;',
+      'const range = selection.getRangeAt(0);',
+      'if (![selection.anchorNode, selection.focusNode, range.commonAncestorContainer].every(node => node && composer.contains(node))) return false;',
+      'if (selection.toString().trim() !== content.trim()) return false;',
+      'return Array.from(composer.querySelectorAll(\'[contenteditable="false"], [data-lexical-decorator="true"], [data-mention]\')).every(node => selection.containsNode(node, false));',
+      '})()',
+    ].join(' ') }, signal)
+    if (selected !== true) throw new BrowserStaleError('ChatGPT composer selection is not complete and contained')
+    await this.call<unknown>('browser_press', { key: 'Backspace' }, signal)
     if (!(await this.resolveComposer(signal)).empty) throw new BrowserStaleError('ChatGPT composer cleanup could not be verified')
   }
 
