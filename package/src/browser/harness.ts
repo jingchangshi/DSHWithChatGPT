@@ -26,6 +26,7 @@ interface ChatPageState {
   streaming: boolean
   loggedOut: boolean
   composer: boolean
+  composerCount: number
 }
 
 interface ReplyBaseline {
@@ -91,10 +92,29 @@ export class BrowserHarnessAdapter implements BrowserControl {
     await this.call<unknown>('browser_wait_for_load', { timeout: 15 }, signal).catch(error => {
       if (error instanceof OperationCancelledError) throw error
     })
-    const state = await this.inspectChatPage(signal)
-    if (state.loggedOut) throw new ChatGptLoggedOutError()
-    if (!state.composer) throw new BrowserStaleError('ChatGPT composer not found after navigation')
+    await this.waitForSemanticComposerAfterNavigation(10_000, signal)
     return (await this.conversationId(signal)) ?? ''
+  }
+
+  private async waitForSemanticComposerAfterNavigation(timeoutMs: number, signal?: AbortSignal): Promise<void> {
+    const deadline = new AbortController()
+    const timeout = setTimeout(() => deadline.abort(), timeoutMs)
+    const active = signal === undefined ? deadline.signal : AbortSignal.any([signal, deadline.signal])
+    try {
+      while (true) {
+        const state = await this.inspectChatPage(active)
+        if (state.composerCount > 1) throw new BrowserStaleError('ChatGPT composer is ambiguous after navigation')
+        if (state.loggedOut) throw new ChatGptLoggedOutError()
+        if (state.composerCount === 1) return
+        await abortableDelay(200, active)
+      }
+    } catch (error) {
+      throwIfCancelled(signal)
+      if (deadline.signal.aborted) throw new BrowserStaleError('ChatGPT composer not found after navigation')
+      throw error
+    } finally {
+      clearTimeout(timeout)
+    }
   }
 
   async sendControlMessage(text: string, signal?: AbortSignal): Promise<void> {
@@ -311,7 +331,7 @@ export class BrowserHarnessAdapter implements BrowserControl {
       'const latest = messages.length > 0 ? messages[messages.length - 1].node : null;',
       'const stop = Array.from(document.querySelectorAll("button")).some((button) => { const label = (button.getAttribute("aria-label") || button.textContent || "").toLowerCase(); return label.includes("stop streaming") || label === "stop"; });',
       'const login = Array.from(document.querySelectorAll("a,button")).some((node) => { const text = (node.textContent || "").trim().toLowerCase(); return ["log in", "login", "sign up", "登录", "注册"].includes(text); });',
-      'return { text: latest ? (latest.innerText || latest.textContent || "") : "", assistantCount: messages.length, streaming: stop, loggedOut: !composer && login, composer: !!composer };',
+      'return { text: latest ? (latest.innerText || latest.textContent || "") : "", assistantCount: messages.length, streaming: stop, loggedOut: !composer && login, composer: !!composer, composerCount: composerNodes.length };',
       '})()',
     ].join(' ')
     const value = await this.call<unknown>('browser_js', { expression }, signal)
@@ -500,5 +520,6 @@ function normalizePageState(value: unknown): ChatPageState {
     streaming: candidate.streaming === true,
     loggedOut: candidate.loggedOut === true,
     composer: candidate.composer === true,
+    composerCount: Number.isSafeInteger(candidate.composerCount) && Number(candidate.composerCount) >= 0 ? Number(candidate.composerCount) : 0,
   }
 }

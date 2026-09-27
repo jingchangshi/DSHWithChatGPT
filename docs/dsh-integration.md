@@ -44,6 +44,8 @@ ctx.systemPrompt.section({ name: 'chatgpt-collaboration', order: ctx.systemPromp
 
 ## 5. BrowserUse **[runtime-verified: `browserUse.register(name)` is the sole registration seam]**
 
+- Conversation navigation waits up to ten seconds after the load check for exactly one visible semantic composer. Missing composers are polled without modifying the page; ambiguity and logged-out states fail immediately. Caller cancellation interrupts the wait, including an in-flight inspection. Existing drafts remain protected by the separate send-time ownership check.
+
 - `ctx.browserUse.register(BrowserUseProviderName('…'))` — one provider per process; second registration fails.
 - Providers are built on `@deepseek-ai/dsh-experimental-browser-use-runtime` `mountSessionMcp(ctx, { name, exclusive, command, args, env, toolCallTimeoutMs })` which:
   - registers the provider slot,

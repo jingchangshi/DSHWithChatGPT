@@ -1,7 +1,8 @@
 import { Window } from 'happy-dom'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { BrowserHarnessAdapter } from '../src/browser/harness.ts'
-import { BrowserStaleError, ChatGptAppUnavailableError } from '../src/browser/adapter.ts'
+import { BrowserStaleError, ChatGptAppUnavailableError, ChatGptLoggedOutError } from '../src/browser/adapter.ts'
+import { OperationCancelledError } from '../src/cancellation.ts'
 
 const windows: Window[] = []
 afterEach(async () => { vi.useRealTimers(); await Promise.all(windows.splice(0).map(window => window.happyDOM.close())) })
@@ -91,6 +92,79 @@ function fixture(html: string, options: { selection?: 'outside' | 'partial' | 'n
 }
 
 describe('ChatGPT composer DOM resolution', () => {
+
+  it('waits for a composer mounted after navigation without modifying its draft', async () => {
+    vi.useFakeTimers()
+    const { browser, window, mutations } = fixture('<div role="textbox" contenteditable="true" style="display:none">foreign draft</div>')
+    const pending = browser.openConversation('existing')
+    await vi.advanceTimersByTimeAsync(400)
+    window.document.querySelector('[role="textbox"]')!.removeAttribute('style')
+    await vi.advanceTimersByTimeAsync(200)
+    await expect(pending).resolves.toBe('')
+    expect(mutations.map(name => name.split('__').at(-1))).toEqual(['browser_goto', 'browser_wait_for_load'])
+    expect(window.document.querySelector('[data-d2c-composer-target]')).toBeNull()
+    expect(window.document.querySelector('[role="textbox"]')!.textContent).toBe('foreign draft')
+    await expect(browser.sendControlMessage('request')).rejects.toBeInstanceOf(BrowserStaleError)
+    expect(window.document.querySelector('[role="textbox"]')!.textContent).toBe('foreign draft')
+    expect(vi.getTimerCount()).toBe(0)
+  })
+
+  it('bounds persistent composer absence without navigating again', async () => {
+    vi.useFakeTimers()
+    const { browser, mutations } = fixture('')
+    const result = expect(browser.openConversation('existing')).rejects.toThrow('composer not found after navigation')
+    await vi.advanceTimersByTimeAsync(10_000)
+    await result
+    expect(mutations.map(name => name.split('__').at(-1))).toEqual(['browser_goto', 'browser_wait_for_load'])
+    expect(vi.getTimerCount()).toBe(0)
+  })
+
+  it('cancels navigation readiness without waiting for its deadline', async () => {
+    vi.useFakeTimers()
+    const { browser, mutations } = fixture('')
+    const controller = new AbortController()
+    const result = expect(browser.openConversation('existing', controller.signal)).rejects.toBeInstanceOf(OperationCancelledError)
+    await vi.advanceTimersByTimeAsync(200)
+    controller.abort()
+    await result
+    expect(mutations.map(name => name.split('__').at(-1))).toEqual(['browser_goto', 'browser_wait_for_load'])
+    expect(vi.getTimerCount()).toBe(0)
+  })
+
+  it.each([
+    ['<div role="textbox" contenteditable="true"></div><div id="prompt-textarea"></div>', BrowserStaleError],
+    ['<button>Log in</button>', ChatGptLoggedOutError],
+  ])('rejects unsafe navigation readiness immediately: %s', async (html, error) => {
+    vi.useFakeTimers()
+    const { browser, mutations } = fixture(html)
+    await expect(browser.openConversation('existing')).rejects.toBeInstanceOf(error)
+    expect(mutations.map(name => name.split('__').at(-1))).toEqual(['browser_goto', 'browser_wait_for_load'])
+    expect(vi.getTimerCount()).toBe(0)
+  })
+
+  it.each(['deadline', 'caller'] as const)('interrupts a stalled semantic inspection on %s', async reason => {
+    vi.useFakeTimers()
+    const controller = new AbortController()
+    let inspectorSignal: AbortSignal | undefined
+    const calls: string[] = []
+    const browser = new BrowserHarnessAdapter({ get: () => ({ execute: async (request: { name: string; signal: AbortSignal }) => {
+      calls.push(request.name)
+      if (request.name.endsWith('browser_js')) {
+        inspectorSignal = request.signal
+        return new Promise(() => {})
+      }
+      return { value: {} }
+    } }) } as never, undefined, '')
+    const result = expect(browser.openConversation('existing', controller.signal)).rejects.toBeInstanceOf(reason === 'caller' ? OperationCancelledError : BrowserStaleError)
+    await vi.advanceTimersByTimeAsync(0)
+    expect(inspectorSignal).toBeDefined()
+    if (reason === 'caller') controller.abort()
+    else await vi.advanceTimersByTimeAsync(10_000)
+    await result
+    expect(inspectorSignal!.aborted).toBe(true)
+    expect(calls.map(name => name.split('__').at(-1))).toEqual(['browser_goto', 'browser_wait_for_load', 'browser_js'])
+    expect(vi.getTimerCount()).toBe(0)
+  })
 
   it.each([
     ['current', '<div data-chatgpt-selection-message-id="old"><div data-markdown-text-style="assistant-message">old</div></div><div data-chatgpt-selection-message-id="new"><div data-markdown-text-style="assistant-message">new</div></div>', 2, 'new'],
