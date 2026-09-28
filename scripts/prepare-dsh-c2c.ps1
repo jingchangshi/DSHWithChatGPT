@@ -15,12 +15,11 @@ $TunnelKeys = @('CONTROL_PLANE_API_KEY')
 function Fail([string]$Code, [string]$Message) { throw "${Code}: ${Message}" }
 
 function Set-PrivateAcl([string]$Path) {
-    $acl = Get-Acl -LiteralPath $Path
-    $acl.SetAccessRuleProtection($true, $false)
     $identity = [System.Security.Principal.WindowsIdentity]::GetCurrent().Name
-    $rule = [System.Security.AccessControl.FileSystemAccessRule]::new($identity, 'FullControl', 'Allow')
-    $acl.SetAccessRule($rule)
-    Set-Acl -LiteralPath $Path -AclObject $acl
+    $item = Get-Item -LiteralPath $Path
+    $rights = if ($item.PSIsContainer) { '(OI)(CI)F' } else { 'F' }
+    & icacls.exe $Path /inheritance:r /grant:r "${identity}:${rights}" | Out-Null
+    if ($LASTEXITCODE -ne 0) { Fail 'PRODUCT_C2C_ACL_FAILED' 'Could not restrict product C2C state to the current user.' }
 }
 
 function Protect-Value([string]$Value) {
