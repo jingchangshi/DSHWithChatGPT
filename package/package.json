@@ -39,7 +39,8 @@
     "test:package": "node scripts/verify-package.mjs",
     "test:profile": "node scripts/verify-profile.mjs",
     "test:live-c2c-observer": "node --test scripts/c2c-e2e-observer.test.mjs",
-    "test:live-c2c": "node scripts/verify-live-c2c.mjs"
+    "test:live-c2c": "node scripts/verify-live-c2c.mjs",
+    "test:launcher": "node --test scripts/c2c-launcher.test.mjs"
   },
   "license": "MIT",
   "engines": {
