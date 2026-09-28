@@ -18,5 +18,6 @@ finally { [Runtime.InteropServices.Marshal]::ZeroFreeBSTR($ptr) }
 
 $dsh = if ($env:C2C_DSH_CLI) { $env:C2C_DSH_CLI } else { Join-Path $PSScriptRoot '..\..\deepseek-harness\apps\cli\lib\bin.js' }
 if (-not (Test-Path -LiteralPath $dsh -PathType Leaf)) { throw 'DSH_CLI_NOT_BUILT: build deepseek-harness before product launch.' }
+if ([IO.Path]::GetFileName($dsh) -ne 'bin.js' -or $dsh -notmatch '[\\/]apps[\\/]cli[\\/]lib[\\/]') { throw 'DSH_CLI_NOT_BUILT: product launch requires apps\\cli\\lib\\bin.js.' }
 & node $dsh @ArgumentList
 exit $LASTEXITCODE
