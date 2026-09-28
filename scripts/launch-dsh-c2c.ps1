@@ -16,7 +16,7 @@ $ptr = [Runtime.InteropServices.Marshal]::SecureStringToBSTR($secure)
 try { $env:CONTROL_PLANE_API_KEY = [Runtime.InteropServices.Marshal]::PtrToStringBSTR($ptr) }
 finally { [Runtime.InteropServices.Marshal]::ZeroFreeBSTR($ptr) }
 
-$codex = Get-Command codex.exe -ErrorAction SilentlyContinue
-if (-not $codex) { throw 'CODEX_NOT_FOUND: install Codex or set an explicit launcher integration.' }
-& $codex.Source @ArgumentList
+$dsh = if ($env:C2C_DSH_CLI) { $env:C2C_DSH_CLI } else { Join-Path $PSScriptRoot '..\..\deepseek-harness\apps\cli\lib\bin.js' }
+if (-not (Test-Path -LiteralPath $dsh -PathType Leaf)) { throw 'DSH_CLI_NOT_BUILT: build deepseek-harness before product launch.' }
+& node $dsh @ArgumentList
 exit $LASTEXITCODE

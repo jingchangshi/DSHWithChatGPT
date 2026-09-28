@@ -10,7 +10,7 @@ $ErrorActionPreference = 'Stop'
 $StateRoot = Join-Path $env:LOCALAPPDATA 'dsh-with-chatgpt\product-c2c'
 $ConfigPath = Join-Path $StateRoot 'config.json'
 $SecretPath = Join-Path $StateRoot 'secrets.dpapi.json'
-$TunnelKeys = @('CONTROL_PLANE_TUNNEL_ID', 'CONTROL_PLANE_API_KEY')
+$TunnelKeys = @('CONTROL_PLANE_API_KEY')
 
 function Fail([string]$Code, [string]$Message) { throw "${Code}: ${Message}" }
 
@@ -80,7 +80,10 @@ function Test-ProductReady {
         tunnelKeyConfigured = $false
     }
     if ($config) { $checks.tunnelIdConfigured = -not [string]::IsNullOrWhiteSpace([string]$config.tunnel.id) }
-    if ($secrets) { $checks.tunnelKeyConfigured = -not [string]::IsNullOrWhiteSpace([string]$secrets.CONTROL_PLANE_API_KEY) }
+    if ($secrets -and -not [string]::IsNullOrWhiteSpace([string]$secrets.CONTROL_PLANE_API_KEY)) {
+        try { $checks.tunnelKeyConfigured = -not [string]::IsNullOrWhiteSpace((Unprotect-Value ([string]$secrets.CONTROL_PLANE_API_KEY))) }
+        catch { $checks.tunnelKeyConfigured = $false }
+    }
     $checks.allProductC2CPrerequisitesPresent = ($checks.Values -notcontains $false)
     $checks | ConvertTo-Json
     if (-not $checks.allProductC2CPrerequisitesPresent) { Fail 'PRODUCT_C2C_NOT_CONFIGURED' 'Run -Setup after the one-time Tunnel authorization.' }
