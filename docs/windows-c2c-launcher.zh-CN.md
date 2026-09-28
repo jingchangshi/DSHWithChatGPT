@@ -45,4 +45,4 @@ launcher 会先检查完整配置、可执行文件和 Codex 单实例状态，�
 
 launcher ready 不等于 full C2C accepted。完成 live acceptance 仍需要在新 Codex 中执行既定的 doctor、App proof、PLAN、实施、测试、提交推送和独立 REVIEW 流程；本 launcher 阶段不运行这些真实模型验收。
 
-产品运行时的首次配置使用 `scripts\prepare-dsh-c2c.ps1 -Setup`。它使用独立的 `%LOCALAPPDATA%\dsh-with-chatgpt\product-c2c` 状态目录保存 DSH 专属 Tunnel 配置和 DPAPI 保护的运行时密钥，不读取或复用 CodexWithChatGPT 的 launcher 状态。OpenAI Secure MCP Tunnel 的创建/授权若需要用户在授权页面完成，只发生一次；完成后产品运行时不依赖 CodexWithChatGPT 是否启动。`prepare-c2c-codex.ps1` 仍只负责开发期 Codex 环境。
+产品运行时的首次配置使用 `scripts\prepare-dsh-c2c.ps1 -Setup`。它使用独立的 `%LOCALAPPDATA%\dsh-with-chatgpt\product-c2c` 状态目录保存 DSH 专属 Tunnel 配置和 DPAPI 保护的运行时密钥，不读取或复用 CodexWithChatGPT 的 launcher 状态。OpenAI Secure MCP Tunnel 的创建/授权目前仍是外部的一次性人工前置动作；完成后该脚本安全导入结果，产品运行时不依赖 CodexWithChatGPT 是否启动。`prepare-c2c-codex.ps1` 仍只负责开发期 Codex 环境。

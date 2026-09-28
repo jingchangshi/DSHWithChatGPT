@@ -48,8 +48,10 @@ function Write-Json([string]$Path, $Value) {
 
 function New-ProductSetup {
     New-Item -ItemType Directory -Path $StateRoot -Force | Out-Null
+    Set-PrivateAcl $StateRoot
     $tunnelId = [Environment]::GetEnvironmentVariable('CONTROL_PLANE_TUNNEL_ID', 'Process')
     if ([string]::IsNullOrWhiteSpace($tunnelId)) { $tunnelId = Read-Host 'Enter CONTROL_PLANE_TUNNEL_ID' }
+    if ([string]::IsNullOrWhiteSpace($tunnelId)) { Fail 'PRODUCT_C2C_TUNNEL_ID_REQUIRED' 'Tunnel id cannot be empty.' }
     $config = [ordered]@{ version = 1; tunnel = [ordered]@{ id = $tunnelId } }
     $secrets = [ordered]@{}
     foreach ($key in $TunnelKeys) {
@@ -57,7 +59,9 @@ function New-ProductSetup {
         if ([string]::IsNullOrWhiteSpace($inherited)) {
             Write-Host "A DSH-owned Secure MCP Tunnel is required. Complete the one-time authorized setup, then enter ${key}." -ForegroundColor Yellow
             $secure = Read-Host "Enter ${key} (hidden input)" -AsSecureString
-            $secrets[$key] = $secure | ConvertFrom-SecureString
+            $candidate = $secure | ConvertFrom-SecureString
+            if ([string]::IsNullOrWhiteSpace($candidate)) { Fail 'PRODUCT_C2C_API_KEY_REQUIRED' 'Tunnel API key cannot be empty.' }
+            $secrets[$key] = $candidate
         } else {
             $secrets[$key] = Protect-Value $inherited
         }
