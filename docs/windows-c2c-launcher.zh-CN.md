@@ -10,7 +10,9 @@
 .\scripts\prepare-c2c-codex.ps1 -Setup
 ```
 
-脚本自动发现已经存在的 DSH CLI、Tunnel Client 和 Browser Harness 可执行文件；四个敏感值通过隐藏输入录入，并使用当前 Windows 用户的 DPAPI 加密保存到 `%LOCALAPPDATA%\dsh-with-chatgpt\c2c-launcher\config.json`。配置目录和文件只授予当前用户访问权限。
+脚本自动发现已经存在的 DSH CLI、Tunnel Client 和 Browser Harness 可执行文件。若启动 setup 的父进程已经带有 C2C 环境变量，四个敏感值会被自动读取并加密保存；否则脚本只对缺失项显示其来源说明，再通过隐藏输入录入。它们使用当前 Windows 用户的 DPAPI 加密保存到 `%LOCALAPPDATA%\dsh-with-chatgpt\c2c-launcher\config.json`。配置目录和文件只授予当前用户访问权限。
+
+四个敏感值不能从 ChatGPT 登录、`.codex/auth.json` 或浏览器会话安全推导。`C2C_EXECUTION_BASE_URL` 和 `C2C_EXECUTION_API_KEY` 来自 Sub2API provider；`CONTROL_PLANE_API_KEY` 和 `CONTROL_PLANE_TUNNEL_ID` 来自 Secure MCP Tunnel 配置。若已有父进程环境，setup 会自动完成，不需要再次知道这些值。
 
 ## 日常启动
 

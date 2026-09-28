@@ -17,6 +17,7 @@ assert.match(prepare, /CODEX_ALREADY_RUNNING/)
 assert.match(prepare, /ClearLocalConfig/)
 assert.match(prepare, /Start-Process -FilePath \$codex -WorkingDirectory \$RepoRoot/)
 assert.match(prepare, /C2C_EXECUTION_API_KEY/)
+assert.match(prepare, /GetEnvironmentVariable\(\$key, 'Process'\)/)
 assert.doesNotMatch(prepare, /auth\.json|cookie|session storage/i)
 assert.doesNotMatch(prepare, /Write-Host.*\$(?:envMap|secrets|Value)/i)
 assert.match(launch, /-Check -Launch/)
@@ -52,6 +53,25 @@ try {
   assert.equal(result.status, 0, result.stderr)
   assert.match(result.stdout, /"allAcceptancePrerequisitesPresent": true/)
   assert.doesNotMatch(result.stdout, /dummy/)
+
+  const setupEnv = {
+    ...process.env,
+    LOCALAPPDATA: temp,
+    C2C_DSH_CLI: join(bin, 'dsh.js'),
+    C2C_TUNNEL_CLIENT: join(bin, 'tunnel.exe'),
+    C2C_BROWSER_HARNESS: join(bin, 'browser-harness-mcp.exe'),
+    C2C_EXECUTION_BASE_URL: 'https://dummy.invalid/v1',
+    C2C_EXECUTION_API_KEY: 'dummy-execution-key',
+    CONTROL_PLANE_API_KEY: 'dummy-control-key',
+    CONTROL_PLANE_TUNNEL_ID: 'dummy-tunnel-id'
+  }
+  const setup = spawnSync('pwsh.exe', ['-NoProfile', '-File', join(root, 'scripts', 'prepare-c2c-codex.ps1'), '-Setup'], {
+    encoding: 'utf8',
+    env: setupEnv
+  })
+  assert.equal(setup.status, 0, setup.stderr)
+  const encryptedConfig = await readFile(join(state, 'config.json'), 'utf8')
+  assert.doesNotMatch(encryptedConfig, /dummy-(?:execution|control|tunnel)/)
 } finally {
   await rm(temp, { recursive: true, force: true })
 }

@@ -15,6 +15,12 @@ $StateRoot = Join-Path $env:LOCALAPPDATA 'dsh-with-chatgpt\c2c-launcher'
 $ConfigPath = Join-Path $StateRoot 'config.json'
 $SensitiveKeys = @('C2C_EXECUTION_BASE_URL','C2C_EXECUTION_API_KEY','CONTROL_PLANE_API_KEY','CONTROL_PLANE_TUNNEL_ID')
 $ExecutableKeys = @('C2C_DSH_CLI','C2C_TUNNEL_CLIENT','C2C_BROWSER_HARNESS')
+$SetupHints = @{
+    C2C_EXECUTION_BASE_URL = 'Sub2API 的 OpenAI-compatible execution endpoint'
+    C2C_EXECUTION_API_KEY = 'Sub2API provider API key'
+    CONTROL_PLANE_API_KEY = 'Secure MCP Tunnel control-plane API key'
+    CONTROL_PLANE_TUNNEL_ID = 'Secure MCP Tunnel id'
+}
 
 function Fail([string]$Code, [string]$Message) { throw "${Code}: ${Message}" }
 
@@ -32,6 +38,10 @@ function Unprotect-Value([string]$Value) {
     $ptr = [Runtime.InteropServices.Marshal]::SecureStringToBSTR($secure)
     try { [Runtime.InteropServices.Marshal]::PtrToStringBSTR($ptr) }
     finally { [Runtime.InteropServices.Marshal]::ZeroFreeBSTR($ptr) }
+}
+
+function Protect-Value([string]$Value) {
+    ConvertTo-SecureString -String $Value -AsPlainText -Force | ConvertFrom-SecureString
 }
 
 function Resolve-Executable([string[]]$Candidates, [string]$Name) {
@@ -75,7 +85,14 @@ function New-Setup {
     $secrets = [ordered]@{}
     foreach ($key in $SensitiveKeys) {
         if (-not $ResetSecrets -and $config -and $config.secrets.$key) { $secrets[$key] = $config.secrets.$key; continue }
-        $secrets[$key] = Read-Host "Enter ${key}" -AsSecureString | ConvertFrom-SecureString
+        $inherited = [Environment]::GetEnvironmentVariable($key, 'Process')
+        if (-not [string]::IsNullOrWhiteSpace($inherited)) {
+            $secrets[$key] = Protect-Value $inherited
+            continue
+        }
+        Write-Host "Missing ${key}: ${SetupHints[$key]}" -ForegroundColor Yellow
+        $secure = Read-Host "Enter ${key} (hidden input)" -AsSecureString
+        $secrets[$key] = $secure | ConvertFrom-SecureString
     }
     Write-Config ([ordered]@{ version = 1; executables = $executables; secrets = $secrets })
     Write-Host 'C2C launcher setup completed. Secrets were stored with Windows DPAPI.'
