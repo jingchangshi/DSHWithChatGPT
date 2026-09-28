@@ -59,9 +59,8 @@ function New-ProductSetup {
         if ([string]::IsNullOrWhiteSpace($inherited)) {
             Write-Host "A DSH-owned Secure MCP Tunnel is required. Complete the one-time authorized setup, then enter ${key}." -ForegroundColor Yellow
             $secure = Read-Host "Enter ${key} (hidden input)" -AsSecureString
-            $candidate = $secure | ConvertFrom-SecureString
-            if ([string]::IsNullOrWhiteSpace($candidate)) { Fail 'PRODUCT_C2C_API_KEY_REQUIRED' 'Tunnel API key cannot be empty.' }
-            $secrets[$key] = $candidate
+            if ($secure.Length -le 0) { Fail 'PRODUCT_C2C_API_KEY_REQUIRED' 'Tunnel API key cannot be empty.' }
+            $secrets[$key] = $secure | ConvertFrom-SecureString
         } else {
             $secrets[$key] = Protect-Value $inherited
         }

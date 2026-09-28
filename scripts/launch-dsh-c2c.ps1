@@ -10,14 +10,27 @@ if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 $stateRoot = Join-Path $env:LOCALAPPDATA 'dsh-with-chatgpt\product-c2c'
 $productConfig = Get-Content -LiteralPath (Join-Path $stateRoot 'config.json') -Raw | ConvertFrom-Json
 $config = Get-Content -LiteralPath (Join-Path $stateRoot 'secrets.dpapi.json') -Raw | ConvertFrom-Json
-$env:CONTROL_PLANE_TUNNEL_ID = [string]$productConfig.tunnel.id
+$tunnelId = [string]$productConfig.tunnel.id
 $secure = ConvertTo-SecureString -String ([string]$config.CONTROL_PLANE_API_KEY)
 $ptr = [Runtime.InteropServices.Marshal]::SecureStringToBSTR($secure)
-try { $env:CONTROL_PLANE_API_KEY = [Runtime.InteropServices.Marshal]::PtrToStringBSTR($ptr) }
+try { $apiKey = [Runtime.InteropServices.Marshal]::PtrToStringBSTR($ptr) }
 finally { [Runtime.InteropServices.Marshal]::ZeroFreeBSTR($ptr) }
 
 $dsh = if ($env:C2C_DSH_CLI) { $env:C2C_DSH_CLI } else { Join-Path $PSScriptRoot '..\..\deepseek-harness\apps\cli\lib\bin.js' }
 if (-not (Test-Path -LiteralPath $dsh -PathType Leaf)) { throw 'DSH_CLI_NOT_BUILT: build deepseek-harness before product launch.' }
 if ([IO.Path]::GetFileName($dsh) -ne 'bin.js' -or $dsh -notmatch '[\\/]apps[\\/]cli[\\/]lib[\\/]') { throw 'DSH_CLI_NOT_BUILT: product launch requires apps\\cli\\lib\\bin.js.' }
-& node $dsh @ArgumentList
-exit $LASTEXITCODE
+$node = (Get-Command node.exe -ErrorAction Stop).Source
+$psi = [Diagnostics.ProcessStartInfo]::new()
+$psi.FileName = $node
+$psi.WorkingDirectory = (Split-Path -Parent $PSScriptRoot)
+$psi.UseShellExecute = $false
+$psi.ArgumentList.Add($dsh)
+foreach ($argument in $ArgumentList) { $psi.ArgumentList.Add($argument) }
+$psi.Environment['CONTROL_PLANE_TUNNEL_ID'] = $tunnelId
+$psi.Environment['CONTROL_PLANE_API_KEY'] = $apiKey
+$child = [Diagnostics.Process]::Start($psi)
+$child.WaitForExit()
+$exitCode = $child.ExitCode
+$child.Dispose()
+$apiKey = $null
+exit $exitCode
