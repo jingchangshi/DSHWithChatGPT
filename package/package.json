@@ -37,7 +37,9 @@
     "test": "vitest run",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "test:package": "node scripts/verify-package.mjs",
-    "test:profile": "node scripts/verify-profile.mjs"
+    "test:profile": "node scripts/verify-profile.mjs",
+    "test:live-c2c-observer": "node --test scripts/c2c-e2e-observer.test.mjs",
+    "test:live-c2c": "node scripts/verify-live-c2c.mjs"
   },
   "license": "MIT",
   "engines": {

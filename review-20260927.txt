@@ -1,0 +1,1091 @@
+我重新按“多分支 + 源码”检查了两个仓库。当前最重要的结论是：**真正代表你现在架构进度的不是两个 `master`，而是两个同名的 `feat/complete-c2c-runtime` 分支，而且这两个分支必须作为一组看。**
+
+截至目前：
+
+| 仓库 | 当前应作为开发基线的分支 | HEAD | 相对 master |
+|---|---|---|---:|
+| DSHWithChatGPT | `feat/complete-c2c-runtime` | `da23be3c2b67` | ahead 12 |
+| deepseek-harness | `feat/complete-c2c-runtime` | `7e0367a47827` | ahead 11 |
+
+也就是说，如果现在只 checkout 两边 `master`，看到的并不是你这套方案的最新状态。
+
+## 1. 分支现状
+
+DSHWithChatGPT 里，`feat/complete-c2c-runtime` 已经明显成为唯一值得继续推进的主开发线。`feat/d2c-full-architecture` 已经和 master 完全相同；`feat/unattended-c2c`、`fix/runtime-collaboration-loop` 都已经落后；`fix/reliable-c2c-runtime` 虽然还有 20 个独立提交，但已经与现在的实现严重分叉，更多应该当作历史设计资料，而不是再 merge 回来。
+
+deepseek-harness 更清晰：`feat/complete-c2c-runtime` 是当前真正的新架构分支；`feat/d2c-runtime-integration` 已和 master 相同；`dev` 和 `dsh-v0.1.6-alpha.1-dev` 已经落后 master **889 commits**，只具有历史价值。
+
+因此目前合理的代码关系其实是：
+
+```text
+DSHWithChatGPT
+feat/complete-c2c-runtime @ da23be3
+                 │
+                 │ consumes
+                 ▼
+deepseek-harness
+feat/complete-c2c-runtime @ 7e0367a
+```
+
+而不是：
+
+```text
+DSHWithChatGPT/master
+        +
+deepseek-harness/master
+```
+
+## 2. 当前架构已经发生了一个非常关键的质变
+
+你最初的核心问题是：
+
+```text
+DSH 在远程 Linux 上修改代码
+
+但是
+
+ChatGPT MCP 在 Windows 上读取代码
+```
+
+如果是这样，ChatGPT 的 independent review 从根本上就不可信。
+
+现在最新两个 feature branch 已经基本解决了这个架构问题。
+
+实际数据流已经变成：
+
+```text
+                    ChatGPT Web
+               PLAN / REVIEW / Reason
+                         │
+                 @ DSH with ChatGPT
+                         │
+               Secure MCP Tunnel
+                         │
+                         ▼
+               DSHWithChatGPT bridge
+                         │
+             WorkspaceRuntimeRegistry
+                         │
+              execution-world lease
+              ┌──────────┴──────────┐
+              │                     │
+     ExecutionReadLease       ExecutionGitLease
+              │                     │
+              └──────────┬──────────┘
+                         │
+                  DSH provider world
+                 ctx.fs / subprocess
+                         │
+              ┌──────────┴─────────┐
+              │                    │
+        Windows local         SSH remote Linux
+```
+
+这是目前代码中最有价值的一步。
+
+DSHWithChatGPT 不再自己用 Host 的：
+
+```text
+fs.realpathSync()
+fs.readFileSync()
+execFile("git")
+```
+
+去假装访问 execution workspace。
+
+最新生产路径改成了：
+
+```ts
+bindExecutionReadLease(...)
+bindExecutionGitLease(...)
+```
+
+而真正执行这些能力的是 DSH。
+
+所以架构现在已经接近：
+
+> **Data plane follows execution world.**
+
+这是整个方案是否成立的核心。
+
+## 3. deepseek-harness 现在已经形成比较完整的 execution-world 基础设施
+
+`feat/complete-c2c-runtime` 新增了：
+
+```text
+packages/execution/execution-world
+packages/execution/execution-world-affinity
+```
+
+这里不是简单做了一个“远程路径”字段，而是开始真正定义：
+
+```text
+execution world identity
+provider affinity
+provider generation
+root-safe read lease
+fixed Git lease
+cleanup ownership
+```
+
+例如 `ExecutionWorldIdentity` 已经不再由 Host 路径 hash 出来，而是通过：
+
+```text
+ctx.fs.resolve()
+ctx.fs.stat()
+provider targetKey
+world identity
+```
+
+分配 opaque workspace ID。
+
+因此：
+
+```text
+Windows:
+D:\repo
+
+Linux A:
+/home/user/repo
+
+Linux B:
+/home/user/repo
+```
+
+不会因为文本路径相似就错误地认为是同一个 workspace。
+
+而且 workspace ID 中不包含：
+
+```text
+SSH host
+用户名
+路径
+credential
+```
+
+这部分设计已经比较成熟。
+
+## 4. Git review data plane 也已经走到了正确方向
+
+`execution-world/src/git-lease.ts` 是另一个重要成果。
+
+它没有给 DSHWithChatGPT 一个 generic subprocess，而只提供：
+
+```ts
+ExecutionGitExecutor
+```
+
+并且：
+
+- Git argv 有 allowlist/validation；
+- 不经过 shell；
+- 禁用 external diff；
+- 禁用 textconv；
+- 清理危险 `GIT_*` 环境变量；
+- 输出有上限；
+- timeout/cancel 有边界；
+- 等待 process scope quiescence；
+- 要求 read-only sandbox full enforcement；
+- cleanup 不确定时不会假装成功。
+
+这比简单的：
+
+```text
+ssh host "git diff ..."
+```
+
+高了一个完整的安全层级。
+
+尤其对于你的目标——让 ChatGPT 真正作为代码 reviewer——这是非常重要的。
+
+## 5. Windows 11 → Linux 也已经不只是设计
+
+上一轮最大的 blocker 是 DSH SSH provider 只支持 POSIX client。
+
+现在 `7e0367a` 已经实现了：
+
+> `feat(ssh): add Windows client stream transport`
+
+最新 `SshConnection` 已经有：
+
+```ts
+private readonly windowsClient = process.platform === 'win32'
+```
+
+POSIX 继续使用：
+
+```text
+ControlMaster
+Unix socket forwarding
+```
+
+Windows 改成：
+
+```text
+administrative SSH process
+
++
+
+one SSH child per independent stream
+        │
+        ▼
+fixed remote Node relay
+        │
+        ▼
+remote helper Unix socket
+```
+
+而 TLS-PSK capability 没有暴露到 SSH argv。
+
+这说明你的方案已经从：
+
+> “将来可能支持 Windows → Linux”
+
+进入：
+
+> “Windows transport 已实现并有生命周期 unit tests”
+
+的阶段。
+
+但这里有一个重要限定：
+
+**我在仓库里看到的是 Windows transport 实现和模拟/单元测试；仓库文档明确仍写着 native Windows SSH real acceptance 尚未完成。**
+
+现在已有真实 SSH acceptance：
+
+```text
+read-only-ssh.e2e.ts
+git-lease-ssh.e2e.ts
+```
+
+仓库文档记录的是：
+
+```text
+WSL/Linux x64
+    ↓ real OpenSSH
+Linux arm64
+```
+
+已经验证。
+
+而：
+
+```text
+Windows 11 native
+    ↓ OpenSSH
+Linux
+```
+
+还没有真实环境验收。
+
+所以这一项目前是：
+
+**实现完成度高，真实产品验证尚缺最后一公里。**
+
+## 6. Browser Harness 侧也比原来成熟很多
+
+DSH 当前已经有正式：
+
+```text
+@deepseek-ai/dsh-experimental-browser-use-browser-harness-mcp
+```
+
+最新 feature branch 又增加了真实 Web profile E2E：
+
+```text
+browser-harness-session.e2e.ts
+```
+
+它不是 fake Context，而是真的：
+
+```text
+dsh --profile web
+        ↓
+real Session
+        ↓
+Browser Harness provider
+        ↓
+real browser
+```
+
+并验证：
+
+- Session 能获得 `mcp__browser-harness__*`；
+- real page 可以操作；
+- Session 释放后下一 Session 可以重新获得 browser lane。
+
+同时：
+
+```text
+execution-world-identity.e2e.ts
+```
+
+已经验证真实 Web 进程重启后 workspace ID 保持一致。
+
+所以 DSH 自身的 Browser Harness 接入现在已经基本不是主要 blocker。
+
+---
+
+# 7. 但距离最终目标，最大的缺口仍然是“完整 C2C 真闭环”
+
+这是当前最重要的判断。
+
+现在两个仓库拥有：
+
+```text
+Browser Harness real E2E          有
+Execution-world E2E               有
+SSH remote read E2E               有
+Remote Git E2E                    有
+DSH profile restart test          有
+Doctor unit/integration            有
+Protocol/state tests              有
+```
+
+但我没有看到一个测试真正做：
+
+```text
+DSH Session
+    ↓
+chatgpt_plan
+    ↓
+Browser Harness
+    ↓
+真实 chatgpt.com
+    ↓
+@DSH with ChatGPT App
+    ↓
+OpenAI Secure MCP Tunnel
+    ↓
+真实 workspace_info/read_file/git_diff
+    ↓
+ChatGPT PLAN
+    ↓
+DSH 修改
+    ↓
+test
+    ↓
+ChatGPT REVIEW
+    ↓
+DONE
+```
+
+DSHWithChatGPT 自己的 `docs/development.md` 也明确承认：
+
+> `test:profile` 不发 model request，不挂 real browser，不挂 real tunnel，因此不是 real C2C acceptance。
+
+而 `chatgpt_doctor` 代码中也明确留下：
+
+```text
+remote_workspace_access:
+  false
+  REMOTE_ACCESS_REQUIRES_E2E
+```
+
+因此现在还不能把整个系统称为：
+
+> **“ChatGPT thinks. DeepSeek Harness works. 已完整实现。”**
+
+更准确的说法是：
+
+> **核心架构已经成型，但最终产品闭环还没有被真实证明。**
+
+---
+
+# 8. `chatgpt_doctor` 已经有了，但它目前验证的是 local readiness
+
+这部分进展不错。
+
+最新 doctor 已经检查：
+
+```text
+session_workspace
+chatgpt_session
+chatgpt_app
+bridge
+workspace_identity
+workspace_content_read
+workspace_git_read
+execution_output_access
+tunnel
+remote_workspace_access
+```
+
+还会实际做：
+
+```text
+Bearer-authenticated loopback workspace_info
+list_directory
+git_status
+Browser Harness ChatGPT readiness
+exact App mention probe
+```
+
+不是单纯打印 config。
+
+但是它现在刻意把：
+
+```text
+remote_workspace_access
+execution_output_access
+```
+
+从最终 `ready` 判定中排除了。
+
+这在实现过程中是合理的，但产品层最好最终拆成：
+
+```text
+localReady
+remoteDataPlaneVerified
+fullC2CVerified
+```
+
+否则：
+
+```json
+{"ready": true}
+```
+
+容易被用户理解成“C2C 全链路已经能用了”，实际上 App 还可能完全无法通过 Secure MCP Tunnel 调用 workspace MCP。
+
+---
+
+# 9. `execution_output` 当前事实上还没有完成
+
+这是另一个比较大的差距。
+
+目前 runtime capability 明确写的是：
+
+```ts
+executionOutput: {
+    available: false,
+    reason: 'EXECUTION_OUTPUT_UNAVAILABLE'
+}
+```
+
+所以虽然 MCP 暴露：
+
+```text
+execution_output
+```
+
+生产路径并不能真正调用它。
+
+ChatGPT 当前可以看到：
+
+```text
+test_status
+execution_summary
+```
+
+但主要是：
+
+```text
+success/failure
+exit code
+计数
+latest test id
+```
+
+它看不到真正的：
+
+```text
+compiler error
+test failure
+stack trace
+CMake error
+MLIR pass failure
+```
+
+这对你的 compiler 开发场景影响很大。
+
+最终应该形成：
+
+```text
+DSH real execution
+    ↓
+bounded/redacted evidence
+    ↓
+task/iteration bound
+    ↓
+execution_output
+    ↓
+ChatGPT debugging/review
+```
+
+而不是重新开放 shell。
+
+---
+
+# 10. execution evidence 目前只覆盖 `bash` / `pwsh`
+
+`package/src/execution/observe.ts` 仍然明确：
+
+```ts
+if (exec.name !== 'bash' && exec.name !== 'pwsh')
+    return
+```
+
+所以：
+
+```text
+bash
+pwsh
+```
+
+可以记录。
+
+但 DSH 现在执行体系已经远不止：
+
+```text
+jobs
+persistent shell
+PTC
+workflow
+subagent
+terminal
+...
+```
+
+这些不一定进入 execution recorder。
+
+对简单 coding 足够，但对：
+
+```text
+长时间 ninja
+后台 benchmark
+compiler pipeline
+PTC workflow
+异步测试
+```
+
+还不完整。
+
+正确方向不是不断添加：
+
+```ts
+if tool == jobs
+if tool == ptc
+...
+```
+
+而应该最终找到 DSH 的通用 execution/process lifecycle seam 来记录 evidence。
+
+---
+
+# 11. ControlPlaneBrowser 和 ExecutionBrowser 仍然没有真正分开
+
+这是未来 ClinPath / Web 开发最明显的结构问题。
+
+现在 DSHWithChatGPT：
+
+```ts
+new BrowserHarnessAdapter(
+    ctx,
+    current DSH agent,
+    appName
+)
+```
+
+内部调用：
+
+```text
+mcp__browser-harness__browser_page_info
+mcp__browser-harness__browser_goto
+...
+```
+
+也就是说：
+
+**ChatGPT 控制面直接占用当前 DSH Session 的 Browser Harness provider。**
+
+而 DSH Browser Harness provider 是：
+
+```text
+exclusive = true
+```
+
+因此如果同一个执行 agent 想：
+
+```text
+浏览 localhost:3000
+测试 ClinPath 页面
+```
+
+同时 DSHWithChatGPT 又想：
+
+```text
+操作 chatgpt.com
+```
+
+两种用途目前没有真正的 lane isolation。
+
+最终应该是：
+
+```text
+ControlPlaneBrowser
+        │
+        └── dedicated ChatGPT profile/daemon/tab universe
+
+ExecutionBrowser
+        │
+        └── DSH model-facing browser-use
+            localhost/staging/product
+```
+
+这是目前代码还没有完成的一块。
+
+---
+
+# 12. `HANDOFF` 目前基本只是协议占位
+
+这一点源码非常明确。
+
+`EnvelopeState` 已经有：
+
+```text
+HANDOFF
+```
+
+也定义了：
+
+```text
+ORIGINAL_GOAL
+PROGRESS
+CURRENT_STATE
+KNOWN_ISSUES
+NEXT_EXPECTED_STEP
+```
+
+但是：
+
+```text
+StateMachine
+ChatGptCoordinator
+chatgpt_reconnect
+```
+
+没有真正实现 HANDOFF 流程。
+
+目前 reconnect 只是：
+
+```text
+load durable task
+→ open old conversationId
+→ continue
+```
+
+如果 ChatGPT conversation：
+
+```text
+被删除
+无法访问
+失效
+```
+
+没有：
+
+```text
+新建 conversation
+→ HANDOFF
+→ ChatGPT 重新通过 MCP 重建真实上下文
+→ 继续 TASK_ID
+```
+
+所以“restart recovery”已经有了，但“conversation-loss recovery”还没有。
+
+---
+
+# 13. managed tunnel ownership 还有一个真实并发漏洞
+
+这是我认为当前源码里值得优先修的一个具体问题。
+
+现在还是：
+
+```ts
+const activeTasks = new Map(...)
+```
+
+用它阻止另外一个 workspace 抢占 managed tunnel。
+
+问题是：
+
+### 首轮 PLAN 时
+
+执行：
+
+```text
+chatgpt_plan
+→ ensureRuntime()
+→ send INIT
+→ await PLAN
+→ activeTasks.set(...)
+```
+
+也就是说，**等待 PLAN 的整个期间 activeTasks 还没有记录该 task**。
+
+这时另一个 workspace 如果调用：
+
+```text
+chatgpt_status
+chatgpt_doctor
+chatgpt_plan
+```
+
+理论上可以进入 `ensureRuntime()` 并重新 bind tunnel。
+
+### Restart 后
+
+durable task 还在：
+
+```text
+awaiting-plan
+planned
+awaiting-review
+```
+
+但：
+
+```text
+activeTasks = new Map()
+```
+
+重新为空。
+
+只有 `chatgpt_reconnect` 以后才重新 set。
+
+所以现在：
+
+```text
+durable task authority
+```
+
+和：
+
+```text
+managed tunnel ownership authority
+```
+
+仍没有完全统一。
+
+最终 tunnel owner 应来自：
+
+```text
+durable active collaboration
++
+current runtime binding generation
+```
+
+而不是 process-local Map。
+
+---
+
+# 14. Protocol 还有一个值得再做严格审计的地方
+
+`StateMachine.applyReply()` 当前主要检查：
+
+```ts
+if (envelope.iteration < expected)
+    stale
+```
+
+也就是说它主要防：
+
+```text
+旧 iteration
+```
+
+但从源码看，对：
+
+```text
+未来 iteration
+IN_REPLY_TO 是否精确等于当前 outbound round
+```
+
+的约束还没有做到最严格。
+
+对于真正无人值守的 C2C，我会建议最后把 invariant 收紧成：
+
+```text
+TASK_ID exact
+WORKSPACE_ID exact
+expected state exact
+IN_REPLY_TO exact
+iteration exact
+HEAD exact when review
+```
+
+而不只是“不能比当前旧”。
+
+这是相对小的问题，但到了最终 autonomous runtime 阶段值得解决。
+
+---
+
+# 15. Model neutrality 仍未完成
+
+源码与文档仍然有：
+
+```text
+GLM-5.3-Flash
+DSH / GLM
+GLM owns ALL execution
+GLM decides implementation
+```
+
+例如：
+
+```text
+CHATGPT_BOOT_PROMPT
+README.zh-CN.md
+docs/architecture.md
+package description
+```
+
+这和你的最终目标已经不完全一致。
+
+最终实际上应该表达为：
+
+```text
+ChatGPT
+    = Reasoning / Plan / Review
+
+DeepSeek Harness Execution Agent
+    = Execution
+
+Execution Model
+    = DeepSeek / GLM / MiMo / MiniMax / ...
+```
+
+这是文档/抽象清理，不是底层 blocker，但应该在 finalization 时处理。
+
+---
+
+# 16. 当前文档已经出现明显“代码领先于文档”
+
+例如最新 `README.zh-CN.md` 仍写：
+
+> DSH 内容/进程 adapter 仍未完成，因此尚未安装生产内容租约。
+
+但当前源码实际上已经：
+
+```ts
+bindExecutionReadLease(...)
+bindExecutionGitLease(...)
+createReadLeaseBackend(...)
+buildRuntimeWorkspaceTools(...)
+```
+
+而且 `chatgpt_plan/review` 已经真实绑定这些 leases。
+
+所以这句话现在已经过时。
+
+另外 installation 文档部分地方仍提：
+
+```text
+0.1.6-alpha.1
+```
+
+而当前 package peer/tarball 已经是：
+
+```text
+0.1.6-alpha.2
+```
+
+最终需要做一次 source-of-truth 文档清理。
+
+---
+
+# 17. 还有一个发布/版本管理问题
+
+两个最新 feature branch 实际上已经形成**跨仓 API coupling**：
+
+```text
+DSHWithChatGPT
+   requires
+@deepseek-ai/dsh-execution-world
+execution-world-affinity
+root-safe fs
+Git lease
+modified SSH
+```
+
+这些都在你的 DSH feature branch 上。
+
+但包版本仍大量表现为：
+
+```text
+0.1.6-alpha.2
+```
+
+这会产生一个问题：
+
+两个不同内容的：
+
+```text
+0.1.6-alpha.2
+```
+
+从 semver 看是同一个版本。
+
+当前你靠：
+
+```text
+package/tarballs
+```
+
+在开发期解决了 reproducibility，这是对的。
+
+但真正完成以后最好变成一个明确的 fork/version contract，例如：
+
+```text
+0.1.6-alpha.2-c2c.1
+```
+
+或者正式 merge/release。
+
+否则仅：
+
+```json
+">=0.1.6-alpha.2"
+```
+
+不足以证明 consumer 拿到的 DSH 包真的包含 execution-world contract。
+
+---
+
+# 18. 对最终四类使用场景的现状判断
+
+| 使用场景 | 当前状态 | 主要缺口 |
+|---|---|---|
+| Windows 本地 OpenCSIToolMonitor | 接近可用 | 缺真实 ChatGPT C2C E2E |
+| Windows → Linux MLIR/LLVM/NPU | 底层架构已形成 | native Windows SSH real E2E、remote profile、完整 C2C E2E |
+| ClinicalLearningSystem Web 开发 | executor 能力已有基础 | Control/Execution Browser lane 分离 |
+| 微信小程序 | C2C 本身可复用 | GUI/Computer Use 属于 DSH execution capability，不应塞进 DSHWithChatGPT |
+
+尤其 remote compiler 场景，现在已经不是“架构还没想清楚”，而是：
+
+```text
+identity        有
+remote FS       有
+remote process  有
+root-safe read  有
+fixed Git       有
+Windows SSH impl 有
+ChatGPT bridge   有
+
+缺：
+把这些放在真实 Windows + ChatGPT + Tunnel + remote Linux 中跑通一次
+```
+
+这和前几轮相比是很大的变化。
+
+---
+
+# 19. 当前最准确的完成度描述
+
+我会把当前系统分成三层：
+
+### 第一层：架构骨架
+
+**已经基本成型。**
+
+包括：
+
+```text
+D2C
+durable state
+workspace identity
+execution-world
+read leases
+Git leases
+Browser Harness
+Secure MCP Tunnel
+SSH
+Windows transport
+```
+
+核心方向没有必要推倒重来。
+
+### 第二层：组件正确性
+
+**完成度已经比较高。**
+
+大量：
+
+```text
+unit test
+integration test
+provider lifecycle test
+real Browser Harness test
+real SSH test
+real Web process test
+```
+
+都已经存在。
+
+### 第三层：产品闭环
+
+**这是当前真正落后的部分。**
+
+缺的是一条真正的：
+
+```text
+Windows DSH
+→ real ChatGPT
+→ real App
+→ real Secure MCP Tunnel
+→ real execution workspace
+→ PLAN
+→ execution
+→ REVIEW
+→ fix PLAN
+→ REVIEW
+→ DONE
+```
+
+再加一条：
+
+```text
+Windows native
+→ SSH
+→ Linux repo
+→ same data plane
+→ same execution plane
+→ ChatGPT independent review
+```
+
+只要这两条真正打通，你的项目性质就会从：
+
+> “架构完整的 C2C prototype”
+
+变成：
+
+> “实际可用于日常开发的 ChatGPT-guided DSH runtime”。
+
+## 20. 接下来不应该继续大规模加新抽象
+
+从当前源码看，我不建议再继续扩：
+
+```text
+更多 protocol state
+更多 workspace abstraction
+更多 SSH abstraction
+更多 browser interface
+```
+
+下一轮工作的主线应该收敛到几个非常具体的问题：
+
+```text
+1. 真 ChatGPT C2C E2E
+2. native Windows → Linux SSH E2E
+3. execution_output + 通用 evidence
+4. durable tunnel ownership
+5. HANDOFF
+6. ControlPlaneBrowser / ExecutionBrowser 隔离
+7. matched release/package
+8. 文档/model neutrality
+```
+
+其中 **1 是当前最大的 go/no-go gate**。在真实 ChatGPT App 能通过 Tunnel 读到 execution-world workspace，并完成一次 `PLAN → EXECUTE → REVIEW → DONE` 之前，不值得再扩大底层架构。
+
+从源码层面看，你现在的方向是正确的，而且最近 `feat/complete-c2c-runtime` 的变化已经解决了此前最危险的设计问题——**ChatGPT review 与 DSH execution 不再天然属于两个不同的文件系统世界**。当前主要问题已经从“架构是否成立”转成“能否把这套架构真正完整运行并证明”。
