@@ -271,6 +271,14 @@ export class BrowserHarnessAdapter implements BrowserControl {
     await this.typeComposer('', '@', draft, signal)
     await this.typeComposer('@', appName, draft, signal)
 
+    // ChatGPT may commit an exact App mention while the full name is typed,
+    // without exposing a candidate menu. Accept only the same semantic atom
+    // that the explicit candidate path verifies.
+    if (await this.verifyAppMention(appName, signal)) {
+      draft.texts.push(appName)
+      return
+    }
+
     for (let readiness = 0; readiness < 12; readiness++) {
       await this.requirePlainAppQuery(appName, signal)
       if ((await this.findAppCandidate(appName, signal)).found) break
