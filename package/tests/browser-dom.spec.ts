@@ -23,7 +23,7 @@ vi.mock('node:timers/promises', () => ({
 const windows: Window[] = []
 afterEach(async () => { vi.useRealTimers(); await Promise.all(windows.splice(0).map(window => window.happyDOM.close())) })
 
-function fixture(html: string, options: { selection?: 'outside' | 'partial' | 'none' | 'icon' | 'tail'; appName?: string; mention?: boolean; keepDraft?: boolean; ambiguousAfterInput?: boolean; failAfterType?: boolean; foreignDraft?: boolean | string; omitAtomText?: boolean; separator?: string; beforeAtom?: boolean; extraAtom?: string; failPrompt?: boolean; partialPrompt?: boolean; providerFailure?: 'throw' | 'top' | 'nested' } = {}) {
+function fixture(html: string, options: { selection?: 'outside' | 'partial' | 'none' | 'icon' | 'tail'; appName?: string; mention?: boolean; autoMention?: boolean; keepDraft?: boolean; ambiguousAfterInput?: boolean; failAfterType?: boolean; foreignDraft?: boolean | string; omitAtomText?: boolean; separator?: string; beforeAtom?: boolean; extraAtom?: string; failPrompt?: boolean; partialPrompt?: boolean; providerFailure?: 'throw' | 'top' | 'nested' } = {}) {
   const window = new Window({ url: 'https://chatgpt.com/' })
   windows.push(window)
   window.document.body.innerHTML = html
@@ -66,6 +66,10 @@ function fixture(html: string, options: { selection?: 'outside' | 'partial' | 'n
       else (target.querySelector('p') ?? target).append(window.document.createTextNode(options.partialPrompt && inputs.length === 3 ? String(args.text).slice(0, 3) : String(args.text)))
       if (options.failPrompt && inputs.length === 3) throw new Error('provider failed after prompt mutation')
       typed = args.text !== '@'
+      if (options.autoMention && args.text === (options.appName ?? 'DSH with ChatGPT')) {
+        const composer = window.document.querySelector('[data-d2c-composer-target]')!
+        composer.innerHTML = '<p><span contenteditable="false" app-mention-display-name="DSH with ChatGPT"><span contenteditable="false"><svg></svg></span><span>DSH with ChatGPT</span></span></p>'
+      }
       window.document.dispatchEvent(new window.CustomEvent('composer-type', { detail: args.text }))
       if (options.ambiguousAfterInput) {
         const extra = window.document.createElement('div')
@@ -588,6 +592,15 @@ describe('ChatGPT composer DOM resolution', () => {
     await browser.probeApp('DSH with ChatGPT')
     expect(window.document.querySelector('[role="textbox"]')!.textContent).toBe('')
     expect(keys).not.toContain('Enter')
+  })
+
+  it('cleans an auto-completed App mention and supports a repeated probe', async () => {
+    const { browser, keys, window } = fixture('<div role="textbox" contenteditable="true"></div>', { autoMention: true })
+    await browser.probeApp('DSH with ChatGPT')
+    expect(window.document.querySelector('[role="textbox"]')!.textContent).toBe('')
+    await browser.probeApp('DSH with ChatGPT')
+    expect(window.document.querySelector('[role="textbox"]')!.textContent).toBe('')
+    expect(keys.filter(key => key === 'Backspace')).toHaveLength(2)
   })
 
   it('reports cleanup failure rather than App success', async () => {

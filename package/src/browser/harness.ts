@@ -269,7 +269,7 @@ export class BrowserHarnessAdapter implements BrowserControl {
     const initial = await this.resolveComposer(signal)
     if (!initial.empty) throw new BrowserStaleError('ChatGPT composer contains an existing draft')
     await this.typeComposer('', '@', draft, signal)
-    await this.typeComposer('@', appName, draft, signal)
+    if (await this.typeComposerExpected('@', appName, '@' + appName, draft, signal, appName)) return
 
     // ChatGPT may commit an exact App mention while the full name is typed,
     // without exposing a candidate menu. Accept only the same semantic atom
@@ -459,12 +459,17 @@ export class BrowserHarnessAdapter implements BrowserControl {
     await this.typeComposerExpected(before, text, before + text, draft, signal)
   }
 
-  private async typeComposerExpected(before: string, text: string, expected: string, draft: ComposerDraft, signal?: AbortSignal): Promise<void> {
+  private async typeComposerExpected(before: string, text: string, expected: string, draft: ComposerDraft, signal?: AbortSignal, autoMention?: string): Promise<boolean> {
     const current = await this.resolveComposer(signal, { texts: [before] }, true)
     if (!current.owned) throw new BrowserStaleError('ChatGPT composer changed before typing')
     draft.texts.push(expected)
     await this.call<unknown>('browser_type', { text }, signal)
+    if (autoMention !== undefined && await this.verifyAppMention(autoMention, signal)) {
+      draft.texts.push(autoMention)
+      return true
+    }
     if (!(await this.resolveComposer(signal, { texts: [expected] })).owned) throw new BrowserStaleError('ChatGPT input could not be verified')
+    return false
   }
 
 
