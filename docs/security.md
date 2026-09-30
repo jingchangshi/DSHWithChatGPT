@@ -7,9 +7,11 @@ App-proof challenges exist only in the current doctor runtime lease, the authent
 ## Read-only boundary (structural, not policy)
 
 - The bridge tool registry has a fixed allowlist (`READONLY_VERBS`); registering any tool outside `workspace_* / list_* / read_* / search_* / git_* / test_* / execution_*` throws at startup. There is no write, shell, or git-mutation tool anywhere in the package.
-- Every path-bearing tool call goes through `resolveContained` **before** touching the filesystem.
+- Production path-bearing tools use the active producer ReadLease/GitLease and its scoped policy before reads. `resolveContained` belongs to legacy Host helpers; it is not the production authority or a fallback when a lease is absent.
 
 ## Path containment
+
+The helper algorithm below documents legacy compatibility only. Runtime registry acquisition fences are consumer-local; producer leases enforce captured provider affinity, cancellation and lifecycle. Missing or revoked production capabilities fail closed, never invoke these Host helpers.
 
 The executing DSH Session must supply a workspace cwd. The plugin resolves it to an existing real directory before creating a task, bridge, or workspace identity; a missing cwd fails with `SESSION_WORKSPACE_UNAVAILABLE`, and an inaccessible root fails with `INVALID_WORKSPACE_ROOT`. Windows and macOS case variants and symlink aliases share one normalized identity. Existing bindings keyed by a physical path keep their key on Windows; a binding previously created through a symlink alias requires a fresh collaboration task after this change.
 
@@ -43,6 +45,7 @@ The browser mutex protects only this plugin’s PLAN, REVIEW, doctor, and reconn
 - Only POST requests at the exact /mcp pathname reach authenticated RPC dispatch; query strings are allowed. Other paths, including absent OAuth discovery metadata, return 404 without an authentication challenge. Non-POST /mcp requests return 405; request bodies are capped at 1MiB; `Cache-Control: no-store`, `X-Content-Type-Options: nosniff`.
 - Tokens are random per bridge instance (32 bytes hex). Rotation/revoke = restart of the bridge (future: persisted pairing store with TTL).
 - Tokens are never written to the workspace or repository. The plugin writes `Bearer <token>` to a local mode-0600 state file and managed `tunnel-client` injects it only on the final local MCP hop via `MCP_EXTRA_HEADERS` / `MCP_DISCOVERY_EXTRA_HEADERS`.
+- Mode 0600 is a legacy implementation detail, not verified Windows credential protection. The target requires current-user DACL/approved protection and actual denial evidence; this gate is NOT_RUN.
 - `CONTROL_PLANE_API_KEY` remains an environment secret consumed by tunnel-client; it is not included in argv, status output, prompts, or connector metadata.
 
 ## Autonomous git policy

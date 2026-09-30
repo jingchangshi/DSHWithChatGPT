@@ -4,11 +4,15 @@ Status: PARTIAL — candidate before structural implementation. Every gate uses 
 
 ## Baseline and stages
 
+After architecture DONE, isolated F0 repair and exact-HEAD review must pass before Stage B ports extraction or abstraction restructuring. Source baseline and document-review HEAD are separate evidence.
+
 Stage A records baseline, target/deployment/protocol/migration documents, commits and obtains architecture DONE before structural changes. Stages B–H use tests-first commits with independent exact-HEAD review. Stage I requires real product evidence and final global review. No stage claims success solely from an in-process fake.
 
 | Gate / stage | Goal | Fixture | Action | Expected evidence | Failure condition | Status |
 |---|---|---|---|---|---|---|
-| F0 / A+C | preserve and repair cancellation ownership guarantee | original browser.spec plus adversarial hung provider/foreign draft | full baseline then regression before fix | baseline 403/3/1, cleanup attempted on fresh bounded signal, no extra Enter, foreign draft untouched | skipped/weakened assertion, enlarged timeout, no cleanup, unsafe late mutation | FAILED |
+| Baseline / A | retain observed source baseline | source 5d303f5 and raw output | full original suite | 403 passed / 3 skipped / 1 failed | reproduction mislabeled repair | VERIFIED |
+| Architecture / A | freeze reviewed target contracts | target documents and inventory | exact-HEAD review after fix PLAN | DONE for submitted document HEAD | PLAN or unreviewed HEAD counted as approval | PARTIAL |
+| F0 / before B | repair cancellation ownership guarantee | original browser.spec plus adversarial hung provider/foreign draft | regression before isolated repair and review | fresh bounded cleanup signal, no extra Enter, foreign draft untouched | weakened/skipped assertion, enlarged timeout, unsafe late mutation | FAILED |
 | F1 / B | isolate core ports | import-graph tests and fake ports | run orchestrator with fake ChatControl/StateStore/ExecutionWorkspace/McpExposure | no concrete browser or Cordis dependencies; behavior/reply errors retained | hidden transitive concrete imports or production memory fallback | NOT_RUN |
 | F2 / C | one shared Web semantic driver | happy-dom fixture + both primitives adapters | exact/ambiguous/missing App, draft change, old/new replies, streaming/settling, logout, abort, recovery | both adapters run the same semantic suite | transport-specific duplicate DOM logic or permissive App matching | NOT_RUN |
 | F3 / E | real DOM/input/event CDP behavior | local non-ChatGPT HTTP page + task-owned tab | connect/list/evaluate/focus/type/click/keyboard/mutation/navigation/close/reconnect | observable page outcomes and invalidated stale handles, bounded abort/timeouts | websocket-only smoke, screenshot normal path, hanging call or unrelated target mutation | NOT_RUN |
@@ -39,6 +43,8 @@ Each row expands into executable cases before its implementation. F1 rejects dir
 
 ## Real Windows fixture and independent evidence
 
+F1 rejects DSH/Cordis, Browser Harness, CDP, Windows and tunnel imports transitively from core. DshAgentAdapter invokes core use cases; CordisStateStore implements a separate port. F4/F5 test same-ID/payload in-flight joins and replay, conflicts, cancellation races, journal retention and crashes before mutation/Enter, after Enter/acknowledgement/reply observation. F8 distinguishes consumer-local acquisition fences from actual producer lease affinity, without fictional generation metadata. Windows secret protection requires actual DACL inspection.
+
 The new `verify-planner-executor-e2e.mjs` must create an isolated temporary workspace, ordinary non-protected branch, temporary local bare remote and deterministic requirements/tests. Launch only supported DSH profile with real native DeepSeek Executor, product App and Sidecar + Direct CDP. Deliberately omit Browser Harness executable/provider; record profile closure and invoked adapter path.
 
 Successful fixture tests print a freshly random E2E_EVIDENCE nonce to stdout. Observer captures nonce only from attributed test output, outside workspace; never transmit it in PLAN/REVIEW arguments/control message/summary/file. Reviewer obtains it through scoped execution_output and echoes it in SUMMARY. Compare latest successful execution's nonce, reject stale/fabricated values, record which execution ID was independently read. Failed test output cannot generate accepted proof.
@@ -48,6 +54,8 @@ Before review and at acceptance, require clean worktree, normal non-protected br
 Acceptance result is derived from recorded assertions, not hardcoded true/false. Unknown/missing/failed critical evidence prevents `plannerExecutorAccepted=true`. Raw secret-bearing values are never published. Runtime nonce is not itself an authentication secret, but must remain confined until independently read to preserve the falsification proof.
 
 ## External prerequisites and reporting
+
+Run the logged-out fail-closed check in a task-owned temporary no-login profile, preserving persistent Browser B login. Record actual native DeepSeek generation and the invoked client → Sidecar → shared driver → Direct CDP path. Dependency/profile inspection must prove Browser Harness absent; sandbox assurance requires actual hardened Windows enforcement.
 
 Finish independent architecture/unit/contract/integration/packaging work before asking for real product credentials. At a genuinely external gate, record BLOCKED for that gate with exact prerequisite, continue other work and request only login/2FA/CAPTCHA/real credential input when necessary. Overall goal remains active until full required Windows scope is proven or repeated genuine impasse meets goal blocked policy.
 

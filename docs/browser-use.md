@@ -4,6 +4,8 @@
 
 ## Runtime model
 
+This section describes the legacy Browser Harness compatibility path. The target extracts these App/composer/baseline/reply semantics once into ChatGptWebDriver. DirectCdpPrimitives and Session-gated BrowserHarnessPrimitives supply transport/input/target activation beneath the same driver; they must not copy this semantic algorithm. Sidecar exposes only semantic operations, never generic evaluation or navigation.
+
 One persistent logged-in browser profile + one persisted ChatGPT conversation per workspace. A new DSH session does **not** reuse an old session-gated Browser Harness owner: every model-facing call creates a coordinator bound to the current agent/session.
 
 ```

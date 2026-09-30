@@ -2,7 +2,7 @@
 
 > Legacy implementation reference at the Stage A baseline. The canonical PlannerBridge target is [target-architecture.md](target-architecture.md), with [planner-executor-protocol.md](planner-executor-protocol.md), [windows-deployment.md](windows-deployment.md) and [acceptance-plan.md](acceptance-plan.md). Target components are not claimed implemented by this legacy document.
 
-All statements below were read from `D:\workspace\deepseek-harness` source and, where marked **[runtime-verified]**, confirmed against the live Cordis runtime via the session's Inspect providers. This file is the ground truth for the plugin implementation.
+This document retains historical Cordis/Browser Harness integration notes. Historical runtime labels describe their original probes, not current Windows acceptance. The current checkout is `C:\Users\jingc\workspace\deepseek-harness`; target contracts and current evidence are in the PlannerBridge documents and env-win.md. Revalidate public contracts before implementation.
 
 ## 1. Plugin form (packages/AGENTS.md, cookbook/adding-a-package.md)
 
@@ -83,16 +83,16 @@ await domain.table('sessions').put(key, value)   // durable, write-chained, emit
 - Plain (non-bundle) plugin packages can be added as profile dependencies and mounted by naming them in a patch row (`- name: '<pkg>'`) — that is how our plugin will mount when installed standalone.
 - Row-plane rule: a row that publishes a service must sit on the host plane (or behind an isolate realm in a preset). Our service-providing rows are host-plane. Model-facing tools registered by a host row appear to all sessions of that profile (same as base TUI); acceptable for v1, documented.
 
-## 9. Models / GLM-5.3-Flash
+## 9. Selected native DeepSeek Executor
 
 - Base default: `agent-default-model` row `provider: deepseek-official, model: deepseek-flash`.
 - The `llm-pi-ai` adapter row is mounted dormant in base and activates provider profiles from the user's `settings.yaml` (`llm-pi-ai:` section, managed by the web Models page); credentials resolve per request through `apiKeyEnv` references via `ctx.credentials` (`$DSH_HOME/.credentials.yaml`).
-- GLM-5.3-Flash therefore rides the existing provider-profile mechanism (an OpenAI-compatible `llm-pi-ai` profile pointing at the GLM endpoint). No code in our plugin references a model id or key; verification during E2E confirms a profile selection where the session model is GLM-5.3-Flash. **[partially verified — final E2E confirms]**
+- Current target uses native `deepseek-official` / `deepseek-flash`, provider-default reasoning. The local credential probe verified authentication/model discovery only; actual generation and full product E2E remain NOT_RUN. Historical GLM/pi-ai examples do not select this Executor.
 
 ## 10. What we deliberately do NOT touch
 
 - No changes to `agent-loop`, `dsh core` packages, or DSH source. If a hard blocker appears, a minimal upstream patch is proposed separately (none found so far).
-- No second browser-automation framework: ChatGPT Web is driven through the registered BrowserUse provider's MCP tools.
+- The legacy Browser Harness adapter uses Session-gated BrowserUse tools. The primary target instead composes one shared semantic driver over Direct CDP behind a narrow Sidecar; Browser Harness remains a compatibility adapter, not a primary dependency.
 - No private ChatGPT API calls: official Web UI only, via DOM.
 
 ## 11. Live-runtime capability map (Inspect, this session)

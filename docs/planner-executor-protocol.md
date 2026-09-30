@@ -41,6 +41,8 @@ For execution iteration n, EXECUTED and DONE use n. A fix PLAN uses n+1 and IN_R
 
 ## Retry, replay and timeout
 
+Protocol version is fixed at task creation. Unfinished released v1 tasks stay on the v1 adapter across restart; new v2 tasks never fall back to v1 after a parse/identity error. Before sending EXECUTED and before accepting its review, reacquire a fresh GitLease and revalidate exact clean/pushed HEAD. Changed HEAD rejects acceptance without advancing the round.
+
 Protocol reply replay uses a canonical envelope digest persisted with the accepted result. Delivery idempotency lives outside the envelope: persist an internal ControlOperation and outbound intent before browser mutation; phases are prepared, sending, observed-sent, awaiting-reply, accepted, uncertain. A crashed sending operation is uncertain until reconciled with the same conversation and exact visible user envelope. The old 30-second in-memory cooldown is insufficient.
 
 Same operation ID/same digest returns the recorded delivery/result without a new Enter. Same ID/different digest fails `REPLAY_CONFLICT`. A new operation ID must not duplicate a task/round send. Sidecar restart, RPC timeout or missing acknowledgement is not proof that no message was sent. If the exact outgoing message cannot be confirmed or disproved, return `SEND_UNCERTAIN`; do not auto-resend. Fail-closed uncertainty may require human recovery but must preserve task/iteration/HEAD.

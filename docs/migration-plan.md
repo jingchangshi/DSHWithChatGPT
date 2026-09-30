@@ -13,7 +13,7 @@ Status: PARTIAL — Stage A candidate. Inventory is generated from tracked sourc
 | C2C_EXECUTION_BASE_URL / C2C_EXECUTION_API_KEY | existing Windows launcher scripts + historical runner | PUBLIC_COMPATIBILITY | explicit deprecated launcher fallback only; canonical native Executor uses DEEPSEEK_API_KEY; generic overrides use DSH_EXECUTION_* |
 | C2C_DSH_CLI | existing launcher/environment input | PUBLIC_COMPATIBILITY | prefer DSH_CLI; validate exact supported built CLI; temporary alias with safe diagnostic |
 | C2C_BROWSER_HARNESS / C2C_TUNNEL_CLIENT | old prepare/launch scripts | PUBLIC_COMPATIBILITY | compatibility-only harness setting and exposure client alias; primary composition does not require harness |
-| prepare-c2c-codex.ps1 | repository scripts | EXTERNAL_NAME_DO_NOT_CONTROL | development integration name; never product dependency |
+| prepare-c2c-codex.ps1 | repository scripts | PUBLIC_COMPATIBILITY | repository-owned deprecated development launcher alias; canonical prepare-development-chatgpt.ps1; never product dependency |
 | prepare-dsh-c2c.ps1 / launch-dsh-c2c.ps1 | existing public user launch scripts | PUBLIC_COMPATIBILITY | thin deprecated aliases to canonical product deployment launcher after parity tests |
 | fullC2CVerified | readiness/doctor.ts, tests, installation docs | PUBLIC_COMPATIBILITY | explicit legacy always-false field at adapter edge; new local/App/product acceptance statuses separate |
 | C2C_PRETASK_RECOVERY_REQUIRED | orchestrator/ownership.ts + ownership.spec | PRIVATE_RENAME_NOW | neutral PRETASK_RECOVERY_REQUIRED core error; old diagnostic mapping only if public callers require it |
@@ -31,6 +31,10 @@ Full line-level occurrence ledger: `migration-inventory.tsv`, generated with fil
 
 ## Additional legacy boundaries
 
+The ledger covers C2C/c2c and D2C/d2c, including filenames, markers, task prefixes, ignore policies, storage/tool names, App-proof names, cancellation errors, auth headers/realms, DOM attributes and call IDs. Exclude generated artifacts, requirements and retained historical evidence explicitly; preserve external attribution. Public aliases need an owner, canonical replacement, recovery/parity test and removal condition before implementation.
+
+Canonical ignore policy is .plannerbridgeignore. Legacy .d2cignore remains additive; neither policy can un-deny default sensitive paths. Persisted unfinished v1 tasks remain v1 across restart; new tasks use v2. Explicit adapters preserve released storage/control records without mid-task protocol upgrade or destructive overwrite.
+
 `[D2C]`, `d2c_`, `.d2cignore`, `d2c_state` and `d2c_control` are not new canonical architecture names. Preserve released protocol/storage/ignore behavior under explicit compatibility adapters. New wire protocol/version/task IDs are defined in planner-executor-protocol.md. Durable unfinished tasks remain on their original protocol; migrations cannot silently change provider identity, persisted generation or authorization.
 
 DSH package name `dsh-with-chatgpt`, current public collaboration tools and Custom App name `DSH with ChatGPT` remain installer/App compatibility surfaces for this iteration. PlannerBridge product core and module names are neutral; repository rename is deferred. Existing BrowserControl exports remain compatibility aliases only after extraction parity tests.
@@ -39,7 +43,7 @@ DSH package name `dsh-with-chatgpt`, current public collaboration tools and Cust
 
 1. Stage A: document baseline/interfaces/target/inventory; mark old architecture documents as legacy rather than making source claims prematurely. Commit and independent architecture review.
 2. Stage B: add falsification import/port tests, then extract provider-neutral core contracts; preserve public behavior and storage adapter semantics.
-3. Before Stage C: failing owned-cancellation regression, then bounded cleanup repair without weaker assertions. Extract shared driver and BrowserPrimitives with contract parity tests.
+3. Before Stage B: failing owned-cancellation regression, then isolated bounded cleanup repair and exact-HEAD review without weaker assertions. Stage C extracts the shared driver and BrowserPrimitives with parity tests.
 4. Stages D/E: authenticated narrow Sidecar and neutral client; actual local CDP DOM/input tests. Keep RPC allowlist and delivery journal recovery explicit.
 5. Stages F/G: DSH adapter, native DeepSeek composition, capability-preserving data plane/exposure adapters and durable reconciliation. No copied producer implementation. A producer change requires consumer failing test + independent review.
 6. Stage H: replace private/test identifiers, add public compatibility wrappers and package/profile tests. Old aliases resolve only at entry points; conflicting old/new config is rejected or canonical wins with explicit safe warning, never silent ambiguity.

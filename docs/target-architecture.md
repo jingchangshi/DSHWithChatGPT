@@ -139,6 +139,8 @@ Sidecar owns only its narrow browser session and its own authentication/replay/d
 
 On startup: validate config/auth → health → target binding → semantic readiness → reacquire capability → reconcile durable outbound operation → resume wait. On shutdown: reject new operations → cancel/drain current request → bounded owned-draft cleanup → disconnect browser → revoke live capabilities → stop exposure → close listeners. Uncertain sends remain uncertain after shutdown.
 
+Cancellation cleanup uses its own fresh bounded signal after the caller aborts, never the already-cancelled caller signal. It proves the draft still belongs to the operation before mutation; a foreign draft is preserved. A hung provider cannot extend cleanup indefinitely or authorize a late Enter.
+
 ## Failure domains and recovery
 
 | Failure | Required response |

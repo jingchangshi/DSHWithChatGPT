@@ -7,7 +7,7 @@ Status: PARTIAL — Stage A target; environment snapshot and command results are
 | Browser A | Codex built-in browser, CodexWithChatGPT development connector | previous environment PLAN/REVIEW VERIFIED; architecture review pending |
 | Browser B | independent Chrome profile under LocalAppData/DSHWithChatGPT/chrome-product | loopback CDP infrastructure previously VERIFIED; recheck before live acceptance |
 | Product CDP | 127.0.0.1:9222 | never expose or forward this port remotely |
-| Sidecar | 127.0.0.1:18765 | NOT_RUN; implementation absent at baseline |
+| Sidecar | 127.0.0.1:18765 default; configurable literal-loopback port | NOT_RUN; implementation absent at baseline |
 | Windows DSH | related feature branch, Corepack pnpm 11.7.0 | previous build/CLI VERIFIED |
 | Executor | deepseek-official / deepseek-flash; provider-default reasoning | authentication VERIFIED; generation NOT_RUN |
 | Plugin | package/, Corepack pnpm 10.34.5 | previous build/typecheck VERIFIED; current suite FAILED baseline |
@@ -28,7 +28,11 @@ Sidecar deployment configuration is `endpoint`, `authentication`, `rpcVersion`, 
 
 ## RPC safety and supervision
 
-Version 1 semantic RPC uses authenticated POST requests, finite method allowlist, bounded UTF-8 body (64 KiB request, bounded reply), string request ID, fixed response/error schema and no permissive CORS. Default request deadline 30 seconds; waitForReply carries a bounded requested reply deadline, with explicit cancel by request ID. Bind must be literal loopback; reject remote URLs and wildcard addresses. HTTP health discloses no tokens, profile paths or conversation contents; browser readiness remains a separate authenticated semantic fact.
+Sidecar authentication, Workspace Data Plane bearer and external CONTROL_PLANE credentials have independent scopes. Windows credential/state files require a current-user DACL or approved credential protection; POSIX mode 0600 alone proves no Windows isolation. Verify actual ACL protection. Secrets enter task-owned children only through required inherited environment or protected references, never argv/status. Private state paths are deployment-injected outside workspaces with no process.cwd() fallback.
+
+Bind one explicitly selected target in the dedicated Browser B endpoint. Missing or ambiguous targets fail closed; never search other profiles. Navigation or target replacement invalidates the old epoch and pending handles.
+
+Version 1 semantic RPC uses authenticated POST requests, finite method allowlist, bounded UTF-8 body (64 KiB request, bounded reply), string request ID, fixed response/error schema and no permissive CORS. Normal health/readiness/send requests default to a 30-second deadline. waitForReply has its own bounded multi-minute model deadline and separately bounded transport lifetime, not the ordinary short RPC timeout. Explicit cancel by request ID uses a fresh bounded request independent of the cancelled caller signal. Bind must be literal loopback; reject remote URLs and wildcard addresses. HTTP health discloses no tokens, profile paths or conversation contents; browser readiness remains a separate authenticated semantic fact.
 
 Request IDs are single-use per payload digest; duplicates join/return stored results, conflicts fail. Busy conversation operations are serialized/rejected. Shutdown aborts and drains pending work; cleanup may touch only an owned draft. Restart generation changes invalidate client handles, while persistent delivery journal prevents forgotten sends.
 

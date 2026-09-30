@@ -10,19 +10,19 @@ Directory listings order names, then types, using case-sensitive UTF-16 comparis
 
 控制所有权分为两个部分：独立 `d2c_control` v1 存储持久化 managed tunnel 的 workspace/task/claim 及 pre-task/task 阶段；进程内浏览器互斥拒绝本插件 PLAN、REVIEW、doctor、reconnect 的重叠操作。任务存储 `d2c_state` v1 不变。隧道绑定检查与启动串行执行，非终态任务在重启后保留所有权；发送 INIT 结果不明确时不自动释放或重发。浏览器互斥不隔离普通执行器工具、人工操作或其他进程，当前支持每个 profile/state store 一个活动插件进程。
 
-运行时实现无人值守 C2C：一次性完成 ChatGPT 登录、自定义 MCP App 和 Secure MCP Tunnel 创建后，DSH 可以连续执行：
+以下为旧 Browser Harness/v1 实现的预期流程；完整 Windows 产品验收尚未完成。新的 PlannerBridge 目标见规范文档，不应据此图宣称已验收：
 
 ```
 User goal
   → ChatGPT PLAN
-  → GLM implement / test
+  → DSH Executor implement / test
   → commit + push task branch
   → ChatGPT independently reviews exact HEAD
   → DONE | fix PLAN
   → repeat until DONE / BLOCKED / maxIterations
 ```
 
-ChatGPT 始终只负责 WHAT/WHY 与独立评审；DSH/GLM 始终拥有写代码、shell、测试、git 的执行权。
+ChatGPT 负责规划与独立评审；DSH Executor 拥有代码、shell、测试、git 执行权。当前选定的目标 Executor 是原生 DeepSeek，不能将旧 GLM 示例当作实际配置。
 
 ## 总体结构
 
@@ -47,7 +47,7 @@ ChatGPT 始终只负责 WHAT/WHY 与独立评审；DSH/GLM 始终拥有写代码
           └──────────────┬──────────────┘
                          │ DSH public surfaces
                          ▼
-                 DSH / GLM-5.3-Flash
+                 DSH / Executor
              edit / shell / test / git
 ```
 
@@ -76,7 +76,7 @@ Workspace identity and containment share `workspace/errors.ts` for `WorkspaceErr
 - 只监听 `127.0.0.1`
 - 仅注册固定十个只读 MCP 工具
 - 每个 workspace 使用独立随机 Bearer
-- 所有 path 工具经过 canonical realpath containment 与 sensitive-file policy
+- 生产工具通过当前 Execution World ReadLease/GitLease 访问数据，由 producer 实施路径与敏感文件策略；旧 Host helper 不代表生产路径
 - execution output 经过 secret redaction 与大小限制
 
 `workspace_info` 返回稳定、非秘密的 `workspaceId`。D2C 的 INIT/EXECUTED 携带 `WORKSPACE_ID`，ChatGPT 必须通过 MCP 确认后原样回显；错误 App/connector/workspace 会被 coordinator 机器拒绝。
@@ -92,6 +92,7 @@ Model-facing C2C 工具仅接受当前 DSH Session 的 cwd；插件在建立 coo
 - 使用随机 localhost health endpoint + `/readyz`
 - bridge 端 Bearer 保持开启
 - Bearer 值写入本地 0600 文件
+- 该模式位不能证明 Windows ACL 隔离；目标部署要求真实 current-user DACL 验证
 - 通过 `MCP_EXTRA_HEADERS` 与 `MCP_DISCOVERY_EXTRA_HEADERS` 的 `file:` value reference，仅在 tunnel-client → localhost MCP 最后一跳注入 Authorization
 - workspace/local URL 变化时重建 managed tunnel binding
 - 同一插件进程只允许一个 active managed-tunnel C2C workspace；另一个 workspace 不能静默抢占 tunnel
