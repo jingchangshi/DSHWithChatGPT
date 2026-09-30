@@ -1,5 +1,7 @@
 # DSHWithChatGPT Goal Mode Environment Input
 
+> HISTORICAL INPUT — 2026-09-30 已核对：本文件的 D:\workspace 路径、工具版本及 Browser Harness 等预置状态不代表当前 Windows 主机。当前开发环境事实、实测状态与就绪结论请使用 [env-win.md](env-win.md)。本文件保留历史输入，不得把未复核的旧断言作为 VERIFIED 证据。
+
 ## 0. Usage rules
 
 - 这是当前任务可使用的真实环境信息。
