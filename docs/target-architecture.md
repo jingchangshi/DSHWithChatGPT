@@ -65,7 +65,8 @@ sequenceDiagram
   O->>O: validate identity and persist PLAN
   O-->>E: executable plan
   E->>O: completion + exact pushed HEAD (no nonce)
-  O->>S: EXECUTED / REVIEW
+  O->>S: EXECUTED (single review request)
+  Note over O: awaiting-review is local state
   P-->>O: DONE or fix PLAN (independent evidence)
 ```
 
@@ -133,7 +134,7 @@ Product state directories are deployment-injected private paths outside all work
 
 One active control operation owns the product conversation and composer; incompatible concurrent requests fail `BUSY`. Ownership includes target identity, navigation epoch and known draft text/App atom. Human/Executor browser input is not globally locked; any changed ownership fails closed and preserves the foreign draft. Cleanup is allowed only on a still-owned draft and uses a separate bounded shutdown signal after caller cancellation.
 
-The DSH adapter acquires execution identity/read/Git capabilities per operation; it installs Bridge access for that lease lifetime and disposes it in all paths. Exposure reserves exclusive workspace ownership before setup, promotes it after durable task creation, and releases only a matching terminal owner or proven task-absent reservation.
+The DSH adapter acquires execution identity/read/Git capabilities per operation; it installs Bridge access for that lease lifetime and disposes it in all paths. Orchestrator/deployment ownership reserves the workspace before exposure setup, promotes it after durable task creation, and releases only a matching terminal owner or proven task-absent reservation. McpExposureProvider owns only network start/health/rebind/stop under that reservation, never task/protocol authority.
 
 Sidecar owns only its narrow browser session and its own authentication/replay/delivery journal, stored outside workspaces. It has no workspace handle and no filesystem/shell/Git API. DSH task/outbound state and the Sidecar journal are separate stores with no cross-process transaction. Recovery reconciles them; neither alone proves browser delivery. Persist minimal operation IDs, digests, conversation/target fingerprints, send phase and reply baseline; avoid durable message bodies where unnecessary. Bound retained terminal entries by count, bytes and age; never silently evict unresolved sends or allow an evicted ID to authorize re-entry. Full unresolved journal fails new admission until explicit reconciliation.
 

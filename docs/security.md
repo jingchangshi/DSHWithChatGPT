@@ -13,7 +13,7 @@ App-proof challenges exist only in the current doctor runtime lease, the authent
 
 The helper algorithm below documents legacy compatibility only. Runtime registry acquisition fences are consumer-local; producer leases enforce captured provider affinity, cancellation and lifecycle. Missing or revoked production capabilities fail closed, never invoke these Host helpers.
 
-The executing DSH Session must supply a workspace cwd. The plugin resolves it to an existing real directory before creating a task, bridge, or workspace identity; a missing cwd fails with `SESSION_WORKSPACE_UNAVAILABLE`, and an inaccessible root fails with `INVALID_WORKSPACE_ROOT`. Windows and macOS case variants and symlink aliases share one normalized identity. Existing bindings keyed by a physical path keep their key on Windows; a binding previously created through a symlink alias requires a fresh collaboration task after this change.
+The executing DSH Session supplies workspace cwd to ExecutionWorldIdentity.resolve, not a Host realpath identity/fallback. The production pipeline is ExecutionWorldIdentity → ExecutionReadLease / ExecutionGitLease → WorkspaceRuntimeRegistry → consumer read/Git adapters → Bridge tools. Producer leases provide root-safe authority, provider affinity, lifetime and cancellation. Consumer createReadLeaseBackend normalizes relative queries and applies SensitivePolicy (including additive .d2cignore), noise handling and read/search bounds. Consumer Git helpers impose fixed argv and output bounds over producer Git capability. Missing Session cwd or capability fails closed.
 
 `src/workspace/boundary.ts`:
 

@@ -76,12 +76,12 @@ Workspace identity and containment share `workspace/errors.ts` for `WorkspaceErr
 - 只监听 `127.0.0.1`
 - 仅注册固定十个只读 MCP 工具
 - 每个 workspace 使用独立随机 Bearer
-- 生产工具通过当前 Execution World ReadLease/GitLease 访问数据，由 producer 实施路径与敏感文件策略；旧 Host helper 不代表生产路径
+- 生产工具链为 ExecutionWorldIdentity → ExecutionReadLease / ExecutionGitLease → WorkspaceRuntimeRegistry → consumer read/Git adapters → Bridge tools；producer 提供根安全权限、affinity、生命周期和取消，consumer read adapter 实施相对查询规范化、敏感策略和大小限制，Git helpers 固定 argv；旧 Host helper 不代表生产路径
 - execution output 经过 secret redaction 与大小限制
 
 `workspace_info` 返回稳定、非秘密的 `workspaceId`。D2C 的 INIT/EXECUTED 携带 `WORKSPACE_ID`，ChatGPT 必须通过 MCP 确认后原样回显；错误 App/connector/workspace 会被 coordinator 机器拒绝。
 
-Model-facing C2C 工具仅接受当前 DSH Session 的 cwd；插件在建立 coordinator、bridge 和持久 workspace binding 前解析真实目录，并统一 Windows/macOS 大小写与路径别名。缺失 Session cwd 或无效目录直接失败，不回退到宿主进程 cwd。
+Model-facing C2C 工具仅接受当前 DSH Session 的 cwd，通过 ExecutionWorldIdentity.resolve 获取生产身份和当前 leases；不使用 Host realpath 确立身份。缺失 Session cwd 或有效能力直接失败，不回退到宿主进程 cwd 或 Host 文件系统。
 
 ## Secure MCP Tunnel
 

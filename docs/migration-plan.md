@@ -2,6 +2,8 @@
 
 Status: PARTIAL — Stage A candidate. Inventory is generated from tracked source/config/tests/docs/scripts at baseline; binary tarballs, generated lib and dependency trees are excluded from canonical-name edits. `goal.md` and dated environment snapshots are requirements/evidence, not product API.
 
+Reference snapshots under cwc-research/**, historical e2e logs and retained review dumps are non-actionable evidence and excluded from the ledger. Released product protocol/storage/ignore/App-proof identifiers remain owned compatibility boundaries even when historical documentation mentions them. External attribution and external control-plane/header names retain their exact values.
+
 ## Inventory classes and actions
 
 | Occurrence family | Location | Class | Action / canonical responsibility |
@@ -28,6 +30,8 @@ Status: PARTIAL — Stage A candidate. Inventory is generated from tracked sourc
 | C2C prose/comments | source comments/docs/tests | DOC_RENAME_NOW | PlannerBridge / Planner–Executor / Chat Control by actual responsibility |
 
 Full line-level occurrence ledger: `migration-inventory.tsv`, generated with filename/line/identifier/class. Re-run when new touched files appear. Each classified public alias needs owner, removal condition and test; public compatibility is not permission to preserve private coupling.
+
+Deployment canonical inputs are DSH_CLI, DSH_EXECUTION_BASE_URL / DSH_EXECUTION_API_KEY for optional generic overrides, MCP_EXPOSURE_CLIENT, and BROWSER_HARNESS_COMPAT_EXECUTABLE only for the compatibility path. Native DeepSeek uses DEEPSEEK_API_KEY. Canonical development launch wrappers are prepare-development-chatgpt.ps1 and launch-development-chatgpt.ps1/.cmd; product wrappers are prepare-plannerbridge.ps1 and launch-plannerbridge.ps1. Canonical verifier scripts are test:planner-executor-e2e, test:planner-executor-observer and test:plannerbridge-deployment. Cancellation classification is OPERATION_CANCELLED. These names describe target migration, not already implemented aliases.
 
 ## Additional legacy boundaries
 
