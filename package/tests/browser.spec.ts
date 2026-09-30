@@ -169,4 +169,54 @@ describe('Browser Harness App probe', () => {
     expect(Date.now() - started).toBeLessThan(3_500)
     expect(calls.filter(name => name.endsWith('browser_press'))).toHaveLength(1)
   }, 5_000)
+
+  it.each([false, true])('uses a fresh cleanup signal and bounds late provider completion (hung=%s)', async hung => {
+    const controller = new AbortController()
+    const keys: string[] = []
+    let text = ''
+    let cleanupSignal: AbortSignal | undefined
+    let resolveCleanup: (() => void) | undefined
+    const browser = new BrowserHarnessAdapter({ get: () => ({
+      execute: async ({ name, arguments: args, signal }: { name: string; arguments: Record<string, unknown>; signal: AbortSignal }) => {
+        if (name.endsWith('browser_page_info')) return { value: { url: 'https://chatgpt.com/c/test' } }
+        if (name.endsWith('browser_js')) {
+          const expression = String(args.expression)
+          if (expression.includes('composer.setAttribute')) return { value: { count: 1, empty: text === '', owned: true, focused: true } }
+          if (expression.includes('visibility: document.visibilityState')) return { value: { visibility: 'visible', url: 'https://chatgpt.com/c/test' } }
+          if (expression.includes('const selection =')) return { value: true }
+          return { value: { loggedOut: false, composer: true } }
+        }
+        if (name.endsWith('browser_type')) {
+          text = String(args.text)
+          controller.abort()
+          return new Promise<never>(() => {})
+        }
+        if (name.endsWith('browser_press')) {
+          keys.push(String(args.key))
+          if (args.key === 'a') {
+            cleanupSignal = signal
+            expect(controller.signal.aborted).toBe(true)
+            expect(signal.aborted).toBe(false)
+            if (hung) return new Promise(resolve => { resolveCleanup = () => resolve({ value: {} }) })
+          }
+          if (args.key === 'Backspace') text = ''
+        }
+        return { value: {} }
+      },
+    }) } as never, undefined, 'DSH with ChatGPT')
+    const started = Date.now()
+    await expect(browser.probeApp('DSH with ChatGPT', controller.signal)).rejects.toBeInstanceOf(OperationCancelledError)
+    expect(cleanupSignal).toBeDefined()
+    expect(Date.now() - started).toBeLessThan(3_500)
+    if (hung) {
+      expect(cleanupSignal!.aborted).toBe(true)
+      expect(keys).toEqual(['a'])
+      resolveCleanup!()
+      await new Promise(resolve => setTimeout(resolve, 25))
+      expect(keys).toEqual(['a'])
+    } else {
+      expect(text).toBe('')
+      expect(keys).toEqual(['a', 'Backspace'])
+    }
+  }, 5_000)
 })

@@ -124,6 +124,19 @@ function fixture(html: string, options: { selection?: 'outside' | 'partial' | 'n
 
 describe('ChatGPT composer DOM resolution', () => {
 
+  it.each([false, true])('keeps cancellation typed while cleaning only an owned draft (foreign=%s)', async foreign => {
+    const controller = new AbortController()
+    const { browser, window, keys, mutations } = fixture('<div role="textbox" contenteditable="true"></div>', { appName: '' })
+    window.document.addEventListener('composer-type', () => {
+      controller.abort()
+      if (foreign) window.document.querySelector('[role="textbox"]')!.textContent = 'foreign user draft'
+    })
+    await expect(browser.sendControlMessage('owned request', controller.signal)).rejects.toBeInstanceOf(OperationCancelledError)
+    expect(window.document.querySelector('[role="textbox"]')!.textContent).toBe(foreign ? 'foreign user draft' : '')
+    expect(keys).toEqual(foreign ? [] : ['a', 'Backspace'])
+    expect(mutations.filter(name => /click|cdp|current_tab/.test(name))).toEqual([])
+  })
+
   it('activates exactly the hidden current target before selecting an App', async () => {
     vi.useFakeTimers()
     const { browser, window, mutations } = fixture('<div role="textbox" contenteditable="true"></div><div role="listbox"><button>DSH with ChatGPT</button></div>', { mention: true })

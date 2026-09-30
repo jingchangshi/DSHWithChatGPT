@@ -40,7 +40,7 @@ interface ComposerDraft {
 }
 
 const composerSelector = '[data-d2c-composer-target="1"]'
-const COMPOSER_CLEANUP_TIMEOUT_MS = 10_000
+const COMPOSER_CLEANUP_TIMEOUT_MS = 2_000
 const composerScript = String.raw`
 const composerNodes = Array.from(document.querySelectorAll('#prompt-textarea, [role="textbox"][contenteditable]:not([contenteditable="false"])')).filter(element => {
   const rect = element.getBoundingClientRect();
@@ -254,11 +254,12 @@ export class BrowserHarnessAdapter implements BrowserControl {
     } finally {
       if ((clearOnSuccess || !succeeded) && !draft.preserve) {
         try {
-          const cleanupTimeout = AbortSignal.timeout(COMPOSER_CLEANUP_TIMEOUT_MS)
-          const cleanupSignal = signal === undefined ? cleanupTimeout : AbortSignal.any([signal, cleanupTimeout])
+          // Finalization owns a separate lifetime after the caller cancels.
+          const cleanupSignal = AbortSignal.timeout(COMPOSER_CLEANUP_TIMEOUT_MS)
           await this.clearComposer(draft, cleanupSignal)
         } catch (error) {
-          if (error instanceof OperationCancelledError || originalError instanceof OperationCancelledError) throw error
+          if (originalError instanceof OperationCancelledError) throw originalError
+          if (error instanceof OperationCancelledError) throw error
           throw new BrowserStaleError('App composer cleanup failed or draft ownership changed')
         }
       }
