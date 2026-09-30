@@ -1,5 +1,7 @@
 # Security
 
+> Legacy implementation reference at the Stage A baseline. The canonical PlannerBridge target is [target-architecture.md](target-architecture.md), with [planner-executor-protocol.md](planner-executor-protocol.md), [windows-deployment.md](windows-deployment.md) and [acceptance-plan.md](acceptance-plan.md). Target components are not claimed implemented by this legacy document.
+
 App-proof challenges exist only in the current doctor runtime lease, the authenticated workspace_info response, and ChatGPT's diagnostic reply. Plugin status, durable task/control state, and execution records exclude the challenge and raw reply. Completion, cancellation, and timeout revoke the lease; later operations generate new challenges. Diagnostic proof does not grant execution-output access.
 
 ## Read-only boundary (structural, not policy)

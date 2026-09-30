@@ -1,5 +1,7 @@
 # DSH integration notes (verified against this checkout)
 
+> Legacy implementation reference at the Stage A baseline. The canonical PlannerBridge target is [target-architecture.md](target-architecture.md), with [planner-executor-protocol.md](planner-executor-protocol.md), [windows-deployment.md](windows-deployment.md) and [acceptance-plan.md](acceptance-plan.md). Target components are not claimed implemented by this legacy document.
+
 All statements below were read from `D:\workspace\deepseek-harness` source and, where marked **[runtime-verified]**, confirmed against the live Cordis runtime via the session's Inspect providers. This file is the ground truth for the plugin implementation.
 
 ## 1. Plugin form (packages/AGENTS.md, cookbook/adding-a-package.md)

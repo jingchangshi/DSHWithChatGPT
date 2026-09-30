@@ -1,5 +1,7 @@
 # D2C Protocol
 
+> Legacy implementation reference at the Stage A baseline. The canonical PlannerBridge target is [target-architecture.md](target-architecture.md), with [planner-executor-protocol.md](planner-executor-protocol.md), [windows-deployment.md](windows-deployment.md) and [acceptance-plan.md](acceptance-plan.md). Target components are not claimed implemented by this legacy document.
+
 Version 1. Machine-parsed control-plane envelopes exchanged between the DSH coordinator and ChatGPT Web. Adapted from the C2C `[C2C]` envelope (codex-with-chatgpt, MIT) with machine validation upstream lacks.
 
 ## Wire format

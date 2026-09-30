@@ -1,0 +1,48 @@
+# PlannerBridge migration plan
+
+Status: PARTIAL — Stage A candidate. Inventory is generated from tracked source/config/tests/docs/scripts at baseline; binary tarballs, generated lib and dependency trees are excluded from canonical-name edits. `goal.md` and dated environment snapshots are requirements/evidence, not product API.
+
+## Inventory classes and actions
+
+| Occurrence family | Location | Class | Action / canonical responsibility |
+|---|---|---|---|
+| current feature branch name | both repositories' Git refs, environment snapshots | BRANCH_HISTORY_ONLY | keep user-selected branch; don't introduce new names from it |
+| development c2c CLI and skill/connector names | development-only docs/scripts, upstream research/notices | EXTERNAL_NAME_DO_NOT_CONTROL | preserve exact external names; no runtime dependency |
+| CONTROL_PLANE_TUNNEL_ID / CONTROL_PLANE_API_KEY | tunnel adapter/config | EXTERNAL_NAME_DO_NOT_CONTROL | retain external product names; provider consumes them only |
+| upstream [C2C] attribution | THIRD_PARTY_NOTICES.md / reference-analysis.md | EXTERNAL_NAME_DO_NOT_CONTROL | preserve license/source attribution; not target protocol |
+| C2C_EXECUTION_BASE_URL / C2C_EXECUTION_API_KEY | existing Windows launcher scripts + historical runner | PUBLIC_COMPATIBILITY | explicit deprecated launcher fallback only; canonical native Executor uses DEEPSEEK_API_KEY; generic overrides use DSH_EXECUTION_* |
+| C2C_DSH_CLI | existing launcher/environment input | PUBLIC_COMPATIBILITY | prefer DSH_CLI; validate exact supported built CLI; temporary alias with safe diagnostic |
+| C2C_BROWSER_HARNESS / C2C_TUNNEL_CLIENT | old prepare/launch scripts | PUBLIC_COMPATIBILITY | compatibility-only harness setting and exposure client alias; primary composition does not require harness |
+| prepare-c2c-codex.ps1 | repository scripts | EXTERNAL_NAME_DO_NOT_CONTROL | development integration name; never product dependency |
+| prepare-dsh-c2c.ps1 / launch-dsh-c2c.ps1 | existing public user launch scripts | PUBLIC_COMPATIBILITY | thin deprecated aliases to canonical product deployment launcher after parity tests |
+| fullC2CVerified | readiness/doctor.ts, tests, installation docs | PUBLIC_COMPATIBILITY | explicit legacy always-false field at adapter edge; new local/App/product acceptance statuses separate |
+| C2C_PRETASK_RECOVERY_REQUIRED | orchestrator/ownership.ts + ownership.spec | PRIVATE_RENAME_NOW | neutral PRETASK_RECOVERY_REQUIRED core error; old diagnostic mapping only if public callers require it |
+| C2C_E2E_RUN_ID / C2C_E2E_PHASE | runner and evidence observer fixture | TEST_RENAME_NOW | PLANNER_EXECUTOR_RUN_ID / PLANNER_EXECUTOR_PHASE; no hidden legacy dependency |
+| DSH_C2C_SMOKE_RUN_ID / DSH_C2C_SMOKE_REPORT | profile verifier/fixture | TEST_RENAME_NOW | PLANNERBRIDGE_PROFILE_RUN_ID / PLANNERBRIDGE_PROFILE_REPORT |
+| C2C_TEST_TUNNEL_ID / C2C_TEST_TUNNEL_KEY | tunnel.spec.ts | TEST_RENAME_NOW | EXPOSURE_TEST_TUNNEL_ID / EXPOSURE_TEST_TUNNEL_KEY |
+| c2c-e2e/c2c-smoke/profile probe/observer names | verifier scripts, fixtures, temporary dirs/manifests | TEST_RENAME_NOW | planner-executor-e2e / plannerbridge-profile-smoke and responsibility-based fixture names |
+| verify-live-c2c.mjs / fullC2CAccepted | package/scripts and package.json | TEST_RENAME_NOW | replace incomplete runner with genuine verify-planner-executor-e2e.mjs; derive plannerExecutorAccepted from assertions |
+| c2c-launcher.test.mjs / dsh-product-c2c.test.mjs / c2c-e2e-observer.test.mjs | package/scripts and package.json | TEST_RENAME_NOW | neutral launcher, product deployment and evidence observer test names |
+| test:live-c2c / test:product-c2c / test:live-c2c-observer | package.json scripts | PUBLIC_COMPATIBILITY | canonical script names plus temporary documented npm aliases; no new legacy implementation |
+| product-c2c state-directory naming | existing Windows product launcher state | PUBLIC_COMPATIBILITY | explicit migration of own-state files; never orphan credentials/pending state |
+| C2C prose/comments | source comments/docs/tests | DOC_RENAME_NOW | PlannerBridge / Planner–Executor / Chat Control by actual responsibility |
+
+Full line-level occurrence ledger: `migration-inventory.tsv`, generated with filename/line/identifier/class. Re-run when new touched files appear. Each classified public alias needs owner, removal condition and test; public compatibility is not permission to preserve private coupling.
+
+## Additional legacy boundaries
+
+`[D2C]`, `d2c_`, `.d2cignore`, `d2c_state` and `d2c_control` are not new canonical architecture names. Preserve released protocol/storage/ignore behavior under explicit compatibility adapters. New wire protocol/version/task IDs are defined in planner-executor-protocol.md. Durable unfinished tasks remain on their original protocol; migrations cannot silently change provider identity, persisted generation or authorization.
+
+DSH package name `dsh-with-chatgpt`, current public collaboration tools and Custom App name `DSH with ChatGPT` remain installer/App compatibility surfaces for this iteration. PlannerBridge product core and module names are neutral; repository rename is deferred. Existing BrowserControl exports remain compatibility aliases only after extraction parity tests.
+
+## Stages and constraints
+
+1. Stage A: document baseline/interfaces/target/inventory; mark old architecture documents as legacy rather than making source claims prematurely. Commit and independent architecture review.
+2. Stage B: add falsification import/port tests, then extract provider-neutral core contracts; preserve public behavior and storage adapter semantics.
+3. Before Stage C: failing owned-cancellation regression, then bounded cleanup repair without weaker assertions. Extract shared driver and BrowserPrimitives with contract parity tests.
+4. Stages D/E: authenticated narrow Sidecar and neutral client; actual local CDP DOM/input tests. Keep RPC allowlist and delivery journal recovery explicit.
+5. Stages F/G: DSH adapter, native DeepSeek composition, capability-preserving data plane/exposure adapters and durable reconciliation. No copied producer implementation. A producer change requires consumer failing test + independent review.
+6. Stage H: replace private/test identifiers, add public compatibility wrappers and package/profile tests. Old aliases resolve only at entry points; conflicting old/new config is rejected or canonical wins with explicit safe warning, never silent ambiguity.
+7. Stage I: independently validate genuine Windows primary E2E and final exact HEAD. Remove acceptance hardcoded booleans instead of relabeling partial output.
+
+No blind global replace, speculative API deletion, historical branch rewrite, forced push, released-state overwrite, externally-owned rename or security weakening. Every stage is a separate commit and review. Compatibility removal is a later documented breaking release after old task/state/profile recovery coverage and migration evidence.

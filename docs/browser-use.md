@@ -1,5 +1,7 @@
 # BrowserUse control plane
 
+> Legacy implementation reference at the Stage A baseline. The canonical PlannerBridge target is [target-architecture.md](target-architecture.md), with [planner-executor-protocol.md](planner-executor-protocol.md), [windows-deployment.md](windows-deployment.md) and [acceptance-plan.md](acceptance-plan.md). Target components are not claimed implemented by this legacy document.
+
 ## Runtime model
 
 One persistent logged-in browser profile + one persisted ChatGPT conversation per workspace. A new DSH session does **not** reuse an old session-gated Browser Harness owner: every model-facing call creates a coordinator bound to the current agent/session.

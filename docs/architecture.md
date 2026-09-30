@@ -1,5 +1,7 @@
 # 架构 / Architecture
 
+> Legacy implementation reference at the Stage A baseline. The canonical PlannerBridge target is [target-architecture.md](target-architecture.md), with [planner-executor-protocol.md](planner-executor-protocol.md), [windows-deployment.md](windows-deployment.md) and [acceptance-plan.md](acceptance-plan.md). Target components are not claimed implemented by this legacy document.
+
 Doctor reports localReady separately from appDataPlaneVerified; ready remains an alias for localReady and fullC2CVerified remains false. Local mode sends no diagnostic message. Explicit app-proof mode keeps one execution read lease live while the exact App retrieves a fresh memory-only challenge and workspace/root/Git facts. The browser prompt contains the requested fields, never their expected values. A matching reply verifies only that operation's App data access, not a completed PLAN/execution/REVIEW round.
 
 Directory listings order names, then types, using case-sensitive UTF-16 comparison before the visible-entry cap. App proof copies the first returned entry without asking the model to sort; challenge, identity, directory facts and Git facts remain strictly validated.
