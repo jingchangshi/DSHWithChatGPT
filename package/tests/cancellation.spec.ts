@@ -72,7 +72,8 @@ describe('caller cancellation', () => {
       async sendControlMessage(text) { sent.push(text) },
       async waitForReply(_timeout, signal) { return await reply!(signal) },
       async health() { return { ok: true, detail: 'ready' } },
-      async conversationId() { return 'conversation' },
+      async currentConversation() { return this.conversationId() },
+    async conversationId() { return 'conversation' },
       async recover() {},
     }
     const makeCoordinator = () => new ChatGptCoordinator({ workspaceId: 'test-workspace', browser, store: state, workspaceRoot: 'workspace', replyTimeoutMs: 60_000 })
@@ -144,7 +145,8 @@ describe('caller cancellation', () => {
         }), complete: true }
       },
       async health() { return { ok: true, detail: 'ready' } },
-      async conversationId() { return 'conversation' },
+      async currentConversation() { return this.conversationId() },
+    async conversationId() { return 'conversation' },
       async recover() {},
     }
     const coordinator = new ChatGptCoordinator({ workspaceId: 'test-workspace', browser, store: state, workspaceRoot: 'workspace' })

@@ -120,7 +120,8 @@ describe('shell evidence observation', () => {
         sections: { ACTIONS: 'Correct the test.' },
       }), complete: true } },
       async health() { return { ok: true, detail: 'ready' } },
-      async conversationId() { return 'conversation' },
+      async currentConversation() { return this.conversationId() },
+    async conversationId() { return 'conversation' },
       async recover() {},
     }
     const coordinator = new ChatGptCoordinator({ workspaceId, browser, store: state, workspaceRoot: root })

@@ -1,45 +1,6 @@
-/**
- * Coordinator durable state: persisted via a Cordis storage domain so tasks
- * survive DSH restarts and browser reloads. Nothing task-critical lives only
- * in the GLM context window.
- * @module orchestrator
- */
-
-/** Task lifecycle states persisted by the coordinator (no 'idle' — a persisted task always exists). */
-export type TaskState =
-  | 'awaiting-plan'
-  | 'planned'
-  | 'executing'
-  | 'executed'
-  | 'awaiting-review'
-  | 'done'
-  | 'blocked'
-  | 'error'
-
-/** Persisted task state. */
-export interface PersistedTask {
-  taskId: string
-  goal: string
-  state: TaskState
-  iteration: number
-  waitingFor: 'none' | 'chatgpt-plan' | 'chatgpt-review' | 'dsh-execution' | 'user'
-  /** Conversation identity for the browser control plane. */
-  conversationId: string | null
-  /** Last git HEAD reviewed by ChatGPT. */
-  lastReviewedHead: string | null
-  createdAt: number
-  updatedAt: number
-  /** Last error detail, when state === 'error'. */
-  lastError: string | null
-}
-
-/** Persisted workspace binding. */
-export interface PersistedWorkspaceBinding {
-  workspaceRoot: string
-  conversationId: string | null
-  lastTaskId: string | null
-  updatedAt: number
-}
+import type { PersistedTask, PersistedWorkspaceBinding } from '../core/model.ts'
+export type { TaskState, PersistedTask, PersistedWorkspaceBinding } from '../core/model.ts'
+import { StateRevisionConflictError, type StateStore as RevisionedStateStore, type TaskSnapshot } from '../core/ports/state-store.ts'
 
 /** Minimal async KV contract for an explicitly selected state store. */
 export interface StateStore {
@@ -53,10 +14,10 @@ export function createMemoryStore(): StateStore {
   const map = new Map<string, unknown>()
   return {
     async get<T>(key: string): Promise<T | undefined> {
-      return map.get(key) as T | undefined
+      return structuredClone(map.get(key)) as T | undefined
     },
     async put<T>(key: string, value: T): Promise<void> {
-      map.set(key, value)
+      map.set(key, structuredClone(value))
     },
     async delete(key: string): Promise<void> {
       map.delete(key)
@@ -68,27 +29,64 @@ const TASK_KEY = (taskId: string): string => 'task:' + taskId
 const WORKSPACE_KEY = (workspaceId: string): string => 'workspace:' + workspaceId
 
 /** State repository over a StateStore. */
-export class CoordinatorState {
+export class CoordinatorState implements RevisionedStateStore {
+  private pending: Promise<unknown> = Promise.resolve()
   constructor(private readonly store: StateStore) {}
 
+  private serialized<Result>(operation: () => Promise<Result>): Promise<Result> {
+    const result = this.pending.then(operation)
+    this.pending = result.catch(() => {})
+    return result
+  }
+
+  async loadTaskSnapshot(taskId: string): Promise<TaskSnapshot | undefined> {
+    const value = await this.loadTask(taskId)
+    return value === undefined ? undefined : { value, revision: value.updatedAt }
+  }
+
+  createTask(task: PersistedTask): Promise<TaskSnapshot> {
+    return this.serialized(async () => {
+      if (await this.loadTask(task.taskId) !== undefined) throw new StateRevisionConflictError(task.taskId)
+      return this.writeTask(task, 0)
+    })
+  }
+
+  commitTask(taskId: string, expectedRevision: number, task: PersistedTask): Promise<TaskSnapshot> {
+    return this.serialized(async () => {
+      const previous = await this.loadTask(taskId)
+      if (task.taskId !== taskId || previous === undefined || previous.updatedAt !== expectedRevision) throw new StateRevisionConflictError(taskId)
+      return this.writeTask(task, expectedRevision)
+    })
+  }
+
+  private async writeTask(task: PersistedTask, previousRevision: number): Promise<TaskSnapshot> {
+    const value = structuredClone({ ...task, updatedAt: Math.max(Date.now(), previousRevision + 1) })
+    await this.store.put(TASK_KEY(task.taskId), value)
+    return { value: structuredClone(value), revision: value.updatedAt }
+  }
+
   async saveTask(task: PersistedTask): Promise<void> {
-    task.updatedAt = Date.now()
-    await this.store.put(TASK_KEY(task.taskId), task)
+    // Legacy administrative API. Canonical task transitions use commitTask.
+    await this.serialized(async () => {
+      const previous = await this.loadTask(task.taskId)
+      const saved = await this.writeTask(task, previous?.updatedAt ?? 0)
+      task.updatedAt = saved.revision
+    })
   }
 
   async loadTask(taskId: string): Promise<PersistedTask | undefined> {
-    return this.store.get<PersistedTask>(TASK_KEY(taskId))
+    return structuredClone(await this.store.get<PersistedTask>(TASK_KEY(taskId)))
   }
 
   async deleteTask(taskId: string): Promise<void> {
-    await this.store.delete(TASK_KEY(taskId))
+    await this.serialized(() => this.store.delete(TASK_KEY(taskId)))
   }
 
   async listTaskIds(): Promise<string[]> {
     // The KV contract does not expose prefix listing; the coordinator keeps an
     // index key updated on every save.
     const index = await this.store.get<{ ids: string[] }>('index:tasks')
-    return index?.ids ?? []
+    return [...(index?.ids ?? [])]
   }
 
   async saveTaskIndex(ids: string[]): Promise<void> {
@@ -100,6 +98,6 @@ export class CoordinatorState {
   }
 
   async loadWorkspace(workspaceId: string): Promise<PersistedWorkspaceBinding | undefined> {
-    return this.store.get<PersistedWorkspaceBinding>(WORKSPACE_KEY(workspaceId))
+    return structuredClone(await this.store.get<PersistedWorkspaceBinding>(WORKSPACE_KEY(workspaceId)))
   }
 }

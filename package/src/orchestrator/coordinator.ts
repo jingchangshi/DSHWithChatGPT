@@ -1,25 +1,26 @@
 /**
- * The D2C coordinator: drives INIT → PLAN → EXECUTED → REVIEW → DONE with
- * the state machine, browser control plane, and durable state. GLM (the DSH
- * agent) drives this service through model-facing tools; ChatGPT only ever
- * answers through the browser and reads through the read-only MCP bridge.
+ * PlannerBridge coordinator using the legacy v1 protocol. Inbound executors
+ * invoke use cases; outbound ports provide chat control and durable state.
  * @module orchestrator
  */
 
 import { ProtocolError, StateMachine } from '../protocol/index.ts'
 import type { Envelope } from '../protocol/index.ts'
-import type { BrowserControl } from '../browser/index.ts'
-import { DuplicateSendGuard, extractEnvelopeText } from '../browser/index.ts'
+import type { ChatControl } from '../core/ports/chat-control.ts'
+import { DuplicateSendGuard } from './legacy-send-guard.ts'
+import { extractEnvelopeText } from '../protocol/legacy-reply.ts'
+export { CHATGPT_BOOT_PROMPT } from '../protocol/legacy-planner-policy.ts'
 import { formatEnvelope, parseEnvelope } from '../protocol/index.ts'
-import { CoordinatorState, type PersistedTask, type TaskState } from './state.ts'
+import type { PersistedTask, TaskState } from '../core/model.ts'
+import type { StateStore } from '../core/ports/state-store.ts'
 import { OperationCancelledError, throwIfCancelled } from '../cancellation.ts'
 
 /** Coordinator configuration. */
 export interface CoordinatorOptions {
   /** Browser control plane implementation. */
-  browser: BrowserControl
-  /** Durable state backing (Cordis storage table). */
-  store: CoordinatorState
+  browser: ChatControl
+  /** Revisioned durable task state supplied by the deployment. */
+  store: StateStore
   /** Reply wait timeout (default 4 min — ChatGPT thinking time). */
   replyTimeoutMs?: number
   /** Workspace root the coordinator is bound to. */
@@ -28,6 +29,8 @@ export interface CoordinatorOptions {
   workspaceId: string
   /** Hard safety bound for autonomous review/fix rounds. */
   maxIterations?: number
+  /** Instructions supplied by inbound deployment composition. */
+  plannerInstructions?: string
 }
 
 /** Result of starting a task (INIT sent). */
@@ -43,29 +46,9 @@ export interface RoundResult {
   record: PersistedTask
 }
 
-/** Boot prompt injected into the ChatGPT conversation on INIT. */
-export const CHATGPT_BOOT_PROMPT = [
-  'You are the planning/review layer of a DeepSeek Harness coding session ("DSH with ChatGPT").',
-  'DeepSeek Harness / GLM owns ALL execution: edits, shell, tests, git. You own architecture reasoning, planning, review, and debugging strategy.',
-  'You read the workspace yourself through the "DSH with ChatGPT" MCP connector (read-only): git_status, git_diff, read_file, search_workspace, test_status, execution_summary.',
-  'Rules:',
-  '1. Never ask DSH to paste files or diffs you can read via MCP.',
-  '2. Read only what the current task needs.',
-  '3. Before PLAN, inspect the relevant code via MCP.',
-  '4. After EXECUTED, independently verify git_diff and test_status/execution_summary, then read the relevant execution_id through execution_output before claiming test evidence was reviewed. Raw output is authorized only for the current review task and iteration, not PLAN. Never trust prose claims like "tests pass".',
-  '5. Never request workspace write operations; you have none.',
-  '6. Plans are WHAT/WHY, never HOW bindings; GLM decides implementation.',
-  '7. Answer ONLY through a [D2C] envelope with the correct STATE, TASK_ID, ITERATION and IN_REPLY_TO headers.',
-  'Initial PLAN: ITERATION equals INIT ITERATION + 1 and IN_REPLY_TO equals INIT ITERATION. Review replies: both ITERATION and IN_REPLY_TO equal EXECUTED ITERATION.',
-  '8. Every PLAN/DONE/BLOCKED/ERROR reply must echo the exact WORKSPACE_ID header after checking workspace_info.workspaceId through MCP.',
-  '9. When reviewing an EXECUTED envelope that carries HEAD, echo that exact HEAD header in your DONE or fix PLAN reply after verifying it via MCP/git.',
-  '10. PLAN replies iterate on the plan instead of infinite TODO lists; DONE means you verified the result.',
-].join('\n')
-
 /** The coordinator service published as `chatgptCoordinator`. */
 export class ChatGptCoordinator {
-  private readonly machine = new StateMachine()
-  private readonly state: CoordinatorState
+  private readonly state: StateStore
   private readonly sendGuard = new DuplicateSendGuard()
   private readonly replyTimeoutMs: number
   private readonly maxIterations: number
@@ -77,7 +60,7 @@ export class ChatGptCoordinator {
   }
 
   /** Durable state handle (for tools and doctor). */
-  get stateHandle(): CoordinatorState {
+  get stateHandle(): StateStore {
     return this.state
   }
 
@@ -92,7 +75,7 @@ export class ChatGptCoordinator {
     await this.options.browser.ensureReady(opts.signal)
     const conversationId = await this.options.browser.openConversation(opts.resumeConversationId, opts.signal)
     throwIfCancelled(opts.signal)
-    const record = this.machine.startTask(taskId, goal)
+    const record = new StateMachine().startTask(taskId, goal)
     const persisted: PersistedTask = {
       taskId,
       goal,
@@ -105,7 +88,7 @@ export class ChatGptCoordinator {
       updatedAt: Date.now(),
       lastError: null,
     }
-    await this.state.saveTask(persisted)
+    await this.state.createTask(persisted)
     const ids = await this.state.listTaskIds()
     if (!ids.includes(taskId)) await this.state.saveTaskIndex([...ids, taskId])
     await this.state.bindWorkspace(this.options.workspaceId, {
@@ -114,7 +97,7 @@ export class ChatGptCoordinator {
       lastTaskId: taskId,
     })
     const initEnvelope = [
-      CHATGPT_BOOT_PROMPT,
+      this.options.plannerInstructions ?? 'You are the planner and reviewer. Reply using the supplied protocol and identity.',
       '',
       'New task:',
       formatEnvelope({
@@ -136,8 +119,10 @@ export class ChatGptCoordinator {
    */
   async awaitPlan(taskId: string, signal?: AbortSignal): Promise<RoundResult> {
     throwIfCancelled(signal)
-    const persisted = await this.requireTask(taskId)
-    const record = this.restoreMachine(persisted)
+    const snapshot = await this.requireTask(taskId)
+    const persisted = snapshot.value
+    const machine = this.restoreMachine(persisted)
+    const record = machine.get(taskId)
     if (record === undefined || record.waitingFor !== 'chatgpt-plan') {
       throw new ProtocolError('unexpected-reply', `task ${taskId} is not waiting for a plan`)
     }
@@ -149,8 +134,8 @@ export class ChatGptCoordinator {
     const envelope = parseEnvelope(envelopeText, { sender: 'chatgpt' })
     this.validateTaskReply(envelope, taskId)
     this.validateWorkspaceReply(envelope)
-    const folded = this.machine.applyReply(envelope)
-    const conversationId = await this.options.browser.conversationId(signal).catch(error => {
+    const folded = machine.applyReply(envelope)
+    const conversationId = await this.options.browser.currentConversation(signal).catch(error => {
       if (error instanceof OperationCancelledError) throw error
       return undefined
     })
@@ -161,8 +146,8 @@ export class ChatGptCoordinator {
       iteration: folded.iteration,
       waitingFor: folded.waitingFor,
     }
-    await this.state.saveTask(merged)
-    return { taskId, envelope, record: merged }
+    const saved = await this.state.commitTask(taskId, snapshot.revision, merged)
+    return { taskId, envelope, record: saved.value }
   }
 
   /**
@@ -176,8 +161,9 @@ export class ChatGptCoordinator {
     note?: string
   }, signal?: AbortSignal): Promise<RoundResult> {
     throwIfCancelled(signal)
-    const persisted = await this.requireTask(taskId)
-    this.restoreMachine(persisted)
+    let snapshot = await this.requireTask(taskId)
+    const persisted = snapshot.value
+    const machine = this.restoreMachine(persisted)
     if (persisted.iteration > this.maxIterations) {
       throw new ProtocolError('iteration-limit', `task ${taskId} exceeded maxIterations=${this.maxIterations}`)
     }
@@ -186,9 +172,9 @@ export class ChatGptCoordinator {
     const resumingReview = persisted.state === 'executed' && persisted.waitingFor === 'chatgpt-review'
     let reviewHead = persisted.lastReviewedHead
     if (!resumingReview) {
-      this.machine.applyLocal(taskId, 'executing')
-      this.machine.advanceIteration(taskId)
-      const record = this.machine.get(taskId)
+      machine.applyLocal(taskId, 'executing')
+      machine.advanceIteration(taskId)
+      const record = machine.get(taskId)
       const iteration = record?.iteration ?? persisted.iteration + 1
       const inReplyTo = persisted.iteration
       const envelopeText = formatEnvelope({
@@ -196,7 +182,7 @@ export class ChatGptCoordinator {
         headers: { WORKSPACE_ID: this.options.workspaceId, ...(summary.head !== null ? { HEAD: summary.head } : {}) },
         sections: {
           RESULT: [
-            `Implementation executed by DeepSeek Harness. Changed files: ${summary.changedFiles.length > 0 ? summary.changedFiles.join(', ') : '(none)'}`,
+            `Implementation executed by the executor. Changed files: ${summary.changedFiles.length > 0 ? summary.changedFiles.join(', ') : '(none)'}`,
             `Git HEAD: ${summary.head ?? '(no commits)'}`,
             `Tests recorded: ${summary.testsRecorded ? 'yes — verify via test_status MCP tool' : 'no'}`,
             'Independently review via MCP (git_diff, test_status), then reply DONE or PLAN (fix).',
@@ -209,9 +195,9 @@ export class ChatGptCoordinator {
       }
       await this.options.browser.sendControlMessage(envelopeText, signal)
       this.sendGuard.record(envelopeText)
-      const sent = this.machine.applyLocal(taskId, 'executed')
+      const sent = machine.applyLocal(taskId, 'executed')
       reviewHead = summary.head
-      await this.state.saveTask({
+      snapshot = await this.state.commitTask(taskId, snapshot.revision, {
         ...persisted,
         state: sent.state as TaskState,
         iteration: sent.iteration,
@@ -233,21 +219,21 @@ export class ChatGptCoordinator {
         `ChatGPT review HEAD ${JSON.stringify(envelope.headers.get('HEAD') ?? null)} != executed HEAD ${JSON.stringify(reviewHead)}`,
       )
     }
-    const folded = this.machine.applyReply(envelope)
-    const conversationId = await this.options.browser.conversationId(signal).catch(error => {
+    const folded = machine.applyReply(envelope)
+    const conversationId = await this.options.browser.currentConversation(signal).catch(error => {
       if (error instanceof OperationCancelledError) throw error
       return undefined
     })
     const merged: typeof persisted = {
-      ...persisted,
+      ...snapshot.value,
       conversationId: conversationId ?? persisted.conversationId,
       state: folded.state as TaskState,
       iteration: folded.iteration,
       waitingFor: folded.waitingFor,
       lastReviewedHead: reviewHead,
     }
-    await this.state.saveTask(merged)
-    return { taskId, envelope, record: merged }
+    const saved = await this.state.commitTask(taskId, snapshot.revision, merged)
+    return { taskId, envelope, record: saved.value }
   }
 
   /** Status snapshot for chatgpt_status tool / doctor. */
@@ -294,7 +280,8 @@ export class ChatGptCoordinator {
 
   /** Rebuild the in-memory protocol machine from durable state on demand. */
   private restoreMachine(task: PersistedTask) {
-    return this.machine.restore({
+    const machine = new StateMachine()
+    machine.restore({
       taskId: task.taskId,
       state: task.state,
       iteration: task.iteration,
@@ -302,10 +289,11 @@ export class ChatGptCoordinator {
       goal: task.goal,
       updatedAt: task.updatedAt,
     })
+    return machine
   }
 
-  private async requireTask(taskId: string): Promise<PersistedTask> {
-    const task = await this.state.loadTask(taskId)
+  private async requireTask(taskId: string) {
+    const task = await this.state.loadTaskSnapshot(taskId)
     if (task === undefined) throw new ProtocolError('unknown-task', `task ${taskId} not found in durable state`)
     return task
   }

@@ -200,6 +200,10 @@ export class BrowserHarnessAdapter implements BrowserControl {
     )
   }
 
+  async currentConversation(signal?: AbortSignal): Promise<string | undefined> {
+    return this.conversationId(signal)
+  }
+
   async conversationId(signal?: AbortSignal): Promise<string | undefined> {
     const info = await this.call<{ url?: string }>('browser_page_info', {}, signal)
     const url = info?.url

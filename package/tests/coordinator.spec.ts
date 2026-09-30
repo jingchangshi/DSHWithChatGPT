@@ -26,6 +26,7 @@ function fakeBrowser(replies: string[]): BrowserControl & { sent: string[] } {
     async health() {
       return { ok: true, detail: 'fake' }
     },
+    async currentConversation() { return this.conversationId() },
     async conversationId() {
       return 'conv-1'
     },
@@ -57,7 +58,7 @@ function doneReply(
 
 function makeCoordinator(replies: string[]): { coordinator: ChatGptCoordinator; browser: ReturnType<typeof fakeBrowser>; taskIdSeed: () => string } {
   const browser = fakeBrowser(replies)
-  const coordinator = new ChatGptCoordinator({ workspaceId: 'test-workspace',
+  const coordinator = new ChatGptCoordinator({ plannerInstructions: CHATGPT_BOOT_PROMPT, workspaceId: 'test-workspace',
     browser,
     store: new CoordinatorState(createMemoryStore()),
     workspaceRoot: 'C:\\ws\\demo',
@@ -102,7 +103,7 @@ describe('coordinator happy path', () => {
     // lazily. We run startTask first, capture the id from sent INIT, then
     // queue matching replies. Simplest: derive from the sent message.
     const browser = fakeBrowser([])
-    const coordinator = new ChatGptCoordinator({ workspaceId: 'test-workspace',
+    const coordinator = new ChatGptCoordinator({ plannerInstructions: CHATGPT_BOOT_PROMPT, workspaceId: 'test-workspace',
       browser,
       store: new CoordinatorState(createMemoryStore()),
       workspaceRoot: 'C:\\ws\\demo',
@@ -154,7 +155,7 @@ describe('coordinator happy path', () => {
 describe('coordinator review integrity', () => {
   it('rejects a review that does not acknowledge the executed HEAD', async () => {
     const browser = fakeBrowser([])
-    const coordinator = new ChatGptCoordinator({ workspaceId: 'test-workspace',
+    const coordinator = new ChatGptCoordinator({ plannerInstructions: CHATGPT_BOOT_PROMPT, workspaceId: 'test-workspace',
       browser,
       store: new CoordinatorState(createMemoryStore()),
       workspaceRoot: 'C:\\ws\\head-check',
@@ -241,7 +242,7 @@ describe('coordinator workspace binding', () => {
 describe('coordinator autonomous safety bound', () => {
   it('stops review loops at maxIterations', async () => {
     const browser = fakeBrowser([])
-    const coordinator = new ChatGptCoordinator({ workspaceId: 'test-workspace',
+    const coordinator = new ChatGptCoordinator({ plannerInstructions: CHATGPT_BOOT_PROMPT, workspaceId: 'test-workspace',
       browser,
       store: new CoordinatorState(createMemoryStore()),
       workspaceRoot: 'C:\\ws\\bounded-loop',
@@ -300,7 +301,7 @@ describe('coordinator rejects stale replies', () => {
 
   it('a reply with an old iteration is rejected and state unchanged', async () => {
     const browser = fakeBrowser([])
-    const coordinator = new ChatGptCoordinator({ workspaceId: 'test-workspace',
+    const coordinator = new ChatGptCoordinator({ plannerInstructions: CHATGPT_BOOT_PROMPT, workspaceId: 'test-workspace',
       browser,
       store: new CoordinatorState(createMemoryStore()),
       workspaceRoot: 'C:\\ws\\demo',
@@ -343,7 +344,7 @@ describe('coordinator rejects stale replies', () => {
     const replies: string[] = []
     const { coordinator } = makeCoordinator(replies)
     const browser = fakeBrowser([])
-    const coordinator2 = new ChatGptCoordinator({ workspaceId: 'test-workspace',
+    const coordinator2 = new ChatGptCoordinator({ plannerInstructions: CHATGPT_BOOT_PROMPT, workspaceId: 'test-workspace',
       browser,
       store: new CoordinatorState(createMemoryStore()),
       workspaceRoot: 'C:\\ws\\demo',
@@ -361,7 +362,7 @@ describe('state recovery', () => {
     const store = new CoordinatorState(createMemoryStore())
     const browser = fakeBrowser([])
     let taskId = ''
-    const first = new ChatGptCoordinator({ workspaceId: 'test-workspace', browser, store, workspaceRoot: 'C:\\ws\\resume', replyTimeoutMs: 500 })
+    const first = new ChatGptCoordinator({ plannerInstructions: CHATGPT_BOOT_PROMPT, workspaceId: 'test-workspace', browser, store, workspaceRoot: 'C:\\ws\\resume', replyTimeoutMs: 500 })
     const originalSend = browser.sendControlMessage.bind(browser)
     browser.sendControlMessage = async (text: string) => {
       const match = /TASK_ID: (d2c_[0-9a-z]+)/.exec(text)
@@ -371,7 +372,7 @@ describe('state recovery', () => {
     const started = await first.startTask(mintTaskId(), 'resume me')
     taskId = started.taskId
 
-    const second = new ChatGptCoordinator({ workspaceId: 'test-workspace', browser, store, workspaceRoot: 'C:\\ws\\resume', replyTimeoutMs: 500 })
+    const second = new ChatGptCoordinator({ plannerInstructions: CHATGPT_BOOT_PROMPT, workspaceId: 'test-workspace', browser, store, workspaceRoot: 'C:\\ws\\resume', replyTimeoutMs: 500 })
     await second.recover()
     browser.waitForReply = async () => ({ text: planReply(taskId, 1, 0), complete: true })
     const plan = await second.awaitPlan(taskId)
@@ -382,10 +383,10 @@ describe('state recovery', () => {
   it('survives a coordinator restart with the same store', async () => {
     const store = new CoordinatorState(createMemoryStore())
     const browser = fakeBrowser([])
-    const first = new ChatGptCoordinator({ workspaceId: 'test-workspace', browser, store, workspaceRoot: 'C:\\ws\\r', replyTimeoutMs: 500 })
+    const first = new ChatGptCoordinator({ plannerInstructions: CHATGPT_BOOT_PROMPT, workspaceId: 'test-workspace', browser, store, workspaceRoot: 'C:\\ws\\r', replyTimeoutMs: 500 })
     const started = await first.startTask(mintTaskId(), 'task across restarts')
     // "Restart": new coordinator instance over the same store.
-    const second = new ChatGptCoordinator({ workspaceId: 'test-workspace', browser, store, workspaceRoot: 'C:\\ws\\r', replyTimeoutMs: 500 })
+    const second = new ChatGptCoordinator({ plannerInstructions: CHATGPT_BOOT_PROMPT, workspaceId: 'test-workspace', browser, store, workspaceRoot: 'C:\\ws\\r', replyTimeoutMs: 500 })
     const recovered = await second.recover()
     expect(recovered?.taskId).toBe(started.taskId)
     expect(recovered?.state).toBe('awaiting-plan')

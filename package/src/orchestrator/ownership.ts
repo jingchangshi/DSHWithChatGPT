@@ -1,5 +1,6 @@
 import { randomUUID } from 'node:crypto'
-import type { CoordinatorState, PersistedTask } from './state.ts'
+import type { TaskReader } from '../core/ports/state-store.ts'
+import type { PersistedTask } from '../core/model.ts'
 
 export interface ManagedTunnelOwner {
   workspaceId: string
@@ -23,7 +24,7 @@ function terminal(task: PersistedTask | undefined): boolean {
 export class ManagedTunnelOwnership {
   private pending: Promise<unknown> = Promise.resolve()
 
-  constructor(private readonly store: TunnelOwnerStore, private readonly state: CoordinatorState) {}
+  constructor(private readonly store: TunnelOwnerStore, private readonly state: TaskReader) {}
 
   private serialized<Result>(operation: () => Promise<Result>): Promise<Result> {
     const result = this.pending.then(operation)

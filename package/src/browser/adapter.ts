@@ -1,41 +1,13 @@
-/**
- * Browser control plane abstraction. The orchestrator depends only on the
- * BrowserControl interface; concrete adapters bind DSH BrowserUse /
- * Browser Harness MCP session tools to ChatGPT Web. DOM strategy: semantic
- * selectors (role, aria-label, placeholder, contenteditable) — never long
- * generated CSS classes.
- * @module browser
- */
-
-/** Reply-wait result. */
-export interface BrowserReply {
-  /** Full latest assistant message text (envelope extracted elsewhere). */
-  text: string
-  /** Whether the reply looked complete (composer idle, no stop button). */
-  complete: boolean
-}
-
-/** Abstract ChatGPT-Web-capable browser control. */
-export interface BrowserControl {
-  /** Ensure a browser session exists and ChatGPT is reachable+logged in. */
-  ensureReady(signal?: AbortSignal): Promise<void>
-  /** Open (or reuse) the persistent conversation; returns conversation id/url. */
-  openConversation(conversationId?: string, signal?: AbortSignal): Promise<string>
-  /** Send one control message. Throws on duplicate-send suspicion. */
-  sendControlMessage(text: string, signal?: AbortSignal): Promise<void>
-  /** Wait for and read the latest assistant reply. */
-  waitForReply(timeoutMs: number, signal?: AbortSignal): Promise<BrowserReply>
-  /** Health probe. */
-  health(): Promise<{ ok: boolean; detail: string }>
-  /** Current ChatGPT conversation id, when the page URL has one. */
+import type { ChatControl, ChatReply } from '../core/ports/chat-control.ts'
+/** Legacy browser names retained for compatibility. */
+export type BrowserReply = ChatReply
+export interface BrowserControl extends ChatControl {
   conversationId(signal?: AbortSignal): Promise<string | undefined>
-  /** Best-effort recovery (reload page, re-find composer). */
-  recover(signal?: AbortSignal): Promise<void>
-  /** Read-only readiness facts for the active browser session. */
   readiness?(signal?: AbortSignal): Promise<{ url: string; composer: boolean; loggedOut: boolean }>
-  /** Select the configured app without sending a message, then clean up. */
   probeApp?(appName: string, signal?: AbortSignal): Promise<void>
 }
+export { DuplicateSendGuard } from '../orchestrator/legacy-send-guard.ts'
+export { extractEnvelopeText } from '../protocol/legacy-reply.ts'
 
 /** ChatGPT-not-logged-in detection error. */
 export class ChatGptLoggedOutError extends Error {
@@ -58,34 +30,6 @@ export class BrowserStaleError extends Error {
   constructor(detail: string) {
     super('BROWSER_STALE: ' + detail)
     this.name = 'BrowserStaleError'
-  }
-}
-
-/**
- * Duplicate-send protection: identical control text sent twice within the
- * cooldown window almost always means the first send never registered —
- * the coordinator should verify state before re-sending.
- */
-export class DuplicateSendGuard {
-  private readonly recent = new Map<string, number>()
-
-  constructor(private readonly cooldownMs = 30_000) {}
-
-  /** Whether sending this text now would be a suspicious duplicate. */
-  isDuplicate(text: string): boolean {
-    const last = this.recent.get(text)
-    if (last === undefined) return false
-    return Date.now() - last < this.cooldownMs
-  }
-
-  /** Record a send. */
-  record(text: string): void {
-    this.recent.set(text, Date.now())
-    // GC old entries.
-    const cutoff = Date.now() - this.cooldownMs * 4
-    for (const [key, time] of this.recent) {
-      if (time < cutoff) this.recent.delete(key)
-    }
   }
 }
 
@@ -118,11 +62,4 @@ export class RetryBudget {
   get used(): number {
     return this.attempts
   }
-}
-
-/** Extract the last [D2C] envelope from a conversational reply. */
-export function extractEnvelopeText(reply: string): string | null {
-  const index = reply.lastIndexOf('[D2C]')
-  if (index < 0) return null
-  return reply.slice(index)
 }

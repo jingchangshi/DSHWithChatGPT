@@ -1,5 +1,5 @@
 import type { WorkspaceRuntimeIdentity } from '../workspace/runtime.ts'
-import type { CoordinatorState } from '../orchestrator/state.ts'
+import type { TaskReader } from '../core/ports/state-store.ts'
 import type { ExecutionRecorder } from './recorder.ts'
 
 export interface ObservedExecution {
@@ -33,7 +33,7 @@ export function evidenceIteration(planIteration: number): number {
 /** Resolve durable shell ownership before dispatch without affecting tool execution. */
 export async function freezeShellExecution(
   exec: ObservedExecution,
-  state: CoordinatorState,
+  state: TaskReader,
   resolveWorkspace: (exec: ObservedExecution) => Promise<WorkspaceRuntimeIdentity>,
 ): Promise<FrozenExecutionContext | undefined> {
   if (exec.name !== 'bash' && exec.name !== 'pwsh') return undefined

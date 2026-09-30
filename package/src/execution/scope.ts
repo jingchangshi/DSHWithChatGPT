@@ -1,9 +1,9 @@
-import type { CoordinatorState } from '../orchestrator/state.ts'
+import type { TaskReader } from '../core/ports/state-store.ts'
 import type { ExecutionOutputScope } from '../workspace/runtime.ts'
 import { evidenceIteration } from './observe.ts'
 
 export async function reviewOutputScope(
-  state: CoordinatorState,
+  state: TaskReader,
   workspaceId: string,
   taskId: string,
 ): Promise<ExecutionOutputScope | undefined> {

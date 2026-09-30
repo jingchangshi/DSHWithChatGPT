@@ -15,17 +15,17 @@ import fs from 'node:fs'
 import { join as joinPath } from 'node:path'
 import { randomBytes, randomFillSync } from 'node:crypto'
 import type { Context } from '@deepseek-ai/cordis'
-import { bindExecutionReadLease } from '@deepseek-ai/dsh-execution-world/read-lease'
-import { bindExecutionGitLease } from '@deepseek-ai/dsh-execution-world/git-lease'
+import { DshExecutionWorkspaceAdapter } from './adapters/dsh/execution-workspace.ts'
+import type { ExecutionWorkspacePort } from './core/ports/execution-workspace.ts'
+import type { McpExposureProvider } from './core/ports/mcp-exposure.ts'
 import { z } from 'zod'
 import { defineDomain, domainTable } from '@deepseek-ai/dsh-storage-domain'
-import type { Domain } from '@deepseek-ai/dsh-storage-domain'
+import { legacyStateDomain, CordisStateBackend } from './adapters/cordis/state-store.ts'
 import { ChatGptCoordinator } from './orchestrator/index.ts'
-import { CoordinatorState, type PersistedTask, type TaskState } from './orchestrator/state.ts'
-import type { StateStore } from './orchestrator/state.ts'
+import { CHATGPT_BOOT_PROMPT } from './protocol/legacy-planner-policy.ts'
+import { CoordinatorState } from './orchestrator/state.ts'
 import { buildRuntimeWorkspaceTools } from './bridge/tools.ts'
 import { WorkspaceRuntimeRegistry } from './workspace/runtime.ts'
-import { withWorkspaceReadLease } from './workspace/with-read-lease.ts'
 import { reviewOutputScope } from './execution/scope.ts'
 import { ManagedTunnelOwnership } from './orchestrator/ownership.ts'
 import { ControlBrowserOwnership } from './browser/ownership.ts'
@@ -37,7 +37,7 @@ import { BrowserHarnessAdapter } from './browser/index.ts'
 import { gitStatus } from './workspace/index.ts'
 import { freezeShellExecution, observeShellResult, type FrozenExecutionContext, type ObservedExecution, type ObservedResult } from './execution/observe.ts'
 import { WorkspaceRecorders } from './execution/workspaces.ts'
-import { TunnelSupervisor } from './tunnel/index.ts'
+import { OpenAiSecureTunnelAdapter } from './adapters/mcp-exposure/openai-secure-tunnel.ts'
 import { throwIfCancelled } from './cancellation.ts'
 import { runDoctor } from './readiness/doctor.ts'
 
@@ -105,40 +105,6 @@ export function resolveGitReadPolicy(config: Config): NonNullable<Config['gitRea
 
 // ---------------------------------------------------------------- state
 
-const taskRecordSchema = z.object({
-  taskId: z.string(),
-  goal: z.string(),
-  state: z.enum(['awaiting-plan', 'planned', 'executing', 'executed', 'awaiting-review', 'done', 'blocked', 'error']),
-  iteration: z.number(),
-  waitingFor: z.enum(['none', 'chatgpt-plan', 'chatgpt-review', 'dsh-execution', 'user']),
-  conversationId: z.string().nullable(),
-  lastReviewedHead: z.string().nullable(),
-  createdAt: z.number(),
-  updatedAt: z.number(),
-  lastError: z.string().nullable(),
-})
-
-const bindingSchema = z.object({
-  workspaceRoot: z.string(),
-  conversationId: z.string().nullable(),
-  lastTaskId: z.string().nullable(),
-  updatedAt: z.number(),
-})
-
-const indexSchema = z.object({ ids: z.array(z.string()) })
-
-const d2cDomain = defineDomain({
-  name: 'd2c_state',
-  version: 1,
-  tables: {
-    tasks: domainTable(taskRecordSchema),
-    bindings: domainTable(bindingSchema),
-    index: domainTable(indexSchema),
-  },
-})
-
-type D2cDomain = Domain<typeof d2cDomain>
-
 const controlDomain = defineDomain({
   name: 'd2c_control', version: 1,
   tables: {
@@ -148,36 +114,6 @@ const controlDomain = defineDomain({
     })),
   },
 })
-
-/** StateStore backed by the Cordis storage domain (durable across restarts). */
-class DomainStateStore implements StateStore {
-  constructor(private readonly domain: D2cDomain) {}
-
-  async get<T>(key: string): Promise<T | undefined> {
-    const [table, ...rest] = key.split(':')
-    const recordKey = rest.join(':')
-    if (table === 'task') return this.domain.table('tasks').get(recordKey) as T | undefined
-    if (table === 'workspace') return this.domain.table('bindings').get(recordKey) as T | undefined
-    if (table === 'index') return this.domain.table('index').get(recordKey) as T | undefined
-    return undefined
-  }
-
-  async put<T>(key: string, value: T): Promise<void> {
-    const [table, ...rest] = key.split(':')
-    const recordKey = rest.join(':')
-    if (table === 'task') await this.domain.table('tasks').put(recordKey, value as PersistedTask)
-    else if (table === 'workspace') await this.domain.table('bindings').put(recordKey, value as never)
-    else if (table === 'index') await this.domain.table('index').put(recordKey, value as never)
-  }
-
-  async delete(key: string): Promise<void> {
-    const [table, ...rest] = key.split(':')
-    const recordKey = rest.join(':')
-    if (table === 'task') await this.domain.table('tasks').delete(recordKey)
-    else if (table === 'workspace') await this.domain.table('bindings').delete(recordKey)
-    else if (table === 'index') await this.domain.table('index').delete(recordKey)
-  }
-}
 
 // ---------------------------------------------------------------- apply
 
@@ -193,9 +129,9 @@ export async function apply(ctx: Context, config: Config): Promise<void> {
   const activate = async (): Promise<void> => {
     const storageDomain = ctx.get('storageDomain')
     if (storageDomain === undefined) throw new Error('DURABLE_STORAGE_UNAVAILABLE')
-    const domain = await storageDomain.open(d2cDomain)
+    const domain = await storageDomain.open(legacyStateDomain)
     ctx.effect(() => () => domain.close(), 'dsh-with-chatgpt durable state')
-    const coordinatorState = new CoordinatorState(new DomainStateStore(domain))
+    const coordinatorState = new CoordinatorState(new CordisStateBackend(domain))
     const control = await storageDomain.open(controlDomain)
     ctx.effect(() => () => control.close(), 'dsh-with-chatgpt control state')
     const ownership = new ManagedTunnelOwnership({
@@ -209,7 +145,7 @@ export async function apply(ctx: Context, config: Config): Promise<void> {
     const stateDir = joinStateDir()
     const recorders = new WorkspaceRecorders(stateDir)
     const workspaceRuntimes = new WorkspaceRuntimeRegistry()
-    const tunnel = new TunnelSupervisor({
+    const exposureAdapter = new OpenAiSecureTunnelAdapter({
       mode: config.tunnelMode,
       clientPath: config.tunnelClientPath,
       ...(config.tunnelId !== undefined ? { configuredTunnelId: config.tunnelId } : {}),
@@ -218,6 +154,8 @@ export async function apply(ctx: Context, config: Config): Promise<void> {
       startupTimeoutMs: config.tunnelStartupTimeoutMs,
       stateDir,
     })
+
+    const exposure: McpExposureProvider = exposureAdapter
 
     // ---- browser control
     // Browser Harness tools are session-gated, so every model-facing tool call
@@ -302,19 +240,22 @@ export async function apply(ctx: Context, config: Config): Promise<void> {
       const start = async () => {
         const bridge = await ensureBridge(workspace)
         throwIfCancelled(signal)
-        const tunnelStatus = await tunnel.ensure({
+        const exposureStatus = await exposure.ensure({
           workspaceId: bridge.workspaceId,
-          localUrl: bridge.localUrl,
-          bearerValueFile: bridge.tokenFile,
+          loopbackEndpoint: bridge.localUrl,
+          authorizationReference: bridge.tokenFile,
         }, signal)
+        if (!exposureStatus.ready) throw new Error('MCP_EXPOSURE_NOT_READY')
+        const tunnelStatus = exposureAdapter.compatibilityStatus(exposureStatus)
         return { bridge, tunnelStatus }
       }
-      return tunnel.effectiveMode() === 'managed' ? ownership.withWorkspace(workspace.workspaceId, start) : start()
+      return exposureAdapter.effectiveMode() === 'managed' ? ownership.withWorkspace(workspace.workspaceId, start) : start()
     }
 
     // ---- coordinator
     function coordinatorFor(workspace: WorkspaceRuntimeIdentity, agent: unknown): ChatGptCoordinator {
       return new ChatGptCoordinator({
+        plannerInstructions: CHATGPT_BOOT_PROMPT,
         browser: makeBrowser(agent),
         store: coordinatorState,
         workspaceRoot: workspace.displayRoot,
@@ -369,18 +310,21 @@ export async function apply(ctx: Context, config: Config): Promise<void> {
           }
           const operation = async () => {
             if (definition.name === 'chatgpt_doctor' && args.mode !== undefined && args.mode !== 'local' && args.mode !== 'app-proof') throw new Error('INVALID_DOCTOR_MODE')
-            const workspace = await workspaceOf(ctx, exec)
-            return withWorkspaceReadLease(workspaceRuntimes, workspace,
-              signal => bindExecutionReadLease(ctx, workspace.displayRoot, signal),
-              signal => definition.execute(args, { ...exec, signal }, workspace), exec?.signal,
-              signal => gitReadPolicy === 'disabled'
-                ? Promise.reject(new Error('Git read authorization is disabled'))
-                : bindExecutionGitLease(ctx, workspace.displayRoot, signal, gitReadPolicy === 'allow-hardened-windows' ? 'allow-hardened-windows' : 'require-full'),
-              gitReadPolicy === 'disabled' ? undefined : gitReadPolicy,
-              gitReadPolicy === 'disabled' ? 'GIT_READ_DISABLED' : gitReadPolicy === 'require-full' ? 'GIT_FULL_CONFINEMENT_REQUIRED' : 'GIT_HARDENED_WINDOWS_UNAVAILABLE',
-              definition.name === 'chatgpt_review'
-                ? () => reviewOutputScope(coordinatorState, workspace.workspaceId, String(args.taskId)) : undefined,
-              definition.name === 'chatgpt_doctor' && args.mode === 'app-proof' ? () => randomBytes(32).toString('hex') : undefined)
+            const workspacePort: ExecutionWorkspacePort = new DshExecutionWorkspaceAdapter({
+              context: ctx, registry: workspaceRuntimes, gitReadPolicy,
+              resolve: (_locator, signal) => workspaceOf(ctx, { ...exec, signal }),
+              ...(definition.name === 'chatgpt_review' ? {
+                authorizeOutput: workspace => reviewOutputScope(coordinatorState, workspace.workspaceId, String(args.taskId)),
+              } : {}),
+              ...(definition.name === 'chatgpt_doctor' && args.mode === 'app-proof' ? {
+                createAppProofChallenge: () => randomBytes(32).toString('hex'),
+              } : {}),
+            })
+            return workspacePort.withOperation({
+              locator: exec,
+              capabilities: definition.name === 'chatgpt_plan' || definition.name === 'chatgpt_review'
+                ? ['workspaceContentRead', 'gitRead'] : [],
+            }, authority => definition.execute(args, { ...exec, signal: authority.signal }, authority.identity), exec?.signal)
           }
           return definition.name === 'chatgpt_status' ? operation() : browserOwnership.run(operation)
         },
@@ -439,7 +383,7 @@ export async function apply(ctx: Context, config: Config): Promise<void> {
         // Bridge + tunnel must be ready before INIT so ChatGPT can immediately
         // verify workspace_info for the exact workspace id.
         const taskId = mintTaskId()
-        const owner = tunnel.effectiveMode() === 'managed' ? await ownership.reserve(workspace.workspaceId, taskId) : undefined
+        const owner = exposureAdapter.effectiveMode() === 'managed' ? await ownership.reserve(workspace.workspaceId, taskId) : undefined
         try {
           await ensureRuntime(workspace, exec?.signal)
           const started = await coordinator.startTask(taskId, String(args.goal), { signal: exec?.signal })
@@ -484,7 +428,7 @@ export async function apply(ctx: Context, config: Config): Promise<void> {
         workspaceRuntimes.require(workspace.workspaceId, 'workspaceContentRead')
         workspaceRuntimes.require(workspace.workspaceId, 'gitRead')
         workspaceRuntimes.require(workspace.workspaceId, 'executionOutput')
-        const owner = tunnel.effectiveMode() === 'managed' ? await ownership.requireTaskOwner(workspace.workspaceId, String(args.taskId)) : undefined
+        const owner = exposureAdapter.effectiveMode() === 'managed' ? await ownership.requireTaskOwner(workspace.workspaceId, String(args.taskId)) : undefined
         try {
           await ensureRuntime(workspace, exec?.signal)
           if (config.gitPolicy === 'commit-push') {
@@ -608,7 +552,7 @@ export async function apply(ctx: Context, config: Config): Promise<void> {
       },
       async execute(_args: Record<string, unknown>, exec: ToolExec | undefined, workspaceRoot: WorkspaceRuntimeIdentity) {
         const coordinator = coordinatorFor(workspaceRoot, exec?.agent)
-        if (tunnel.effectiveMode() === 'managed') {
+        if (exposureAdapter.effectiveMode() === 'managed') {
           if (await ownership.reconnect(workspaceRoot.workspaceId) === 'cleared') {
             return { recovered: false, task: null, detail: 'orphaned pre-task reservation cleared; no task was persisted' }
           }
@@ -688,7 +632,7 @@ export async function apply(ctx: Context, config: Config): Promise<void> {
     // dropping it through Promise.then(). This closes bridge listeners and
     // the storage-domain handle when the plugin/profile unloads.
     ctx.effect(() => async () => {
-      await tunnel.close()
+      await exposure.close()
       await Promise.allSettled([...bridges.values()].map(bridge => bridge.close()))
       bridges.clear()
     }, 'dsh-with-chatgpt runtime cleanup')
