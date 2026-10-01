@@ -51,7 +51,7 @@ export class SidecarSupervisor {
 
   async close(): Promise<void> {
     if (this.#closing) return this.#closing
-    this.#closing = (async () => {
+    const closing = (async () => {
       const child = this.#child
       this.#child = undefined
       if (!child || child.exitCode !== null) return
@@ -60,6 +60,9 @@ export class SidecarSupervisor {
       await Promise.race([new Promise<void>(resolve => child.once('exit', () => resolve())), delay(timeout)])
       if (child.exitCode === null) child.kill('SIGKILL')
     })()
-    return this.#closing
+    this.#closing = closing
+    try { await closing } finally {
+      if (this.#closing === closing) this.#closing = undefined
+    }
   }
 }
