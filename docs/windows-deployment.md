@@ -7,7 +7,7 @@ Status: PARTIAL — Stage A target; environment snapshot and command results are
 | Browser A | Codex built-in browser, CodexWithChatGPT development connector | previous environment PLAN/REVIEW VERIFIED; architecture review pending |
 | Browser B | independent Chrome profile under LocalAppData/DSHWithChatGPT/chrome-product | loopback CDP infrastructure previously VERIFIED; recheck before live acceptance |
 | Product CDP | 127.0.0.1:9222 | never expose or forward this port remotely |
-| Sidecar | 127.0.0.1:18765 default; configurable literal-loopback port | NOT_RUN; implementation absent at baseline |
+| Sidecar | 127.0.0.1:18765 default; configurable literal-loopback port | semantic RPC implemented; live Browser B proof NOT_RUN |
 | Windows DSH | related feature branch, Corepack pnpm 11.7.0 | previous build/CLI VERIFIED |
 | Executor | deepseek-official / deepseek-flash; provider-default reasoning | authentication VERIFIED; generation NOT_RUN |
 | Plugin | package/, Corepack pnpm 10.34.5 | previous build/typecheck VERIFIED; current suite FAILED baseline |
@@ -24,7 +24,7 @@ Status: PARTIAL — Stage A target; environment snapshot and command results are
 6. Acquire Execution World identity and current capabilities, bind authenticated Bridge and start exclusive secure exposure. Product Custom App must be exactly the configured App; development connector cannot substitute for it.
 7. Check local readiness separately from actual App challenge proof, then run a genuine Planner–Executor task. A green doctor is never full acceptance.
 
-Sidecar deployment configuration is `endpoint`, `authentication`, `rpcVersion`, request/reply deadlines and body limits. The client does not accept Chrome paths/CDP/Windows/SSH options. Credentials and Sidecar own-state journals stay outside repos; Bridge auth and exposure are distinct from Sidecar auth.
+Sidecar deployment configuration is `endpoint`, `authentication`, `rpcVersion`, request/reply deadlines and body limits. When `sidecarProcessCommand` is configured, the deployment layer owns that child process through `SidecarSupervisor`: it starts only after protected credential resolution, waits for authenticated semantic health, fails closed on timeout/exit, and closes the child during runtime disposal. When omitted, the Sidecar remains externally managed. The client does not accept Chrome paths/CDP/Windows/SSH options. Credentials and Sidecar own-state journals stay outside repos; Bridge auth and exposure are distinct from Sidecar auth.
 
 ## RPC safety and supervision
 
