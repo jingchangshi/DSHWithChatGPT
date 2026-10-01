@@ -18,6 +18,9 @@ describe('canonical Planner-Executor E2E runner', () => {
   it('derives acceptance from recorded nonce and independent review evidence', () => {
     expect(script).toContain('successfulNonces.size > 0')
     expect(script).toContain('successfulNonces.has(review.reviewNonce)')
+    expect(script).toContain('upstream === head')
+    expect(script).toContain('reviewDispatch?.reviewHead === head')
+    expect(script).toContain('const phaseTwo = records.some(record => record.phase === \'2\')')
     expect(script).toContain('reviewArgumentNonceLeak === true')
     expect(script).not.toContain('plannerExecutorAccepted: false')
   })

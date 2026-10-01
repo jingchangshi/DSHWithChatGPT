@@ -69,10 +69,22 @@ child.on('close', async code => {
   const records = observations.split('\n').filter(Boolean).map(line => JSON.parse(line))
   const successfulNonces = new Set(records.filter(record => record.kind === 'result' && record.name === 'pwsh' && record.exitCode === 0 && typeof record.nonce === 'string').map(record => record.nonce))
   const review = records.find(record => record.kind === 'result' && record.name === 'chatgpt_review' && record.state === 'done')
+  const reviewDispatch = records.find(record => record.kind === 'dispatch' && record.name === 'chatgpt_review')
+  const branch = git('branch', '--show-current')
+  const head = git('rev-parse', 'HEAD')
+  const upstream = (() => { try { return git('rev-parse', '@{upstream}') } catch { return '' } })()
+  const gitIdentity = git('status', '--porcelain') === ''
+    && !['main', 'master'].includes(branch)
+    && upstream !== ''
+    && upstream === head
+    && reviewDispatch?.reviewHead === head
+  const phaseTwo = records.some(record => record.phase === '2')
   const plannerExecutorAccepted = code === 0
     && successfulNonces.size > 0
     && review?.reviewNonce !== undefined
     && successfulNonces.has(review.reviewNonce)
+    && gitIdentity
+    && phaseTwo
     && !records.some(record => record.reviewArgumentNonceLeak === true)
     && !records.some(record => record.name === 'browser-harness')
   await writeFile(path.join(root, 'result.json'), JSON.stringify({ code, root, plannerExecutorAccepted, restartPending: records.some(record => record.kind === 'restart-checkpoint') }, null, 2))
