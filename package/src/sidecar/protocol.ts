@@ -9,6 +9,7 @@ export const SIDECAR_METHODS = ['health', 'ensureReady', 'openConversation', 'se
 export type SidecarMethod = typeof SIDECAR_METHODS[number]
 const identifier = z.string().regex(/^[A-Za-z0-9_.:-]{1,128}$/)
 const conversation = z.string().regex(/^[A-Za-z0-9_-]{1,128}$/)
+const replyBaselineSchema = z.object({ version: z.literal(1), conversationId: conversation.nullable(), assistantCount: z.number().int().nonnegative().max(Number.MAX_SAFE_INTEGER), textDigest: z.string().regex(/^[a-f0-9]{64}$/), observationEpoch: z.string().regex(/^[a-f0-9]{64}$/) }).strict()
 const correlation = z.object({
   taskId: identifier,
   iteration: z.number().int().min(0).max(Number.MAX_SAFE_INTEGER),
@@ -16,7 +17,7 @@ const correlation = z.object({
   phase: z.enum(['INIT', 'PLAN', 'EXECUTED', 'DONE']),
   head: z.string().regex(/^(?:[a-f0-9]{40}|[a-f0-9]{64})$/).optional(),
 }).strict()
-const operationSchema = z.object({ operationId: identifier, correlation: correlation.optional() }).strict()
+const operationSchema = z.object({ operationId: identifier, correlation: correlation.optional(), replyBaseline: replyBaselineSchema.optional() }).strict()
 export function parseControlOperation(value: unknown): z.infer<typeof operationSchema> {
   const parsed = operationSchema.safeParse(value)
   if (!parsed.success) throw new SidecarRpcError('SIDECAR_INVALID_REQUEST')
@@ -30,12 +31,13 @@ const envelope = {
   correlation: correlation.optional(),
 }
 const empty = z.object({}).strict()
+const observationEnvelope = { ...envelope, replyBaseline: replyBaselineSchema.optional() }
 const requestSchema = z.discriminatedUnion('method', [
   z.object({ ...envelope, method: z.literal('health'), params: empty }).strict(),
   z.object({ ...envelope, method: z.literal('ensureReady'), params: empty }).strict(),
   z.object({ ...envelope, method: z.literal('openConversation'), params: z.object({ conversationId: conversation.optional() }).strict() }).strict(),
-  z.object({ ...envelope, method: z.literal('sendControlMessage'), params: z.object({ text: z.string().min(1).max(SIDECAR_MAX_REQUEST_BYTES) }).strict() }).strict(),
-  z.object({ ...envelope, method: z.literal('waitForReply'), params: z.object({ timeoutMs: z.number().int().positive().max(SIDECAR_MAX_WAIT_MS) }).strict() }).strict(),
+  z.object({ ...observationEnvelope, method: z.literal('sendControlMessage'), params: z.object({ text: z.string().min(1).max(SIDECAR_MAX_REQUEST_BYTES) }).strict() }).strict(),
+  z.object({ ...observationEnvelope, method: z.literal('waitForReply'), params: z.object({ timeoutMs: z.number().int().positive().max(SIDECAR_MAX_WAIT_MS) }).strict() }).strict(),
   z.object({ ...envelope, method: z.literal('currentConversation'), params: empty }).strict(),
   z.object({ ...envelope, method: z.literal('recover'), params: empty }).strict(),
   z.object({ ...envelope, method: z.literal('readiness'), params: empty }).strict(),

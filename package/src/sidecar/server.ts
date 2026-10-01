@@ -20,6 +20,7 @@ export interface SidecarServerConfig {
 type Outcome = { ok: true; result: unknown } | { ok: false; error: { code: SidecarErrorCode } }
 const failure = (code: SidecarErrorCode): Outcome => ({ ok: false, error: { code } })
 const digest = (value: unknown) => createHash('sha256').update(JSON.stringify(value)).digest('hex')
+const operationPayloadDigest = (request: SidecarRequest) => digest({ method: request.method, params: request.params, correlation: request.correlation, replyBaseline: 'replyBaseline' in request ? request.replyBaseline : undefined })
 function providerError(error: unknown): SidecarErrorCode {
   if (error instanceof SidecarRpcError) return error.code
   const code = (error as { code?: unknown })?.code
@@ -99,7 +100,7 @@ export async function startSidecar(config: SidecarServerConfig) {
     try {
       if (durable(request)) {
         const correlationIdentity = request.correlation ? { method: request.method, taskId: request.correlation.taskId, iteration: request.correlation.iteration, workspaceId: request.correlation.workspaceId, phase: request.correlation.phase } : undefined
-        const entry = await journal.prepare({ operationId: request.operationId, payloadDigest: digest({ method: request.method, params: request.params, correlation: request.correlation }), method: request.method, createdAt: Date.now(), ...(correlationIdentity ? { correlationDigest: digest(correlationIdentity) } : {}) })
+        const entry = await journal.prepare({ operationId: request.operationId, payloadDigest: operationPayloadDigest(request), method: request.method, createdAt: Date.now(), ...(correlationIdentity ? { correlationDigest: digest(correlationIdentity) } : {}) })
         if (entry.phase !== 'prepared') {
           if (entry.phase === 'accepted' && request.method === 'sendControlMessage') return { ok: true, result: null }
           return failure('SEND_UNCERTAIN')
@@ -114,8 +115,8 @@ export async function startSidecar(config: SidecarServerConfig) {
         switch (request.method) {
           case 'ensureReady': await config.driver.ensureReady(controller.signal); return null
           case 'openConversation': return config.driver.openConversation(request.params.conversationId, controller.signal)
-          case 'sendControlMessage': await config.driver.sendControlMessage(request.params.text, controller.signal, { operationId: request.operationId, correlation: request.correlation }); return null
-          case 'waitForReply': return config.driver.waitForReply(request.params.timeoutMs, controller.signal, { operationId: request.operationId, correlation: request.correlation })
+          case 'sendControlMessage': await config.driver.sendControlMessage(request.params.text, controller.signal, { operationId: request.operationId, correlation: request.correlation, replyBaseline: request.replyBaseline }); return null
+          case 'waitForReply': return config.driver.waitForReply(request.params.timeoutMs, controller.signal, { operationId: request.operationId, correlation: request.correlation, replyBaseline: request.replyBaseline })
           case 'currentConversation': return await config.driver.currentConversation(controller.signal) ?? null
           case 'recover': await config.driver.recover(controller.signal); return null
           case 'readiness': return config.driver.readiness!(controller.signal)
@@ -165,7 +166,7 @@ export async function startSidecar(config: SidecarServerConfig) {
     const previousAttempt = attempts.get(request.requestId)
     if (previousAttempt) return previousAttempt.digest === attemptDigest ? previousAttempt.outcome : Promise.resolve(failure('REPLAY_CONFLICT'))
     if (attempts.size >= 2_048) return Promise.resolve(failure('JOURNAL_CAPACITY'))
-    const operationDigest = digest({ method: request.method, params: request.params, correlation: request.correlation })
+    const operationDigest = operationPayloadDigest(request)
     const previousOperation = operations.get(request.operationId)
     let outcome: Promise<Outcome>
     if (previousOperation && (previousOperation.digest !== operationDigest || !previousOperation.retryable)) outcome = previousOperation.digest === operationDigest ? previousOperation.outcome : Promise.resolve(failure('REPLAY_CONFLICT'))

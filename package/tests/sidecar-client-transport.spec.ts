@@ -20,12 +20,13 @@ describe('bounded neutral client transport', () => {
   it('preserves caller operation identity and correlation across fresh transport attempts', async () => {
     const received: any[] = []
     const client = await fixture((body, response) => { received.push(body); response.end(success(body, body.method === 'health' ? { ok: true, detail: 'ready' } : null)) })
-    const operation = { operationId: 'durable-send', correlation: { taskId: 'task-one', iteration: 1, workspaceId: 'workspace-one', phase: 'EXECUTED' as const, head: 'a'.repeat(40) } }
+    const operation = { operationId: 'durable-send', correlation: { taskId: 'task-one', iteration: 1, workspaceId: 'workspace-one', phase: 'EXECUTED' as const, head: 'a'.repeat(40) }, replyBaseline: { version: 1 as const, conversationId: 'owned', assistantCount: 1, textDigest: 'b'.repeat(64), observationEpoch: 'c'.repeat(64) } }
     await client.sendControlMessage('same control', undefined, operation)
     await client.sendControlMessage('same control', undefined, operation)
     const sends = received.filter(body => body.method === 'sendControlMessage')
     expect(sends.map(body => body.operationId)).toEqual(['durable-send', 'durable-send'])
     expect(sends[0].correlation).toEqual(operation.correlation)
+    expect(sends[0].replyBaseline).toEqual(operation.replyBaseline)
     expect(sends[1].requestId).not.toBe(sends[0].requestId)
   })
   it('handshakes a generation and validates semantic replies', async () => {

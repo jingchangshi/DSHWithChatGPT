@@ -1,5 +1,6 @@
 import { CancellableBrowserPrimitives, type BrowserPrimitives, type BrowserMutationContext, type BrowserMutationAck } from './primitives.ts'
-import type { ChatControl, ChatReply as BrowserReply } from '../core/ports/chat-control.ts'
+import { createHash } from 'node:crypto'
+import type { ChatObservationControl, ControlOperation, ReplyObservationBaseline, ChatReply as BrowserReply } from '../core/ports/chat-control.ts'
 import { BrowserTargetChangedError, sameBrowserTarget, type BrowserTargetIdentity } from './epoch.ts'
 import type { BrowserTransition } from './transitions.ts'
 import { abortableDelay, OperationCancelledError, throwIfCancelled } from '../cancellation.ts'
@@ -20,7 +21,7 @@ interface ChatPageState {
 
 interface ReplyBaseline {
   assistantCount: number
-  text: string
+  textDigest: string
 }
 
 interface ComposerDraft {
@@ -43,7 +44,7 @@ const draftText = text => String(text).replace(/\u00a0/g, ' ').trim();
 `
 
 /** Shared ChatGPT Web semantics, independent of transport and host. */
-export class ChatGptWebDriver implements ChatControl {
+export class ChatGptWebDriver implements ChatObservationControl {
   private replyBaseline: ReplyBaseline | undefined
   private target: BrowserTargetIdentity | undefined
   private fenced = false
@@ -112,16 +113,39 @@ export class ChatGptWebDriver implements ChatControl {
     }
   }
 
-  async sendControlMessage(text: string, signal?: AbortSignal): Promise<void> {
+  async captureReplyBaseline(signal?: AbortSignal): Promise<ReplyObservationBaseline> {
+    this.resetTarget()
+    this.fenced = true
+    const state = await this.inspectChatPage(signal)
+    if (state.loggedOut) throw new ChatGptLoggedOutError()
+    if (!state.composer) throw new BrowserStaleError('ChatGPT composer is missing or ambiguous')
+    const conversationId = await this.currentConversation(signal)
+    const target = await this.browser.currentTarget(signal)
+    return { version: 1, conversationId: conversationId ?? null, assistantCount: state.assistantCount, textDigest: replyTextDigest(state.text), observationEpoch: observationEpoch(target) }
+  }
+
+  private async requireObservationBaseline(baseline: ReplyObservationBaseline, signal?: AbortSignal): Promise<void> {
+    if (!baseline || baseline.version !== 1 || !Number.isSafeInteger(baseline.assistantCount) || baseline.assistantCount < 0
+      || !/^[a-f0-9]{64}$/.test(baseline.textDigest) || !/^[a-f0-9]{64}$/.test(baseline.observationEpoch)
+      || (baseline.conversationId !== null && (typeof baseline.conversationId !== 'string' || !/^[A-Za-z0-9_-]{1,128}$/.test(baseline.conversationId)))) throw new BrowserTargetChangedError()
+    if ((await this.currentConversation(signal) ?? null) !== baseline.conversationId
+      || observationEpoch(await this.browser.currentTarget(signal)) !== baseline.observationEpoch) throw new BrowserTargetChangedError()
+  }
+
+  async sendControlMessage(text: string, signal?: AbortSignal, operation?: ControlOperation): Promise<void> {
     this.target = undefined
     this.route = undefined
     this.finalEnter = 'before'
     this.fenced = true
     const state = await this.inspectChatPage(signal)
+    if (operation?.replyBaseline) {
+      await this.requireObservationBaseline(operation.replyBaseline, signal)
+      if (state.assistantCount !== operation.replyBaseline.assistantCount || replyTextDigest(state.text) !== operation.replyBaseline.textDigest) throw new BrowserTargetChangedError()
+    }
     if (state.loggedOut) throw new ChatGptLoggedOutError()
     if (!state.composer) throw new BrowserStaleError('ChatGPT composer not found')
     await this.withComposerDraft(async draft => {
-      this.replyBaseline = { assistantCount: state.assistantCount, text: state.text }
+      this.replyBaseline = { assistantCount: state.assistantCount, textDigest: replyTextDigest(state.text) }
       const appName = this.appName.trim()
       if (appName !== '') {
         await this.activateAppMention(appName, draft, signal)
@@ -144,12 +168,17 @@ export class ChatGptWebDriver implements ChatControl {
     }, false, signal)
   }
 
-  async waitForReply(timeoutMs: number, signal?: AbortSignal): Promise<BrowserReply> {
+  async waitForReply(timeoutMs: number, signal?: AbortSignal, operation?: ControlOperation): Promise<BrowserReply> {
     if (!Number.isFinite(timeoutMs) || timeoutMs <= 0) throw new BrowserStaleError('reply timeout must be positive and finite')
     const deadline = new AbortController()
     const timer = setTimeout(() => deadline.abort(), timeoutMs)
     const active = signal ? AbortSignal.any([signal, deadline.signal]) : deadline.signal
     try {
+      if (operation?.replyBaseline) {
+        this.fenced = true
+        await this.requireObservationBaseline(operation.replyBaseline, active)
+        this.replyBaseline = { assistantCount: operation.replyBaseline.assistantCount, textDigest: operation.replyBaseline.textDigest }
+      }
       return await this.waitForReplyWithinDeadline(timeoutMs, active)
     } catch (error) {
       throwIfCancelled(signal)
@@ -161,7 +190,7 @@ export class ChatGptWebDriver implements ChatControl {
 
   private async waitForReplyWithinDeadline(timeoutMs: number, signal?: AbortSignal): Promise<BrowserReply> {
     const deadline = Date.now() + timeoutMs
-    const baseline = this.replyBaseline ?? { assistantCount: -1, text: '' }
+    const baseline = this.replyBaseline ?? { assistantCount: -1, textDigest: replyTextDigest('') }
     let last = ''
     let lastChangedAt = 0
     let stableObservations = 0
@@ -176,7 +205,7 @@ export class ChatGptWebDriver implements ChatControl {
 
         const changedFromBaseline =
           state.assistantCount > baseline.assistantCount
-          || (state.text.trim() !== '' && state.text !== baseline.text)
+          || (state.text.trim() !== '' && replyTextDigest(state.text) !== baseline.textDigest)
 
         if (!changedFromBaseline) {
           stableObservations = 0
@@ -605,6 +634,11 @@ export class ChatGptWebDriver implements ChatControl {
   }
 
 
+}
+
+function replyTextDigest(text: string): string { return createHash('sha256').update(text, 'utf8').digest('hex') }
+function observationEpoch(target: BrowserTargetIdentity): string {
+  return createHash('sha256').update(JSON.stringify([target.targetId, target.documentId, target.epoch])).digest('hex')
 }
 
 function classifyChatRoute(value: string): string {

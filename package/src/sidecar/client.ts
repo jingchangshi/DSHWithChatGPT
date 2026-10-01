@@ -25,10 +25,10 @@ export class SidecarChatControlClient implements ChatControl, ChatControlDiagnos
     this.timeoutMs = config.requestTimeoutMs ?? 30_000
     if (!config.authentication || /[\r\n]/.test(config.authentication) || !Number.isInteger(this.timeoutMs) || this.timeoutMs < 1 || this.timeoutMs > 600_000) throw new SidecarRpcError('SIDECAR_INVALID_REQUEST')
   }
-  private async rpc(method: SidecarMethod, params: unknown, operationId: string, signal?: AbortSignal, timeoutMs = this.timeoutMs, correlation?: ControlOperation['correlation']): Promise<unknown> {
+  private async rpc(method: SidecarMethod, params: unknown, operationId: string, signal?: AbortSignal, timeoutMs = this.timeoutMs, correlation?: ControlOperation['correlation'], replyBaseline?: ControlOperation['replyBaseline']): Promise<unknown> {
     if (signal?.aborted) throw new SidecarRpcError('OPERATION_CANCELLED')
     const requestId = crypto.randomUUID()
-    const request = parseSidecarRequest({ version: 1, requestId, operationId, generation: this.generation, method, params, correlation })
+    const request = parseSidecarRequest({ version: 1, requestId, operationId, generation: this.generation, method, params, correlation, ...(replyBaseline === undefined ? {} : { replyBaseline }) })
     const body = JSON.stringify(request)
     if (new TextEncoder().encode(body).byteLength > SIDECAR_MAX_REQUEST_BYTES) throw new SidecarRpcError('SIDECAR_INVALID_REQUEST')
     const deadline = AbortSignal.timeout(timeoutMs)
@@ -73,7 +73,7 @@ export class SidecarChatControlClient implements ChatControl, ChatControlDiagnos
     const operation = parseControlOperation(suppliedOperation ?? { operationId: crypto.randomUUID() })
     if (!this.generation) await this.healthWithSignal(signal)
     const operationId = operation.operationId
-    try { return await this.rpc(method, params, operationId, signal, timeoutMs, operation.correlation) }
+    try { return await this.rpc(method, params, operationId, signal, timeoutMs, operation.correlation, operation.replyBaseline) }
     catch (error) {
       if (error instanceof SidecarRpcError && ['OPERATION_CANCELLED', 'SIDECAR_TIMEOUT'].includes(error.code)) {
         // Independent transport lifetime: an aborted caller cannot abort cleanup.

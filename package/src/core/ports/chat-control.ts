@@ -1,9 +1,22 @@
 /** Semantic control plane; implementations own their transport and UI. */
 export interface ChatReply { text: string; complete: boolean }
+/** Non-secret observation metadata; never an authority or model envelope field. */
+export interface ReplyObservationBaseline {
+  version: 1
+  conversationId: string | null
+  assistantCount: number
+  textDigest: string
+  observationEpoch: string
+}
 /** Durable semantic invocation identity; each HTTP attempt has a separate ID. */
 export interface ControlOperation {
   operationId: string
+  replyBaseline?: ReplyObservationBaseline
   correlation?: { taskId: string; iteration: number; workspaceId: string; phase: 'INIT' | 'PLAN' | 'EXECUTED' | 'DONE'; head?: string }
+}
+/** Additive semantic observation capability; legacy transports may omit it. */
+export interface ChatObservationControl extends ChatControl {
+  captureReplyBaseline(signal?: AbortSignal): Promise<ReplyObservationBaseline>
 }
 export interface ChatControl {
   health(): Promise<{ ok: boolean; detail: string }>

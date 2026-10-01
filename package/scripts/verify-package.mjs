@@ -57,7 +57,7 @@ await writeFile(path.join(isolated, 'probe.ts'), `
 import { bindExecutionReadLease, type ExecutionReadLease } from '@deepseek-ai/dsh-execution-world/read-lease';
 import { bindExecutionGitLease, type ExecutionGitLease } from '@deepseek-ai/dsh-execution-world/git-lease';
 import type { FsReadRootOpenOptions } from '@deepseek-ai/dsh-fs';
-import { SidecarChatControlClient, type ControlOperation, type ChatControlDiagnostics, type ChatReadiness } from 'dsh-with-chatgpt/sidecar';
+import { SidecarChatControlClient, type ControlOperation, type ChatControlDiagnostics, type ChatReadiness, type ReplyObservationBaseline } from 'dsh-with-chatgpt/sidecar';
 import { startSidecar, protectPrivateStateDirectory } from 'dsh-with-chatgpt/sidecar/server';
 import { DirectCdpPrimitives, type BrowserPrimitives, type BrowserMutationContext } from 'dsh-with-chatgpt/browser';
 import { mintPlannerTaskId, formatPlannerEnvelope, parsePlannerEnvelope, plannerEnvelopeDigest, type PlannerEnvelopeInput } from 'dsh-with-chatgpt/protocol';
@@ -71,7 +71,8 @@ declare const mutationContext: BrowserMutationContext;
 const focused = primitives.focus('#type-probe', mutationContext);
 const connect: typeof DirectCdpPrimitives.connect = DirectCdpPrimitives.connect;
 void [focused, connect];
-const operation: ControlOperation = { operationId: 'packaged-send' };
+const baseline: ReplyObservationBaseline = { version: 1, conversationId: 'package-probe', assistantCount: 0, textDigest: 'a'.repeat(64), observationEpoch: 'b'.repeat(64) };
+const operation: ControlOperation = { operationId: 'packaged-send', replyBaseline: baseline };
 const control = new SidecarChatControlClient({ endpoint: 'http://127.0.0.1:18765', authentication: 'type-probe-only' });
 const diagnostics: ChatControlDiagnostics = control;
 const readiness: Promise<ChatReadiness> = diagnostics.readiness();

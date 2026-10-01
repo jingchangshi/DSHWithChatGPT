@@ -305,3 +305,16 @@ domain close/reopen over a disposable fixture file medium and unchanged released
 record bytes. This does not establish production storage, coordinator v2, durable
 send/reply recovery, or full Windows acceptance. The deployment still uses v1;
 the new storage adapter and router are additive foundations awaiting integration.
+
+Reply observation foundation: six red-first driver cases demonstrate missing
+baseline capture/reconstruction fencing, one RPC contract case demonstrates
+missing bounded metadata support, and two filtered transport/lifecycle cases
+demonstrate missing propagation/replay binding. Final focused driver checks:
+63 pass. After rebuilding the packed-runtime entry used by independent process
+fixtures, 50 driver/RPC/transport/lifecycle cases pass. The earlier stale-build
+run (1 failed, 49 passed) is retained separately. Typecheck/build and isolated
+public type export/package/lifecycle checks pass. The baseline contains count,
+text digest, conversation and opaque document epoch, with no assistant body.
+This is reconstruction and replay-metadata proof only: coordinator persistence,
+Sidecar baseline capture, resumed journal waits, new-conversation bootstrap,
+whole-browser reconciliation and full recovery acceptance remain unimplemented.

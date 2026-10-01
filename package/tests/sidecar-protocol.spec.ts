@@ -2,6 +2,17 @@ import { describe, expect, it } from 'vitest'
 
 const request = () => ({ version: 1, requestId: 'transport-attempt-1', operationId: 'logical-operation-1', generation: 'sidecar-generation-1', method: 'health', params: {} })
 describe('strict semantic RPC protocol', () => {
+  it('bounds reply baseline metadata on semantic sends and waits only', async () => {
+    const { parseSidecarRequest, parseControlOperation } = await import('../src/sidecar/protocol.ts')
+    const replyBaseline = { version: 1, conversationId: 'owned', assistantCount: 1, textDigest: 'a'.repeat(64), observationEpoch: 'b'.repeat(64) }
+    expect(parseControlOperation({ operationId: 'owned', replyBaseline })).toMatchObject({ replyBaseline })
+    for (const method of ['sendControlMessage', 'waitForReply']) {
+      const params = method === 'sendControlMessage' ? { text: 'control' } : { timeoutMs: 12_000 }
+      expect(parseSidecarRequest({ ...request(), method, params, replyBaseline })).toMatchObject({ replyBaseline })
+      for (const invalid of [{ ...replyBaseline, text: 'body' }, { ...replyBaseline, assistantCount: -1 }, { ...replyBaseline, textDigest: 'bad' }, { ...replyBaseline, observationEpoch: 'bad' }]) expect(() => parseSidecarRequest({ ...request(), method, params, replyBaseline: invalid })).toThrow()
+    }
+    expect(() => parseSidecarRequest({ ...request(), replyBaseline })).toThrow()
+  })
   it('allows only bounded diagnostic arguments and no primitive passthrough', async () => {
     const { parseSidecarRequest } = await import('../src/sidecar/protocol.ts')
     expect(parseSidecarRequest({ ...request(), method: 'readiness', params: {} })).toMatchObject({ method: 'readiness' })

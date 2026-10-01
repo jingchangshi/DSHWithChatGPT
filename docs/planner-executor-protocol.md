@@ -60,4 +60,21 @@ The disposable fixture prints a random successful `E2E_EVIDENCE` nonce only to c
 
 ## Compatibility
 
+### Reply observation foundation
+
+An optional internal `ReplyObservationBaseline` contains a version, conversation
+identity, assistant count, SHA256 text digest and opaque document observation
+epoch. It contains no assistant body and is never serialized into a model
+envelope. The shared driver can capture it, refuse a changed baseline before
+input, and restore observation after driver reconstruction while rejecting a
+different conversation/document. Sidecar send/wait requests accept this bounded
+metadata; both in-memory and durable operation digests include it, so changing it
+on replay is a conflict. Legacy requests without it retain their existing digest.
+
+This foundation does not yet expose baseline capture through the Sidecar, persist
+it in coordinator task state, or resume a Sidecar journal wait after restart.
+The existing uncertainty policy remains unchanged. A changed document/target
+requires explicit semantic reconciliation; an epoch mismatch cannot authorize
+resending. New-task bootstrap and whole-browser restart remain integration work.
+
 Legacy `[D2C]` v1, sender names, `d2c_` task IDs, storage records and existing public tools may remain behind explicit adapters. A task's protocol version is durable and cannot change midway through a pending round. Existing v1 task recovery uses the v1 validator; new canonical tasks use v2. Compatibility parsing cannot weaken workspace/HEAD checks. Map old error/status aliases only at public edges. Development CodexWithChatGPT control syntax is externally owned and not a product wire protocol.

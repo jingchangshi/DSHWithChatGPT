@@ -18,6 +18,17 @@ async function rpc(sidecar: Awaited<ReturnType<typeof sidecarProcess>>, body: un
   return response.json()
 }
 describe('separate-process operation delivery lifecycle', () => {
+  it('binds observation metadata into durable replay identity across restart', async () => {
+    const first = await start()
+    const replyBaseline = { version: 1, conversationId: 'owned', assistantCount: 1, textDigest: 'a'.repeat(64), observationEpoch: 'b'.repeat(64) }
+    const request = { ...envelope(first, 'owned baseline send'), replyBaseline }
+    expect(await rpc(first, request)).toMatchObject({ ok: true })
+    await first.crash()
+    const second = await start(first.stateDirectory)
+    expect(await rpc(second, { ...request, generation: second.generation, requestId: randomUUID() })).toMatchObject({ ok: true })
+    expect(await rpc(second, { ...request, generation: second.generation, requestId: randomUUID(), replyBaseline: { ...replyBaseline, assistantCount: 2 } })).toMatchObject({ ok: false, error: { code: 'REPLAY_CONFLICT' } })
+    expect(second.sends).toEqual([])
+  }, restartTestBudget)
   it('bounds an abort-ignoring driver and keeps the uncertain operation quarantined', async () => {
     const child = await start()
     const request = envelope(child, 'hang-before-ack')
