@@ -1,6 +1,7 @@
+import { messageObservationScript } from './message-observation.ts'
 import { CancellableBrowserPrimitives, type BrowserPrimitives, type BrowserMutationContext, type BrowserMutationAck } from './primitives.ts'
 import { createHash } from 'node:crypto'
-import type { ChatObservationControl, ControlOperation, ReplyObservationBaseline, ChatReply as BrowserReply } from '../core/ports/chat-control.ts'
+import type { ChatRecoveryControl, ControlOperation, ReplyObservationBaseline, ReplyReconciliationRequest, ChatReply as BrowserReply } from '../core/ports/chat-control.ts'
 import { BrowserTargetChangedError, sameBrowserTarget, type BrowserTargetIdentity } from './epoch.ts'
 import type { BrowserTransition } from './transitions.ts'
 import { abortableDelay, OperationCancelledError, throwIfCancelled } from '../cancellation.ts'
@@ -8,6 +9,7 @@ import {
   BrowserStaleError,
   ChatGptAppUnavailableError,
   ChatGptLoggedOutError,
+  SendUncertainError,
 } from './errors.ts'
 
 interface ChatPageState {
@@ -44,7 +46,7 @@ const draftText = text => String(text).replace(/\u00a0/g, ' ').trim();
 `
 
 /** Shared ChatGPT Web semantics, independent of transport and host. */
-export class ChatGptWebDriver implements ChatObservationControl {
+export class ChatGptWebDriver implements ChatRecoveryControl {
   private replyBaseline: ReplyBaseline | undefined
   private target: BrowserTargetIdentity | undefined
   private fenced = false
@@ -122,6 +124,31 @@ export class ChatGptWebDriver implements ChatObservationControl {
     const conversationId = await this.currentConversation(signal)
     const target = await this.browser.currentTarget(signal)
     return { version: 1, conversationId: conversationId ?? null, assistantCount: state.assistantCount, textDigest: replyTextDigest(state.text), observationEpoch: observationEpoch(target) }
+  }
+
+  /** Explicit read-only proof before adopting a new observation epoch. */
+  async reconcileReplyBaseline(request: ReplyReconciliationRequest, signal?: AbortSignal): Promise<ReplyObservationBaseline> {
+    if (!/^[A-Za-z0-9_-]{1,128}$/.test(request.conversationId) || !/^[a-f0-9]{64}$/.test(request.controlDigest)) throw new SendUncertainError()
+    this.resetTarget()
+    this.fenced = true
+    const state = await this.inspectChatPage(signal, true)
+    if (state.loggedOut) throw new ChatGptLoggedOutError()
+    if ((await this.currentConversation(signal)) !== request.conversationId || this.appName.trim() === '') throw new SendUncertainError()
+    const messages = await this.evaluate<{ role: string; text: string; appNames: string[] }[] | null>(`(() => { ${messageObservationScript}; return messageObservations; })()`, signal)
+    if (!messages) throw new SendUncertainError()
+    const matches = messages.map((message, index) => ({ message, index })).filter(({ message }) => {
+      const appName = this.appName.trim()
+      return message.role === 'user' && message.appNames.length === 1 && message.appNames[0] === appName
+        && message.text.startsWith(appName) && /\s/.test(message.text.slice(appName.length, appName.length + 1))
+        && replyTextDigest(message.text.slice(appName.length + 1)) === request.controlDigest
+    })
+    let lastUser = -1
+    for (let index = 0; index < messages.length; index++) if (messages[index]!.role === 'user') lastUser = index
+    if (matches.length !== 1 || matches[0]!.index !== lastUser) throw new SendUncertainError()
+    const preceding = messages.slice(0, lastUser).filter(message => message.role === 'assistant')
+    const target = await this.browser.currentTarget(signal)
+    await this.checkTarget(signal)
+    return { version: 1, conversationId: request.conversationId, assistantCount: preceding.length, textDigest: replyTextDigest(preceding.at(-1)?.text ?? ''), observationEpoch: observationEpoch(target) }
   }
 
   private async requireObservationBaseline(baseline: ReplyObservationBaseline, signal?: AbortSignal): Promise<void> {
@@ -462,36 +489,33 @@ export class ChatGptWebDriver implements ChatObservationControl {
     return result === true || result === 'true'
   }
 
-  private async inspectChatPage(signal?: AbortSignal): Promise<ChatPageState> {
+  private async inspectChatPage(signal?: AbortSignal, reconciliation = false): Promise<ChatPageState> {
     const expression = [
       '(() => {',
       composerScript,
-      String.raw`const assistantNodes = Array.from(document.querySelectorAll('[data-message-author-role="assistant"], [data-markdown-text-style="assistant-message"]'));`,
-      'const messages = [];',
-      'for (const node of assistantNodes) {',
-      'const current = node.getAttribute("data-markdown-text-style") === "assistant-message";',
-      'const identity = node.closest("[data-chatgpt-selection-message-id]") ?? node;',
-      'const existing = messages.find(message => message.identity === identity || (message.current !== current && (message.node.contains(node) || node.contains(message.node))));',
-      'if (!existing) messages.push({ node, identity, current });',
-      'else if (current && !existing.current) { existing.node = node; existing.identity = identity; existing.current = true; }',
-      '}',
-      'messages.sort((left, right) => left.node.compareDocumentPosition(right.node) & Node.DOCUMENT_POSITION_FOLLOWING ? -1 : 1);',
-      'const latest = messages.length > 0 ? messages[messages.length - 1].node : null;',
-      'const animated = latest?.getAttribute("data-markdown-text-style") === "assistant-message" && latest.hasAttribute("data-markdown-animated");',
+      messageObservationScript,
+      'if (messageObservations === null) return { messageAmbiguous: true };',
+      'const messages = messageObservations.filter(message => message.role === "assistant");',
+      'const latest = messages.at(-1);',
+      'const animated = latest?.animated === true;',
       'const stop = Array.from(document.querySelectorAll("button")).some((button) => { const label = (button.getAttribute("aria-label") || button.textContent || "").toLowerCase(); return label.includes("stop streaming") || label === "stop"; });',
       // An anonymous ChatGPT page can still provide a composer. A visible
       // account-login control, outside message content, must fail closed.
-      'const login = Array.from(document.querySelectorAll("a,button")).some((node) => { const r = node.getBoundingClientRect(); const s = getComputedStyle(node); if (r.width <= 0 || r.height <= 0 || s.display === "none" || s.visibility === "hidden" || node.closest(\'[aria-hidden="true"], [inert], [data-message-author-role], [data-markdown-text-style]\')) return false; const text = (node.textContent || "").trim().toLowerCase(); return ["log in", "login", "sign up", "登录", "注册"].includes(text); });',
-      'return { text: latest ? (latest.innerText || latest.textContent || "") : "", assistantCount: messages.length, streaming: animated || stop, loggedOut: login, composer: !!composer, composerCount: composerNodes.length };',
+      'const login = Array.from(document.querySelectorAll("a,button")).some((node) => { const r = node.getBoundingClientRect(); const s = getComputedStyle(node); if (r.width <= 0 || r.height <= 0 || s.display === "none" || s.visibility === "hidden" || node.closest(\'[aria-hidden="true"], [inert], [data-message-author-role], [data-markdown-text-style], [data-chatgpt-search-unit-key], [data-content-search-unit-key]\')) return false; const text = (node.textContent || "").trim().toLowerCase(); return ["log in", "login", "sign up", "登录", "注册"].includes(text); });',
+      'return { text: latest?.text ?? "", assistantCount: messages.length, streaming: animated || stop, loggedOut: login, composer: !!composer, composerCount: composerNodes.length };',
       '})()',
     ].join(' ')
-    const value = await this.evaluate<unknown>(expression, signal)
+    let value = await this.evaluate<unknown>(expression, signal)
     if (typeof value === 'string') {
       try {
-        return normalizePageState(JSON.parse(value))
+        value = JSON.parse(value)
       } catch {
         throw new BrowserStaleError('unexpected browser_js response')
       }
+    }
+    if (value && typeof value === 'object' && 'messageAmbiguous' in value) {
+      if (reconciliation) throw new SendUncertainError()
+      throw new BrowserStaleError('ChatGPT message structure is ambiguous')
     }
     if (typeof value === 'object' && value !== null) return normalizePageState(value)
     throw new BrowserStaleError('unexpected browser_js response')

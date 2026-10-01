@@ -112,7 +112,7 @@ describe('Browser Harness App probe', () => {
         if (expression.includes('composer.setAttribute')) return { count: 1, empty: true, owned: true, focused: true }
         if (expression.includes('visibility: document.visibilityState')) return { visibility: 'visible', url: 'https://chatgpt.com/' }
         if (expression.includes('return draftText(content) ===')) return true
-        if (expression.includes('const candidates =')) return { found: true, x: 10, y: 20 }
+        if (expression.includes('const matches = candidates.filter')) return { found: true, x: 10, y: 20 }
         if (expression.includes('const decorators')) return true
         return { text: '', assistantCount: 0, streaming: false, loggedOut: false, composer: true }
       }
@@ -131,7 +131,7 @@ describe('Browser Harness App probe', () => {
         if (expression.includes('composer.setAttribute')) return { count: 1, empty: true, owned: true, focused: true }
         if (expression.includes('return draftText(content) ===')) return true
         if (expression.includes('visibility: document.visibilityState')) return { visibility: 'visible', url: 'https://chatgpt.com/' }
-        if (expression.includes('const candidates =')) return { found: false }
+        if (expression.includes('const matches = candidates.filter')) return { found: false }
         return { text: '', assistantCount: 0, streaming: false, loggedOut: false, composer: true }
       }
       return {}

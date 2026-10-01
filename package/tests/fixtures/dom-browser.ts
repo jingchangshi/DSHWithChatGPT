@@ -11,9 +11,9 @@ export function domFixture(html: string, options: { selection?: 'outside' | 'par
     windows.push(window)
     window.document.body.innerHTML = html
     window.document.elementFromPoint = () => Array.from(window.document.querySelectorAll('[role="listbox"] button, [role="menu"] button, button[data-list-navigation-item="true"]')).find(node => window.getComputedStyle(node).display !== 'none' && window.getComputedStyle(node).visibility !== 'hidden') ?? null
-    for (const element of window.document.querySelectorAll('*')) {
-      element.getBoundingClientRect = () => ({ x: 0, y: 0, left: 0, top: 0, right: 100, bottom: 30, width: 100, height: 30, toJSON: () => ({}) })
-    }
+    // happy-dom has no layout engine. Give dynamically inserted messages the
+    // same mechanical geometry as initial nodes; CSS visibility is still real.
+    window.HTMLElement.prototype.getBoundingClientRect = () => ({ x: 0, y: 0, left: 0, top: 0, right: 100, bottom: 30, width: 100, height: 30, toJSON: () => ({}) })
 
     return window
   }

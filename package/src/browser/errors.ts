@@ -1,4 +1,8 @@
 /** Stable browser failures shared by the semantic driver and transports. */
+export class SendUncertainError extends Error {
+  readonly code = 'SEND_UNCERTAIN'
+  constructor() { super('SEND_UNCERTAIN'); this.name = 'SendUncertainError' }
+}
 export class ChatGptLoggedOutError extends Error {
   constructor() { super('ChatGPT_WEB_LOGGED_OUT: the browser session is not logged in to ChatGPT'); this.name = 'ChatGptLoggedOutError' }
 }

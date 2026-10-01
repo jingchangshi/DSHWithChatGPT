@@ -77,4 +77,12 @@ The existing uncertainty policy remains unchanged. A changed document/target
 requires explicit semantic reconciliation; an epoch mismatch cannot authorize
 resending. New-task bootstrap and whole-browser restart remain integration work.
 
+The internal driver now offers explicit read-only reconciliation using the
+conversation and outgoing control SHA256 digest. Shared current/legacy message
+observations must prove a unique latest configured-App user message before a
+new document baseline is adopted. Missing, foreign or ambiguous evidence yields
+`SEND_UNCERTAIN`; successful reconciliation resumes observation without typing
+or Enter. This capability is not exposed through Sidecar RPC and is not yet
+wired into durable task-state or journal recovery.
+
 Legacy `[D2C]` v1, sender names, `d2c_` task IDs, storage records and existing public tools may remain behind explicit adapters. A task's protocol version is durable and cannot change midway through a pending round. Existing v1 task recovery uses the v1 validator; new canonical tasks use v2. Compatibility parsing cannot weaken workspace/HEAD checks. Map old error/status aliases only at public edges. Development CodexWithChatGPT control syntax is externally owned and not a product wire protocol.

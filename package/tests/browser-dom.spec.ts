@@ -257,12 +257,17 @@ describe('ChatGPT composer DOM resolution', () => {
     ['current user', '<div data-markdown-text-style="user-message">[D2C_APP_PROOF_V1]</div>', 0, ''],
     ['legacy user', '<div data-message-author-role="user">proof</div>', 0, ''],
     ['identity alone', '<div data-chatgpt-selection-message-id="one">proof</div>', 0, ''],
-    ['search metadata', '<div data-chatgpt-search-unit-key="turn:assistant">proof</div>', 0, ''],
     ['later user', '<div data-markdown-text-style="assistant-message">reply</div><div data-message-author-role="user">later</div>', 1, 'reply'],
   ])('reads only logical assistant messages: %s', async (_name, html, assistantCount, text) => {
     const { browser } = fixture(html)
     const inspector = browser as unknown as { inspectChatPage(): Promise<{ assistantCount: number; text: string }> }
     expect(await inspector.inspectChatPage()).toMatchObject({ assistantCount, text })
+  })
+
+  it('fails closed on search-role metadata without a proven body', async () => {
+    const { browser } = fixture('<div data-chatgpt-search-unit-key="turn:assistant">proof</div>')
+    const inspector = browser as unknown as { inspectChatPage(): Promise<unknown> }
+    await expect(inspector.inspectChatPage()).rejects.toThrow('BROWSER_STALE: ChatGPT message structure is ambiguous')
   })
 
   it('ignores unchanged overlapping baseline and waits for a settled new assistant reply', async () => {

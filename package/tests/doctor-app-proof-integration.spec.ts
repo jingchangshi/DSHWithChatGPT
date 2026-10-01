@@ -60,7 +60,7 @@ describe('registered doctor App proof', () => {
           if (expression.includes('composer.setAttribute')) return { value: legacyBrowserObservation(String(request.arguments.expression), { count: 1, empty: true, owned: true, focused: true }, 'https://chatgpt.com/c/fixture') }
           if (expression.includes('visibility: document.visibilityState')) return { value: legacyBrowserObservation(String(request.arguments.expression), { visibility: 'visible', url: 'https://chatgpt.com/c/fixture' }, 'https://chatgpt.com/c/fixture') }
           if (expression.includes('return draftText(content) ===')) return { value: legacyBrowserObservation(String(request.arguments.expression), true, 'https://chatgpt.com/c/fixture') }
-          if (expression.includes('const candidates')) return { value: legacyBrowserObservation(String(request.arguments.expression), { found: true, x: 1, y: 1 }, 'https://chatgpt.com/c/fixture') }
+          if (expression.includes('const matches = candidates.filter')) return { value: legacyBrowserObservation(String(request.arguments.expression), { found: true, x: 1, y: 1 }, 'https://chatgpt.com/c/fixture') }
           if (expression.includes('const decorators')) return { value: legacyBrowserObservation(String(request.arguments.expression), true, 'https://chatgpt.com/c/fixture') }
           if (expression.includes('const external =')) return { value: legacyBrowserObservation(String(request.arguments.expression), true, 'https://chatgpt.com/c/fixture') }
           if (reply !== '') replyReads++

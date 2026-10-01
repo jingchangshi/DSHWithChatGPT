@@ -318,3 +318,17 @@ text digest, conversation and opaque document epoch, with no assistant body.
 This is reconstruction and replay-metadata proof only: coordinator persistence,
 Sidecar baseline capture, resumed journal waits, new-conversation bootstrap,
 whole-browser reconciliation and full recovery acceptance remain unimplemented.
+
+Current message semantics and read-only reconciliation (2026-10-02): a shared
+extractor handles released author-role/markdown bodies and current search/content
+units with explicit assistant role headings. Nested render markers deduplicate;
+conflicting roles, duplicate identities and ambiguous/unproven bodies fail closed.
+Visible body traversal preserves literal line breaks and excludes role labels,
+hidden/inert content and action controls. Reconciliation requires the exact
+configured App mention and latest unique user control digest in the requested
+conversation; it derives the preceding reply baseline without input. This is
+an internal driver capability, not yet a Sidecar RPC or coordinator recovery.
+Read-only explicit product-target inspection recognizes one user and one
+assistant message on the real current page. Its visibility remains hidden and
+its historical outgoing message has no proven App mention. This evidence is
+DOM compatibility only, not real App acceptance or crash-recovery acceptance.

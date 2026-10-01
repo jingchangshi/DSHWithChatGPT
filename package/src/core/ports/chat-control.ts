@@ -18,6 +18,10 @@ export interface ControlOperation {
 export interface ChatObservationControl extends ChatControl {
   captureReplyBaseline(signal?: AbortSignal): Promise<ReplyObservationBaseline>
 }
+export interface ReplyReconciliationRequest { conversationId: string; controlDigest: string }
+export interface ChatRecoveryControl extends ChatObservationControl {
+  reconcileReplyBaseline(request: ReplyReconciliationRequest, signal?: AbortSignal): Promise<ReplyObservationBaseline>
+}
 export interface ChatControl {
   health(): Promise<{ ok: boolean; detail: string }>
   ensureReady(signal?: AbortSignal): Promise<void>
