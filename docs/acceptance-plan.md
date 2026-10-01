@@ -312,6 +312,19 @@ v2 plan/review/recovery before browser activity, pending canonical coordinator
 integration; status remains a read-only task lookup. No existing record is copied
 or upgraded by opening the router.
 
+Canonical aggregate foundation adds a nested round only in the independent v2
+task schema. Red-first cases expose malformed/changed intent, phase jumps,
+accepted-result corruption, administrative history deletion, wrong replay error
+classification and unowned route changes. Repository checks cover a single
+publication failure and two contenders at the same expected revision. Real
+Cordis domain close/reopen with the test-owned file medium preserves the nested
+intent and unchanged released task bytes. This proves schema/repository behavior,
+not an independent process crash, production storage durability, browser ACK,
+fresh GitLease acquisition or a canonical coordinator flow. Accepted results
+contain bounded validated protocol sections and their canonical envelope digest;
+the Sidecar journal still stores no message bodies. Canonical task creation
+remains disabled in production.
+
 Reply observation foundation: six red-first driver cases demonstrate missing
 baseline capture/reconstruction fencing, one RPC contract case demonstrates
 missing bounded metadata support, and two filtered transport/lifecycle cases

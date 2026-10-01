@@ -48,7 +48,9 @@ describe('registered ownership enforcement', () => {
   it('includes canonical pending tasks in production ownership checks without copying them to legacy storage', async () => {
     const current = await fixture()
     const taskId = 'pb_' + 'a'.repeat(32)
-    const task = { protocolVersion: 2, taskId, state: 'planned' }
+    const task = { protocolVersion: 2, taskId, state: 'planned', goal: 'canonical pending fixture', iteration: 1,
+      waitingFor: 'dsh-execution', conversationId: 'fixture-conversation', lastReviewedHead: null,
+      createdAt: 1, updatedAt: 1, lastError: null }
     current.records.set('plannerbridge_state/index/tasks', { ids: [taskId] })
     current.records.set('plannerbridge_state/tasks/' + taskId, task)
     try {

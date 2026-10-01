@@ -53,6 +53,23 @@ const old = { taskId: 'd2c_old', goal: 'resume', state: 'executed' as const, ite
 const current = { ...old, taskId: 'pb_' + 'b'.repeat(32), protocolVersion: 2 as const }
 
 describe('real Cordis domain layer with independent persisted fixture medium', () => {
+  it('reopens a single canonical intent aggregate while leaving the released domain untouched', async () => {
+    const fixtureState = await fixture(), first = await fixtureState.open()
+    await first.legacy.table('tasks').put(old.taskId, old)
+    const before = await readFile(join(fixtureState.directory, 'd2c_state.json'), 'utf8')
+    const aggregate = { ...current, workspaceId: 'world', state: 'awaiting-plan' as const, iteration: 0,
+      waitingFor: 'chatgpt-plan' as const, conversationId: null, lastReviewedHead: null,
+      round: { kind: 'INIT' as const, iteration: 0, sendOperationId: 'send-persisted', waitOperationId: 'wait-persisted',
+        controlDigest: 'a'.repeat(64), phase: 'prepared' as const,
+        baseline: { version: 1 as const, conversationId: null, assistantCount: 0, textDigest: 'b'.repeat(64), observationEpoch: 'c'.repeat(64) } } }
+    const saved = await first.store.createTask(aggregate)
+    await first.facility.closeAll()
+    const reopened = await fixtureState.open()
+    expect(await reopened.store.loadTaskSnapshot(aggregate.taskId)).toEqual(saved)
+    expect(await readFile(join(fixtureState.directory, 'd2c_state.json'), 'utf8')).toBe(before)
+    const serialized = JSON.parse(await readFile(join(fixtureState.directory, 'plannerbridge_state.json'), 'utf8'))
+    expect(serialized.tables.tasks[aggregate.taskId].round).toEqual(aggregate.round)
+  })
   it('reopens both domains without changing released task bytes or canonical version', async () => {
     const fixtureState = await fixture(), first = await fixtureState.open()
     await first.legacy.table('tasks').put(old.taskId, old)

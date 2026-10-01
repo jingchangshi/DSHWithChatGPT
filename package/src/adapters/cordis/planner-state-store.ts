@@ -2,6 +2,8 @@ import { z } from 'zod'
 import { defineDomain, domainTable, type Domain } from '@deepseek-ai/dsh-storage-domain'
 import { legacyStateDomain, taskRecordSchema } from './state-store.ts'
 import type { StateStore } from '../../orchestrator/state.ts'
+import { plannerRoundSchema, validatePlannerTask } from '../../orchestrator/planner-task.ts'
+import type { PlannerTaskAggregate } from '../../core/planner-task.ts'
 
 /** Independent canonical storage format; released d2c_state remains frozen. */
 export const plannerStateDomain = defineDomain({
@@ -11,7 +13,9 @@ export const plannerStateDomain = defineDomain({
       protocolVersion: z.literal(2),
       taskId: z.string().regex(/^pb_[0-9a-f]{32,64}$/),
       iteration: z.number().int().nonnegative().max(Number.MAX_SAFE_INTEGER),
-    }).strict()),
+      workspaceId: z.string().regex(/^[A-Za-z0-9_.:-]{1,128}$/).optional(),
+      round: plannerRoundSchema.optional(),
+    }).strict().refine(value => { try { validatePlannerTask(value as PlannerTaskAggregate); return true } catch { return false } }, 'Invalid canonical task aggregate')),
     bindings: legacyStateDomain.tables.bindings,
     index: legacyStateDomain.tables.index,
   },

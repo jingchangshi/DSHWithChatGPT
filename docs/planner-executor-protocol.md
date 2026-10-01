@@ -107,3 +107,30 @@ no control or reply bodies. New-chat bootstrap, durable coordinator state and
 whole-product recovery/crash-matrix acceptance remain integration work.
 
 Legacy `[D2C]` v1, sender names, `d2c_` task IDs, storage records and existing public tools may remain behind explicit adapters. A task's protocol version is durable and cannot change midway through a pending round. Existing v1 task recovery uses the v1 validator; new canonical tasks use v2. Compatibility parsing cannot weaken workspace/HEAD checks. Map old error/status aliases only at public edges. Development CodexWithChatGPT control syntax is externally owned and not a product wire protocol.
+
+### Canonical task aggregate foundation
+
+The canonical task domain optionally stores one nested round with stable send/wait
+IDs, outgoing SHA256 digest, original baseline, phase and submitted Git metadata.
+Task lifecycle, accepted canonical reply digest and bounded validated protocol
+sections are published through the same expected-revision task replacement.
+The released v1 schema remains unchanged; roundless v2 foundation records remain
+roundless rather than gaining invented delivery history.
+
+Pending intent identity is immutable. Prepared, sending, observed-sent,
+awaiting-reply and uncertain records cannot skip straight to acceptance; an
+accepted result must reconstruct a valid canonical planner envelope, match its
+digest, task/round/workspace/submitted HEAD and resulting lifecycle. The next
+EXECUTED round uses the accepted PLAN iteration. Pending history cannot be
+removed through administrative save/delete. Accepted replay cannot change the
+result. A bootstrap route change is structurally permitted only with the
+sending-to-observed-sent transition; this rule does not itself prove browser ACK.
+
+This is a schema/repository foundation, not a running canonical coordinator.
+It does not acquire fresh Git authority, verify browser delivery, turn crashed
+sending records into uncertainty, or authorize read-only reconciliation. Those
+use cases still require coordinator/transport integration. The Sidecar journal
+continues to retain only delivery metadata, while the task aggregate retains
+validated PLAN/review sections so a restart can return the accepted instructions
+without persisting a raw website response or transcript. No new RPC or model
+wire field is introduced here.

@@ -1,5 +1,7 @@
 import type { PersistedTask, PersistedWorkspaceBinding } from '../core/model.ts'
 import { taskProtocolVersion } from '../core/model.ts'
+import type { PlannerTaskAggregate } from '../core/planner-task.ts'
+import { requirePlannerTaskTransition, validatePlannerTask } from './planner-task.ts'
 export type { TaskState, PersistedTask, PersistedWorkspaceBinding } from '../core/model.ts'
 import { StateRevisionConflictError, type StateStore as RevisionedStateStore, type TaskSnapshot } from '../core/ports/state-store.ts'
 
@@ -48,6 +50,7 @@ export class CoordinatorState implements RevisionedStateStore {
   createTask(task: PersistedTask): Promise<TaskSnapshot> {
     return this.serialized(async () => {
       taskProtocolVersion(task)
+      requirePlannerTaskTransition(undefined, task)
       if (await this.loadTask(task.taskId) !== undefined) throw new StateRevisionConflictError(task.taskId)
       return this.writeTask(task, 0)
     })
@@ -58,6 +61,7 @@ export class CoordinatorState implements RevisionedStateStore {
       const previous = await this.loadTask(taskId)
       if (task.taskId !== taskId || previous === undefined || previous.updatedAt !== expectedRevision) throw new StateRevisionConflictError(taskId)
       this.requireSameProtocol(previous, task)
+      requirePlannerTaskTransition(previous, task)
       return this.writeTask(task, expectedRevision)
     })
   }
@@ -74,6 +78,7 @@ export class CoordinatorState implements RevisionedStateStore {
       const previous = await this.loadTask(task.taskId)
       if (previous !== undefined) this.requireSameProtocol(previous, task)
       else taskProtocolVersion(task)
+      requirePlannerTaskTransition(previous, task)
       const saved = await this.writeTask(task, previous?.updatedAt ?? 0)
       task.updatedAt = saved.revision
     })
@@ -86,11 +91,17 @@ export class CoordinatorState implements RevisionedStateStore {
   async loadTask(taskId: string): Promise<PersistedTask | undefined> {
     const task = await this.store.get<PersistedTask>(TASK_KEY(taskId))
     if (task !== undefined) taskProtocolVersion(task)
+    if (task !== undefined) validatePlannerTask(task)
     return structuredClone(task)
   }
 
   async deleteTask(taskId: string): Promise<void> {
-    await this.serialized(() => this.store.delete(TASK_KEY(taskId)))
+    await this.serialized(async () => {
+      const task = await this.loadTask(taskId)
+      if (task && taskProtocolVersion(task) === 2 && (task as PlannerTaskAggregate).round
+        && !['done', 'blocked', 'error'].includes(task.state)) throw Object.assign(new Error('RECOVERY_REQUIRED'), { code: 'RECOVERY_REQUIRED' })
+      await this.store.delete(TASK_KEY(taskId))
+    })
   }
 
   async listTaskIds(): Promise<string[]> {
