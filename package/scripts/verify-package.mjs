@@ -43,7 +43,16 @@ for (const [name, reference] of Object.entries(manifest.pnpm?.overrides ?? {})) 
   overrides[name] = `file:${archive}`
 }
 await writeFile(path.join(isolated, 'package.json'), JSON.stringify({ private: true, type: 'module', dependencies, pnpm: { overrides } }, null, 2) + '\n')
-run(['install', '--ignore-scripts', '--strict-peer-dependencies'], isolated)
+// pnpm 11 ignores package.json.pnpm; keep the isolated verifier aligned with
+// the workspace configuration used by the development checkout.
+await writeFile(path.join(isolated, 'pnpm-workspace.yaml'), [
+  'allowBuilds:',
+  '  koffi: true',
+  'overrides:',
+  ...Object.entries(overrides).map(([name, reference]) => `  ${JSON.stringify(name)}: ${reference}`),
+  '',
+].join('\n'))
+run(['install', '--ignore-scripts', '--strict-peer-dependencies', '--config.registry=https://registry.npmjs.org'], isolated)
 await writeFile(path.join(isolated, 'probe.ts'), `
 import { bindExecutionReadLease, type ExecutionReadLease } from '@deepseek-ai/dsh-execution-world/read-lease';
 import { bindExecutionGitLease, type ExecutionGitLease } from '@deepseek-ai/dsh-execution-world/git-lease';

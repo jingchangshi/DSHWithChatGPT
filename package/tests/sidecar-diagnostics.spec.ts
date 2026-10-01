@@ -37,7 +37,10 @@ async function fixture(diagnostics = true) {
   return { options, service, client, probe, readiness, phases }
 }
 
-describe('narrow semantic Sidecar diagnostics', () => {
+// Windows can spend several seconds creating isolated child processes when this
+// file runs after the full suite. This test-level budget does not change any
+// production RPC or operation deadline.
+describe('narrow semantic Sidecar diagnostics', { timeout: 15_000 }, () => {
   it('returns observed browser facts even while authenticated service health is good', async () => {
     const f = await fixture()
     expect((await f.client.health()).ok).toBe(true)
