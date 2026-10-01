@@ -95,6 +95,24 @@ failure. This checks real DSH startup, workspace identity, authenticated Git
 reads and reload/restart composition; it does not verify ChatGPT or model
 generation. Boot output and profile configuration are checked for token leaks.
 
+## Managed exposure health
+
+The tunnel-client startup `/readyz` endpoint does not attest authenticated
+remote polling. Managed exposure readiness also requires its bounded local
+`/health?details=true` version 1 snapshot: live/ready, control-plane status `ok`,
+a successful poll timestamp, zero consecutive failures, and successful local
+MCP startup probing. HTTP 401/403 maps to `TUNNEL_AUTH_FAILED` and startup closes
+the owned child. Later degraded health reports not ready. Raw operator health
+details are never returned to the model. This remains distinct from real App
+tool invocation and independent challenge proof.
+
+On this Windows machine, the product connection needed the existing system
+proxy. A task-owned tunnel-client YAML reference can configure only
+`control_plane.http_proxy`; the loopback Bridge stays direct. Do not disable
+Bridge authentication or change global proxy settings. Configuration and keys
+remain outside the workspace. Product App and development connector remain
+independent.
+
 ## Future deployment scope
 
 Linux execution is FUTURE. The same client talks to configured localhost after deployment-managed secure forwarding to the Windows Sidecar. No Linux Chrome/Browser Harness, remote :9222, SSH lifecycle manager or Linux acceptance is required now. Workspace Data Plane lives with the Executor, not the browser Sidecar.

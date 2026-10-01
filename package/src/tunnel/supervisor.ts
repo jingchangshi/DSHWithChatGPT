@@ -1,7 +1,7 @@
 import fs from 'node:fs'
 import path from 'node:path'
 import { spawn, type ChildProcess } from 'node:child_process'
-import { abortableDelay, OperationCancelledError, throwIfCancelled, withCancellation } from '../cancellation.ts'
+import { abortableDelay, throwIfCancelled, withCancellation } from '../cancellation.ts'
 
 export type TunnelMode = 'auto' | 'managed' | 'external'
 
@@ -238,16 +238,17 @@ export class TunnelSupervisor {
               detail: running.detail,
             }
           }
+          if (running.detail === 'TUNNEL_AUTH_FAILED') throw new Error('TUNNEL_AUTH_FAILED')
         }
       }
       await abortableDelay(200, signal)
     }
     } catch (error) {
-      if (error instanceof OperationCancelledError && this.running === running) await this.close()
+      if (this.running === running) await this.close()
       throw error
     }
 
-    const detail = sanitizeDiagnostic(diagnostic) || `tunnel-client did not become ready within ${this.options.startupTimeoutMs} ms`
+    const detail = running.detail || sanitizeDiagnostic(diagnostic) || `tunnel-client did not become ready within ${this.options.startupTimeoutMs} ms`
     await this.close()
     throw new Error('TUNNEL_START_TIMEOUT: ' + detail)
   }
@@ -285,14 +286,47 @@ export class TunnelSupervisor {
   private async probe(healthUrl: string | undefined, signal?: AbortSignal): Promise<boolean> {
     throwIfCancelled(signal)
     if (healthUrl === undefined || healthUrl === '') return false
+    const running = this.running
+    const unavailable = (detail: string): false => {
+      if (running !== undefined && this.running === running) running.detail = detail
+      return false
+    }
     try {
+      const url = new URL(healthUrl)
+      if (url.protocol !== 'http:' || !['127.0.0.1', '[::1]'].includes(url.hostname) || url.username || url.password) return unavailable('TUNNEL_HEALTH_UNAVAILABLE')
+      const probeSignal = signal === undefined ? AbortSignal.timeout(1500) : AbortSignal.any([signal, AbortSignal.timeout(1500)])
       const response = await fetch(healthUrl.replace(/\/+$/, '') + '/readyz', {
-        signal: signal === undefined ? AbortSignal.timeout(1500) : AbortSignal.any([signal, AbortSignal.timeout(1500)]),
+        signal: probeSignal, redirect: 'error',
       })
-      return response.ok
+      await response.body?.cancel()
+      if (!response.ok) return unavailable('TUNNEL_LOCAL_PROBE_FAILED')
+      const health = await fetch(healthUrl.replace(/\/+$/, '') + '/health?details=true', { signal: probeSignal, redirect: 'error' })
+      if (!health.ok || health.body === null) return unavailable('TUNNEL_HEALTH_UNAVAILABLE')
+      const reader = health.body.getReader()
+      let size = 0
+      const chunks: Uint8Array[] = []
+      try {
+        while (true) {
+          const part = await reader.read()
+          if (part.done) break
+          size += part.value.byteLength
+          if (size > 65536) return unavailable('TUNNEL_HEALTH_UNAVAILABLE')
+          chunks.push(part.value)
+        }
+      } finally { await reader.cancel() }
+      // Interpret the tunnel-client's local operator schema, never its raw diagnostics.
+      // /readyz gates startup only; it does not attest successful authenticated polling.
+      const snapshot = JSON.parse(Buffer.concat(chunks).toString('utf8'))
+      if (snapshot.schema_version !== 1 || snapshot.live !== true || snapshot.ready !== true) return unavailable('TUNNEL_HEALTH_UNAVAILABLE')
+      const control = snapshot.components?.['control-plane']
+      if ([401, 403].includes(control?.details?.http_status)) return unavailable('TUNNEL_AUTH_FAILED')
+      if (control?.status !== 'ok' || control.details?.consecutive_failures !== 0
+        || typeof control.details?.last_success !== 'string' || !Number.isFinite(Date.parse(control.details.last_success))) return unavailable('TUNNEL_CONTROL_PLANE_UNAVAILABLE')
+      if (snapshot.components?.mcp?.details?.startup_probe?.state !== 'succeeded') return unavailable('TUNNEL_LOCAL_PROBE_FAILED')
+      return true
     } catch {
       throwIfCancelled(signal)
-      return false
+      return unavailable('TUNNEL_HEALTH_UNAVAILABLE')
     }
   }
 }

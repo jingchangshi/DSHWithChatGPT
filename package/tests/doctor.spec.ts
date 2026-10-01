@@ -16,7 +16,7 @@ const operationalTools = [
 ]
 
 describe('chatgpt_doctor', () => {
-  it('reports local readiness without raw execution-output access', async () => {
+  it.each([true, false])('reports local readiness without raw output, requiring exposure readiness (%s)', async tunnelReady => {
     const token = 'doctor-optional-output-token'
     const server = await startBridgeServer({ port: 0, tokens: new Map([[token, 'workspace']]) }, [{
       name: 'workspace_info', description: 'test metadata', inputSchema: { type: 'object' },
@@ -30,9 +30,12 @@ describe('chatgpt_doctor', () => {
         workspaceRoot: '/remote/workspace', workspaceId: 'opaque-id', appName: 'DSH with ChatGPT',
         browser: { readiness: async () => ({ url: 'https://chatgpt.com/c/test', composer: true, loggedOut: false }) },
         bridgeHttp: { port: server.port, token }, probeApp: async () => undefined,
-        runtime: { bridge: { workspaceId: 'opaque-id' }, tunnel: { mode: 'managed', configured: true, ready: true, detail: 'ready' } },
+        runtime: { bridge: { workspaceId: 'opaque-id' }, tunnel: { mode: 'managed', configured: true, ready: tunnelReady, detail: tunnelReady ? 'ready' : 'TUNNEL_AUTH_FAILED' } },
       })
-      expect(result.ready).toBe(true)
+      expect(result.ready).toBe(tunnelReady)
+      expect(result.localReady).toBe(tunnelReady)
+      expect(result.appDataPlaneVerified).toBe(false)
+      expect(result.fullC2CVerified).toBe(false) // Legacy public compatibility field.
       expect(result.checks.find(check => check.id === 'execution_output_access')).toMatchObject({ ok: false, code: 'EXECUTION_OUTPUT_UNAVAILABLE' })
       expect(result.checks.find(check => check.id === 'remote_workspace_access')?.ok).toBe(false)
     } finally { await server.close() }

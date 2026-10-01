@@ -203,3 +203,25 @@ Run the logged-out fail-closed check in a task-owned temporary no-login profile,
 Finish independent architecture/unit/contract/integration/packaging work before asking for real product credentials. At a genuinely external gate, record BLOCKED for that gate with exact prerequisite, continue other work and request only login/2FA/CAPTCHA/real credential input when necessary. Overall goal remains active until full required Windows scope is proven or repeated genuine impasse meets goal blocked policy.
 
 Final matrix includes ARCHITECTURE, SOURCE, PROTOCOL, CHAT_CONTROL, DIRECT_CDP, SIDECAR, DSH_ADAPTER, WORKSPACE_DATA_PLANE, SECURITY, RECOVERY, PACKAGING, TESTS, WINDOWS_E2E, FUTURE_LINUX plus final HEAD, commits, run/pass/fail/skip counts, real evidence, blockers, retained aliases and future work.
+
+Product rebuild evidence (2026-10-02): under explicit user authorization, the
+stale product App was deleted and a new `DSH with ChatGPT` App was created with
+the selected connection independently matched to local configuration. Direct
+remote polling had 60 network failures while `/readyz` still returned 200.
+Task-only proxy configuration restored reachability and exposed HTTP 401.
+After the user updated the local runtime credential, authenticated polling
+became healthy with successful timestamps and zero failures. New product App
+creation/connection and discovery of ten tools passed. This is PARTIAL App
+evidence, not independent workspace challenge proof or Windows E2E acceptance.
+
+Exposure false-ready regression gate:
+- Goal: refuse remote exposure readiness based only on local startup health.
+- Fixture: owned fake child and actual tunnel-client operator schema, including
+  readyz=200 with auth rejection, unobserved/incomplete/oversized health,
+  degraded polling and failed local MCP startup probe.
+- Action: ensure/status/close; separately run doctor with exposure not ready.
+- Expected evidence: auth rejection fails startup and closes owned child;
+  incomplete state never reports ready; later degradation invalidates status;
+  doctor local/App/full flags remain false without ready exposure.
+- Failure condition: any false-ready result or leaked owned child.
+- Status: PARTIAL pending exact-HEAD independent review and real updated runtime.
