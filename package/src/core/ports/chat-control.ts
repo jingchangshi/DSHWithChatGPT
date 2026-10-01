@@ -12,6 +12,8 @@ export interface ReplyObservationBaseline {
 export interface ControlOperation {
   operationId: string
   replyBaseline?: ReplyObservationBaseline
+  /** Wait-only binding to a previously journaled semantic send. */
+  replyRecovery?: { sendOperationId: string }
   correlation?: { taskId: string; iteration: number; workspaceId: string; phase: 'INIT' | 'PLAN' | 'EXECUTED' | 'DONE'; head?: string }
 }
 /** Additive semantic observation capability; legacy transports may omit it. */

@@ -3,17 +3,28 @@ import { lstat, mkdir, open, readFile, readdir, rename, unlink, type FileHandle 
 import { isAbsolute, join, resolve } from 'node:path'
 import { z } from 'zod'
 import { SidecarRpcError } from './errors.ts'
+import { replyBaselineSchema } from './protocol.ts'
 
 const phases = ['prepared', 'sending', 'observed-sent', 'probing-app', 'observed-app', 'awaiting-reply', 'accepted', 'uncertain', 'cancelled', 'failed'] as const
 export type DeliveryPhase = typeof phases[number]
-const intentSchema = z.object({
+const intentFields = z.object({
   operationId: z.string().regex(/^[A-Za-z0-9_.:-]{1,128}$/),
   payloadDigest: z.string().regex(/^[a-f0-9]{64}$/),
   method: z.enum(['sendControlMessage', 'waitForReply', 'openConversation', 'ensureReady', 'recover', 'probeApp']),
   createdAt: z.number().int().nonnegative(),
   correlationDigest: z.string().regex(/^[a-f0-9]{64}$/).optional(),
+  observation: z.object({
+    controlDigest: z.string().regex(/^[a-f0-9]{64}$/),
+    replyBaseline: replyBaselineSchema.extend({ conversationId: z.string().regex(/^[A-Za-z0-9_-]{1,128}$/) }),
+    sendOperationId: z.string().regex(/^[A-Za-z0-9_.:-]{1,128}$/).optional(),
+    binding: z.object({ taskId: z.string().regex(/^[A-Za-z0-9_.:-]{1,128}$/), iteration: z.number().int().nonnegative().max(Number.MAX_SAFE_INTEGER), workspaceId: z.string().regex(/^[A-Za-z0-9_.:-]{1,128}$/), head: z.string().regex(/^(?:[a-f0-9]{40}|[a-f0-9]{64})$/).optional() }).strict().optional(),
+  }).strict().optional(),
 }).strict()
-const entrySchema = intentSchema.extend({ phase: z.enum(phases), updatedAt: z.number().int().nonnegative() }).strict()
+const validObservationMethod = (entry: z.infer<typeof intentFields>) => !entry.observation || (entry.method === 'sendControlMessage' ? entry.observation.sendOperationId === undefined : entry.method === 'waitForReply' && entry.observation.sendOperationId !== undefined)
+const intentSchema = intentFields.refine(validObservationMethod)
+const entrySchema = intentFields.extend({ phase: z.enum(phases), updatedAt: z.number().int().nonnegative(), replyDigest: z.string().regex(/^[a-f0-9]{64}$/).optional() }).strict().refine(validObservationMethod)
+  .refine(entry => entry.replyDigest === undefined || (entry.method === 'waitForReply' && entry.phase === 'accepted' && entry.observation?.sendOperationId !== undefined))
+  .refine(entry => !(entry.method === 'waitForReply' && entry.phase === 'accepted' && entry.observation) || entry.replyDigest !== undefined)
 export type DeliveryIntent = z.infer<typeof intentSchema>
 export type DeliveryEntry = z.infer<typeof entrySchema>
 const storeSchema = z.object({ version: z.literal(1), revision: z.number().int().nonnegative(), retired: z.string().regex(/^[a-f0-9]{128}$/), entries: z.array(entrySchema) }).strict()
@@ -91,7 +102,7 @@ export class DeliveryJournal {
       const intent = parsed.data
       const existing = this.lookup(intent.operationId)
       if (existing) {
-        if (existing.payloadDigest !== intent.payloadDigest || existing.method !== intent.method || existing.correlationDigest !== intent.correlationDigest) throw new SidecarRpcError('REPLAY_CONFLICT')
+        if (existing.payloadDigest !== intent.payloadDigest || existing.method !== intent.method || existing.correlationDigest !== intent.correlationDigest || JSON.stringify(existing.observation) !== JSON.stringify(intent.observation)) throw new SidecarRpcError('REPLAY_CONFLICT')
         return existing
       }
       const next = structuredClone(this.store)
@@ -112,7 +123,35 @@ export class DeliveryJournal {
       const next = structuredClone(this.store)
       const entry = next.entries.find(entry => entry.operationId === operationId)
       if (!entry || !phases.includes(phase) || (entry.phase !== phase && !transitions[entry.phase].includes(phase))) throw new SidecarRpcError('SIDECAR_INVALID_REQUEST')
+      if (phase === 'accepted' && entry.method === 'waitForReply' && entry.observation && !entry.replyDigest) throw new SidecarRpcError('SIDECAR_INVALID_REQUEST')
       entry.phase = phase; entry.updatedAt = this.now()
+      await this.publish(next)
+      return structuredClone(entry)
+    })
+  }
+  /** Publish acceptance and its digest together; reply bodies never enter disk. */
+  completeReply(operationId: string, replyDigest: string): Promise<DeliveryEntry> {
+    return this.serialize(async () => {
+      const next = structuredClone(this.store)
+      const entry = next.entries.find(value => value.operationId === operationId)
+      if (!entry || entry.method !== 'waitForReply' || !entry.observation?.sendOperationId || !/^[a-f0-9]{64}$/.test(replyDigest)) throw new SidecarRpcError('SIDECAR_INVALID_REQUEST')
+      if (entry.phase === 'accepted') {
+        if (entry.replyDigest !== replyDigest) throw new SidecarRpcError('REPLAY_CONFLICT')
+        return structuredClone(entry)
+      }
+      if (entry.phase !== 'awaiting-reply') throw new SidecarRpcError('SIDECAR_INVALID_REQUEST')
+      entry.phase = 'accepted'; entry.replyDigest = replyDigest; entry.updatedAt = this.now()
+      await this.publish(next)
+      return structuredClone(entry)
+    })
+  }
+  /** Only trusted semantic reconciliation may resume this read-only operation. */
+  resumeObservation(operationId: string): Promise<DeliveryEntry> {
+    return this.serialize(async () => {
+      const next = structuredClone(this.store)
+      const entry = next.entries.find(value => value.operationId === operationId)
+      if (!entry || entry.method !== 'waitForReply' || entry.phase !== 'uncertain' || !entry.observation?.sendOperationId) throw new SidecarRpcError('SEND_UNCERTAIN')
+      entry.phase = 'awaiting-reply'; entry.updatedAt = this.now()
       await this.publish(next)
       return structuredClone(entry)
     })

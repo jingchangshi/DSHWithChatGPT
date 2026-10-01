@@ -1,17 +1,17 @@
 import { createHash, randomUUID, timingSafeEqual } from 'node:crypto'
 import { createServer, type IncomingMessage, type ServerResponse } from 'node:http'
 import type { AddressInfo } from 'node:net'
-import type { ChatControl } from '../core/ports/chat-control.ts'
+import type { ChatControl, ChatRecoveryControl, ReplyObservationBaseline } from '../core/ports/chat-control.ts'
 import type { ChatControlDiagnostics } from '../core/ports/chat-diagnostics.ts'
 import { verifyPrivateStateDirectory } from '../deployment/private-state.ts'
 export { protectPrivateStateDirectory } from '../deployment/private-state.ts'
 import { DeliveryJournal, type DeliveryEntry, type DeliveryPhase } from './journal.ts'
 import { SIDECAR_ERROR_CODES, SidecarRpcError, type SidecarErrorCode } from './errors.ts'
-import { parseSidecarRequest, SIDECAR_MAX_REPLY_BYTES, SIDECAR_MAX_REQUEST_BYTES, type SidecarRequest } from './protocol.ts'
+import { parseSidecarRequest, replyBaselineSchema, SIDECAR_MAX_REPLY_BYTES, SIDECAR_MAX_REQUEST_BYTES, type SidecarRequest } from './protocol.ts'
 
 export interface SidecarServerConfig {
   host: '127.0.0.1'; port: number; authentication: string; stateDirectory: string
-  driver: ChatControl & Partial<ChatControlDiagnostics>; requestTimeoutMs?: number; maxRequestBytes?: number; maxReplyBytes?: number
+  driver: ChatControl & Partial<ChatControlDiagnostics & ChatRecoveryControl>; requestTimeoutMs?: number; maxRequestBytes?: number; maxReplyBytes?: number
   /** Trusted deployment binding; RPC callers cannot change the selected product App. */
   configuredAppName?: string
   /** Trusted deployment diagnostics; never exposed as an RPC method. */
@@ -20,7 +20,8 @@ export interface SidecarServerConfig {
 type Outcome = { ok: true; result: unknown } | { ok: false; error: { code: SidecarErrorCode } }
 const failure = (code: SidecarErrorCode): Outcome => ({ ok: false, error: { code } })
 const digest = (value: unknown) => createHash('sha256').update(JSON.stringify(value)).digest('hex')
-const operationPayloadDigest = (request: SidecarRequest) => digest({ method: request.method, params: request.params, correlation: request.correlation, replyBaseline: 'replyBaseline' in request ? request.replyBaseline : undefined })
+const operationPayloadDigest = (request: SidecarRequest) => digest({ method: request.method, params: request.params, correlation: request.correlation, replyBaseline: 'replyBaseline' in request ? request.replyBaseline : undefined, replyRecovery: 'replyRecovery' in request ? request.replyRecovery : undefined })
+const textDigest = (value: string) => createHash('sha256').update(value, 'utf8').digest('hex')
 function providerError(error: unknown): SidecarErrorCode {
   if (error instanceof SidecarRpcError) return error.code
   const code = (error as { code?: unknown })?.code
@@ -66,6 +67,7 @@ export async function startSidecar(config: SidecarServerConfig) {
       return { ok: true, result: null }
     }
     if (shuttingDown) return failure('SIDECAR_SHUTTING_DOWN')
+    if (request.method === 'captureReplyBaseline' && !config.driver.captureReplyBaseline) return failure('CHAT_CONTROL_OBSERVATION_UNAVAILABLE')
     if (request.method === 'readiness' && !config.driver.readiness) return failure('CHAT_CONTROL_DIAGNOSTICS_UNAVAILABLE')
     if (request.method === 'probeApp') {
       if (!config.driver.probeApp || config.configuredAppName === undefined) return failure('CHAT_CONTROL_DIAGNOSTICS_UNAVAILABLE')
@@ -97,26 +99,58 @@ export async function startSidecar(config: SidecarServerConfig) {
       }) } finally { cleanup() }
     }
     async function publishPhase(phase: DeliveryPhase): Promise<void> { await observe(await journal.transition(request.operationId, phase)) }
+    let observation: DeliveryEntry['observation']
+    let recoveredEntry: DeliveryEntry | undefined
+    let uncertainSource = false
     try {
+      const binding = request.correlation ? { taskId: request.correlation.taskId, iteration: request.correlation.iteration, workspaceId: request.correlation.workspaceId, ...(request.correlation.head ? { head: request.correlation.head } : {}) } : undefined
+      if (request.method === 'sendControlMessage' && request.replyBaseline?.conversationId != null) {
+        observation = { controlDigest: textDigest(request.params.text), replyBaseline: { ...request.replyBaseline, conversationId: request.replyBaseline.conversationId }, ...(binding ? { binding } : {}) }
+      }
+      if (request.method === 'waitForReply' && request.replyRecovery) {
+        const source = journal.lookup(request.replyRecovery.sendOperationId)
+        if (!source || source.method !== 'sendControlMessage' || !source.observation || !['accepted', 'uncertain'].includes(source.phase)) return failure('SEND_UNCERTAIN')
+        if (JSON.stringify(source.observation.replyBaseline) !== JSON.stringify(request.replyBaseline)) return failure('REPLAY_CONFLICT')
+        if (JSON.stringify(source.observation.binding) !== JSON.stringify(binding)) return failure('REPLAY_CONFLICT')
+        observation = { ...source.observation, sendOperationId: source.operationId }
+        uncertainSource = source.phase === 'uncertain'
+        if (uncertainSource && !config.driver.reconcileReplyBaseline) return failure('SEND_UNCERTAIN')
+      }
       if (durable(request)) {
         const correlationIdentity = request.correlation ? { method: request.method, taskId: request.correlation.taskId, iteration: request.correlation.iteration, workspaceId: request.correlation.workspaceId, phase: request.correlation.phase } : undefined
-        const entry = await journal.prepare({ operationId: request.operationId, payloadDigest: operationPayloadDigest(request), method: request.method, createdAt: Date.now(), ...(correlationIdentity ? { correlationDigest: digest(correlationIdentity) } : {}) })
+        const entry = await journal.prepare({ operationId: request.operationId, payloadDigest: operationPayloadDigest(request), method: request.method, createdAt: Date.now(), ...(correlationIdentity ? { correlationDigest: digest(correlationIdentity) } : {}), ...(observation ? { observation } : {}) })
         if (entry.phase !== 'prepared') {
           if (entry.phase === 'accepted' && request.method === 'sendControlMessage') return { ok: true, result: null }
-          return failure('SEND_UNCERTAIN')
+          if (request.method !== 'waitForReply' || !observation || !config.driver.reconcileReplyBaseline || !(entry.phase === 'uncertain' || (entry.phase === 'accepted' && entry.replyDigest))) return failure('SEND_UNCERTAIN')
+          recoveredEntry = entry
         }
-        await observe(entry)
-        if (controller.signal.aborted) { await journal.transition(request.operationId, 'cancelled'); return failure('OPERATION_CANCELLED') }
-        await publishPhase(request.method === 'sendControlMessage' ? 'sending' : request.method === 'probeApp' ? 'probing-app' : 'awaiting-reply')
+        if (!recoveredEntry) {
+          await observe(entry)
+          if (controller.signal.aborted) { await journal.transition(request.operationId, 'cancelled'); return failure('OPERATION_CANCELLED') }
+          await publishPhase(request.method === 'sendControlMessage' ? 'sending' : request.method === 'probeApp' ? 'probing-app' : 'awaiting-reply')
+        }
       }
       controller.signal.throwIfAborted()
       invoked = true
       const provider = (async (): Promise<unknown> => {
+        let executionBaseline: ReplyObservationBaseline | undefined = 'replyBaseline' in request ? request.replyBaseline : undefined
+        if ((recoveredEntry || uncertainSource) && observation) {
+          const result = replyBaselineSchema.safeParse(await config.driver.reconcileReplyBaseline!({ conversationId: observation.replyBaseline.conversationId, controlDigest: observation.controlDigest }, controller.signal))
+          if (!result.success || result.data.conversationId !== observation.replyBaseline.conversationId || result.data.assistantCount !== observation.replyBaseline.assistantCount || result.data.textDigest !== observation.replyBaseline.textDigest) throw new SidecarRpcError('SEND_UNCERTAIN')
+          controller.signal.throwIfAborted()
+          executionBaseline = result.data
+          if (recoveredEntry?.phase === 'uncertain') await observe(await journal.resumeObservation(request.operationId))
+        }
         switch (request.method) {
+          case 'captureReplyBaseline': {
+            const value = replyBaselineSchema.safeParse(await config.driver.captureReplyBaseline!(controller.signal))
+            if (!value.success) throw new SidecarRpcError('SIDECAR_INVALID_REQUEST')
+            return value.data
+          }
           case 'ensureReady': await config.driver.ensureReady(controller.signal); return null
           case 'openConversation': return config.driver.openConversation(request.params.conversationId, controller.signal)
           case 'sendControlMessage': await config.driver.sendControlMessage(request.params.text, controller.signal, { operationId: request.operationId, correlation: request.correlation, replyBaseline: request.replyBaseline }); return null
-          case 'waitForReply': return config.driver.waitForReply(request.params.timeoutMs, controller.signal, { operationId: request.operationId, correlation: request.correlation, replyBaseline: request.replyBaseline })
+          case 'waitForReply': return config.driver.waitForReply(request.params.timeoutMs, controller.signal, { operationId: request.operationId, correlation: request.correlation, replyBaseline: executionBaseline })
           case 'currentConversation': return await config.driver.currentConversation(controller.signal) ?? null
           case 'recover': await config.driver.recover(controller.signal); return null
           case 'readiness': return config.driver.readiness!(controller.signal)
@@ -138,7 +172,11 @@ export async function startSidecar(config: SidecarServerConfig) {
       if (durable(request)) {
         if (request.method === 'sendControlMessage') await publishPhase('observed-sent')
         if (request.method === 'probeApp') await publishPhase('observed-app')
-        await publishPhase('accepted')
+        if (request.method === 'waitForReply' && observation) {
+          const reply = result as { text?: unknown; complete?: unknown }
+          if (typeof reply?.text !== 'string' || reply.complete !== true) throw new SidecarRpcError('SEND_UNCERTAIN')
+          await observe(await journal.completeReply(request.operationId, textDigest(reply.text)))
+        } else await publishPhase('accepted')
       }
       return { ok: true, result }
     } catch (error) {

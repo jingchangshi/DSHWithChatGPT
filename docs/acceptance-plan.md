@@ -332,3 +332,15 @@ Read-only explicit product-target inspection recognizes one user and one
 assistant message on the real current page. Its visibility remains hidden and
 its historical outgoing message has no proven App mention. This evidence is
 DOM compatibility only, not real App acceptance or crash-recovery acceptance.
+
+Journal-bound observation extension (2026-10-02): bounded baseline capture is
+available through the neutral Sidecar client. Known-conversation sends retain
+hash-only observation facts and optional task/round/workspace/HEAD binding. Opt-in
+waits bind to the original send, reject changed metadata, and reconcile uncertain
+delivery through the internal semantic driver before read-only resumed waiting.
+Completed waits retain a reply digest atomically with acceptance. Replays after
+restart reobserve the reply and reject digest changes; no reply body is stored.
+Old journal records load without fabricated observation history. This extension
+does not wire coordinator persistence or establish real browser restart or
+full product recovery acceptance. Separate-process cases use an explicitly fake
+external browser view; they must not be reported as real ChatGPT proof.

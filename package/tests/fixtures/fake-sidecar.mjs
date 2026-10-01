@@ -1,10 +1,14 @@
 import { startSidecar } from '../../lib/sidecar/server.js'
 import { protectPrivateStateDirectory } from '../../lib/deployment/private-state.js'
+import { createHash } from 'node:crypto'
 
 // Test-owned child process. No Browser Harness, Chrome or workspace authority.
 let conversation
 let reply = ''
 const barriers = new Map()
+const recoveryView = process.env.PLANNERBRIDGE_TEST_RECOVERY_VIEW
+const emptyDigest = createHash('sha256').update('').digest('hex')
+const observationBaseline = { version: 1, conversationId: 'owned', assistantCount: 0, textDigest: emptyDigest, observationEpoch: 'a'.repeat(64) }
 const driver = {
   health: async () => ({ ok: true, detail: 'fake driver ready' }),
   ensureReady: async () => {},
@@ -20,6 +24,9 @@ const driver = {
     reply = text === 'large-reply' ? 'a'.repeat(65_537) : 'reply to ' + text
   },
   waitForReply: async (timeoutMs, signal) => {
+    // Independent-process fake browser state supplied by the fixture, never a
+    // production journal body or evidence of a real ChatGPT page.
+    if (!reply && recoveryView) return { text: recoveryView === 'changed-reply' ? 'foreign changed reply' : 'reply to owned recovery control', complete: true }
     if (reply) return { text: reply, complete: true }
     await new Promise((resolve, reject) => {
       const timer = setTimeout(() => reject(new Error('BROWSER_STALE: no reply')), timeoutMs)
@@ -28,6 +35,14 @@ const driver = {
   },
   recover: async () => {},
 }
+if (recoveryView) Object.assign(driver, {
+  captureReplyBaseline: async () => observationBaseline,
+  reconcileReplyBaseline: async request => {
+    const controlDigest = createHash('sha256').update('owned recovery control').digest('hex')
+    if (!['exact', 'changed-reply'].includes(recoveryView) || request.conversationId !== 'owned' || request.controlDigest !== controlDigest) throw Object.assign(new Error('SEND_UNCERTAIN'), { code: 'SEND_UNCERTAIN' })
+    return { ...observationBaseline, observationEpoch: 'b'.repeat(64) }
+  },
+})
 if (process.env.PLANNERBRIDGE_TEST_PROTECT_STATE !== 'false') await protectPrivateStateDirectory(process.env.PLANNERBRIDGE_TEST_STATE, [])
 const server = await startSidecar({
   host: '127.0.0.1', port: 0,

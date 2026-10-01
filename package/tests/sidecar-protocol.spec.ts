@@ -2,6 +2,17 @@ import { describe, expect, it } from 'vitest'
 
 const request = () => ({ version: 1, requestId: 'transport-attempt-1', operationId: 'logical-operation-1', generation: 'sidecar-generation-1', method: 'health', params: {} })
 describe('strict semantic RPC protocol', () => {
+  it('allows narrow capture and wait recovery binding without primitive arguments', async () => {
+    const { parseSidecarRequest } = await import('../src/sidecar/protocol.ts')
+    expect(parseSidecarRequest({ ...request(), method: 'captureReplyBaseline' })).toMatchObject({ method: 'captureReplyBaseline' })
+    for (const params of [{ url: 'https://example.com' }, { expression: 'JS' }, { path: 'private' }]) expect(() => parseSidecarRequest({ ...request(), method: 'captureReplyBaseline', params })).toThrow()
+    const replyRecovery = { sendOperationId: 'owned-send' }
+    const replyBaseline = { version: 1, conversationId: 'owned', assistantCount: 0, textDigest: 'a'.repeat(64), observationEpoch: 'b'.repeat(64) }
+    expect(parseSidecarRequest({ ...request(), method: 'waitForReply', params: { timeoutMs: 1000 }, replyRecovery, replyBaseline })).toMatchObject({ replyRecovery })
+    expect(() => parseSidecarRequest({ ...request(), method: 'waitForReply', params: { timeoutMs: 1000 }, replyRecovery })).toThrow()
+    expect(() => parseSidecarRequest({ ...request(), method: 'sendControlMessage', params: { text: 'control' }, replyRecovery })).toThrow()
+    expect(() => parseSidecarRequest({ ...request(), method: 'waitForReply', params: { timeoutMs: 1000 }, replyRecovery: { ...replyRecovery, controlDigest: 'a'.repeat(64) }, replyBaseline })).toThrow()
+  })
   it('bounds reply baseline metadata on semantic sends and waits only', async () => {
     const { parseSidecarRequest, parseControlOperation } = await import('../src/sidecar/protocol.ts')
     const replyBaseline = { version: 1, conversationId: 'owned', assistantCount: 1, textDigest: 'a'.repeat(64), observationEpoch: 'b'.repeat(64) }

@@ -1,8 +1,8 @@
 import { z } from 'zod'
-import type { ChatControl, ChatReply, ControlOperation } from '../core/ports/chat-control.ts'
+import type { ChatObservationControl, ChatReply, ControlOperation, ReplyObservationBaseline } from '../core/ports/chat-control.ts'
 import type { ChatControlDiagnostics, ChatReadiness } from '../core/ports/chat-diagnostics.ts'
 import { SIDECAR_ERROR_CODES, SidecarRpcError } from './errors.ts'
-import { parseControlOperation, parseSidecarRequest, SIDECAR_MAX_REPLY_BYTES, SIDECAR_MAX_REQUEST_BYTES, type SidecarMethod, validateSidecarEndpoint } from './protocol.ts'
+import { parseControlOperation, parseSidecarRequest, replyBaselineSchema, SIDECAR_MAX_REPLY_BYTES, SIDECAR_MAX_REQUEST_BYTES, type SidecarMethod, validateSidecarEndpoint } from './protocol.ts'
 
 const identifier = z.string().regex(/^[A-Za-z0-9_.:-]{1,128}$/)
 const responseSchema = z.discriminatedUnion('ok', [
@@ -16,7 +16,7 @@ const readinessSchema = z.object({ url: z.string().max(2048), composer: z.boolea
 export interface SidecarClientConfig { endpoint: string; authentication: string; requestTimeoutMs?: number }
 
 /** A semantic HTTP client. Deployment, browser and workspace ownership stay elsewhere. */
-export class SidecarChatControlClient implements ChatControl, ChatControlDiagnostics {
+export class SidecarChatControlClient implements ChatObservationControl, ChatControlDiagnostics {
   private readonly endpoint: string
   private readonly timeoutMs: number
   private generation: string | undefined
@@ -25,10 +25,10 @@ export class SidecarChatControlClient implements ChatControl, ChatControlDiagnos
     this.timeoutMs = config.requestTimeoutMs ?? 30_000
     if (!config.authentication || /[\r\n]/.test(config.authentication) || !Number.isInteger(this.timeoutMs) || this.timeoutMs < 1 || this.timeoutMs > 600_000) throw new SidecarRpcError('SIDECAR_INVALID_REQUEST')
   }
-  private async rpc(method: SidecarMethod, params: unknown, operationId: string, signal?: AbortSignal, timeoutMs = this.timeoutMs, correlation?: ControlOperation['correlation'], replyBaseline?: ControlOperation['replyBaseline']): Promise<unknown> {
+  private async rpc(method: SidecarMethod, params: unknown, operationId: string, signal?: AbortSignal, timeoutMs = this.timeoutMs, correlation?: ControlOperation['correlation'], replyBaseline?: ControlOperation['replyBaseline'], replyRecovery?: ControlOperation['replyRecovery']): Promise<unknown> {
     if (signal?.aborted) throw new SidecarRpcError('OPERATION_CANCELLED')
     const requestId = crypto.randomUUID()
-    const request = parseSidecarRequest({ version: 1, requestId, operationId, generation: this.generation, method, params, correlation, ...(replyBaseline === undefined ? {} : { replyBaseline }) })
+    const request = parseSidecarRequest({ version: 1, requestId, operationId, generation: this.generation, method, params, correlation, ...(replyBaseline === undefined ? {} : { replyBaseline }), ...(replyRecovery === undefined ? {} : { replyRecovery }) })
     const body = JSON.stringify(request)
     if (new TextEncoder().encode(body).byteLength > SIDECAR_MAX_REQUEST_BYTES) throw new SidecarRpcError('SIDECAR_INVALID_REQUEST')
     const deadline = AbortSignal.timeout(timeoutMs)
@@ -73,7 +73,7 @@ export class SidecarChatControlClient implements ChatControl, ChatControlDiagnos
     const operation = parseControlOperation(suppliedOperation ?? { operationId: crypto.randomUUID() })
     if (!this.generation) await this.healthWithSignal(signal)
     const operationId = operation.operationId
-    try { return await this.rpc(method, params, operationId, signal, timeoutMs, operation.correlation, operation.replyBaseline) }
+    try { return await this.rpc(method, params, operationId, signal, timeoutMs, operation.correlation, operation.replyBaseline, operation.replyRecovery) }
     catch (error) {
       if (error instanceof SidecarRpcError && ['OPERATION_CANCELLED', 'SIDECAR_TIMEOUT'].includes(error.code)) {
         // Independent transport lifetime: an aborted caller cannot abort cleanup.
@@ -89,6 +89,11 @@ export class SidecarChatControlClient implements ChatControl, ChatControlDiagnos
     return parsed.data
   }
   health() { return this.healthWithSignal() }
+  async captureReplyBaseline(signal?: AbortSignal): Promise<ReplyObservationBaseline> {
+    const result = replyBaselineSchema.safeParse(await this.call('captureReplyBaseline', {}, signal))
+    if (!result.success) throw new SidecarRpcError('SIDECAR_INVALID_REQUEST')
+    return result.data
+  }
   async ensureReady(signal?: AbortSignal): Promise<void> { this.checkVoid(await this.call('ensureReady', {}, signal)) }
   async openConversation(conversationId?: string, signal?: AbortSignal): Promise<string> {
     const parsed = conversationSchema.safeParse(await this.call('openConversation', { conversationId }, signal))

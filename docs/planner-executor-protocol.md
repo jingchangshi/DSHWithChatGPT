@@ -71,8 +71,9 @@ different conversation/document. Sidecar send/wait requests accept this bounded
 metadata; both in-memory and durable operation digests include it, so changing it
 on replay is a conflict. Legacy requests without it retain their existing digest.
 
-This foundation does not yet expose baseline capture through the Sidecar, persist
-it in coordinator task state, or resume a Sidecar journal wait after restart.
+The original foundation did not expose baseline capture through the Sidecar or
+resume a journal wait. The journal-bound extension below adds those capabilities;
+coordinator task-state integration remains pending.
 The existing uncertainty policy remains unchanged. A changed document/target
 requires explicit semantic reconciliation; an epoch mismatch cannot authorize
 resending. New-task bootstrap and whole-browser restart remain integration work.
@@ -82,7 +83,27 @@ conversation and outgoing control SHA256 digest. Shared current/legacy message
 observations must prove a unique latest configured-App user message before a
 new document baseline is adopted. Missing, foreign or ambiguous evidence yields
 `SEND_UNCERTAIN`; successful reconciliation resumes observation without typing
-or Enter. This capability is not exposed through Sidecar RPC and is not yet
-wired into durable task-state or journal recovery.
+or Enter. Reconciliation remains an internal driver capability, not a generic
+browser RPC.
+
+### Journal-bound reply recovery
+
+The neutral Sidecar client can capture the bounded reply baseline. Opt-in sends
+with a known conversation persist their control digest, original baseline and
+task/iteration/workspace/HEAD binding. A wait may reference that send with internal
+`replyRecovery.sendOperationId`; the server derives proof inputs from its own
+journal rather than accepting a caller-supplied outgoing digest. Missing source
+records, changed bindings or changed replay metadata cannot authorize observation.
+Released calls without this metadata keep their original digest and behavior.
+
+After service restart, an uncertain wait or an uncertain source send requires
+exact read-only outgoing-message reconciliation. The derived preceding count,
+digest and conversation must match the original baseline; only then may its new
+document epoch be used to resume waiting. No send is invoked during this path.
+Wait acceptance and the reply SHA256 digest are published together. Replaying an
+accepted wait after restart independently reobserves its reply and checks that
+digest; it never invents a reply from journal acceptance alone. The journal keeps
+no control or reply bodies. New-chat bootstrap, durable coordinator state and
+whole-product recovery/crash-matrix acceptance remain integration work.
 
 Legacy `[D2C]` v1, sender names, `d2c_` task IDs, storage records and existing public tools may remain behind explicit adapters. A task's protocol version is durable and cannot change midway through a pending round. Existing v1 task recovery uses the v1 validator; new canonical tasks use v2. Compatibility parsing cannot weaken workspace/HEAD checks. Map old error/status aliases only at public edges. Development CodexWithChatGPT control syntax is externally owned and not a product wire protocol.
