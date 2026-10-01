@@ -7,13 +7,15 @@ let conversation
 let reply = ''
 const barriers = new Map()
 const recoveryView = process.env.PLANNERBRIDGE_TEST_RECOVERY_VIEW
+const bootstrapMode = process.env.PLANNERBRIDGE_TEST_BOOTSTRAP === 'true'
 const emptyDigest = createHash('sha256').update('').digest('hex')
 const observationBaseline = { version: 1, conversationId: 'owned', assistantCount: 0, textDigest: emptyDigest, observationEpoch: 'a'.repeat(64) }
 const driver = {
   health: async () => ({ ok: true, detail: 'fake driver ready' }),
   ensureReady: async () => {},
   openConversation: async id => { conversation = id ?? 'created-conversation'; return conversation },
-  currentConversation: async () => conversation,
+  currentConversation: async () => conversation ?? (recoveryView && !bootstrapMode
+    ? recoveryView === 'missing' ? undefined : recoveryView === 'foreign' ? 'foreign' : 'owned' : undefined),
   sendControlMessage: async (text, signal) => {
     signal?.throwIfAborted()
     if (text === 'logged-out') throw new Error('ChatGPT_WEB_LOGGED_OUT: private provider detail')
@@ -22,6 +24,8 @@ const driver = {
     if (text === 'hang-before-ack') await new Promise(() => {})
     if (text === 'abortable-send') await new Promise((_resolve, reject) => signal.addEventListener('abort', () => reject(signal.reason), { once: true }))
     reply = text === 'large-reply' ? 'a'.repeat(65_537) : 'reply to ' + text
+    // Synthetic post-ACK route for bootstrap tests; no real browser is used.
+    if (bootstrapMode && recoveryView && text === 'owned recovery control') conversation = 'owned'
   },
   waitForReply: async (timeoutMs, signal) => {
     // Independent-process fake browser state supplied by the fixture, never a
@@ -36,7 +40,8 @@ const driver = {
   recover: async () => {},
 }
 if (recoveryView) Object.assign(driver, {
-  captureReplyBaseline: async () => observationBaseline,
+  captureReplyBaseline: async () => bootstrapMode && conversation === undefined
+    ? { ...observationBaseline, conversationId: null } : observationBaseline,
   reconcileReplyBaseline: async request => {
     const controlDigest = createHash('sha256').update('owned recovery control').digest('hex')
     if (!['exact', 'changed-reply'].includes(recoveryView) || request.conversationId !== 'owned' || request.controlDigest !== controlDigest) throw Object.assign(new Error('SEND_UNCERTAIN'), { code: 'SEND_UNCERTAIN' })

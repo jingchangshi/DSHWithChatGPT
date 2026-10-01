@@ -7,6 +7,8 @@ import { replyBaselineSchema } from './protocol.ts'
 
 const phases = ['prepared', 'sending', 'observed-sent', 'probing-app', 'observed-app', 'awaiting-reply', 'accepted', 'uncertain', 'cancelled', 'failed'] as const
 export type DeliveryPhase = typeof phases[number]
+const bindingSchema = z.object({ taskId: z.string().regex(/^[A-Za-z0-9_.:-]{1,128}$/), iteration: z.number().int().nonnegative().max(Number.MAX_SAFE_INTEGER), workspaceId: z.string().regex(/^[A-Za-z0-9_.:-]{1,128}$/), head: z.string().regex(/^(?:[a-f0-9]{40}|[a-f0-9]{64})$/).optional() }).strict()
+const boundBaselineSchema = replyBaselineSchema.extend({ conversationId: z.string().regex(/^[A-Za-z0-9_-]{1,128}$/) })
 const intentFields = z.object({
   operationId: z.string().regex(/^[A-Za-z0-9_.:-]{1,128}$/),
   payloadDigest: z.string().regex(/^[a-f0-9]{64}$/),
@@ -15,14 +17,21 @@ const intentFields = z.object({
   correlationDigest: z.string().regex(/^[a-f0-9]{64}$/).optional(),
   observation: z.object({
     controlDigest: z.string().regex(/^[a-f0-9]{64}$/),
-    replyBaseline: replyBaselineSchema.extend({ conversationId: z.string().regex(/^[A-Za-z0-9_-]{1,128}$/) }),
+    replyBaseline: boundBaselineSchema,
     sendOperationId: z.string().regex(/^[A-Za-z0-9_.:-]{1,128}$/).optional(),
-    binding: z.object({ taskId: z.string().regex(/^[A-Za-z0-9_.:-]{1,128}$/), iteration: z.number().int().nonnegative().max(Number.MAX_SAFE_INTEGER), workspaceId: z.string().regex(/^[A-Za-z0-9_.:-]{1,128}$/), head: z.string().regex(/^(?:[a-f0-9]{40}|[a-f0-9]{64})$/).optional() }).strict().optional(),
+    binding: bindingSchema.optional(),
   }).strict().optional(),
+  bootstrap: z.object({ controlDigest: z.string().regex(/^[a-f0-9]{64}$/),
+    replyBaseline: replyBaselineSchema.extend({ conversationId: z.null() }), binding: bindingSchema.optional() }).strict().optional(),
 }).strict()
-const validObservationMethod = (entry: z.infer<typeof intentFields>) => !entry.observation || (entry.method === 'sendControlMessage' ? entry.observation.sendOperationId === undefined : entry.method === 'waitForReply' && entry.observation.sendOperationId !== undefined)
+const validObservationMethod = (entry: z.infer<typeof intentFields>) =>
+  (!entry.bootstrap || (entry.method === 'sendControlMessage' && entry.observation === undefined))
+  && (!entry.observation || (entry.method === 'sendControlMessage' ? entry.observation.sendOperationId === undefined : entry.method === 'waitForReply' && entry.observation.sendOperationId !== undefined))
 const intentSchema = intentFields.refine(validObservationMethod)
-const entrySchema = intentFields.extend({ phase: z.enum(phases), updatedAt: z.number().int().nonnegative(), replyDigest: z.string().regex(/^[a-f0-9]{64}$/).optional() }).strict().refine(validObservationMethod)
+const entrySchema = intentFields.extend({ phase: z.enum(phases), updatedAt: z.number().int().nonnegative(), replyDigest: z.string().regex(/^[a-f0-9]{64}$/).optional(), bootstrapBaseline: boundBaselineSchema.optional() }).strict().refine(validObservationMethod)
+  .refine(entry => !entry.bootstrapBaseline || (entry.bootstrap !== undefined && entry.phase === 'accepted'
+    && entry.bootstrapBaseline.assistantCount === entry.bootstrap.replyBaseline.assistantCount
+    && entry.bootstrapBaseline.textDigest === entry.bootstrap.replyBaseline.textDigest))
   .refine(entry => entry.replyDigest === undefined || (entry.method === 'waitForReply' && entry.phase === 'accepted' && entry.observation?.sendOperationId !== undefined))
   .refine(entry => !(entry.method === 'waitForReply' && entry.phase === 'accepted' && entry.observation) || entry.replyDigest !== undefined)
 export type DeliveryIntent = z.infer<typeof intentSchema>
@@ -102,7 +111,7 @@ export class DeliveryJournal {
       const intent = parsed.data
       const existing = this.lookup(intent.operationId)
       if (existing) {
-        if (existing.payloadDigest !== intent.payloadDigest || existing.method !== intent.method || existing.correlationDigest !== intent.correlationDigest || JSON.stringify(existing.observation) !== JSON.stringify(intent.observation)) throw new SidecarRpcError('REPLAY_CONFLICT')
+        if (existing.payloadDigest !== intent.payloadDigest || existing.method !== intent.method || existing.correlationDigest !== intent.correlationDigest || JSON.stringify(existing.observation) !== JSON.stringify(intent.observation) || JSON.stringify(existing.bootstrap) !== JSON.stringify(intent.bootstrap)) throw new SidecarRpcError('REPLAY_CONFLICT')
         return existing
       }
       const next = structuredClone(this.store)
@@ -125,6 +134,23 @@ export class DeliveryJournal {
       if (!entry || !phases.includes(phase) || (entry.phase !== phase && !transitions[entry.phase].includes(phase))) throw new SidecarRpcError('SIDECAR_INVALID_REQUEST')
       if (phase === 'accepted' && entry.method === 'waitForReply' && entry.observation && !entry.replyDigest) throw new SidecarRpcError('SIDECAR_INVALID_REQUEST')
       entry.phase = phase; entry.updatedAt = this.now()
+      await this.publish(next)
+      return structuredClone(entry)
+    })
+  }
+  /** Called only after live owned ACK and semantic proof; preserve initial intent. */
+  bindBootstrap(operationId: string, value: unknown): Promise<DeliveryEntry> {
+    return this.serialize(async () => {
+      const parsed = boundBaselineSchema.safeParse(value)
+      const next = structuredClone(this.store), entry = next.entries.find(entry => entry.operationId === operationId)
+      if (!parsed.success || !entry?.bootstrap || entry.phase !== 'accepted'
+        || parsed.data.assistantCount !== entry.bootstrap.replyBaseline.assistantCount
+        || parsed.data.textDigest !== entry.bootstrap.replyBaseline.textDigest) throw new SidecarRpcError('SEND_UNCERTAIN')
+      if (entry.bootstrapBaseline) {
+        if (JSON.stringify(entry.bootstrapBaseline) !== JSON.stringify(parsed.data)) throw new SidecarRpcError('REPLAY_CONFLICT')
+        return structuredClone(entry)
+      }
+      entry.bootstrapBaseline = parsed.data; entry.updatedAt = this.now()
       await this.publish(next)
       return structuredClone(entry)
     })

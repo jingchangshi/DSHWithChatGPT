@@ -363,3 +363,28 @@ Old journal records load without fabricated observation history. This extension
 does not wire coordinator persistence or establish real browser restart or
 full product recovery acceptance. Separate-process cases use an explicitly fake
 external browser view; they must not be reported as real ChatGPT proof.
+
+Bootstrap observation transport (2026-10-02): the source-only
+`captureSendObservation(sendOperationId)` capability derives all proof inputs
+from an accepted Sidecar send record. Callers cannot supply a conversation,
+digest, epoch, expression, path or message body. Original null-conversation
+intent remains immutable; a separate bounded binding is published once only
+after the same live service witnessed a successful provider ACK and the owned
+driver proved the exact configured App and outgoing control digest. Derived
+assistant count and text digest must match the original baseline. An unbound
+bootstrap after restart fails closed even when the current route looks exact;
+it is neither adopted nor resent. Previously bound metadata survives restart,
+but the first resumed wait still requires read-only semantic reconciliation.
+Accepted known-conversation sources also reconcile before their first wait in
+a restarted service. Cancelled late proof cannot publish a binding, and an
+abort-ignoring provider retains exclusive ownership until it settles.
+
+Journal contract and RPC fixtures cover immutable metadata, mismatches,
+corruption preservation and refusal before browser reads. Three separate-process
+cases cover pre-ACK, ACK-but-unbound and already-bound crash boundaries with
+different child PIDs and an explicitly synthetic external browser view. The
+initial process-fixture failure reflects missing fake-provider bootstrap
+support, not a production-source regression. These checks do not establish
+real ChatGPT ACK or full recovery acceptance. Aggregate bound-baseline
+persistence, canonical coordinator wiring, fresh GitLease acquisition and
+production v2 task creation remain pending.

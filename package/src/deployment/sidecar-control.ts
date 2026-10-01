@@ -1,4 +1,4 @@
-import type { ChatControl, ControlOperation } from '../core/ports/chat-control.ts'
+import type { ChatSendObservationControl, ControlOperation } from '../core/ports/chat-control.ts'
 import type { ChatControlDiagnostics } from '../core/ports/chat-diagnostics.ts'
 import { SidecarChatControlClient } from '../sidecar/client.ts'
 import { SidecarRpcError } from '../sidecar/errors.ts'
@@ -14,7 +14,7 @@ export interface SidecarDeploymentConfig {
 
 /** Deployment resolves private credentials; the neutral client sees only RPC.
  * No service is launched, adopted, shut down or replaced implicitly here. */
-export class DeploymentSidecarControl implements ChatControl, ChatControlDiagnostics {
+export class DeploymentSidecarControl implements ChatSendObservationControl, ChatControlDiagnostics {
   #client: Promise<SidecarChatControlClient> | undefined
   constructor(private readonly options: SidecarDeploymentConfig) { validateSidecarEndpoint(options.endpoint) }
 
@@ -28,6 +28,8 @@ export class DeploymentSidecarControl implements ChatControl, ChatControlDiagnos
   }
   async health() { return (await this.client()).health() }
   async ensureReady(signal?: AbortSignal) { return (await this.client(signal)).ensureReady(signal) }
+  async captureReplyBaseline(signal?: AbortSignal) { return (await this.client(signal)).captureReplyBaseline(signal) }
+  async captureSendObservation(sendOperationId: string, signal?: AbortSignal) { return (await this.client(signal)).captureSendObservation(sendOperationId, signal) }
   async openConversation(id?: string, signal?: AbortSignal) { return (await this.client(signal)).openConversation(id, signal) }
   async sendControlMessage(text: string, signal?: AbortSignal, operation?: ControlOperation) {
     return (await this.client(signal)).sendControlMessage(text, signal, operation)

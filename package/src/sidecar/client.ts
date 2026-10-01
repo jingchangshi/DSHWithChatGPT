@@ -1,5 +1,5 @@
 import { z } from 'zod'
-import type { ChatObservationControl, ChatReply, ControlOperation, ReplyObservationBaseline } from '../core/ports/chat-control.ts'
+import type { ChatSendObservationControl, BoundReplyObservationBaseline, ChatReply, ControlOperation, ReplyObservationBaseline } from '../core/ports/chat-control.ts'
 import type { ChatControlDiagnostics, ChatReadiness } from '../core/ports/chat-diagnostics.ts'
 import { SIDECAR_ERROR_CODES, SidecarRpcError } from './errors.ts'
 import { parseControlOperation, parseSidecarRequest, replyBaselineSchema, SIDECAR_MAX_REPLY_BYTES, SIDECAR_MAX_REQUEST_BYTES, type SidecarMethod, validateSidecarEndpoint } from './protocol.ts'
@@ -16,7 +16,7 @@ const readinessSchema = z.object({ url: z.string().max(2048), composer: z.boolea
 export interface SidecarClientConfig { endpoint: string; authentication: string; requestTimeoutMs?: number }
 
 /** A semantic HTTP client. Deployment, browser and workspace ownership stay elsewhere. */
-export class SidecarChatControlClient implements ChatObservationControl, ChatControlDiagnostics {
+export class SidecarChatControlClient implements ChatSendObservationControl, ChatControlDiagnostics {
   private readonly endpoint: string
   private readonly timeoutMs: number
   private generation: string | undefined
@@ -93,6 +93,11 @@ export class SidecarChatControlClient implements ChatObservationControl, ChatCon
     const result = replyBaselineSchema.safeParse(await this.call('captureReplyBaseline', {}, signal))
     if (!result.success) throw new SidecarRpcError('SIDECAR_INVALID_REQUEST')
     return result.data
+  }
+  async captureSendObservation(sendOperationId: string, signal?: AbortSignal): Promise<BoundReplyObservationBaseline> {
+    const result = replyBaselineSchema.safeParse(await this.call('captureSendObservation', { sendOperationId }, signal))
+    if (!result.success || result.data.conversationId === null) throw new SidecarRpcError('SIDECAR_INVALID_REQUEST')
+    return { ...result.data, conversationId: result.data.conversationId }
   }
   async ensureReady(signal?: AbortSignal): Promise<void> { this.checkVoid(await this.call('ensureReady', {}, signal)) }
   async openConversation(conversationId?: string, signal?: AbortSignal): Promise<string> {

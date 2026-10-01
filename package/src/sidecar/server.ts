@@ -49,6 +49,9 @@ export async function startSidecar(config: SidecarServerConfig) {
   const authenticationDigest = createHash('sha256').update('Bearer ' + config.authentication).digest()
   const attempts = new Map<string, { digest: string; outcome: Promise<Outcome> }>()
   const operations = new Map<string, { digest: string; outcome: Promise<Outcome>; retryable: boolean }>()
+  // Only an actual provider ACK in this live service may bind an unbound new chat.
+  // A replayed accepted record or service restart cannot populate this witness.
+  const acknowledgedSends = new Set<string>()
   let shuttingDown = false
   let active: { operationId: string; controller: AbortController; settled: Promise<void> } | undefined
   const durable = (request: SidecarRequest) => ['sendControlMessage', 'waitForReply', 'openConversation', 'ensureReady', 'recover', 'probeApp'].includes(request.method)
@@ -100,6 +103,7 @@ export async function startSidecar(config: SidecarServerConfig) {
     }
     async function publishPhase(phase: DeliveryPhase): Promise<void> { await observe(await journal.transition(request.operationId, phase)) }
     let observation: DeliveryEntry['observation']
+    let bootstrap: DeliveryEntry['bootstrap']
     let recoveredEntry: DeliveryEntry | undefined
     let uncertainSource = false
     try {
@@ -107,18 +111,23 @@ export async function startSidecar(config: SidecarServerConfig) {
       if (request.method === 'sendControlMessage' && request.replyBaseline?.conversationId != null) {
         observation = { controlDigest: textDigest(request.params.text), replyBaseline: { ...request.replyBaseline, conversationId: request.replyBaseline.conversationId }, ...(binding ? { binding } : {}) }
       }
+      if (request.method === 'sendControlMessage' && request.replyBaseline?.conversationId === null) {
+        bootstrap = { controlDigest: textDigest(request.params.text), replyBaseline: { ...request.replyBaseline, conversationId: null }, ...(binding ? { binding } : {}) }
+      }
       if (request.method === 'waitForReply' && request.replyRecovery) {
         const source = journal.lookup(request.replyRecovery.sendOperationId)
-        if (!source || source.method !== 'sendControlMessage' || !source.observation || !['accepted', 'uncertain'].includes(source.phase)) return failure('SEND_UNCERTAIN')
-        if (JSON.stringify(source.observation.replyBaseline) !== JSON.stringify(request.replyBaseline)) return failure('REPLAY_CONFLICT')
-        if (JSON.stringify(source.observation.binding) !== JSON.stringify(binding)) return failure('REPLAY_CONFLICT')
-        observation = { ...source.observation, sendOperationId: source.operationId }
-        uncertainSource = source.phase === 'uncertain'
+        const sourceObservation = source?.observation ?? (source?.bootstrap && source.bootstrapBaseline
+          ? { controlDigest: source.bootstrap.controlDigest, replyBaseline: source.bootstrapBaseline, binding: source.bootstrap.binding } : undefined)
+        if (!source || source.method !== 'sendControlMessage' || !sourceObservation || !['accepted', 'uncertain'].includes(source.phase)) return failure('SEND_UNCERTAIN')
+        if (JSON.stringify(sourceObservation.replyBaseline) !== JSON.stringify(request.replyBaseline)) return failure('REPLAY_CONFLICT')
+        if (JSON.stringify(sourceObservation.binding) !== JSON.stringify(binding)) return failure('REPLAY_CONFLICT')
+        observation = { ...sourceObservation, sendOperationId: source.operationId }
+        uncertainSource = source.phase === 'uncertain' || !acknowledgedSends.has(source.operationId)
         if (uncertainSource && !config.driver.reconcileReplyBaseline) return failure('SEND_UNCERTAIN')
       }
       if (durable(request)) {
         const correlationIdentity = request.correlation ? { method: request.method, taskId: request.correlation.taskId, iteration: request.correlation.iteration, workspaceId: request.correlation.workspaceId, phase: request.correlation.phase } : undefined
-        const entry = await journal.prepare({ operationId: request.operationId, payloadDigest: operationPayloadDigest(request), method: request.method, createdAt: Date.now(), ...(correlationIdentity ? { correlationDigest: digest(correlationIdentity) } : {}), ...(observation ? { observation } : {}) })
+        const entry = await journal.prepare({ operationId: request.operationId, payloadDigest: operationPayloadDigest(request), method: request.method, createdAt: Date.now(), ...(correlationIdentity ? { correlationDigest: digest(correlationIdentity) } : {}), ...(observation ? { observation } : {}), ...(bootstrap ? { bootstrap } : {}) })
         if (entry.phase !== 'prepared') {
           if (entry.phase === 'accepted' && request.method === 'sendControlMessage') return { ok: true, result: null }
           if (request.method !== 'waitForReply' || !observation || !config.driver.reconcileReplyBaseline || !(entry.phase === 'uncertain' || (entry.phase === 'accepted' && entry.replyDigest))) return failure('SEND_UNCERTAIN')
@@ -142,6 +151,23 @@ export async function startSidecar(config: SidecarServerConfig) {
           if (recoveredEntry?.phase === 'uncertain') await observe(await journal.resumeObservation(request.operationId))
         }
         switch (request.method) {
+          case 'captureSendObservation': {
+            const source = journal.lookup(request.params.sendOperationId)
+            if (!source || source.method !== 'sendControlMessage' || source.phase !== 'accepted') throw new SidecarRpcError('SEND_UNCERTAIN')
+            if (source.observation) return source.observation.replyBaseline
+            if (source.bootstrapBaseline) return source.bootstrapBaseline
+            if (!source.bootstrap || !acknowledgedSends.has(source.operationId)) throw new SidecarRpcError('SEND_UNCERTAIN')
+            if (!config.driver.reconcileReplyBaseline) throw new SidecarRpcError('CHAT_CONTROL_OBSERVATION_UNAVAILABLE')
+            const conversationId = await config.driver.currentConversation(controller.signal)
+            if (!conversationId) throw new SidecarRpcError('SEND_UNCERTAIN')
+            const value = replyBaselineSchema.safeParse(await config.driver.reconcileReplyBaseline({ conversationId, controlDigest: source.bootstrap.controlDigest }, controller.signal))
+            if (!value.success || value.data.conversationId !== conversationId
+              || value.data.assistantCount !== source.bootstrap.replyBaseline.assistantCount
+              || value.data.textDigest !== source.bootstrap.replyBaseline.textDigest) throw new SidecarRpcError('SEND_UNCERTAIN')
+            controller.signal.throwIfAborted()
+            const saved = await journal.bindBootstrap(source.operationId, value.data)
+            return saved.bootstrapBaseline!
+          }
           case 'captureReplyBaseline': {
             const value = replyBaselineSchema.safeParse(await config.driver.captureReplyBaseline!(controller.signal))
             if (!value.success) throw new SidecarRpcError('SIDECAR_INVALID_REQUEST')
@@ -177,6 +203,7 @@ export async function startSidecar(config: SidecarServerConfig) {
           if (typeof reply?.text !== 'string' || reply.complete !== true) throw new SidecarRpcError('SEND_UNCERTAIN')
           await observe(await journal.completeReply(request.operationId, textDigest(reply.text)))
         } else await publishPhase('accepted')
+        if (request.method === 'sendControlMessage') acknowledgedSends.add(request.operationId)
       }
       return { ok: true, result }
     } catch (error) {

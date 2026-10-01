@@ -20,6 +20,11 @@ export interface ControlOperation {
 export interface ChatObservationControl extends ChatControl {
   captureReplyBaseline(signal?: AbortSignal): Promise<ReplyObservationBaseline>
 }
+export type BoundReplyObservationBaseline = ReplyObservationBaseline & { conversationId: string }
+/** Source-journal lookup; callers supply no digest, route or browser expression. */
+export interface ChatSendObservationControl extends ChatObservationControl {
+  captureSendObservation(sendOperationId: string, signal?: AbortSignal): Promise<BoundReplyObservationBaseline>
+}
 export interface ReplyReconciliationRequest { conversationId: string; controlDigest: string }
 export interface ChatRecoveryControl extends ChatObservationControl {
   reconcileReplyBaseline(request: ReplyReconciliationRequest, signal?: AbortSignal): Promise<ReplyObservationBaseline>

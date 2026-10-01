@@ -5,7 +5,7 @@ import { tmpdir } from 'node:os'
 import { basename, join, resolve, sep } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
-export async function sidecarProcess(stateDirectory?: string, options: { protect?: boolean; pausePhase?: string; recoveryView?: 'exact' | 'missing' | 'foreign' | 'changed-reply' } = {}) {
+export async function sidecarProcess(stateDirectory?: string, options: { protect?: boolean; pausePhase?: string; recoveryView?: 'exact' | 'missing' | 'foreign' | 'changed-reply'; bootstrap?: boolean } = {}) {
   const state = stateDirectory ?? await mkdtemp(join(tmpdir(), 'plannerbridge-sidecar-test-'))
   const authentication = randomUUID() + randomUUID()
   async function removeOwnedState() {
@@ -15,7 +15,7 @@ export async function sidecarProcess(stateDirectory?: string, options: { protect
     await rm(absolute, { recursive: true, force: true })
   }
   const child = fork(fileURLToPath(new URL('./fake-sidecar.mjs', import.meta.url)), [], {
-    env: { SystemRoot: process.env.SystemRoot, TEMP: process.env.TEMP, TMP: process.env.TMP, PLANNERBRIDGE_TEST_AUTH: authentication, PLANNERBRIDGE_TEST_STATE: state, PLANNERBRIDGE_TEST_PROTECT_STATE: options.protect === false ? 'false' : 'true', PLANNERBRIDGE_TEST_PAUSE_PHASE: options.pausePhase, PLANNERBRIDGE_TEST_RECOVERY_VIEW: options.recoveryView },
+    env: { SystemRoot: process.env.SystemRoot, TEMP: process.env.TEMP, TMP: process.env.TMP, PLANNERBRIDGE_TEST_AUTH: authentication, PLANNERBRIDGE_TEST_STATE: state, PLANNERBRIDGE_TEST_PROTECT_STATE: options.protect === false ? 'false' : 'true', PLANNERBRIDGE_TEST_PAUSE_PHASE: options.pausePhase, PLANNERBRIDGE_TEST_RECOVERY_VIEW: options.recoveryView, PLANNERBRIDGE_TEST_BOOTSTRAP: options.bootstrap ? 'true' : 'false' },
     stdio: ['ignore', 'ignore', 'pipe', 'ipc'], windowsHide: true,
   })
   const sends: string[] = []

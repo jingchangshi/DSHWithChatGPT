@@ -57,7 +57,7 @@ await writeFile(path.join(isolated, 'probe.ts'), `
 import { bindExecutionReadLease, type ExecutionReadLease } from '@deepseek-ai/dsh-execution-world/read-lease';
 import { bindExecutionGitLease, type ExecutionGitLease } from '@deepseek-ai/dsh-execution-world/git-lease';
 import type { FsReadRootOpenOptions } from '@deepseek-ai/dsh-fs';
-import { SidecarChatControlClient, type ControlOperation, type ChatControlDiagnostics, type ChatReadiness, type ReplyObservationBaseline } from 'dsh-with-chatgpt/sidecar';
+import { SidecarChatControlClient, type ControlOperation, type ChatControlDiagnostics, type ChatReadiness, type ReplyObservationBaseline, type BoundReplyObservationBaseline, type ChatSendObservationControl } from 'dsh-with-chatgpt/sidecar';
 import { startSidecar, protectPrivateStateDirectory } from 'dsh-with-chatgpt/sidecar/server';
 import { DirectCdpPrimitives, type BrowserPrimitives, type BrowserMutationContext } from 'dsh-with-chatgpt/browser';
 import { mintPlannerTaskId, formatPlannerEnvelope, parsePlannerEnvelope, plannerEnvelopeDigest, type PlannerEnvelopeInput } from 'dsh-with-chatgpt/protocol';
@@ -75,6 +75,9 @@ const baseline: ReplyObservationBaseline = { version: 1, conversationId: 'packag
 const operation: ControlOperation = { operationId: 'packaged-send', replyBaseline: baseline };
 const control = new SidecarChatControlClient({ endpoint: 'http://127.0.0.1:18765', authentication: 'type-probe-only' });
 const captured: Promise<ReplyObservationBaseline> = control.captureReplyBaseline();
+const sendObservation: Promise<BoundReplyObservationBaseline> = control.captureSendObservation(operation.operationId);
+const sendObservationControl: ChatSendObservationControl = control;
+void [sendObservation, sendObservationControl];
 const recoveredWait: ControlOperation = { operationId: 'packaged-wait', replyBaseline: baseline, replyRecovery: { sendOperationId: operation.operationId } };
 void [captured, recoveredWait];
 const diagnostics: ChatControlDiagnostics = control;
