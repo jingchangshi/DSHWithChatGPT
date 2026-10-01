@@ -60,6 +60,12 @@ import type { FsReadRootOpenOptions } from '@deepseek-ai/dsh-fs';
 import { SidecarChatControlClient, type ControlOperation, type ChatControlDiagnostics, type ChatReadiness } from 'dsh-with-chatgpt/sidecar';
 import { startSidecar, protectPrivateStateDirectory } from 'dsh-with-chatgpt/sidecar/server';
 import { DirectCdpPrimitives, type BrowserPrimitives, type BrowserMutationContext } from 'dsh-with-chatgpt/browser';
+import { mintPlannerTaskId, formatPlannerEnvelope, parsePlannerEnvelope, plannerEnvelopeDigest, type PlannerEnvelopeInput } from 'dsh-with-chatgpt/protocol';
+
+const init: PlannerEnvelopeInput = { sender: 'executor', state: 'INIT', taskId: mintPlannerTaskId(), iteration: 0, workspaceId: 'package-probe', sections: { GOAL: 'verify exports' } };
+const parsed = parsePlannerEnvelope(formatPlannerEnvelope(init), { sender: 'executor' });
+const digest: string = plannerEnvelopeDigest(parsed);
+void digest;
 declare const primitives: BrowserPrimitives;
 declare const mutationContext: BrowserMutationContext;
 const focused = primitives.focus('#type-probe', mutationContext);

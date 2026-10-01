@@ -22,6 +22,9 @@ HEAD is a full Git object ID (40 or 64 hexadecimal digits for the fixture's repo
 INIT is bootstrap. EXECUTING and REVIEW/awaiting-review are local workflow phases. EXECUTED is the single outgoing message requesting review for a round; no separate REVIEW envelope or optional second send exists. Planner/Reviewer and Executor are logical roles, not vendor names encoded in the core.
 
 ## State machine
+Each section delimiter is a standalone uppercase `NAME:` line preceded by an empty separator line. Bodies cannot contain delimiter-shaped lines (including unknown names); serialization rejects ambiguous bodies rather than turning body text into another section. Leading, internal and trailing body blank lines are preserved. Required sections are GOAL for INIT, ACTIONS for PLAN, RESULT for EXECUTED, SUMMARY for DONE, and REASON for BLOCKED/ERROR; other listed sections are optional.
+
+The additive v2 codec is available through the protocol export. The production coordinator remains v1 until durable version selection and recovery are integrated; codec verification alone does not satisfy the production protocol gate.
 
 ```mermaid
 stateDiagram-v2
