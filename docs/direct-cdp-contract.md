@@ -1,10 +1,14 @@
 # Direct CDP primitive contract
 
-Status: PARTIAL — Stage E implementation and transition repair candidate following
-PLAN 2 at `0630fffae54ad0108ffbb2680ff304577022df92` and subsequent falsification.
-The implementation, real local
-Chrome tests and a separate Browser B readiness smoke now exist. Independent
-exact-HEAD implementation review is still required. This refines the canonical architecture, without
+Status: VERIFIED for Stage E at implementation HEAD
+`0f8f91c1b466fb0c836c7c2193a3dc7765239421`. Independent review accepted
+the complete critical source, tests, fixtures and scoped execution evidence on
+2026-10-01, task `c2c_e7b4`, iteration 5. This development-tool task identifier is
+externally owned. Exact-HEAD typecheck/build passed; the full suite passed
+668 tests with 3 original skips and no failures. Package and Browser B readiness
+checks passed on the repaired candidate before commit; the subsequent source
+change was indentation only. They do not prove product Planner/App/DSH E2E.
+This refines the canonical architecture, without
 changing the model envelope, Sidecar RPC allowlist or producer contracts.
 
 ## Identity and ownership
@@ -37,7 +41,7 @@ changes; ignoring every URL change is insufficient.
 
 ## Mechanical focus and guarded mutation
 
-### Transition provenance contract (repair candidate; independent acceptance pending)
+### Transition provenance contract (Stage E accepted at the implementation HEAD above)
 
 An observation of the final URL cannot prove that no foreign route was visited.
 Each concrete binding must retain ordered, generic same-document URL transitions

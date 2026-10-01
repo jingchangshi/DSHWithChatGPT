@@ -1,6 +1,6 @@
 # PlannerBridge acceptance and falsification plan
 
-Status: PARTIAL — candidate before structural implementation. Every gate uses Goal, Fixture, Action, Expected evidence, Failure condition and Status. Unit/fake evidence never substitutes for browser/model/Windows integration. Only VERIFIED / FAILED / NOT_RUN / PARTIAL / BLOCKED / FUTURE / NOT_APPLICABLE are result statuses.
+Status: PARTIAL — the full Windows deployment remains unfinished. Stage E is independently accepted at `0f8f91c1b466fb0c836c7c2193a3dc7765239421`; Stage F composition is tests-first work in progress. Earlier rows retain their original baseline snapshot unless explicitly updated below. Every gate uses Goal, Fixture, Action, Expected evidence, Failure condition and Status. Unit/fake evidence never substitutes for browser/model/Windows integration. Only VERIFIED / FAILED / NOT_RUN / PARTIAL / BLOCKED / FUTURE / NOT_APPLICABLE are result statuses.
 
 ## Baseline and stages
 
@@ -15,10 +15,10 @@ Stage A records baseline, target/deployment/protocol/migration documents, commit
 | F0 / before B | repair cancellation ownership guarantee | original browser.spec plus adversarial hung provider/foreign draft | regression before isolated repair and review | fresh bounded cleanup signal, no extra Enter, foreign draft untouched | weakened/skipped assertion, enlarged timeout, unsafe late mutation | FAILED |
 | F1 / B | isolate core ports | import-graph tests and fake ports | run orchestrator with fake ChatControl/StateStore/ExecutionWorkspace/McpExposure | no concrete browser or Cordis dependencies; behavior/reply errors retained | hidden transitive concrete imports or production memory fallback | NOT_RUN |
 | F2 / C | one shared Web semantic driver | happy-dom fixture + both primitives adapters | exact/ambiguous/missing App, draft change, old/new replies, streaming/settling, logout, abort, recovery | both adapters run the same semantic suite | transport-specific duplicate DOM logic or permissive App matching | NOT_RUN |
-| F3 / E | real DOM/input/event CDP behavior | local non-ChatGPT HTTP page + task-owned tab | connect/list/evaluate/focus/type/click/keyboard/mutation/navigation/close/reconnect | observable page outcomes and invalidated stale handles, bounded abort/timeouts | websocket-only smoke, screenshot normal path, hanging call or unrelated target mutation | NOT_RUN |
+| F3 / E | real DOM/input/event CDP behavior | local non-ChatGPT HTTP page + task-owned tab | connect/list/evaluate/focus/type/click/keyboard/mutation/navigation/close/reconnect | observable page outcomes and invalidated stale handles, bounded abort/timeouts | websocket-only smoke, screenshot normal path, hanging call or unrelated target mutation | VERIFIED |
 | F4 / D | narrow authenticated RPC | FakeChatGptWebDriver and separate spawned Sidecar | auth/version/ID/body/deadline/cancel/replay/concurrency/restart/shutdown adversaries | typed errors, bounded results, no arbitrary CDP/JS/FS/shell/Git methods | side effects before auth/validation, duplicate send, leaked secrets, loose passthrough | NOT_RUN |
 | F5 / D | same neutral client semantics | identical ChatControl contract suite over fake and HTTP client | execute operation suite and server failure cases | same behavior, only localhost endpoint known to client | client knows OS/CDP/Chrome/SSH, inconsistent cancellation | NOT_RUN |
-| F6 / C+H | retain reference compatibility | fake session-gated Browser Harness tools | run shared semantic contract and packaging compatibility | session ownership and exact App semantics retained | compatibility coupled into core/primary path | NOT_RUN |
+| F6 / C+H | retain reference compatibility | fake session-gated Browser Harness tools | run shared semantic contract and packaging compatibility | session ownership and exact App semantics retained | compatibility coupled into core/primary path | VERIFIED |
 | F6-real | verify installed compatibility executable | real Browser Harness if available | attach only Browser B and run compatibility smoke | genuine upstream process/tool results | mock mislabeled real or primary blocked by missing executable | NOT_RUN |
 | F7 / F | isolate DSH integration | real Cordis lifecycle/profile + fake core | tools/prompts/cwd/events/storage mount/unload, native DeepSeek config | disposers remove wiring; valid Session attribution; default provider config | core imports DSH lifecycle; hardcoded old model; missing cwd Host fallback | NOT_RUN |
 | F8 / G | preserve content authority | current producer leases and hostile boundary fixtures | workspace ID only/missing/stale generation/replacement/traversal/symlink/Git injection/output caps/evidence scopes | denial before provider read; fixed argv/environment; redacted scoped evidence | Host read fallback, stale authority, arbitrary shell, nonce or secrets outside scope | NOT_RUN |
@@ -34,6 +34,25 @@ Stage A records baseline, target/deployment/protocol/migration documents, commit
 | Cross-host Linux | verify future topology on real hosts | Linux host + secure localhost forwarding | only when hosts provided | same client/protocol, no remote CDP | Windows-only evidence counted as Linux verification | FUTURE |
 
 ## Baseline evidence
+
+Stage E independent source audit completed on 2026-10-01 at implementation HEAD
+`0f8f91c1b466fb0c836c7c2193a3dc7765239421`. The development reviewer initially
+issued a partial approval, which was rejected until all critical browser source,
+test suites, real/fake fixtures, contract and readiness script were independently
+read. The final scoped DONE belongs to development task `c2c_e7b4`, iteration 5.
+Execution records 126–130 retain exact-HEAD full suite (55 files, 668 pass,
+3 original skip, 0 fail), typecheck/build, candidate isolated packaging and actual
+Browser B readiness. Packaging/readiness preceded the commit, followed only by
+source indentation and documentation changes. Real Chrome with synthetic page
+content and explicitly injected lifecycle faults remains distinct from real
+ChatGPT product acceptance. F6-real and all Planner/App/DSH E2E gates remain
+NOT_RUN. See `direct-cdp-contract.md` for the accepted provenance/uncertainty rules.
+
+Stage F first contract run on 2026-10-01: the new DSH composition boundary suite
+failed all 3 cases (entry still owns concrete wiring, inbound adapter absent,
+primary Sidecar configuration unsupported); all 3 existing neutral core boundary
+cases passed. These are expected pre-implementation failures, not regressions
+fixed by weakening assertions.
 
 2026-10-01, HEAD `5d303f5d3a17ec66e1250432368c09bf88ec0d63`, command `corepack pnpm test` in package/: 31 files, 403 passed / 3 skipped / 1 failed, exit 1. Failing test: browser cancellation cleanup at `tests/browser.spec.ts:168`. Output retained outside workspace and released to development review via CodexWithChatGPT execution_output. Reproduction is not a repair.
 
