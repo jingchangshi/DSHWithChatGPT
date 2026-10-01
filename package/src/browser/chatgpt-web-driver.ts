@@ -552,7 +552,7 @@ export class ChatGptWebDriver implements ChatControl {
     if (!(await this.resolveComposer(signal)).empty) throw new BrowserStaleError('ChatGPT composer cleanup could not be verified')
   }
 
-  
+
 }function normalizePageState(value: unknown): ChatPageState {
   const candidate = value as Partial<ChatPageState>
   return {
