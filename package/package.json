@@ -50,6 +50,7 @@
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "test:package": "node scripts/verify-package.mjs",
     "test:profile": "node scripts/verify-profile.mjs",
+    "test:planner-executor-e2e": "node scripts/verify-planner-executor-e2e.mjs",
     "test:live-c2c-observer": "node --test scripts/c2c-e2e-observer.test.mjs",
     "test:live-c2c": "node scripts/verify-live-c2c.mjs",
     "test:launcher": "node --test scripts/c2c-launcher.test.mjs",
