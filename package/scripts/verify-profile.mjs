@@ -57,6 +57,10 @@ const rows = [
   ['subprocess', '@deepseek-ai/dsh-subprocess-local'],
   ['sandbox', '@deepseek-ai/dsh-sandbox-local'],
   ['identity', packageEntry('@deepseek-ai/dsh-execution-world'), { mode: 'persisted-local', allocationLockPath: path.join(root, 'identity.lock') }],
+  // Pin the primary native Executor in the disposable profile. The provider
+  // supplies its own reasoning defaults; do not add a reasoning override.
+  ['agent-default-model', '@deepseek-ai/dsh-agent-default-model', { provider: 'deepseek-official', model: 'deepseek-flash' }],
+  ['llm-deepseek', '@deepseek-ai/dsh-llm-deepseek', { apiKeyEnv: 'DEEPSEEK_API_KEY' }],
   // The profile smoke exercises the primary semantic Sidecar composition.
   ['collaboration', packageEntry('dsh-with-chatgpt'), { browserMode: 'sidecar', sidecarEndpoint: 'http://127.0.0.1:18765', tunnelMode: 'external', gitPolicy: 'worktree', gitReadPolicy: 'allow-hardened-windows' }],
   ['probe', new URL('../tests/fixtures/profile-identity-probe.mjs', import.meta.url).href, { workspace, alias, otherWorkspace }],
