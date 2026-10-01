@@ -16,6 +16,12 @@ const correlation = z.object({
   phase: z.enum(['INIT', 'PLAN', 'EXECUTED', 'DONE']),
   head: z.string().regex(/^(?:[a-f0-9]{40}|[a-f0-9]{64})$/).optional(),
 }).strict()
+const operationSchema = z.object({ operationId: identifier, correlation: correlation.optional() }).strict()
+export function parseControlOperation(value: unknown): z.infer<typeof operationSchema> {
+  const parsed = operationSchema.safeParse(value)
+  if (!parsed.success) throw new SidecarRpcError('SIDECAR_INVALID_REQUEST')
+  return parsed.data
+}
 const envelope = {
   version: z.literal(SIDECAR_RPC_VERSION),
   requestId: identifier,

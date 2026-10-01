@@ -1,5 +1,5 @@
 import { createHash, randomUUID } from 'node:crypto'
-import { lstat, mkdir, open, readFile, rename, stat, unlink, type FileHandle } from 'node:fs/promises'
+import { lstat, mkdir, open, readFile, readdir, rename, unlink, type FileHandle } from 'node:fs/promises'
 import { isAbsolute, join, resolve } from 'node:path'
 import { z } from 'zod'
 import { SidecarRpcError } from './errors.ts'
@@ -36,6 +36,7 @@ export class DeliveryJournal {
   private store: Store = { version: 1, revision: 0, retired: '0'.repeat(128), entries: [] }
   private queue: Promise<unknown> = Promise.resolve()
   private closed = false
+  private closing = false
   private readonly token = randomUUID()
   private lock: FileHandle | undefined
   private readonly file: string
@@ -60,6 +61,7 @@ export class DeliveryJournal {
         if (!parsed.success || parsed.data.entries.length > config.maxEntries || new Set(parsed.data.entries.map(entry => entry.operationId)).size !== parsed.data.entries.length) throw new SidecarRpcError('JOURNAL_UNAVAILABLE')
         journal.store = parsed.data
       } catch (error) { if ((error as NodeJS.ErrnoException).code !== 'ENOENT') throw error }
+      await journal.reclaimStaging()
       const next = structuredClone(journal.store)
       for (const entry of next.entries) if (['sending', 'observed-sent', 'awaiting-reply'].includes(entry.phase)) { entry.phase = 'uncertain'; entry.updatedAt = journal.now() }
       await journal.publish(next)
@@ -75,6 +77,7 @@ export class DeliveryJournal {
     return entry ? structuredClone(entry) : undefined
   }
   private serialize<T>(operation: () => Promise<T>): Promise<T> {
+    if (this.closing || this.closed) return Promise.reject(new SidecarRpcError('JOURNAL_UNAVAILABLE'))
     const result = this.queue.then(async () => { if (this.closed) throw new SidecarRpcError('JOURNAL_UNAVAILABLE'); return operation() })
     this.queue = result.catch(() => {})
     return result
@@ -90,8 +93,10 @@ export class DeliveryJournal {
         return existing
       }
       const next = structuredClone(this.store)
+      if (intent.correlationDigest && next.entries.some(entry => entry.correlationDigest === intent.correlationDigest && entry.operationId !== intent.operationId)) throw new SidecarRpcError('REPLAY_CONFLICT')
       this.retireExpired(next)
       if (this.retired(next, intent.operationId)) throw new SidecarRpcError('REPLAY_CONFLICT')
+      if (intent.correlationDigest && this.retired(next, 'correlation:' + intent.correlationDigest)) throw new SidecarRpcError('REPLAY_CONFLICT')
       if (intent.createdAt < this.now() - this.config.maxAgeMs || intent.createdAt > this.now() + 5_000) throw new SidecarRpcError('SIDECAR_INVALID_REQUEST')
       if (next.entries.length >= this.config.maxEntries) throw new SidecarRpcError('JOURNAL_CAPACITY')
       const entry: DeliveryEntry = { ...intent, phase: 'prepared', updatedAt: this.now() }
@@ -123,6 +128,7 @@ export class DeliveryJournal {
     store.entries = store.entries.filter(entry => {
       if (!terminal.has(entry.phase) || entry.updatedAt >= this.now() - this.config.maxAgeMs) return true
       for (const bit of this.filterBits(entry.operationId)) bytes[Math.floor(bit / 8)] = (bytes[Math.floor(bit / 8)] ?? 0) | 1 << bit % 8
+      if (entry.correlationDigest) for (const bit of this.filterBits('correlation:' + entry.correlationDigest)) bytes[Math.floor(bit / 8)] = (bytes[Math.floor(bit / 8)] ?? 0) | 1 << bit % 8
       return false
     })
     store.retired = bytes.toString('hex')
@@ -131,15 +137,24 @@ export class DeliveryJournal {
     try { this.lock = await open(this.lockFile, 'wx', 0o600) }
     catch (error) {
       if ((error as NodeJS.ErrnoException).code !== 'EEXIST') throw error
-      if ((await lstat(this.lockFile)).size > 1_024) throw new SidecarRpcError('SIDECAR_BUSY')
+      const lockInfo = await lstat(this.lockFile)
+      if (!lockInfo.isFile() || lockInfo.isSymbolicLink() || lockInfo.nlink !== 1 || lockInfo.size > 1_024) throw new SidecarRpcError('SIDECAR_BUSY')
       const owner = JSON.parse(await readFile(this.lockFile, 'utf8')) as { pid?: number; token?: string }
       if (!Number.isInteger(owner.pid) || owner.pid! < 1 || typeof owner.token !== 'string') throw new SidecarRpcError('SIDECAR_BUSY')
       try { process.kill(owner.pid!, 0); throw new SidecarRpcError('SIDECAR_BUSY') }
       catch (probe) { if ((probe as NodeJS.ErrnoException).code !== 'ESRCH') throw new SidecarRpcError('SIDECAR_BUSY') }
-      const current = JSON.parse(await readFile(this.lockFile, 'utf8')) as { token?: string }
-      if (current.token !== owner.token) throw new SidecarRpcError('SIDECAR_BUSY')
-      await unlink(this.lockFile)
-      this.lock = await open(this.lockFile, 'wx', 0o600)
+      // Serialize stale-owner reclamation. A crashed reclaimer leaves this
+      // guard for explicit operator reconciliation; never delete it on a guess.
+      const reclaimPath = join(this.config.directory, 'reclaim.lock')
+      let reclaim: FileHandle
+      try { reclaim = await open(reclaimPath, 'wx', 0o600) }
+      catch { throw new SidecarRpcError('SIDECAR_BUSY') }
+      try {
+        const current = JSON.parse(await readFile(this.lockFile, 'utf8')) as { token?: string }
+        if (current.token !== owner.token) throw new SidecarRpcError('SIDECAR_BUSY')
+        await unlink(this.lockFile)
+        this.lock = await open(this.lockFile, 'wx', 0o600)
+      } finally { await reclaim.close(); await unlink(reclaimPath) }
     }
     await this.lock.writeFile(JSON.stringify({ pid: process.pid, token: this.token }))
     await this.lock.sync()
@@ -147,6 +162,17 @@ export class DeliveryJournal {
   private async assertOwner(): Promise<void> {
     const owner = JSON.parse(await readFile(this.lockFile, 'utf8')) as { token?: string }
     if (!this.lock || owner.token !== this.token) throw new SidecarRpcError('JOURNAL_UNAVAILABLE')
+  }
+  private async reclaimStaging(): Promise<void> {
+    const files = (await readdir(this.config.directory)).filter(file => /^delivery-[a-f0-9]{8}-[a-f0-9]{4}-4[a-f0-9]{3}-[89ab][a-f0-9]{3}-[a-f0-9]{12}\.tmp$/.test(file))
+    if (files.length > 64) throw new SidecarRpcError('JOURNAL_CAPACITY')
+    for (const file of files) {
+      const path = join(this.config.directory, file)
+      const info = await lstat(path)
+      if (!info.isFile() || info.isSymbolicLink() || info.nlink !== 1 || info.size > this.config.maxBytes) throw new SidecarRpcError('JOURNAL_UNAVAILABLE')
+      await this.assertOwner()
+      await unlink(path)
+    }
   }
   private async publish(next: Store): Promise<void> {
     next.revision = this.store.revision + 1
@@ -169,5 +195,5 @@ export class DeliveryJournal {
     try { await this.assertOwner(); await this.lock.close(); this.lock = undefined; await unlink(this.lockFile) }
     catch { await this.lock?.close(); this.lock = undefined }
   }
-  async close(): Promise<void> { await this.queue; this.closed = true; await this.release() }
+  async close(): Promise<void> { this.closing = true; await this.queue; this.closed = true; await this.release() }
 }

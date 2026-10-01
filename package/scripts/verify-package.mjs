@@ -48,6 +48,12 @@ await writeFile(path.join(isolated, 'probe.ts'), `
 import { bindExecutionReadLease, type ExecutionReadLease } from '@deepseek-ai/dsh-execution-world/read-lease';
 import { bindExecutionGitLease, type ExecutionGitLease } from '@deepseek-ai/dsh-execution-world/git-lease';
 import type { FsReadRootOpenOptions } from '@deepseek-ai/dsh-fs';
+import { SidecarChatControlClient, type ControlOperation } from 'dsh-with-chatgpt/sidecar';
+import { startSidecar, protectPrivateStateDirectory } from 'dsh-with-chatgpt/sidecar/server';
+const operation: ControlOperation = { operationId: 'packaged-send' };
+const control = new SidecarChatControlClient({ endpoint: 'http://127.0.0.1:18765', authentication: 'type-probe-only' });
+const send: Promise<void> = control.sendControlMessage('control', undefined, operation);
+void [send, startSidecar, protectPrivateStateDirectory];
 const options: FsReadRootOpenOptions = { aliasPolicy: 'deny' };
 const bind: typeof bindExecutionReadLease = bindExecutionReadLease;
 const bindGit: typeof bindExecutionGitLease = bindExecutionGitLease;
@@ -62,6 +68,8 @@ run(['exec', 'tsc', '--noEmit', '--strict', '--module', 'NodeNext', '--moduleRes
 const probe = `
 import assert from 'node:assert/strict';
 import { realpathSync } from 'node:fs';
+import { fork } from 'node:child_process';
+import { randomUUID } from 'node:crypto';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 for (const name of ${JSON.stringify(Object.keys(dependencies))}) {
@@ -84,7 +92,44 @@ assert.equal(typeof lease.bindExecutionReadLease, 'function');
 assert.equal(typeof gitLease.bindExecutionGitLease, 'function');
 assert.equal(typeof plugin.apply, 'function');
 assert.deepEqual(plugin.inject, ['tools', 'systemPrompt', 'storageDomain', 'executionWorldIdentity', 'fs', 'subprocess', 'sandbox']);
+const { SidecarChatControlClient } = await import('dsh-with-chatgpt/sidecar');
+const authentication = randomUUID() + randomUUID();
+const child = fork('./sidecar-probe.mjs', [], { cwd: process.cwd(), env: { SystemRoot: process.env.SystemRoot, TEMP: process.env.TEMP, TMP: process.env.TMP, PLANNERBRIDGE_PACKAGE_AUTH: authentication, PLANNERBRIDGE_PACKAGE_STATE: path.join(process.cwd(), 'sidecar-state') }, stdio: ['ignore', 'inherit', 'inherit', 'ipc'], windowsHide: true });
+const exited = new Promise(resolve => child.once('exit', resolve));
+try {
+  const ready = await new Promise((resolve, reject) => {
+    const timer = setTimeout(() => reject(new Error('Packaged Sidecar startup timed out')), 5000);
+    child.once('exit', () => { clearTimeout(timer); reject(new Error('Packaged Sidecar exited before ready')); });
+    child.once('message', value => { clearTimeout(timer); resolve(value); });
+  });
+  assert.notEqual(ready.pid, process.pid);
+  const client = new SidecarChatControlClient({ endpoint: ready.endpoint, authentication });
+  assert.equal((await client.health()).ok, true);
+  await client.ensureReady();
+  const operation = { operationId: 'packaged-stable-send' };
+  await client.sendControlMessage('packaged semantic operation', undefined, operation);
+  await client.sendControlMessage('packaged semantic operation', undefined, operation);
+  assert.deepEqual(await client.waitForReply(1000), { text: 'packaged sends: 1', complete: true });
+  child.send({ event: 'close' });
+  await Promise.race([exited, new Promise((_resolve, reject) => setTimeout(() => reject(new Error('Packaged Sidecar shutdown timed out')), 5000).unref())]);
+  console.log('Packaged Sidecar: separate process, neutral client, private state, stable replay and clean shutdown OK');
+} finally { child.kill(); await exited; }
 `
+await writeFile(path.join(isolated, 'sidecar-probe.mjs'), `
+import { startSidecar, protectPrivateStateDirectory } from 'dsh-with-chatgpt/sidecar/server';
+await protectPrivateStateDirectory(process.env.PLANNERBRIDGE_PACKAGE_STATE, []);
+let sends = 0;
+let conversation;
+const driver = {
+  health: async () => ({ ok: true, detail: 'ready' }), ensureReady: async () => {}, recover: async () => {},
+  openConversation: async id => conversation = id ?? 'packaged-conversation', currentConversation: async () => conversation,
+  sendControlMessage: async (_text, signal) => { signal?.throwIfAborted(); sends++; },
+  waitForReply: async () => ({ text: 'packaged sends: ' + sends, complete: true }),
+};
+const service = await startSidecar({ host: '127.0.0.1', port: 0, authentication: process.env.PLANNERBRIDGE_PACKAGE_AUTH, stateDirectory: process.env.PLANNERBRIDGE_PACKAGE_STATE, driver });
+process.send({ endpoint: service.endpoint, pid: process.pid });
+process.on('message', async message => { if (message?.event === 'close') { await service.close(); process.exit(0); } });
+`)
 await writeFile(path.join(isolated, 'probe.mjs'), probe)
 const probeResult = spawnSync(process.execPath, ['probe.mjs'], { cwd: isolated, stdio: 'inherit', windowsHide: true })
 if (probeResult.error) throw probeResult.error

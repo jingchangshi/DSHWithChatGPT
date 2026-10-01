@@ -1,5 +1,5 @@
 import { randomUUID } from 'node:crypto'
-import { mkdtemp, readFile, readdir, rm } from 'node:fs/promises'
+import { link, mkdtemp, readFile, readdir, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { basename, join, resolve, sep } from 'node:path'
 import { afterEach, describe, expect, it } from 'vitest'
@@ -15,6 +15,80 @@ afterEach(async () => {
 async function directory() { const path = await mkdtemp(join(tmpdir(), 'plannerbridge-journal-test-')); directories.push(path); return path }
 const intent = () => ({ operationId: randomUUID(), payloadDigest: 'a'.repeat(64), method: 'sendControlMessage', createdAt: Date.now() })
 describe('durable delivery dispositions', () => {
+  it('refuses corrupt durable state without resetting or overwriting it', async () => {
+    const { DeliveryJournal } = await import('../src/sidecar/journal.ts')
+    const path = await directory()
+    await writeFile(join(path, 'delivery.json'), '{corrupted')
+    await expect(DeliveryJournal.open({ directory: path, maxEntries: 4, maxBytes: 16_384, maxAgeMs: 60_000 })).rejects.toMatchObject({ code: 'JOURNAL_UNAVAILABLE' })
+    expect(await readFile(join(path, 'delivery.json'), 'utf8')).toBe('{corrupted')
+  })
+  it('refuses hard-linked journals without changing the outside file', async () => {
+    const { DeliveryJournal } = await import('../src/sidecar/journal.ts')
+    const path = await directory(); const outside = join(await directory(), 'outside.json')
+    await writeFile(outside, 'outside-preserved')
+    await link(outside, join(path, 'delivery.json'))
+    await expect(DeliveryJournal.open({ directory: path, maxEntries: 4, maxBytes: 16_384, maxAgeMs: 60_000 })).rejects.toMatchObject({ code: 'JOURNAL_UNAVAILABLE' })
+    expect(await readFile(outside, 'utf8')).toBe('outside-preserved')
+  })
+  it('keeps memory and durable state unchanged if ownership changes before publication', async () => {
+    const { DeliveryJournal } = await import('../src/sidecar/journal.ts')
+    const path = await directory()
+    const journal = await DeliveryJournal.open({ directory: path, maxEntries: 4, maxBytes: 16_384, maxAgeMs: 60_000 })
+    const durableBefore = await readFile(join(path, 'delivery.json'), 'utf8')
+    await writeFile(join(path, 'owner.lock'), JSON.stringify({ pid: process.pid, token: 'foreign-owner' }))
+    const original = intent()
+    await expect(journal.prepare(original)).rejects.toMatchObject({ code: 'JOURNAL_UNAVAILABLE' })
+    expect(journal.lookup(original.operationId)).toBeUndefined()
+    expect(await readFile(join(path, 'delivery.json'), 'utf8')).toBe(durableBefore)
+    await journal.close()
+    expect(JSON.parse(await readFile(join(path, 'owner.lock'), 'utf8')).token).toBe('foreign-owner')
+  })
+  it('reclaims only bounded owned staging files after acquiring exclusive ownership', async () => {
+    const { DeliveryJournal } = await import('../src/sidecar/journal.ts')
+    const path = await directory()
+    const config = { directory: path, maxEntries: 4, maxBytes: 16_384, maxAgeMs: 60_000 }
+    let journal = await DeliveryJournal.open(config)
+    const original = intent(); await journal.prepare(original); await journal.close()
+    const stage = 'delivery-' + randomUUID() + '.tmp'
+    await writeFile(join(path, stage), 'interrupted staging file')
+    await writeFile(join(path, 'unrelated.txt'), 'preserved')
+    journal = await DeliveryJournal.open(config)
+    expect(await readdir(path)).not.toContain(stage)
+    expect(await readFile(join(path, 'unrelated.txt'), 'utf8')).toBe('preserved')
+    expect(journal.lookup(original.operationId)?.phase).toBe('prepared')
+    await journal.close()
+  })
+  it('drains admitted writes on close and refuses new writes before releasing ownership', async () => {
+    const { DeliveryJournal } = await import('../src/sidecar/journal.ts')
+    const path = await directory()
+    const config = { directory: path, maxEntries: 4, maxBytes: 16_384, maxAgeMs: 60_000 }
+    const journal = await DeliveryJournal.open(config)
+    const first = intent()
+    const admitted = journal.prepare(first)
+    const closing = journal.close()
+    await expect(journal.prepare(intent())).rejects.toMatchObject({ code: 'JOURNAL_UNAVAILABLE' })
+    await admitted; await closing
+    const reopened = await DeliveryJournal.open(config)
+    expect(reopened.lookup(first.operationId)?.phase).toBe('prepared')
+    await reopened.close()
+  })
+  it('preserves task-round deduplication after restart and terminal retirement', async () => {
+    const { DeliveryJournal } = await import('../src/sidecar/journal.ts')
+    let now = Date.now()
+    const config = { directory: await directory(), maxEntries: 1, maxBytes: 16_384, maxAgeMs: 100, now: () => now }
+    let journal = await DeliveryJournal.open(config)
+    const original = { ...intent(), correlationDigest: 'c'.repeat(64), createdAt: now }
+    await journal.prepare(original)
+    await journal.transition(original.operationId, 'sending')
+    await journal.transition(original.operationId, 'observed-sent')
+    await journal.transition(original.operationId, 'accepted')
+    await journal.close(); journal = await DeliveryJournal.open(config)
+    await expect(journal.prepare({ ...original, operationId: randomUUID() })).rejects.toMatchObject({ code: 'REPLAY_CONFLICT' })
+    now += 101
+    await journal.prepare({ ...intent(), createdAt: now })
+    await expect(journal.prepare({ ...original, operationId: randomUUID(), createdAt: now })).rejects.toMatchObject({ code: 'REPLAY_CONFLICT' })
+    await journal.close()
+  })
   it('rejects a concurrent store owner and protects snapshots from caller mutation', async () => {
     const { DeliveryJournal } = await import('../src/sidecar/journal.ts')
     const path = await directory()

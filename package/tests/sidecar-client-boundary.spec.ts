@@ -5,7 +5,7 @@ import { describe, expect, it } from 'vitest'
 
 describe('provider-neutral semantic Sidecar client', () => {
   it('has no transitive browser, producer, filesystem or platform dependencies', () => {
-    const entry = resolve(import.meta.dirname, '../src/sidecar/client.ts')
+    const entry = resolve(import.meta.dirname, '../src/sidecar/index.ts')
     expect(existsSync(entry), 'Sidecar client must exist').toBe(true)
     const seen = new Set<string>()
     const failures: string[] = []

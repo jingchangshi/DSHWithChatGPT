@@ -1,8 +1,10 @@
 import { startSidecar } from '../../lib/sidecar/server.js'
+import { protectPrivateStateDirectory } from '../../lib/deployment/private-state.js'
 
 // Test-owned child process. No Browser Harness, Chrome or workspace authority.
 let conversation
 let reply = ''
+const barriers = new Map()
 const driver = {
   health: async () => ({ ok: true, detail: 'fake driver ready' }),
   ensureReady: async () => {},
@@ -10,9 +12,12 @@ const driver = {
   currentConversation: async () => conversation,
   sendControlMessage: async (text, signal) => {
     signal?.throwIfAborted()
+    if (text === 'logged-out') throw new Error('ChatGPT_WEB_LOGGED_OUT: private provider detail')
+    if (text === 'app-unavailable') throw new Error('CHATGPT_APP_UNAVAILABLE: private provider detail')
     process.send?.({ event: 'send', text })
     if (text === 'hang-before-ack') await new Promise(() => {})
-    reply = 'reply to ' + text
+    if (text === 'abortable-send') await new Promise((_resolve, reject) => signal.addEventListener('abort', () => reject(signal.reason), { once: true }))
+    reply = text === 'large-reply' ? 'a'.repeat(65_537) : 'reply to ' + text
   },
   waitForReply: async (timeoutMs, signal) => {
     if (reply) return { text: reply, complete: true }
@@ -23,6 +28,7 @@ const driver = {
   },
   recover: async () => {},
 }
+if (process.env.PLANNERBRIDGE_TEST_PROTECT_STATE !== 'false') await protectPrivateStateDirectory(process.env.PLANNERBRIDGE_TEST_STATE, [])
 const server = await startSidecar({
   host: '127.0.0.1', port: 0,
   authentication: process.env.PLANNERBRIDGE_TEST_AUTH,
@@ -31,8 +37,19 @@ const server = await startSidecar({
   requestTimeoutMs: 1_000,
   maxRequestBytes: 65_536,
   maxReplyBytes: 65_536,
+  onDeliveryPhase: async (entry, signal) => {
+    process.send?.({ event: 'phase', operationId: entry.operationId, phase: entry.phase })
+    if (entry.phase !== process.env.PLANNERBRIDGE_TEST_PAUSE_PHASE) return
+    await new Promise((resolve, reject) => {
+      const abort = () => { barriers.delete(entry.operationId); reject(signal.reason) }
+      signal.addEventListener('abort', abort, { once: true })
+      barriers.set(entry.operationId, () => { signal.removeEventListener('abort', abort); barriers.delete(entry.operationId); resolve() })
+      if (signal.aborted) abort()
+    })
+  },
 })
 process.send?.({ event: 'ready', endpoint: server.endpoint, generation: server.generation, pid: process.pid })
 process.on('message', async message => {
+  if (message?.event === 'resume') barriers.get(message.operationId)?.()
   if (message?.event === 'stop') { await server.close(); process.exit(0) }
 })

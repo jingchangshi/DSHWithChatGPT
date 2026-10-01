@@ -18,6 +18,23 @@ describe('separate-process semantic RPC security', () => {
     expect(text).not.toContain(sidecar.authentication)
     expect(text).not.toContain(sidecar.stateDirectory)
   })
+  it('maps legacy semantic errors without exposing provider detail', async () => {
+    const response = await rpc({ ...envelope('sendControlMessage', sidecar.generation), params: { text: 'logged-out' } })
+    const body = await response.text()
+    expect(JSON.parse(body)).toMatchObject({ ok: false, error: { code: 'CHATGPT_LOGGED_OUT' } })
+    expect(body).not.toContain('private provider detail')
+  })
+  it('bounds semantic reply bodies returned by the driver', async () => {
+    expect((await rpc({ ...envelope('sendControlMessage', sidecar.generation), params: { text: 'large-reply' } })).status).toBe(200)
+    const response = await rpc({ ...envelope('waitForReply', sidecar.generation), params: { timeoutMs: 100 } })
+    expect(response.status).toBe(413)
+    expect(await response.json()).toMatchObject({ ok: false, error: { code: 'SIDECAR_RESPONSE_TOO_LARGE' } })
+  })
+  it('rejects browser-origin requests without permissive CORS', async () => {
+    const response = await fetch(sidecar.endpoint, { method: 'POST', headers: { authorization: 'Bearer ' + sidecar.authentication, 'content-type': 'application/json', origin: 'https://example.com' }, body: JSON.stringify(envelope('health', sidecar.generation)) })
+    expect(response.status).toBe(400)
+    expect(response.headers.get('access-control-allow-origin')).toBeNull()
+  })
   it.each(['', 'wrong-token'])('rejects invalid authentication before invoking driver (%s)', async token => {
     const response = await rpc({ ...envelope('sendControlMessage', sidecar.generation), params: { text: 'must not send' } }, token)
     expect(response.status).toBe(401)
@@ -42,6 +59,17 @@ describe('separate-process semantic RPC security', () => {
   it('enforces the UTF-8 request bound and HTTP method allowlist', async () => {
     expect((await rpc('x'.repeat(65_537))).status).toBe(413)
     expect((await rpc(undefined, sidecar.authentication, 'GET')).status).toBe(405)
+    expect(sidecar.sends).toEqual([])
+  })
+  it('counts UTF-8 bytes rather than JavaScript characters', async () => {
+    const response = await rpc({ ...envelope('sendControlMessage', sidecar.generation), params: { text: '界'.repeat(22_000) } })
+    expect(response.status).toBe(413)
+    expect(sidecar.sends).toEqual([])
+  })
+  it('bounds chunked request bodies without trusting Content-Length', async () => {
+    const body = new ReadableStream<Uint8Array>({ start(controller) { controller.enqueue(new TextEncoder().encode('x'.repeat(40_000))); controller.enqueue(new TextEncoder().encode('x'.repeat(40_000))); controller.close() } })
+    const response = await fetch(sidecar.endpoint, { method: 'POST', headers: { authorization: 'Bearer ' + sidecar.authentication, 'content-type': 'application/json' }, body, duplex: 'half' } as RequestInit & { duplex: string })
+    expect(response.status).toBe(413)
     expect(sidecar.sends).toEqual([])
   })
   it('rejects stale process generations before side effects', async () => {

@@ -24,6 +24,14 @@
       "types": "./lib/browser/index.d.ts",
       "default": "./lib/browser/index.js"
     },
+    "./sidecar": {
+      "types": "./lib/sidecar/index.d.ts",
+      "default": "./lib/sidecar/index.js"
+    },
+    "./sidecar/server": {
+      "types": "./lib/sidecar/server.d.ts",
+      "default": "./lib/sidecar/server.js"
+    },
     "./package.json": "./package.json"
   },
   "dsh": {
