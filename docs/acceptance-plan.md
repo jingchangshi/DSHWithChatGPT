@@ -12,9 +12,9 @@ Stage A records baseline, target/deployment/protocol/migration documents, commit
 |---|---|---|---|---|---|---|
 | Baseline / A | retain observed source baseline | source 5d303f5 and raw output | full original suite | 403 passed / 3 skipped / 1 failed | reproduction mislabeled repair | VERIFIED |
 | Architecture / A | freeze reviewed target contracts | target documents and inventory | exact-HEAD review after fix PLAN | DONE for submitted document HEAD | PLAN or unreviewed HEAD counted as approval | PARTIAL |
-| F0 / before B | repair cancellation ownership guarantee | original browser.spec plus adversarial hung provider/foreign draft | regression before isolated repair and review | fresh bounded cleanup signal, no extra Enter, foreign draft untouched | weakened/skipped assertion, enlarged timeout, unsafe late mutation | FAILED |
-| F1 / B | isolate core ports | import-graph tests and fake ports | run orchestrator with fake ChatControl/StateStore/ExecutionWorkspace/McpExposure | no concrete browser or Cordis dependencies; behavior/reply errors retained | hidden transitive concrete imports or production memory fallback | NOT_RUN |
-| F2 / C | one shared Web semantic driver | happy-dom fixture + both primitives adapters | exact/ambiguous/missing App, draft change, old/new replies, streaming/settling, logout, abort, recovery | both adapters run the same semantic suite | transport-specific duplicate DOM logic or permissive App matching | NOT_RUN |
+| F0 / before B | repair cancellation ownership guarantee | original browser.spec plus adversarial hung provider/foreign draft | regression before isolated repair and review | fresh bounded cleanup signal, no extra Enter, foreign draft untouched | weakened/skipped assertion, enlarged timeout, unsafe late mutation | VERIFIED |
+| F1 / B | isolate core ports | import-graph tests and fake ports | run orchestrator with fake ChatControl/StateStore/ExecutionWorkspace/McpExposure | no concrete browser or Cordis dependencies; behavior/reply errors retained | hidden transitive concrete imports or production memory fallback | VERIFIED |
+| F2 / C | one shared Web semantic driver | happy-dom fixture + both primitives adapters | exact/ambiguous/missing App, draft change, old/new replies, streaming/settling, logout, abort, recovery | both adapters run the same semantic suite | transport-specific duplicate DOM logic or permissive App matching | VERIFIED |
 | F3 / E | real DOM/input/event CDP behavior | local non-ChatGPT HTTP page + task-owned tab | connect/list/evaluate/focus/type/click/keyboard/mutation/navigation/close/reconnect | observable page outcomes and invalidated stale handles, bounded abort/timeouts | websocket-only smoke, screenshot normal path, hanging call or unrelated target mutation | VERIFIED |
 | F4 / D | narrow authenticated RPC | FakeChatGptWebDriver and separate spawned Sidecar | auth/version/ID/body/deadline/cancel/replay/concurrency/restart/shutdown adversaries | typed errors, bounded results, no arbitrary CDP/JS/FS/shell/Git methods | side effects before auth/validation, duplicate send, leaked secrets, loose passthrough | VERIFIED |
 | F5 / D | same neutral client semantics | identical ChatControl contract suite over fake and HTTP client | execute operation suite and server failure cases | same behavior, only localhost endpoint known to client | client knows OS/CDP/Chrome/SSH, inconsistent cancellation | VERIFIED |
@@ -34,6 +34,11 @@ Stage A records baseline, target/deployment/protocol/migration documents, commit
 | Cross-host Linux | verify future topology on real hosts | Linux host + secure localhost forwarding | only when hosts provided | same client/protocol, no remote CDP | Windows-only evidence counted as Linux verification | FUTURE |
 
 ## Baseline evidence
+
+Current regression evidence (2026-10-01): F0 browser cancellation and cleanup
+tests pass `21/21`; F1 core dependency/port boundaries and F2 shared Web
+semantic parity suites pass `132/132` in a single-worker run. These local gates
+are verified independently of the final ChatGPT exact-HEAD review.
 
 2026-10-01 current HEAD evidence: the authenticated semantic RPC, separate
 Sidecar lifecycle and neutral client suites run serially with 13 files and 140
