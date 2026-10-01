@@ -47,6 +47,43 @@ it('observes a real mutation and bounds an idle observation', async () => {
   expect(Date.now() - idle).toBeLessThan(800)
 })
 
+it.each(['coherent', 'overflow', 'deadline'] as const)('reconciles %s history after the gate settles but before the primitive returns', async fault => {
+  // Actual Chrome Input, with an explicitly injected lifecycle fault at the
+  // promise boundary. This is not evidence of a real browser navigation.
+  const binding = await DirectCdpPrimitives.connect({ endpoint: fixture.endpoint, targetId: fixture.targetId, commandTimeoutMs: 1500 })
+  try {
+    let expected = await binding.currentTarget()
+    expected = (await binding.focus('#edit', { expected })).target
+    const internals = binding as any
+    const execute = internals.gate.execute.bind(internals.gate)
+    const deadlineMs = fault === 'deadline' ? Date.now() + 1000 : undefined
+    let gateSettled = false
+    internals.gate.execute = async (method: string, params: Record<string, unknown>, context: unknown) => {
+      const ack = await execute(method, params, context)
+      if (method === 'Input.insertText') {
+        gateSettled = true
+        if (fault === 'deadline') await new Promise(resolve => setTimeout(resolve, Math.max(0, deadlineMs! - Date.now() + 10)))
+        else for (let index = 0; index < (fault === 'overflow' ? 1025 : 1); index++) {
+          internals.lifecycle('Page.navigatedWithinDocument', { frameId: internals.frameId, url: expected.url })
+        }
+      }
+      return ack
+    }
+    if (fault !== 'coherent') {
+      await expect(binding.type('owned request', { expected, deadlineMs })).rejects.toMatchObject({ name: 'BrowserMutationUncertainError' })
+      expect(gateSettled).toBe(true)
+      expect(binding.bindingState).toBe('QUARANTINED')
+      await expect(binding.type('retry', { expected })).rejects.toMatchObject({ name: 'BrowserTargetChangedError' })
+    } else {
+      const ack = await binding.type('owned request', { expected })
+      expect(ack.target.transitionSequence).toBe(expected.transitionSequence + 1)
+      expect(ack.transitions).toEqual([{ sequence: ack.target.transitionSequence, beforeUrl: expected.url, afterUrl: expected.url }])
+    }
+    expect(await browser.evaluate('document.querySelector("#edit").value')).toBe('owned request')
+    expect(await browser.evaluate('window.events.filter(event => event.name === "input").length')).toBe(1)
+  } finally { binding.close() }
+})
+
 it('retains identity across History API but rejects old fences after navigation and reload', async () => {
   const before = await browser.currentTarget()
   await browser.evaluate('history.pushState(null, "", "/history?view=1#fragment")')

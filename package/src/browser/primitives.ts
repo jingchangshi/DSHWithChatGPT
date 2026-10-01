@@ -1,5 +1,6 @@
 import { withCancellation } from '../cancellation.ts'
 import type { BrowserTargetIdentity } from './epoch.ts'
+import type { BrowserTransition } from './transitions.ts'
 
 export interface BrowserMutationContext {
   expected: BrowserTargetIdentity
@@ -7,7 +8,7 @@ export interface BrowserMutationContext {
   /** Absolute lifetime of a bounded finalizer; never extends after dispatch. */
   deadlineMs?: number
 }
-export interface BrowserMutationAck { target: BrowserTargetIdentity }
+export interface BrowserMutationAck { target: BrowserTargetIdentity; transitions: BrowserTransition[] }
 
 /** Browser mechanics only. Evaluation is an internal boundary, never a public RPC. */
 export interface BrowserPrimitives {
@@ -15,7 +16,7 @@ export interface BrowserPrimitives {
    * already-terminal successful input acknowledgement against the same abort twice. */
   readonly settlesOnCancellation?: true
   /** Evaluate only in the expected document; fail before evaluation after navigation. */
-  observe<T>(expression: string, expected?: BrowserTargetIdentity, signal?: AbortSignal): Promise<{ value: T; target: BrowserTargetIdentity }>
+  observe<T>(expression: string, expected?: BrowserTargetIdentity, signal?: AbortSignal): Promise<{ value: T; target: BrowserTargetIdentity; transitions: BrowserTransition[] }>
   pageInfo(signal?: AbortSignal): Promise<{ url?: string; title?: string }>
   currentTarget(signal?: AbortSignal): Promise<BrowserTargetIdentity>
   activateTarget(targetId: string, signal?: AbortSignal): Promise<unknown>

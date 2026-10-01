@@ -5,6 +5,7 @@ import { BrowserStaleError } from './errors.ts'
 import { BrowserTargetChangedError, BrowserMutationUncertainError, sameBrowserTarget, type BrowserTargetIdentity } from './epoch.ts'
 import { CdpSession, CdpMutationGate, CdpCommandError } from './cdp-session.ts'
 import { typingFocusExpression } from './focus-expression.ts'
+import { BrowserTransitionBuffer, BrowserTransitionHistoryUnavailableError } from './transitions.ts'
 import type { BrowserPrimitives, BrowserMutationContext, BrowserMutationAck } from './primitives.ts'
 
 export interface CdpTarget { id: string; type: string; url: string; webSocketDebuggerUrl?: string }
@@ -78,6 +79,7 @@ export class DirectCdpPrimitives implements BrowserPrimitives {
   private epoch = 0
   private generation = 0
   private documentId = ''
+  private history = new BrowserTransitionBuffer()
   private state: 'BOUND' | 'QUARANTINED' | 'CLOSED' = 'CLOSED'
   private constructor(private readonly options: CdpOptions) {}
   static async connect(options: CdpOptions): Promise<DirectCdpPrimitives> {
@@ -97,13 +99,13 @@ export class DirectCdpPrimitives implements BrowserPrimitives {
   private snapshot(): BrowserTargetIdentity {
     this.assertBound()
     if (!this.context || !this.documentId) throw new BrowserTargetChangedError()
-    return { targetId: this.options.targetId, documentId: this.documentId, epoch: this.epoch, url: this.url }
+    return { targetId: this.options.targetId, documentId: this.documentId, epoch: this.epoch, url: this.url, transitionSequence: this.history.sequence }
   }
   private establish(context: ExecutionContext): void {
     if (context.auxData.frameId !== this.frameId || !context.auxData.isDefault) return
     this.context = context
     const id = `${this.generation}:${context.uniqueId}`
-    if (id !== this.documentId) { this.documentId = id; this.epoch++ }
+    if (id !== this.documentId) { this.documentId = id; this.epoch++; this.history = new BrowserTransitionBuffer() }
   }
   private lifecycle = (method: string, params: any): void => {
     if (method === 'PlannerBridge.transportClosed' || method === 'Inspector.detached') { this.state = 'CLOSED'; this.context = undefined; return }
@@ -130,7 +132,11 @@ export class DirectCdpPrimitives implements BrowserPrimitives {
       this.url = frame.url
       for (const context of this.contexts.values()) this.establish(context)
     }
-    if (method === 'Page.navigatedWithinDocument' && params.frameId === this.frameId) this.url = params.url
+    if (method === 'Page.navigatedWithinDocument' && params.frameId === this.frameId) {
+      if (typeof params.url !== 'string') throw new BrowserTransitionHistoryUnavailableError()
+      this.history.append(this.url, params.url)
+      this.url = params.url
+    }
   }
   private async attach(signal?: AbortSignal): Promise<void> {
     throwIfCancelled(signal)
@@ -185,7 +191,7 @@ export class DirectCdpPrimitives implements BrowserPrimitives {
     try { await this.attach(signal) } catch (error) { this.close(); throw error }
   }
   close(): void { this.state = 'CLOSED'; this.context = undefined; this.session?.close() }
-  async observe<T>(expression: string, expected?: BrowserTargetIdentity, signal?: AbortSignal, timeoutMs?: number): Promise<{ value: T; target: BrowserTargetIdentity }> {
+  async observe<T>(expression: string, expected?: BrowserTargetIdentity, signal?: AbortSignal, timeoutMs?: number) {
     const target = this.snapshot()
     if (expected && !sameBrowserTarget(expected, target)) throw new BrowserTargetChangedError()
     const context = this.context!
@@ -198,8 +204,10 @@ export class DirectCdpPrimitives implements BrowserPrimitives {
     })
     if (!sameBrowserTarget(target, this.snapshot())) throw new BrowserTargetChangedError()
     if (result.exceptionDetails || result.result?.type !== 'object' || !result.result.value || typeof result.result.value.url !== 'string') throw new BrowserStaleError('CDP evaluation failed')
-    this.url = result.result.value.url
-    return { value: result.result.value.value as T, target: this.snapshot() }
+    // A final URL cannot reconstruct intermediate routes. Missing lifecycle
+    // provenance fails closed instead of inventing one collapsed transition.
+    if (this.url !== result.result.value.url) throw new BrowserTransitionHistoryUnavailableError()
+    return { value: result.result.value.value as T, target: this.snapshot(), transitions: expected ? this.history.since(expected.transitionSequence) : [] }
   }
   async evaluate<T>(expression: string, signal?: AbortSignal): Promise<T> { return (await this.observe<T>(expression, undefined, signal)).value }
   async currentTarget(signal?: AbortSignal): Promise<BrowserTargetIdentity> { return (await this.observe('true', undefined, signal)).target }
@@ -209,6 +217,20 @@ export class DirectCdpPrimitives implements BrowserPrimitives {
     await this.gate.execute('Page.bringToFront', {}, { expected: this.snapshot(), signal })
     return {}
   }
+  private acknowledgeGesture(expected: BrowserTargetIdentity, deadlineMs?: number): BrowserMutationAck {
+    try {
+      if (deadlineMs !== undefined && (!Number.isSafeInteger(deadlineMs) || deadlineMs <= Date.now())) throw new BrowserTargetChangedError()
+      // The gate settles asynchronously. Lifecycle notifications may have
+      // advanced since its captured target; bind the final target and history
+      // in one synchronous step, still against the original gesture fence.
+      const target = this.snapshot()
+      if (!sameBrowserTarget(expected, target)) throw new BrowserTargetChangedError()
+      return { target, transitions: this.history.since(expected.transitionSequence) }
+    } catch {
+      this.gate.quarantined = true
+      throw new BrowserMutationUncertainError()
+    }
+  }
   async focus(selector: string, context: BrowserMutationContext): Promise<BrowserMutationAck> {
     await this.observe('true', context.expected, context.signal)
     const root = await this.session.command<any>('DOM.getDocument', { depth: 0 }, { signal: context.signal })
@@ -217,10 +239,15 @@ export class DirectCdpPrimitives implements BrowserPrimitives {
     if (!Array.isArray(nodes.nodeIds) || nodes.nodeIds.length !== 1) throw new BrowserStaleError('CDP focus target missing or ambiguous')
     const focused = await this.gate.execute('DOM.focus', { nodeId: nodes.nodeIds[0] }, context)
     try {
-      return await this.gate.execute('Runtime.evaluate', { expression: typingFocusExpression(selector), uniqueContextId: this.context!.uniqueId, returnByValue: true }, { expected: focused.target, deadlineMs: context.deadlineMs })
+      this.history.since(context.expected.transitionSequence)
+      await this.gate.execute('Runtime.evaluate', { expression: typingFocusExpression(selector), uniqueContextId: this.context!.uniqueId, returnByValue: true }, { expected: focused.target, deadlineMs: context.deadlineMs })
+      return this.acknowledgeGesture(context.expected, context.deadlineMs)
     } catch { this.gate.quarantined = true; throw new BrowserMutationUncertainError() }
   }
-  type(text: string, context: BrowserMutationContext): Promise<BrowserMutationAck> { return this.gate.execute('Input.insertText', { text }, context) }
+  async type(text: string, context: BrowserMutationContext): Promise<BrowserMutationAck> {
+    await this.gate.execute('Input.insertText', { text }, context)
+    return this.acknowledgeGesture(context.expected, context.deadlineMs)
+  }
   async press(key: string, modifiers: number | undefined, context: BrowserMutationContext): Promise<BrowserMutationAck> {
     const keys: Record<string, { code: string; windowsVirtualKeyCode: number; text?: string }> = {
       Enter: { code: 'Enter', windowsVirtualKeyCode: 13, text: '\r' },
@@ -233,14 +260,18 @@ export class DirectCdpPrimitives implements BrowserPrimitives {
     // Complete an admitted key gesture even if caller aborts after the first ack;
     // document reconciliation still prevents a key-up in a replacement document.
     try {
-      return await this.gate.execute('Input.dispatchKeyEvent', { type: 'keyUp', ...params, text: undefined }, { expected: first.target, deadlineMs: context.deadlineMs })
+      this.history.since(context.expected.transitionSequence)
+      await this.gate.execute('Input.dispatchKeyEvent', { type: 'keyUp', ...params, text: undefined }, { expected: first.target, deadlineMs: context.deadlineMs })
+      return this.acknowledgeGesture(context.expected, context.deadlineMs)
     } catch { this.gate.quarantined = true; throw new BrowserMutationUncertainError() }
   }
   async click(x: number, y: number, context: BrowserMutationContext): Promise<BrowserMutationAck> {
     if (![x, y].every(Number.isFinite)) throw new Error('Invalid CDP coordinates')
     const first = await this.gate.execute('Input.dispatchMouseEvent', { type: 'mousePressed', x, y, button: 'left', clickCount: 1 }, context)
     try {
-      return await this.gate.execute('Input.dispatchMouseEvent', { type: 'mouseReleased', x, y, button: 'left', clickCount: 1 }, { expected: first.target, deadlineMs: context.deadlineMs })
+      this.history.since(context.expected.transitionSequence)
+      await this.gate.execute('Input.dispatchMouseEvent', { type: 'mouseReleased', x, y, button: 'left', clickCount: 1 }, { expected: first.target, deadlineMs: context.deadlineMs })
+      return this.acknowledgeGesture(context.expected, context.deadlineMs)
     } catch { this.gate.quarantined = true; throw new BrowserMutationUncertainError() }
   }
   async navigate(url: string, signal?: AbortSignal): Promise<void> {

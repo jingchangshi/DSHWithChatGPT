@@ -4,6 +4,8 @@ export interface BrowserTargetIdentity {
   documentId: string
   url: string
   epoch: number
+  /** Monotonic history cursor within this concrete binding/document generation. */
+  transitionSequence: number
 }
 
 export class BrowserTargetChangedError extends Error {

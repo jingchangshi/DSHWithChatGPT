@@ -3,6 +3,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 import { BrowserHarnessAdapter } from '../src/browser/harness.ts'
 import { BrowserStaleError, ChatGptAppUnavailableError, ChatGptLoggedOutError } from '../src/browser/adapter.ts'
 import { OperationCancelledError } from '../src/cancellation.ts'
+import { BrowserTargetChangedError } from '../src/browser/epoch.ts'
 import { legacyBrowserObservation } from './fixtures/legacy-browser-observation.ts'
 
 vi.mock('node:timers/promises', () => ({
@@ -94,7 +95,9 @@ describe('ChatGPT composer DOM resolution', () => {
     })
     const pending = browser.probeApp('DSH with ChatGPT').catch(error => error)
     await vi.runAllTimersAsync()
-    expect(await pending).toBeInstanceOf(BrowserStaleError)
+    // Unrecorded navigation is a provenance failure; retain all draft and
+    // no-click/no-cleanup assertions under its more precise classification.
+    expect(await pending).toBeInstanceOf(failure === 'url' ? BrowserTargetChangedError : BrowserStaleError)
     expect(mutations.filter(name => name.endsWith('browser_click'))).toHaveLength(0)
     expect(mutations.filter(name => name.endsWith('browser_cdp'))).toHaveLength(1)
     expect(keys).toEqual([])

@@ -1,14 +1,16 @@
 # Direct CDP primitive contract
 
-Status: PARTIAL — Stage E implementation candidate following the independent
-PLAN 2 at `0630fffae54ad0108ffbb2680ff304577022df92`. The implementation, real local
+Status: PARTIAL — Stage E implementation and transition repair candidate following
+PLAN 2 at `0630fffae54ad0108ffbb2680ff304577022df92` and subsequent falsification.
+The implementation, real local
 Chrome tests and a separate Browser B readiness smoke now exist. Independent
 exact-HEAD implementation review is still required. This refines the canonical architecture, without
 changing the model envelope, Sidecar RPC allowlist or producer contracts.
 
 ## Identity and ownership
 
-`BrowserTargetIdentity` carries `targetId`, `documentId`, `epoch` and observed
+`BrowserTargetIdentity` carries `targetId`, `documentId`, `epoch`, the monotonic
+`transitionSequence` cursor and observed
 `url`. The first three identify a concrete owned page/document and local binding
 generation. URL is metadata, not the document ownership predicate.
 
@@ -35,7 +37,7 @@ changes; ignoring every URL change is insufficient.
 
 ## Mechanical focus and guarded mutation
 
-### Transition provenance repair contract (PLAN 3; not yet implemented)
+### Transition provenance contract (repair candidate; independent acceptance pending)
 
 An observation of the final URL cannot prove that no foreign route was visited.
 Each concrete binding must retain ordered, generic same-document URL transitions
@@ -62,6 +64,32 @@ lost acknowledgement or unavailable history after socket write remains uncertain
 and quarantined. This preserves the existing distinction between transport
 uncertainty and a known, semantically rejected route transition; it does not claim
 atomic Input fencing or a proven zero mutation after dispatch.
+
+The typed acknowledgement is `{ target, transitions }`. The original expected
+fence supplies the interval start; `target.transitionSequence` supplies its end.
+The driver requires consecutive sequence numbers, each `beforeUrl` equal to the
+previous URL, and the final sequence and URL equal to the returned target. Missing
+or duplicate records cannot be admitted. Separate start/end fields would repeat
+these facts without adding authority. Each provider returns the complete interval
+from the original gesture fence, including changes before its first component's
+acknowledgement and between component acknowledgements. Physical key/mouse release
+may complete the same document-bound gesture before semantic admission; it cannot
+authorize a new gesture. No route meaning or conversation parser enters providers.
+
+Driver state is `before` -> `dispatching` -> `acknowledged` for the sole final
+Enter. `NEW_CHAT` may promote once to `CONVERSATION:<id>` during dispatch or after
+acknowledgement, preserving the reply baseline and pinning that ID. Before dispatch
+promotion is forbidden; after pinning every intermediate route must retain the ID.
+Query/hash metadata may change. A detour through a different ID rejects even when
+the final URL returns. These rules cover asynchronous new-chat promotion after a
+trustworthy acknowledgement as well as promotion inside the keydown window.
+
+Direct CDP uses native lifecycle records. Harness compatibility installs a generic
+document-local History API observer before the first semantic fence, retains
+bounded records behind a read-only closure, and rejects replaced hooks, missing
+history, expiry or rollback. Document-token changes invalidate old fences. The
+fake provider exercises this same observer and uncertainty contract. This is
+fixture/session-gated compatibility evidence, not a real installed Harness proof.
 
 BrowserPrimitives exposes `focus(selector, context)` alongside type, press and
 click. Typing focus places the caret after the existing content; this is generic
@@ -107,6 +135,12 @@ The cleanup signal also carries its original absolute deadline into mechanical
 commands and post-ack reconciliation, so waiting for acknowledgement cannot grant
 cleanup a new lifetime. Failure after the first command of a key/click/focus
 gesture quarantines the partial gesture; no later input is authorized.
+Final gesture acknowledgement captures the current target and retained history
+together after the last asynchronous gate settlement. History loss in that final
+interval, or expiry of the original finalizer deadline, is still post-write
+uncertainty and quarantines the binding. Tests use
+real Chrome Input with explicitly injected lifecycle notifications to isolate this
+promise-boundary fault; they do not label injected events as real navigation.
 
 ## Discovery and transport
 
@@ -134,8 +168,10 @@ the already owned target. Navigation is internal mechanics, never public RPC.
 |---|---|---|
 | Boundary and semantic regressions | original reds retained; primary module/focus/document identity, transitive authority separation, same-document routing, final mutation fence, replacement and F0 guarantees | VERIFIED by candidate tests; independent review pending |
 | Transport adversaries | wrong websocket ownership, malformed/oversized replies, abort before/after write, ack/abort ordering, late response, disconnect, bounded pending map and cleanup deadlines | VERIFIED: 14 deterministic dispatch tests, 18 discovery tests and 5 boundary tests; real Input-ack-loss proxy also exercised |
-| Real local primitives | task-owned headless Chrome/profile + loopback HTTP page; actual focus/input/key/click events, mutations, navigation, target loss, cancellation, timeout and explicit reconnect | VERIFIED: 9 real Chrome tests; acknowledgement-loss proof observes actual mutation and forbids retry |
-| Shared semantics over real CDP | real Chrome with Fetch-intercepted synthetic documents at ChatGPT-shaped routes; exact/missing/ambiguous App, owned/foreign drafts, baseline, streaming/settling, logout, routing, document fencing | VERIFIED: 9 synthetic-content tests; no real ChatGPT response |
+| Transition provenance adversaries | ordered returning detours, event/byte/age eviction, invalid cursors, rollback, replaced hooks, immutable retained storage, pre-write cursor mismatch, post-write lost history/acknowledgement | VERIFIED: 12 buffer, 7 page-observer and 4 deterministic transition-race tests; shared fake/Harness returning/typing/evicted-detour and post-type quarantine cases also pass |
+| Real local primitives | task-owned headless Chrome/profile + loopback HTTP page; actual focus/input/key/click events, mutations, navigation, target loss, cancellation, timeout and explicit reconnect | VERIFIED: 9 real Chrome scenarios plus 3 real-Input/injected-completion fault scenarios (2 lifecycle, 1 delayed deadline); acknowledgement-loss proof observes actual mutation and forbids retry |
+| Shared semantics over real CDP | real Chrome with Fetch-intercepted synthetic documents at ChatGPT-shaped routes; exact/missing/ambiguous App, owned/foreign drafts, baseline, streaming/settling, logout, routing, document fencing | VERIFIED: 11 synthetic-content scenarios, including hidden double promotion and returning detour; no real ChatGPT response |
+| Harness compatibility | shared semantic fixtures, returning/typing detours, evicted detour and post-type history loss; generic observer event/byte/age/rollback/hook integrity tests | VERIFIED by session-gated fixtures; actual installed Harness/browser runtime NOT_RUN |
 | Browser B smoke | existing dedicated Chrome :9222; create one owned ChatGPT tab, health/readiness/document identity; preserve all pre-existing targets/login; close only owned tab; send no message | VERIFIED: separate readiness smoke; close acknowledgement followed by bounded target-disappearance verification |
 | Product acceptance | real App/data-plane/Planner/DSH/DeepSeek/recovery/exact-HEAD task loop | NOT_RUN — later stages |
 
@@ -150,7 +186,7 @@ separate real-profile gate explicitly with
 `node scripts/verify-direct-cdp-browser-b.mjs` after the build. Browser B readiness
 is excluded from the ordinary test suite and never inserts a Planner message.
 
-Candidate validation: 631 passed / 3 original skipped / 0 failed across 52 files;
+Historical candidate `d2211be` validation: 631 passed / 3 original skipped / 0 failed across 52 files;
 typecheck, build and isolated package verification passed. These are scoped Stage E
 observations, not a claim that the whole architecture or Windows product E2E is done.
 
@@ -159,6 +195,15 @@ uncovered contract violation: root -> `/c/promoted` -> `/c/B` inside one keydown
 before the final Input acknowledgement, loses the intermediate route. Both fake
 mechanics and real Chrome/real CDP with synthetic content accepted B's reply after
 one Enter. The green baseline therefore does not prove the single-promotion
-invariant. New expected-red regressions retain this counterexample. Stage E stays
-PARTIAL/FAILED for this invariant, pending a reviewed transport-neutral transition
-provenance contract and repair; conversation policy must remain in the driver.
+invariant. Expected-red regressions retained this counterexample. The transition
+repair now rejects it in fake mechanics and real CDP with synthetic content;
+Stage E remains PARTIAL pending final exact-HEAD independent acceptance. Conversation
+policy remains in the driver. Neither green local tests nor this repair prove the
+later real Planner/App/DSH/product end-to-end gates.
+
+Repair candidate validation on 2026-10-01: 668 passed / 3 original skipped / 0 failed
+across 55 files; typecheck and build passed. The retained earlier integrated run
+failed 13 tests (legacy fixture metadata/error classification and one isolated
+process startup-sensitive timeout); fixture compatibility corrections and final
+full regression pass without weakening input/draft/replay assertions. Exact
+committed-HEAD acceptance remains a separate pending review.

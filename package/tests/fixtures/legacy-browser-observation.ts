@@ -3,7 +3,7 @@
 export function legacyBrowserObservation(expression: string, value: unknown, url = 'https://chatgpt.com/'): unknown {
   if (expression.includes('document.activeElement === element')) value = true
   return expression.includes('__plannerbridgeDocumentIdentity')
-    ? { value, token: 'stable-fixture-document', url }
+    ? { value, token: 'stable-fixture-document', url, sequence: 0, transitions: [] }
     : value
 }
 

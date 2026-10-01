@@ -135,7 +135,7 @@ export class CdpMutationGate {
     private readonly reconcile: (expected: BrowserTargetIdentity, signal?: AbortSignal, timeoutMs?: number) => Promise<BrowserTargetIdentity>) {}
   private check(expected: BrowserTargetIdentity, admission = false): void {
     const current = this.current()
-    if (this.quarantined || !sameBrowserTarget(expected, current) || (admission && expected.url !== current.url)) throw new BrowserTargetChangedError()
+    if (this.quarantined || !sameBrowserTarget(expected, current) || (admission && (expected.url !== current.url || expected.transitionSequence !== current.transitionSequence))) throw new BrowserTargetChangedError()
   }
   async execute(method: string, params: Record<string, unknown>, context: { expected: BrowserTargetIdentity; signal?: AbortSignal; deadlineMs?: number }): Promise<{ target: BrowserTargetIdentity }> {
     throwIfCancelled(context.signal)

@@ -3,6 +3,8 @@ import { abortableDelay, OperationCancelledError, throwIfCancelled, withCancella
 import { BrowserStaleError } from './errors.ts'
 import { ChatGptWebDriver } from './chatgpt-web-driver.ts'
 import { typingFocusExpression } from './focus-expression.ts'
+import { captureBrowserHistory } from './history-observation.ts'
+import { BrowserTransitionHistoryUnavailableError, type BrowserTransition } from './transitions.ts'
 import type { BrowserPrimitives, BrowserMutationContext, BrowserMutationAck } from './primitives.ts'
 import { BrowserTargetChangedError, BrowserMutationUncertainError, sameBrowserTarget, type BrowserTargetIdentity } from './epoch.ts'
 
@@ -28,31 +30,35 @@ export class BrowserHarnessPrimitives implements BrowserPrimitives {
   private documentToken: string | undefined
   private quarantined = false
   constructor(private readonly ctx: Context, private readonly execAgent: { session: { header: { cwd: string } } } | undefined) {}
-  async observe<T>(expression: string, expected?: BrowserTargetIdentity, signal?: AbortSignal): Promise<{ value: T; target: BrowserTargetIdentity }> {
+  async observe<T>(expression: string, expected?: BrowserTargetIdentity, signal?: AbortSignal): Promise<{ value: T; target: BrowserTargetIdentity; transitions: BrowserTransition[] }> {
     if (this.quarantined) throw new BrowserTargetChangedError()
     if (expected && expected.epoch !== this.epoch) throw new BrowserTargetChangedError()
     const native = await this.call<{ targetId?: string; url?: string }>('browser_current_tab', {}, signal)
     if (typeof native?.targetId !== 'string') throw new BrowserStaleError('browser target identity unavailable')
     if (expected && expected.targetId !== native.targetId) throw new BrowserTargetChangedError()
-    const result = await this.evaluate<{ value: T; token?: string; url?: string; targetChanged?: boolean }>(`(() => {
+    const result = await this.evaluate<{ value: T; token?: string; url?: string; sequence?: number; transitions?: BrowserTransition[]; targetChanged?: boolean; unavailable?: boolean }>(`(() => {
       const doc = document;
       const key = '__plannerbridgeDocumentIdentity';
       if (!doc[key]) Object.defineProperty(doc, key, { value: crypto.randomUUID() });
       const token = doc[key];
-      const url = location.href;
       const expected = ${JSON.stringify(expected ?? null)};
       if (expected && expected.documentId !== token) return { targetChanged: true };
-      return { value: (${expression}), token, url };
+      const capture = ${captureBrowserHistory.toString()};
+      const before = capture(window, expected?.transitionSequence);
+      if (before.unavailable) return before;
+      const observed = { value: (${expression}) };
+      return { ...observed, ...capture(window, expected?.transitionSequence) };
     })()`, signal)
     if (result?.targetChanged) throw new BrowserTargetChangedError()
+    if (result?.unavailable || !Number.isSafeInteger(result?.sequence) || !Array.isArray(result?.transitions)) throw new BrowserTransitionHistoryUnavailableError()
     if (typeof result?.token !== 'string' || typeof result.url !== 'string') throw new BrowserStaleError('browser document identity unavailable')
     if (this.documentToken !== undefined && this.documentToken !== result.token) this.epoch++
     this.documentToken = result.token
     if (this.previousTarget && this.previousTarget.targetId !== native.targetId) this.epoch++
     this.previousTarget = { targetId: native.targetId, url: result.url }
-    const target = { targetId: native.targetId, documentId: result.token, url: result.url, epoch: this.epoch }
+    const target = { targetId: native.targetId, documentId: result.token, url: result.url, epoch: this.epoch, transitionSequence: result.sequence! }
     if (expected && !sameBrowserTarget(expected, target)) throw new BrowserTargetChangedError()
-    return { value: result.value, target }
+    return { value: result.value, target, transitions: result.transitions! }
   }
   pageInfo(signal?: AbortSignal): Promise<{ url?: string; title?: string }> { return this.call('browser_page_info', {}, signal) }
   async currentTarget(signal?: AbortSignal): Promise<BrowserTargetIdentity> {
@@ -61,9 +67,10 @@ export class BrowserHarnessPrimitives implements BrowserPrimitives {
   activateTarget(targetId: string, signal?: AbortSignal): Promise<unknown> { return this.call('browser_cdp', { method: 'Target.activateTarget', params: { targetId } }, signal) }
   evaluate<T>(expression: string, signal?: AbortSignal): Promise<T> { return this.call('browser_js', { expression }, signal) }
   private async mutate(context: BrowserMutationContext, operation: () => Promise<unknown>): Promise<BrowserMutationAck> {
-    await this.observe('true', context.expected, context.signal)
+    const before = await this.observe('true', context.expected, context.signal)
+    if (before.target.transitionSequence !== context.expected.transitionSequence || before.target.url !== context.expected.url) throw new BrowserTargetChangedError()
     await operation()
-    try { return { target: (await this.observe('true', context.expected)).target } }
+    try { const after = await this.observe('true', context.expected); return { target: after.target, transitions: after.transitions } }
     catch { this.quarantined = true; throw new BrowserMutationUncertainError() }
   }
   async focus(selector: string, context: BrowserMutationContext): Promise<BrowserMutationAck> {

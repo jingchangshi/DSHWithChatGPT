@@ -19,7 +19,7 @@ async function setup(timeoutMs = 100) {
   const { BrowserTargetChangedError } = await import('../src/browser/epoch.ts')
   const wire = new Wire()
   const session = new CdpSession(wire, { timeoutMs })
-  const fence = { targetId: 'owned', documentId: 'document-A', epoch: 1, url: 'https://example.test/' }
+  const fence = { targetId: 'owned', documentId: 'document-A', epoch: 1, url: 'https://example.test/', transitionSequence: 0 }
   let current = { ...fence }
   const gate = new CdpMutationGate(session, () => current, async expected => {
     if (expected.documentId !== current.documentId || expected.epoch !== current.epoch) throw new BrowserTargetChangedError()

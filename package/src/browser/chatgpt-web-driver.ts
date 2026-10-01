@@ -1,6 +1,7 @@
 import { CancellableBrowserPrimitives, type BrowserPrimitives, type BrowserMutationContext, type BrowserMutationAck } from './primitives.ts'
 import type { ChatControl, ChatReply as BrowserReply } from '../core/ports/chat-control.ts'
-import { BrowserTargetChangedError, type BrowserTargetIdentity } from './epoch.ts'
+import { BrowserTargetChangedError, sameBrowserTarget, type BrowserTargetIdentity } from './epoch.ts'
+import type { BrowserTransition } from './transitions.ts'
 import { abortableDelay, OperationCancelledError, throwIfCancelled } from '../cancellation.ts'
 import {
   BrowserStaleError,
@@ -291,28 +292,43 @@ export class ChatGptWebDriver implements ChatControl {
 
   private resetTarget(): void { this.target = undefined; this.fenced = false; this.replyBaseline = undefined; this.route = undefined; this.finalEnter = 'before' }
 
-  private acceptTarget(target: BrowserTargetIdentity): void {
+  private acceptTarget(target: BrowserTargetIdentity, transitions: BrowserTransition[] = []): void {
     if (this.fenced) {
-      const route = classifyChatRoute(target.url)
-      if (route === 'OTHER') { this.replyBaseline = undefined; throw new BrowserTargetChangedError() }
-      if (this.route === undefined) this.route = route
-      else if (route !== this.route) {
-        if (this.route === 'NEW_CHAT' && route.startsWith('CONVERSATION:') && this.finalEnter !== 'before') this.route = route
-        else { this.replyBaseline = undefined; throw new BrowserTargetChangedError() }
+      if (!Number.isSafeInteger(target.transitionSequence) || target.transitionSequence < 0) { this.replyBaseline = undefined; throw new BrowserTargetChangedError() }
+      if (this.target) {
+        if (!sameBrowserTarget(this.target, target)) { this.replyBaseline = undefined; throw new BrowserTargetChangedError() }
+        let sequence = this.target.transitionSequence
+        let url = this.target.url
+        for (const transition of transitions) {
+          if (transition.sequence !== ++sequence || transition.beforeUrl !== url) { this.replyBaseline = undefined; throw new BrowserTargetChangedError() }
+          this.admitRoute(transition.afterUrl)
+          url = transition.afterUrl
+        }
+        if (sequence !== target.transitionSequence || url !== target.url) { this.replyBaseline = undefined; throw new BrowserTargetChangedError() }
       }
+      this.admitRoute(target.url)
     }
     this.target = target
+  }
+  private admitRoute(url: string): void {
+    const route = classifyChatRoute(url)
+    if (route === 'OTHER') { this.replyBaseline = undefined; throw new BrowserTargetChangedError() }
+    if (this.route === undefined) this.route = route
+    else if (route !== this.route) {
+      if (this.route === 'NEW_CHAT' && route.startsWith('CONVERSATION:') && this.finalEnter !== 'before') this.route = route
+      else { this.replyBaseline = undefined; throw new BrowserTargetChangedError() }
+    }
   }
   private async mutationContext(signal?: AbortSignal): Promise<BrowserMutationContext> {
     if (!this.target) this.acceptTarget((await this.browser.observe('true', undefined, signal)).target)
     return { expected: this.target!, signal, deadlineMs: signal ? this.cleanupDeadlines.get(signal) : undefined }
   }
-  private acceptMutation(ack: BrowserMutationAck): void { this.acceptTarget(ack.target) }
+  private acceptMutation(ack: BrowserMutationAck): void { this.acceptTarget(ack.target, ack.transitions) }
 
   private async evaluate<T>(expression: string, signal?: AbortSignal): Promise<T> {
     if (!this.fenced) return this.browser.evaluate<T>(expression, signal)
     const observed = await this.browser.observe<T>(expression, this.target, signal)
-    this.acceptTarget(observed.target)
+    this.acceptTarget(observed.target, observed.transitions)
     return observed.value
   }
 

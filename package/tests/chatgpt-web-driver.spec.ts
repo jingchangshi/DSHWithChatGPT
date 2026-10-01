@@ -65,7 +65,8 @@ it('retains the reply baseline across an acknowledged same-document new-chat rou
   fixture.primitives.press = async (key, modifiers, signal) => {
     const ack = await press(key, modifiers, signal)
     if (key === 'Enter') fixture.window.history.pushState(null, '', '/c/new-conversation')
-    return { target: { ...ack.target, url: fixture.window.location.href } }
+    const observed = await fixture.primitives.observe('true', signal.expected)
+    return { ...ack, target: observed.target, transitions: observed.transitions }
   }
   const browser = new ChatGptWebDriver(fixture.primitives, '')
   await browser.sendControlMessage('owned request')
@@ -88,7 +89,8 @@ it('rejects two same-document conversation transitions before final press return
       fixture.window.history.pushState(null, '', '/c/promoted')
       fixture.window.history.pushState(null, '', '/c/B')
     }
-    return { ...ack, target: await fixture.primitives.currentTarget() }
+    const observed = await fixture.primitives.observe('true', context.expected)
+    return { ...ack, target: observed.target, transitions: observed.transitions }
   }
   const driver = new ChatGptWebDriver(fixture.primitives, '')
   const sendError = await driver.sendControlMessage('owned request').catch(error => error)
