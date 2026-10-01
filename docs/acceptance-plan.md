@@ -16,8 +16,8 @@ Stage A records baseline, target/deployment/protocol/migration documents, commit
 | F1 / B | isolate core ports | import-graph tests and fake ports | run orchestrator with fake ChatControl/StateStore/ExecutionWorkspace/McpExposure | no concrete browser or Cordis dependencies; behavior/reply errors retained | hidden transitive concrete imports or production memory fallback | NOT_RUN |
 | F2 / C | one shared Web semantic driver | happy-dom fixture + both primitives adapters | exact/ambiguous/missing App, draft change, old/new replies, streaming/settling, logout, abort, recovery | both adapters run the same semantic suite | transport-specific duplicate DOM logic or permissive App matching | NOT_RUN |
 | F3 / E | real DOM/input/event CDP behavior | local non-ChatGPT HTTP page + task-owned tab | connect/list/evaluate/focus/type/click/keyboard/mutation/navigation/close/reconnect | observable page outcomes and invalidated stale handles, bounded abort/timeouts | websocket-only smoke, screenshot normal path, hanging call or unrelated target mutation | VERIFIED |
-| F4 / D | narrow authenticated RPC | FakeChatGptWebDriver and separate spawned Sidecar | auth/version/ID/body/deadline/cancel/replay/concurrency/restart/shutdown adversaries | typed errors, bounded results, no arbitrary CDP/JS/FS/shell/Git methods | side effects before auth/validation, duplicate send, leaked secrets, loose passthrough | NOT_RUN |
-| F5 / D | same neutral client semantics | identical ChatControl contract suite over fake and HTTP client | execute operation suite and server failure cases | same behavior, only localhost endpoint known to client | client knows OS/CDP/Chrome/SSH, inconsistent cancellation | NOT_RUN |
+| F4 / D | narrow authenticated RPC | FakeChatGptWebDriver and separate spawned Sidecar | auth/version/ID/body/deadline/cancel/replay/concurrency/restart/shutdown adversaries | typed errors, bounded results, no arbitrary CDP/JS/FS/shell/Git methods | side effects before auth/validation, duplicate send, leaked secrets, loose passthrough | VERIFIED |
+| F5 / D | same neutral client semantics | identical ChatControl contract suite over fake and HTTP client | execute operation suite and server failure cases | same behavior, only localhost endpoint known to client | client knows OS/CDP/Chrome/SSH, inconsistent cancellation | VERIFIED |
 | F6 / C+H | retain reference compatibility | fake session-gated Browser Harness tools | run shared semantic contract and packaging compatibility | session ownership and exact App semantics retained | compatibility coupled into core/primary path | VERIFIED |
 | F6-real | verify installed compatibility executable | real Browser Harness if available | attach only Browser B and run compatibility smoke | genuine upstream process/tool results | mock mislabeled real or primary blocked by missing executable | NOT_RUN |
 | F7 / F | isolate DSH integration | real Cordis lifecycle/profile + fake core | tools/prompts/cwd/events/storage mount/unload, native DeepSeek config | disposers remove wiring; valid Session attribution; default provider config | core imports DSH lifecycle; hardcoded old model; missing cwd Host fallback | PARTIAL |
@@ -25,7 +25,7 @@ Stage A records baseline, target/deployment/protocol/migration documents, commit
 | F9 / G | isolate exposure ownership | fake tunnel child + authenticated Bridge HTTP | start/rebind/failure/abort/restart cleanup/workspace conflict | no key in args/status; matching reservation cleanup; protocol preserved | child leak, key leak, workspace takeover, failure advances protocol | NOT_RUN |
 | F10 / G | durable restart/reconciliation | persistent task/journal + independently spawned processes | crash before/after send/ack, DSH/Sidecar restart, Chrome reload, cancelled PLAN/REVIEW | identical IDs/HEAD, reacquired lease, no duplicate INIT/EXECUTED, SEND_UNCERTAIN when proof absent | resend after observation timeout or forgotten in-memory cooldown | NOT_RUN |
 | F11 / H | migrate names without hidden compatibility debt | inventory + import/export/script/package checks | scan canonical source/test/docs and invoke explicit old aliases | canonical identifiers neutral; old public edges documented and bounded | blind replace, silently retained private coupling, externally-owned rename | NOT_RUN |
-| Package / H | usable installed artifacts | packed tarball + isolated supported DSH profiles | build/typecheck/pack/export/import/profile/sidecar executable checks | all runtime closure included; no development bridge dependency | source-only success, missing files or runtime Codex dependency | NOT_RUN |
+| Package / H | usable installed artifacts | packed tarball + isolated supported DSH profiles | build/typecheck/pack/export/import/profile/sidecar executable checks | all runtime closure included; no development bridge dependency | source-only success, missing files or runtime Codex dependency | PARTIAL |
 | Windows sandbox / G+I | real hardened execution authority | real Windows ACL provider + task workspace | execute root-contained reads and fixed Git queries with hostile escapes | hardened-windows assurance and actual deny evidence | mere mock/metadata, relaxed security for green tests | NOT_RUN |
 | Fake-stack / H | workflow under adversarial boundaries | separate Sidecar + fake driver + real Git fixture + persisted core | full plan/fix/review, faults and restart | deterministic identities and commit/push verified | fake result reported as real Web/model acceptance | NOT_RUN |
 | Product App proof / I | live Workspace Data Plane | Browser B, real App/exposure, active task lease | remote memory-only challenge + source/Git/output reads | App independently reads challenge and expected workspace facts | expected values pasted into prompt, development connector substituted | NOT_RUN |
@@ -34,6 +34,13 @@ Stage A records baseline, target/deployment/protocol/migration documents, commit
 | Cross-host Linux | verify future topology on real hosts | Linux host + secure localhost forwarding | only when hosts provided | same client/protocol, no remote CDP | Windows-only evidence counted as Linux verification | FUTURE |
 
 ## Baseline evidence
+
+2026-10-01 current HEAD evidence: the authenticated semantic RPC, separate
+Sidecar lifecycle and neutral client suites run serially with 13 files and 140
+passing tests. The packaged artifact verification also passed after the pnpm 11
+workspace override fix; the real DSH profile smoke and native model generation
+remain unrun. These results support F4/F5 but do not promote any live product
+or Windows E2E gate.
 
 Stage E independent source audit completed on 2026-10-01 at implementation HEAD
 `0f8f91c1b466fb0c836c7c2193a3dc7765239421`. The development reviewer initially
