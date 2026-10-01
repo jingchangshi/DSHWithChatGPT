@@ -58,13 +58,23 @@ await writeFile(path.join(profile, 'cordis.patch.yml'), JSON.stringify([
 ], null, 2))
 const args = [cli, '--profile', 'planner-executor-e2e', '--json']
 const task = 'Use PlannerBridge to implement REQUIREMENTS.md. First call chatgpt_doctor with mode=local and require localReady=true. Then separately call chatgpt_doctor with mode=app-proof and require appDataPlaneVerified=true. execution_output_access=false is EXPECTED outside an active review and is NOT a local/App readiness failure. An unrequested app-proof has not failed. Stop only if the respective readiness field fails after its explicit mode call. Then call chatgpt_plan with the requirements goal. Include this review requirement in the goal: reviewer must independently read raw execution_output and echo the latest successful npm test E2E_EVIDENCE marker in SUMMARY, never receive that value via executor prose. Follow the real PLAN, edit and test with npm test, commit and push planner-executor/e2e, then chatgpt_review with exact HEAD and testsRecorded true. Never put the random marker in review arguments, files or messages. Do not modify REQUIREMENTS.md or weaken tests. If REVIEW gives a fix PLAN continue it; if DONE finish. Never fabricate protocol or evidence. Use pwsh for shell commands.'
-const child = spawn(process.execPath, [...args, task], { cwd: workspace, env: { ...process.env, DSH_HOME: home, PLANNER_EXECUTOR_RUN_ID: runId, PLANNER_EXECUTOR_PHASE: '1' }, windowsHide: true })
-console.log(JSON.stringify({ root, pid: child.pid, workspace }))
-const chunks = []
-child.stdout.on('data', data => chunks.push(data))
-child.stderr.on('data', data => chunks.push(data))
-child.on('close', async code => {
-  await writeFile(path.join(root, 'run-1.log'), Buffer.concat(chunks))
+const reconnectTask = 'Call chatgpt_reconnect and preserve the same task, iteration and workspace identity. Re-read the current plan and execution records, implement the requested fix, run npm test, commit and push planner-executor/e2e, then call chatgpt_review with the exact current HEAD and testsRecorded true. The reviewer must independently read raw execution_output and echo the latest successful E2E_EVIDENCE marker. Never put that marker in arguments, files or messages. Use pwsh for shell commands.'
+async function runPhase(phase, prompt) {
+  const child = spawn(process.execPath, [...args, prompt], { cwd: workspace, env: { ...process.env, DSH_HOME: home, PLANNER_EXECUTOR_RUN_ID: runId, PLANNER_EXECUTOR_PHASE: String(phase) }, windowsHide: true })
+  console.log(JSON.stringify({ root, pid: child.pid, workspace, phase }))
+  const chunks = []
+  child.stdout.on('data', data => chunks.push(data))
+  child.stderr.on('data', data => chunks.push(data))
+  const code = await new Promise(resolve => child.on('close', resolve))
+  await writeFile(path.join(root, `run-${phase}.log`), Buffer.concat(chunks))
+  return code
+}
+
+const firstCode = await runPhase(1, task)
+const firstRecords = (await readFile(report, 'utf8').catch(() => '')).split('\n').filter(Boolean).map(line => JSON.parse(line))
+const restartPending = firstRecords.some(record => record.kind === 'restart-checkpoint')
+const code = restartPending ? await runPhase(2, reconnectTask) : firstCode
+{
   const observations = await readFile(report, 'utf8').catch(() => '')
   const records = observations.split('\n').filter(Boolean).map(line => JSON.parse(line))
   const successfulNonces = new Set(records.filter(record => record.kind === 'result' && record.name === 'pwsh' && record.exitCode === 0 && typeof record.nonce === 'string').map(record => record.nonce))
@@ -87,7 +97,7 @@ child.on('close', async code => {
     && phaseTwo
     && !records.some(record => record.reviewArgumentNonceLeak === true)
     && !records.some(record => record.name === 'browser-harness')
-  await writeFile(path.join(root, 'result.json'), JSON.stringify({ code, root, plannerExecutorAccepted, restartPending: records.some(record => record.kind === 'restart-checkpoint') }, null, 2))
+  await writeFile(path.join(root, 'result.json'), JSON.stringify({ code, root, plannerExecutorAccepted, restartPending }, null, 2))
   console.log(JSON.stringify({ code, root, plannerExecutorAccepted }))
   process.exitCode = code ?? 1
-})
+}
