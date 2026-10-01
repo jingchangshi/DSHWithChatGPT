@@ -19,6 +19,7 @@ export function domFixture(html: string, options: { selection?: 'outside' | 'par
   }
   let window = createWindow(html)
   const mutations: string[] = []
+  const inspections: string[] = []
   const keys: string[] = []
   const inputs: string[] = []
   let typed = false
@@ -27,7 +28,7 @@ export function domFixture(html: string, options: { selection?: 'outside' | 'par
   const execute = async ({ name, arguments: args }: { name: string; arguments: Record<string, unknown> }) => {
     if (name.endsWith('browser_page_info')) return { value: { url: 'https://chatgpt.com/' } }
     if (name.endsWith('browser_current_tab')) {
-      mutations.push(name)
+      inspections.push(name)
       const target = { targetId: 'owned-target', url: window.location.href }
       window.document.dispatchEvent(new window.CustomEvent('current-target', { detail: target }))
       return { value: target }
@@ -36,7 +37,9 @@ export function domFixture(html: string, options: { selection?: 'outside' | 'par
     if (options.providerFailure === 'top') return { isError: true }
     if (options.providerFailure === 'nested') return { value: { isError: true } }
     if (name.endsWith('browser_js')) {
-      if (typed && options.failAfterType && !failed) {
+      // This fault exercises the semantic inspection after acknowledged input,
+      // not the mechanical post-ack identity reconciliation (covered separately).
+      if (typed && options.failAfterType && !failed && !String(args.expression).includes('value: (true)')) {
         failed = true
         if (options.foreignDraft) window.document.querySelector('[role="textbox"]')!.textContent = typeof options.foreignDraft === 'string' ? options.foreignDraft : 'foreign user draft'
         throw new Error('provider failed after input')
@@ -106,5 +109,5 @@ export function domFixture(html: string, options: { selection?: 'outside' | 'par
     }
     return { value: {} }
   }
-  return { execute, mutations, keys, inputs, get window() { return window }, replaceDocument: (body = html) => { window = createWindow(body, window.location.href) }, enteredText: () => enteredText }
+  return { execute, mutations, inspections, keys, inputs, get window() { return window }, replaceDocument: (body = html) => { window = createWindow(body, window.location.href) }, enteredText: () => enteredText }
 }

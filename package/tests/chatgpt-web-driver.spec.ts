@@ -9,6 +9,53 @@ import { webSemanticContract } from './fixtures/web-semantic-contract.ts'
 
 afterEach(async () => { vi.useRealTimers(); await closeDomFixtures() })
 
+it('accepts query and fragment changes within the pinned conversation', async () => {
+  vi.useFakeTimers()
+  const { ChatGptWebDriver } = await import('../src/browser/chatgpt-web-driver.ts')
+  const fixture = fakeBrowserFixture('<div role="textbox" contenteditable="true"></div>', { appName: '' })
+  fixture.window.history.replaceState(null, '', '/c/owned')
+  const browser = new ChatGptWebDriver(fixture.primitives, '')
+  await browser.sendControlMessage('owned request')
+  fixture.window.history.pushState(null, '', '/c/owned?view=changed#reply')
+  fixture.window.document.body.insertAdjacentHTML('beforeend', '<article data-message-author-role="assistant">owned reply</article>')
+  const result = browser.waitForReply(12_000).catch(error => error)
+  await vi.runAllTimersAsync()
+  expect(await result).toEqual({ text: 'owned reply', complete: true })
+})
+
+it.each(['/', '/c/owned'])('rejects foreign conversation navigation during typing from %s', async start => {
+  const { ChatGptWebDriver } = await import('../src/browser/chatgpt-web-driver.ts')
+  const fixture = fakeBrowserFixture('<div role="textbox" contenteditable="true"></div>', { appName: '' })
+  fixture.window.history.replaceState(null, '', start)
+  fixture.window.document.addEventListener('composer-type', () => {
+    fixture.window.history.pushState(null, '', '/c/foreign')
+    fixture.window.document.querySelector('[role="textbox"]')!.textContent = 'foreign draft'
+  })
+  const browser = new ChatGptWebDriver(fixture.primitives, '')
+  await expect(browser.sendControlMessage('owned request')).rejects.toBeInstanceOf(BrowserTargetChangedError)
+  expect(fixture.keys).not.toContain('Enter')
+  expect(fixture.window.document.querySelector('[role="textbox"]')!.textContent).toBe('foreign draft')
+})
+
+it.each(['/c/owned', '/'])('rejects a foreign reply after the final Enter from %s', async start => {
+  vi.useFakeTimers()
+  const { ChatGptWebDriver } = await import('../src/browser/chatgpt-web-driver.ts')
+  const fixture = fakeBrowserFixture('<div role="textbox" contenteditable="true"></div>', { appName: '' })
+  fixture.window.history.replaceState(null, '', start)
+  const browser = new ChatGptWebDriver(fixture.primitives, '')
+  await browser.sendControlMessage('owned request')
+  if (start === '/') {
+    fixture.window.history.pushState(null, '', '/c/promoted')
+    expect(await browser.currentConversation()).toBe('promoted')
+  }
+  fixture.window.history.pushState(null, '', '/c/foreign')
+  fixture.window.document.body.insertAdjacentHTML('beforeend', '<article data-message-author-role="assistant">foreign reply</article>')
+  const result = browser.waitForReply(12_000).catch(error => error)
+  await vi.runAllTimersAsync()
+  expect(await result).toBeInstanceOf(BrowserTargetChangedError)
+  expect(fixture.keys.filter(key => key === 'Enter')).toHaveLength(1)
+})
+
 it('retains the reply baseline across an acknowledged same-document new-chat route', async () => {
   vi.useFakeTimers()
   const { ChatGptWebDriver } = await import('../src/browser/chatgpt-web-driver.ts')
@@ -16,8 +63,9 @@ it('retains the reply baseline across an acknowledged same-document new-chat rou
   fixture.window.history.replaceState(null, '', 'https://chatgpt.com/')
   const press = fixture.primitives.press
   fixture.primitives.press = async (key, modifiers, signal) => {
-    await press(key, modifiers, signal)
+    const ack = await press(key, modifiers, signal)
     if (key === 'Enter') fixture.window.history.pushState(null, '', '/c/new-conversation')
+    return { target: { ...ack.target, url: fixture.window.location.href } }
   }
   const browser = new ChatGptWebDriver(fixture.primitives, '')
   await browser.sendControlMessage('owned request')
@@ -43,7 +91,7 @@ it('passes the captured document fence to the final input mutation', async () =>
       // A supplied old fence must prevent dispatch; preflight alone cannot.
       if (receivedFence) throw new BrowserTargetChangedError()
     }
-    await press(key, modifiers, context?.signal ?? context)
+    return await press(key, modifiers, context)
   }
   const browser = new ChatGptWebDriver(fixture.primitives, '')
   await expect(browser.sendControlMessage('owned request')).rejects.toBeInstanceOf(BrowserTargetChangedError)
@@ -93,11 +141,12 @@ it('bounds fresh cleanup when a primitive never answers and prevents continuatio
   let initiallyLive = false
   let resolveLate: (() => void) | undefined
   const press = fixture.primitives.press
-  fixture.primitives.press = async (key, modifiers, signal) => {
-    cleanupSignal = signal
-    initiallyLive = !signal?.aborted
-    await press(key, modifiers, signal)
+  fixture.primitives.press = async (key, modifiers, context) => {
+    cleanupSignal = context.signal
+    initiallyLive = !context.signal?.aborted
+    const ack = await press(key, modifiers, context)
     await new Promise<void>(resolve => { resolveLate = resolve })
+    return ack
   }
   const browser = new ChatGptWebDriver(fixture.primitives, '')
   const started = Date.now()

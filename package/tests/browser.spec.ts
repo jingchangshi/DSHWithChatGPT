@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest'
+import { legacyBrowserMechanics } from './fixtures/legacy-browser-observation.ts'
 import {
   BrowserStaleError,
   ChatGptLoggedOutError,
@@ -96,7 +97,7 @@ describe('Browser Harness App probe', () => {
       get: () => ({
         execute: async ({ name, arguments: args }: { name: string; arguments: Record<string, unknown> }) => {
           calls.push(name)
-          return { value: respond(name, args) }
+          return { value: legacyBrowserMechanics(name, args, respond(name, args)) }
         },
       }),
     } as never, undefined, 'DSH with ChatGPT')
@@ -110,7 +111,7 @@ describe('Browser Harness App probe', () => {
         const expression = String(args.expression)
         if (expression.includes('composer.setAttribute')) return { count: 1, empty: true, owned: true, focused: true }
         if (expression.includes('visibility: document.visibilityState')) return { visibility: 'visible', url: 'https://chatgpt.com/' }
-        if (expression.includes('return content.trim() ===')) return true
+        if (expression.includes('return draftText(content) ===')) return true
         if (expression.includes('const candidates =')) return { found: true, x: 10, y: 20 }
         if (expression.includes('const decorators')) return true
         return { text: '', assistantCount: 0, streaming: false, loggedOut: false, composer: true }
@@ -128,7 +129,7 @@ describe('Browser Harness App probe', () => {
       if (name.endsWith('browser_js')) {
         const expression = String(args.expression)
         if (expression.includes('composer.setAttribute')) return { count: 1, empty: true, owned: true, focused: true }
-        if (expression.includes('return content.trim() ===')) return true
+        if (expression.includes('return draftText(content) ===')) return true
         if (expression.includes('visibility: document.visibilityState')) return { visibility: 'visible', url: 'https://chatgpt.com/' }
         if (expression.includes('const candidates =')) return { found: false }
         return { text: '', assistantCount: 0, streaming: false, loggedOut: false, composer: true }
@@ -148,9 +149,10 @@ describe('Browser Harness App probe', () => {
       get: () => ({
         execute: async ({ name, arguments: args }: { name: string; arguments: Record<string, unknown> }) => {
           calls.push(name)
+          if (name.endsWith('browser_current_tab')) return { value: { targetId: 'owned-target', url: 'https://chatgpt.com/c/test' } }
           if (name.endsWith('browser_page_info')) return { value: { url: 'https://chatgpt.com/c/test' } }
-          if (name.endsWith('browser_js') && String(args.expression).includes('visibility: document.visibilityState')) return { value: { visibility: 'visible', url: 'https://chatgpt.com/c/test' } }
-          if (name.endsWith('browser_js')) return { value: String(args.expression).includes('composer.setAttribute') ? { count: 1, empty: !controller.signal.aborted, owned: true, focused: true } : { loggedOut: false, composer: true } }
+          if (name.endsWith('browser_js') && String(args.expression).includes('visibility: document.visibilityState')) return { value: legacyBrowserMechanics(name, args, { visibility: 'visible', url: 'https://chatgpt.com/c/test' }, 'https://chatgpt.com/c/test') }
+          if (name.endsWith('browser_js')) return { value: legacyBrowserMechanics(name, args, String(args.expression).includes('composer.setAttribute') ? { count: 1, empty: !controller.signal.aborted, owned: true, focused: true } : { loggedOut: false, composer: true }, 'https://chatgpt.com/c/test') }
           if (name.endsWith('browser_type')) {
             controller.abort()
             return new Promise<never>(() => {})
@@ -178,13 +180,14 @@ describe('Browser Harness App probe', () => {
     let resolveCleanup: (() => void) | undefined
     const browser = new BrowserHarnessAdapter({ get: () => ({
       execute: async ({ name, arguments: args, signal }: { name: string; arguments: Record<string, unknown>; signal: AbortSignal }) => {
+        if (name.endsWith('browser_current_tab')) return { value: { targetId: 'owned-target', url: 'https://chatgpt.com/c/test' } }
         if (name.endsWith('browser_page_info')) return { value: { url: 'https://chatgpt.com/c/test' } }
         if (name.endsWith('browser_js')) {
           const expression = String(args.expression)
-          if (expression.includes('composer.setAttribute')) return { value: { count: 1, empty: text === '', owned: true, focused: true } }
-          if (expression.includes('visibility: document.visibilityState')) return { value: { visibility: 'visible', url: 'https://chatgpt.com/c/test' } }
-          if (expression.includes('const selection =')) return { value: true }
-          return { value: { loggedOut: false, composer: true } }
+          if (expression.includes('composer.setAttribute')) return { value: legacyBrowserMechanics(name, args, { count: 1, empty: text === '', owned: true, focused: true }, 'https://chatgpt.com/c/test') }
+          if (expression.includes('visibility: document.visibilityState')) return { value: legacyBrowserMechanics(name, args, { visibility: 'visible', url: 'https://chatgpt.com/c/test' }, 'https://chatgpt.com/c/test') }
+          if (expression.includes('const selection =')) return { value: legacyBrowserMechanics(name, args, true, 'https://chatgpt.com/c/test') }
+          return { value: legacyBrowserMechanics(name, args, { loggedOut: false, composer: true }, 'https://chatgpt.com/c/test') }
         }
         if (name.endsWith('browser_type')) {
           text = String(args.text)

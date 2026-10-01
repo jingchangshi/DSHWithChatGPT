@@ -44,6 +44,7 @@ describe('caller cancellation', () => {
     const browser = new BrowserHarnessAdapter({
       get: () => ({
         execute: ({ name, arguments: args }: { name: string; arguments: Record<string, unknown> }) => {
+          if (name.endsWith('browser_current_tab')) return Promise.resolve({ value: { targetId: 'owned-target', url: 'https://chatgpt.com/' } })
           if (name.endsWith('browser_js')) {
             if (String(args.expression).includes('visibility: document.visibilityState')) return Promise.resolve({ value: legacyBrowserObservation(String(args.expression), { visibility: 'visible', url: 'https://chatgpt.com/' }) })
             if (String(args.expression).includes('composer.setAttribute')) return Promise.resolve({ value: legacyBrowserObservation(String(args.expression), { count: 1, empty: true, owned: true, focused: true }) })

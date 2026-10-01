@@ -3,6 +3,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 import { BrowserHarnessAdapter } from '../src/browser/harness.ts'
 import { BrowserStaleError, ChatGptAppUnavailableError, ChatGptLoggedOutError } from '../src/browser/adapter.ts'
 import { OperationCancelledError } from '../src/cancellation.ts'
+import { legacyBrowserObservation } from './fixtures/legacy-browser-observation.ts'
 
 vi.mock('node:timers/promises', () => ({
   setTimeout: (milliseconds: number, value: unknown, options: { signal?: AbortSignal } = {}) => new Promise((resolve, reject) => {
@@ -155,10 +156,10 @@ describe('ChatGPT composer DOM resolution', () => {
 
   it('rejects an activation provider error without querying or mutating the composer', async () => {
     const calls: string[] = []
-    const browser = new BrowserHarnessAdapter({ get: () => ({ execute: async (request: { name: string }) => {
+    const browser = new BrowserHarnessAdapter({ get: () => ({ execute: async (request: { name: string; arguments: Record<string, unknown> }) => {
       const name = request.name.replace('mcp__browser-harness__', '')
       calls.push(name)
-      if (name === 'browser_js') return { value: { visibility: 'hidden', url: 'https://chatgpt.com/' } }
+      if (name === 'browser_js') return { value: legacyBrowserObservation(String(request.arguments.expression), { visibility: 'hidden', url: 'https://chatgpt.com/' }) }
       if (name === 'browser_page_info') return { value: { url: 'https://chatgpt.com/' } }
       if (name === 'browser_current_tab') return { value: { targetId: 'owned-target', url: 'https://chatgpt.com/' } }
       return { value: { error: 'activation unavailable' } }
@@ -167,7 +168,7 @@ describe('ChatGPT composer DOM resolution', () => {
     const draft = { texts: ['request'], preserve: false }
     await expect(guard.ensureCurrentTargetVisible(draft)).rejects.toThrow('activation failed')
     expect(draft.preserve).toBe(true)
-    expect(calls).toEqual(['browser_js', 'browser_page_info', 'browser_current_tab', 'browser_cdp'])
+    expect(calls).toEqual(['browser_js', 'browser_page_info', 'browser_current_tab', 'browser_js', 'browser_cdp'])
   })
 
   it('waits for a composer mounted after navigation without modifying its draft', async () => {

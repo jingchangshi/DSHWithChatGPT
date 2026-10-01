@@ -1,9 +1,10 @@
 import type { Context } from '@deepseek-ai/cordis'
 import { abortableDelay, OperationCancelledError, throwIfCancelled, withCancellation } from '../cancellation.ts'
-import { BrowserStaleError } from './adapter.ts'
+import { BrowserStaleError } from './errors.ts'
 import { ChatGptWebDriver } from './chatgpt-web-driver.ts'
-import type { BrowserPrimitives } from './primitives.ts'
-import { BrowserTargetChangedError, type BrowserTargetIdentity } from './epoch.ts'
+import { typingFocusExpression } from './focus-expression.ts'
+import type { BrowserPrimitives, BrowserMutationContext, BrowserMutationAck } from './primitives.ts'
+import { BrowserTargetChangedError, BrowserMutationUncertainError, sameBrowserTarget, type BrowserTargetIdentity } from './epoch.ts'
 
 interface ToolResultBlock {
   type?: string
@@ -25,9 +26,14 @@ export class BrowserHarnessPrimitives implements BrowserPrimitives {
   private epoch = 0
   private previousTarget: { targetId: string; url: string } | undefined
   private documentToken: string | undefined
+  private quarantined = false
   constructor(private readonly ctx: Context, private readonly execAgent: { session: { header: { cwd: string } } } | undefined) {}
   async observe<T>(expression: string, expected?: BrowserTargetIdentity, signal?: AbortSignal): Promise<{ value: T; target: BrowserTargetIdentity }> {
+    if (this.quarantined) throw new BrowserTargetChangedError()
     if (expected && expected.epoch !== this.epoch) throw new BrowserTargetChangedError()
+    const native = await this.call<{ targetId?: string; url?: string }>('browser_current_tab', {}, signal)
+    if (typeof native?.targetId !== 'string') throw new BrowserStaleError('browser target identity unavailable')
+    if (expected && expected.targetId !== native.targetId) throw new BrowserTargetChangedError()
     const result = await this.evaluate<{ value: T; token?: string; url?: string; targetChanged?: boolean }>(`(() => {
       const doc = document;
       const key = '__plannerbridgeDocumentIdentity';
@@ -35,30 +41,37 @@ export class BrowserHarnessPrimitives implements BrowserPrimitives {
       const token = doc[key];
       const url = location.href;
       const expected = ${JSON.stringify(expected ?? null)};
-      if (expected && (expected.targetId !== token || expected.url !== url)) return { targetChanged: true };
+      if (expected && expected.documentId !== token) return { targetChanged: true };
       return { value: (${expression}), token, url };
     })()`, signal)
     if (result?.targetChanged) throw new BrowserTargetChangedError()
     if (typeof result?.token !== 'string' || typeof result.url !== 'string') throw new BrowserStaleError('browser document identity unavailable')
     if (this.documentToken !== undefined && this.documentToken !== result.token) this.epoch++
     this.documentToken = result.token
-    const target = { targetId: result.token, url: result.url, epoch: this.epoch }
-    if (expected && (expected.targetId !== target.targetId || expected.url !== target.url || expected.epoch !== target.epoch)) throw new BrowserTargetChangedError()
+    if (this.previousTarget && this.previousTarget.targetId !== native.targetId) this.epoch++
+    this.previousTarget = { targetId: native.targetId, url: result.url }
+    const target = { targetId: native.targetId, documentId: result.token, url: result.url, epoch: this.epoch }
+    if (expected && !sameBrowserTarget(expected, target)) throw new BrowserTargetChangedError()
     return { value: result.value, target }
   }
   pageInfo(signal?: AbortSignal): Promise<{ url?: string; title?: string }> { return this.call('browser_page_info', {}, signal) }
   async currentTarget(signal?: AbortSignal): Promise<BrowserTargetIdentity> {
-    const target = await this.call<{ targetId?: string; url?: string }>('browser_current_tab', {}, signal)
-    if (typeof target?.targetId !== 'string' || typeof target.url !== 'string') throw new BrowserStaleError('browser target identity unavailable')
-    if (this.previousTarget && (this.previousTarget.targetId !== target.targetId || this.previousTarget.url !== target.url)) this.epoch++
-    this.previousTarget = { targetId: target.targetId, url: target.url }
-    return { ...this.previousTarget, epoch: this.epoch }
+    return (await this.observe('true', undefined, signal)).target
   }
   activateTarget(targetId: string, signal?: AbortSignal): Promise<unknown> { return this.call('browser_cdp', { method: 'Target.activateTarget', params: { targetId } }, signal) }
   evaluate<T>(expression: string, signal?: AbortSignal): Promise<T> { return this.call('browser_js', { expression }, signal) }
-  async type(text: string, signal?: AbortSignal): Promise<void> { await this.call('browser_type', { text }, signal) }
-  async press(key: string, modifiers?: number, signal?: AbortSignal): Promise<void> { await this.call('browser_press', { key, ...(modifiers === undefined ? {} : { modifiers }) }, signal) }
-  async click(x: number, y: number, signal?: AbortSignal): Promise<void> { await this.call('browser_click', { x, y }, signal) }
+  private async mutate(context: BrowserMutationContext, operation: () => Promise<unknown>): Promise<BrowserMutationAck> {
+    await this.observe('true', context.expected, context.signal)
+    await operation()
+    try { return { target: (await this.observe('true', context.expected)).target } }
+    catch { this.quarantined = true; throw new BrowserMutationUncertainError() }
+  }
+  async focus(selector: string, context: BrowserMutationContext): Promise<BrowserMutationAck> {
+    return this.mutate(context, () => this.evaluate(typingFocusExpression(selector), context.signal))
+  }
+  async type(text: string, context: BrowserMutationContext): Promise<BrowserMutationAck> { return this.mutate(context, () => this.call('browser_type', { text }, context.signal)) }
+  async press(key: string, modifiers: number | undefined, context: BrowserMutationContext): Promise<BrowserMutationAck> { return this.mutate(context, () => this.call('browser_press', { key, ...(modifiers === undefined ? {} : { modifiers }) }, context.signal)) }
+  async click(x: number, y: number, context: BrowserMutationContext): Promise<BrowserMutationAck> { return this.mutate(context, () => this.call('browser_click', { x, y }, context.signal)) }
   async navigate(url: string, signal?: AbortSignal): Promise<void> { this.epoch++; await this.call('browser_goto', { url }, signal) }
   async waitForLoad(timeoutMs: number, signal?: AbortSignal): Promise<void> { await this.call('browser_wait_for_load', { timeout: timeoutMs / 1000 }, signal) }
   async waitForMutation(timeoutMs: number, signal?: AbortSignal): Promise<void> { await abortableDelay(timeoutMs, signal) }

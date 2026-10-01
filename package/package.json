@@ -52,14 +52,15 @@
     "test:profile": "node scripts/verify-profile.mjs",
     "test:live-c2c-observer": "node --test scripts/c2c-e2e-observer.test.mjs",
     "test:live-c2c": "node scripts/verify-live-c2c.mjs",
-    "test:launcher": "node --test scripts/c2c-launcher.test.mjs"
-    ,"test:product-c2c": "node scripts/dsh-product-c2c.test.mjs"
+    "test:launcher": "node --test scripts/c2c-launcher.test.mjs",
+    "test:product-c2c": "node scripts/dsh-product-c2c.test.mjs"
   },
   "license": "MIT",
   "engines": {
     "node": ">=20"
   },
   "dependencies": {
+    "ws": "^8.22.0",
     "zod": "^4.6.5"
   },
   "peerDependencies": {
@@ -67,17 +68,18 @@
     "@deepseek-ai/dsh-execution-world": ">=0.1.6-alpha.4",
     "@deepseek-ai/dsh-fs": ">=0.1.6-alpha.2",
     "@deepseek-ai/dsh-sandbox": ">=0.1.6-alpha.2",
-    "@deepseek-ai/dsh-subprocess": ">=0.1.6-alpha.2",
-    "@deepseek-ai/dsh-storage-domain": ">=0.1.6-alpha.2"
+    "@deepseek-ai/dsh-storage-domain": ">=0.1.6-alpha.2",
+    "@deepseek-ai/dsh-subprocess": ">=0.1.6-alpha.2"
   },
   "devDependencies": {
     "@deepseek-ai/cordis": "^4.0.2",
     "@deepseek-ai/dsh-execution-world": "file:tarballs/deepseek-ai-dsh-execution-world-0.1.6-alpha.4.tgz",
     "@deepseek-ai/dsh-fs": "file:tarballs/deepseek-ai-dsh-fs-0.1.6-alpha.2.tgz",
     "@deepseek-ai/dsh-sandbox": "0.1.6-alpha.2",
-    "@deepseek-ai/dsh-subprocess": "0.1.6-alpha.2",
     "@deepseek-ai/dsh-storage-domain": "file:tarballs/deepseek-ai-dsh-storage-domain-0.1.6-alpha.2.tgz",
+    "@deepseek-ai/dsh-subprocess": "0.1.6-alpha.2",
     "@types/node": "^24.0.0",
+    "@types/ws": "^8.18.2",
     "happy-dom": "20.11.6",
     "typescript": "^5.9.0",
     "vitest": "^5.0.1"

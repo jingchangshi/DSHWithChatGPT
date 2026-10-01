@@ -1,4 +1,4 @@
-import { CancellableBrowserPrimitives, type BrowserPrimitives } from './primitives.ts'
+import { CancellableBrowserPrimitives, type BrowserPrimitives, type BrowserMutationContext, type BrowserMutationAck } from './primitives.ts'
 import type { ChatControl, ChatReply as BrowserReply } from '../core/ports/chat-control.ts'
 import { BrowserTargetChangedError, type BrowserTargetIdentity } from './epoch.ts'
 import { abortableDelay, OperationCancelledError, throwIfCancelled } from '../cancellation.ts'
@@ -6,7 +6,7 @@ import {
   BrowserStaleError,
   ChatGptAppUnavailableError,
   ChatGptLoggedOutError,
-} from './adapter.ts'
+} from './errors.ts'
 
 interface ChatPageState {
   text: string
@@ -36,6 +36,9 @@ const composerNodes = Array.from(document.querySelectorAll('#prompt-textarea, [r
   return element.isConnected && rect.width > 0 && rect.height > 0 && style.display !== 'none' && style.visibility !== 'hidden' && !element.closest('[aria-hidden="true"], [inert]');
 });
 const composer = composerNodes.length === 1 ? composerNodes[0] : null;
+// contenteditable presents a leading separator as NBSP. Normalize only this
+// browser spacing representation when comparing ownership, never the payload.
+const draftText = text => String(text).replace(/\u00a0/g, ' ').trim();
 `
 
 /** Shared ChatGPT Web semantics, independent of transport and host. */
@@ -43,6 +46,9 @@ export class ChatGptWebDriver implements ChatControl {
   private replyBaseline: ReplyBaseline | undefined
   private target: BrowserTargetIdentity | undefined
   private fenced = false
+  private route: string | undefined
+  private finalEnter: 'before' | 'dispatching' | 'acknowledged' = 'before'
+  private readonly cleanupDeadlines = new WeakMap<AbortSignal, number>()
 
   private readonly browser: BrowserPrimitives
   constructor(primitives: BrowserPrimitives, private readonly appName: string) {
@@ -107,6 +113,8 @@ export class ChatGptWebDriver implements ChatControl {
 
   async sendControlMessage(text: string, signal?: AbortSignal): Promise<void> {
     this.target = undefined
+    this.route = undefined
+    this.finalEnter = 'before'
     this.fenced = true
     const state = await this.inspectChatPage(signal)
     if (state.loggedOut) throw new ChatGptLoggedOutError()
@@ -127,7 +135,11 @@ export class ChatGptWebDriver implements ChatControl {
       await this.ensureCurrentTargetVisible(draft, signal)
       if (!(await this.resolveComposer(signal, { texts: [expected] }, true)).owned) throw new BrowserStaleError('ChatGPT control message changed before sending')
       await this.checkTarget(signal)
-      await this.browser.press('Enter', undefined, signal)
+      this.finalEnter = 'dispatching'
+      try {
+        this.acceptMutation(await this.browser.press('Enter', undefined, await this.mutationContext(signal)))
+        this.finalEnter = 'acknowledged'
+      } catch (error) { this.finalEnter = 'before'; throw error }
     }, false, signal)
   }
 
@@ -209,8 +221,8 @@ export class ChatGptWebDriver implements ChatControl {
   }
 
   async conversationId(signal?: AbortSignal): Promise<string | undefined> {
-    const info = await this.browser.pageInfo(signal)
-    const url = info?.url
+    if (this.fenced) await this.checkTarget(signal)
+    const url = this.fenced ? this.target?.url : (await this.browser.pageInfo(signal))?.url
     if (typeof url !== 'string') return undefined
     const match = /\/c\/([^/?#]+)/.exec(url)
     return match?.[1]
@@ -266,6 +278,7 @@ export class ChatGptWebDriver implements ChatControl {
         try {
           // Finalization owns a separate lifetime after the caller cancels.
           const cleanupSignal = AbortSignal.timeout(COMPOSER_CLEANUP_TIMEOUT_MS)
+          this.cleanupDeadlines.set(cleanupSignal, Date.now() + COMPOSER_CLEANUP_TIMEOUT_MS)
           await this.clearComposer(draft, cleanupSignal)
         } catch (error) {
           if (originalError instanceof OperationCancelledError) throw originalError
@@ -276,12 +289,30 @@ export class ChatGptWebDriver implements ChatControl {
     }
   }
 
-  private resetTarget(): void { this.target = undefined; this.fenced = false; this.replyBaseline = undefined }
+  private resetTarget(): void { this.target = undefined; this.fenced = false; this.replyBaseline = undefined; this.route = undefined; this.finalEnter = 'before' }
+
+  private acceptTarget(target: BrowserTargetIdentity): void {
+    if (this.fenced) {
+      const route = classifyChatRoute(target.url)
+      if (route === 'OTHER') { this.replyBaseline = undefined; throw new BrowserTargetChangedError() }
+      if (this.route === undefined) this.route = route
+      else if (route !== this.route) {
+        if (this.route === 'NEW_CHAT' && route.startsWith('CONVERSATION:') && this.finalEnter !== 'before') this.route = route
+        else { this.replyBaseline = undefined; throw new BrowserTargetChangedError() }
+      }
+    }
+    this.target = target
+  }
+  private async mutationContext(signal?: AbortSignal): Promise<BrowserMutationContext> {
+    if (!this.target) this.acceptTarget((await this.browser.observe('true', undefined, signal)).target)
+    return { expected: this.target!, signal, deadlineMs: signal ? this.cleanupDeadlines.get(signal) : undefined }
+  }
+  private acceptMutation(ack: BrowserMutationAck): void { this.acceptTarget(ack.target) }
 
   private async evaluate<T>(expression: string, signal?: AbortSignal): Promise<T> {
     if (!this.fenced) return this.browser.evaluate<T>(expression, signal)
     const observed = await this.browser.observe<T>(expression, this.target, signal)
-    this.target = observed.target
+    this.acceptTarget(observed.target)
     return observed.value
   }
 
@@ -315,7 +346,7 @@ export class ChatGptWebDriver implements ChatControl {
       const candidate = await this.findAppCandidate(appName, signal)
       if (!candidate.found || typeof candidate.x !== 'number' || typeof candidate.y !== 'number') break
       await this.checkTarget(signal)
-      await this.browser.click(Math.round(candidate.x), Math.round(candidate.y), signal)
+      this.acceptMutation(await this.browser.click(Math.round(candidate.x), Math.round(candidate.y), await this.mutationContext(signal)))
       for (let sample = 0; sample < 10; sample++) {
         await abortableDelay(150, signal)
         if (await this.verifyAppMention(appName, signal)) {
@@ -335,7 +366,7 @@ export class ChatGptWebDriver implements ChatControl {
       '(() => {', composerScript,
       'if (!composer) return false;',
       'const content = typeof composer.value === "string" ? composer.value : (composer.innerText || composer.textContent || "");',
-      'return content.trim() === ' + JSON.stringify('@' + appName) + ' && !composer.querySelector(' + JSON.stringify('[contenteditable="false"], [data-lexical-decorator="true"], [data-mention], [app-mention-display-name]') + ');',
+      'return draftText(content) === draftText(' + JSON.stringify('@' + appName) + ') && !composer.querySelector(' + JSON.stringify('[contenteditable="false"], [data-lexical-decorator="true"], [data-mention], [app-mention-display-name]') + ');',
       '})()',
     ].join(' '), signal)
     if (valid !== true) throw new BrowserStaleError('ChatGPT App query changed before activation')
@@ -426,13 +457,16 @@ export class ChatGptWebDriver implements ChatControl {
       'if (!composer) return { count: composerNodes.length, empty: false };',
       'composer.setAttribute("data-plannerbridge-composer-target", "1");',
       'const draft = ' + JSON.stringify(draft ?? { texts: [] }) + ';',
-      'const content = (typeof composer.value === "string" ? composer.value : (composer.innerText || composer.textContent || "")).trim();',
-      focus ? 'composer.focus();' : '',
-      String.raw`return { count: 1, empty: !content && !composer.querySelector('[contenteditable="false"], [data-lexical-decorator="true"], [data-mention]'), owned: draft.texts.some(text => text.trim() === content), focused: document.activeElement === composer || composer.contains(document.activeElement) };`,
+      'const content = draftText(typeof composer.value === "string" ? composer.value : (composer.innerText || composer.textContent || ""));',
+      String.raw`return { count: 1, empty: !content && !composer.querySelector('[contenteditable="false"], [data-lexical-decorator="true"], [data-mention]'), owned: draft.texts.some(text => draftText(text) === content), focused: document.activeElement === composer || composer.contains(document.activeElement) };`,
       '})()',
     ].join(' '), signal)
     if (value?.count !== 1 || typeof value.empty !== 'boolean') throw new BrowserStaleError('ChatGPT composer is missing or ambiguous')
-    if (focus && value.focused !== true) throw new BrowserStaleError('ChatGPT composer focus could not be verified')
+    if (focus) {
+      this.acceptMutation(await this.browser.focus(composerSelector, await this.mutationContext(signal)))
+      const focused = await this.evaluate<boolean>(`(() => { const element = document.querySelector(${JSON.stringify(composerSelector)}); return !!element && (document.activeElement === element || element.contains(document.activeElement)) })()`, signal)
+      if (!focused) throw new BrowserStaleError('ChatGPT composer focus could not be verified')
+    }
     return { empty: value.empty, owned: value.owned === true }
   }
 
@@ -484,7 +518,7 @@ export class ChatGptWebDriver implements ChatControl {
     if (!current.owned) throw new BrowserStaleError('ChatGPT composer changed before typing')
     draft.texts.push(expected)
     await this.checkTarget(signal)
-    await this.browser.type(text, signal)
+    this.acceptMutation(await this.browser.type(text, await this.mutationContext(signal)))
     if (autoMention !== undefined && await this.verifyAppMention(autoMention, signal)) {
       draft.texts.push(autoMention)
       return true
@@ -522,13 +556,13 @@ export class ChatGptWebDriver implements ChatControl {
     await this.ensureCurrentTargetVisible(draft, signal)
     if (!(await this.resolveComposer(signal, draft, true)).owned) throw new BrowserStaleError('ChatGPT composer changed before cleanup')
     await this.checkTarget(signal)
-    await this.browser.press('a', 2, signal)
+    this.acceptMutation(await this.browser.press('a', 2, await this.mutationContext(signal)))
     const selected = await this.evaluate<unknown>([
       '(() => {', composerScript,
       'if (!composer || document.activeElement !== composer) return false;',
       'const content = typeof composer.value === "string" ? composer.value : (composer.innerText || composer.textContent || "");',
       'const draft = ' + JSON.stringify(draft) + ';',
-      'if (!draft.texts.some(text => text.trim() === content.trim())) return false;',
+      'if (!draft.texts.some(text => draftText(text) === draftText(content))) return false;',
       'if (typeof composer.value === "string") return composer.selectionStart === 0 && composer.selectionEnd === composer.value.length;',
       'const selection = window.getSelection();',
       'if (!selection || selection.rangeCount !== 1 || selection.isCollapsed) return false;',
@@ -548,12 +582,24 @@ export class ChatGptWebDriver implements ChatControl {
     ].join(' '), signal)
     if (selected !== true) throw new BrowserStaleError('ChatGPT composer selection is not complete and contained')
     await this.checkTarget(signal)
-    await this.browser.press('Backspace', undefined, signal)
+    this.acceptMutation(await this.browser.press('Backspace', undefined, await this.mutationContext(signal)))
     if (!(await this.resolveComposer(signal)).empty) throw new BrowserStaleError('ChatGPT composer cleanup could not be verified')
   }
 
 
-}function normalizePageState(value: unknown): ChatPageState {
+}
+
+function classifyChatRoute(value: string): string {
+  try {
+    const url = new URL(value)
+    if (url.origin !== 'https://chatgpt.com') return 'OTHER'
+    if (url.pathname === '/') return 'NEW_CHAT'
+    const match = /^\/c\/([^/]+)\/?$/.exec(url.pathname)
+    return match ? 'CONVERSATION:' + match[1] : 'OTHER'
+  } catch { return 'OTHER' }
+}
+
+function normalizePageState(value: unknown): ChatPageState {
   const candidate = value as Partial<ChatPageState>
   return {
     text: typeof candidate.text === 'string' ? candidate.text : '',

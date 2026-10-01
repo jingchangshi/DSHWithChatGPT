@@ -45,6 +45,7 @@ describe('registered doctor App proof', () => {
       execute: async (request: { name: string; arguments: { expression?: string; text?: string; key?: string } }) => {
         const name = request.name.replace('mcp__browser-harness__', '')
         if (name === 'browser_page_info') return { value: { url: 'https://chatgpt.com/c/fixture' } }
+        if (name === 'browser_current_tab') return { value: { targetId: 'owned-target', url: 'https://chatgpt.com/c/fixture' } }
         if (name === 'browser_type' && request.arguments.text?.includes('[D2C_APP_PROOF_V1]')) prompt = request.arguments.text
         if (name === 'browser_press' && request.arguments.key === 'Enter') {
           const workspace = await mcp('workspace_info')
@@ -55,9 +56,10 @@ describe('registered doctor App proof', () => {
         }
         if (name === 'browser_js') {
           const expression = request.arguments.expression!
+          if (expression.includes('value: (true)')) return { value: legacyBrowserObservation(expression, true, 'https://chatgpt.com/c/fixture') }
           if (expression.includes('composer.setAttribute')) return { value: legacyBrowserObservation(String(request.arguments.expression), { count: 1, empty: true, owned: true, focused: true }, 'https://chatgpt.com/c/fixture') }
           if (expression.includes('visibility: document.visibilityState')) return { value: legacyBrowserObservation(String(request.arguments.expression), { visibility: 'visible', url: 'https://chatgpt.com/c/fixture' }, 'https://chatgpt.com/c/fixture') }
-          if (expression.includes('return content.trim() ===')) return { value: legacyBrowserObservation(String(request.arguments.expression), true, 'https://chatgpt.com/c/fixture') }
+          if (expression.includes('return draftText(content) ===')) return { value: legacyBrowserObservation(String(request.arguments.expression), true, 'https://chatgpt.com/c/fixture') }
           if (expression.includes('const candidates')) return { value: legacyBrowserObservation(String(request.arguments.expression), { found: true, x: 1, y: 1 }, 'https://chatgpt.com/c/fixture') }
           if (expression.includes('const decorators')) return { value: legacyBrowserObservation(String(request.arguments.expression), true, 'https://chatgpt.com/c/fixture') }
           if (expression.includes('const external =')) return { value: legacyBrowserObservation(String(request.arguments.expression), true, 'https://chatgpt.com/c/fixture') }

@@ -1,6 +1,6 @@
 # PlannerBridge target architecture
 
-Status: PARTIAL — canonical architecture with implementation reviewed through Stage D; full Windows product acceptance remains incomplete. `goal.md` defines scope; `env-win.md` records dated observations. Older documents describe the legacy implementation until explicitly migrated. The proposed Stage E refinement is [direct-cdp-contract.md](direct-cdp-contract.md); its implementation and live gates remain unverified.
+Status: PARTIAL — canonical architecture with implementation reviewed through Stage D; full Windows product acceptance remains incomplete. `goal.md` defines scope; `env-win.md` records dated observations. Older documents describe the legacy implementation until explicitly migrated. The Stage E implementation candidate and distinct real/synthetic evidence are described in [direct-cdp-contract.md](direct-cdp-contract.md); independent exact-HEAD implementation review remains pending.
 
 PlannerBridge is a provider-neutral Planner/Reviewer ↔ Executor collaboration runtime. The first deployment uses ChatGPT Web and Windows DSH with DeepSeek-V4.1-Flash. The repository/package may retain their existing names for installation compatibility. CodexWithChatGPT is exclusively a development tool.
 
@@ -128,7 +128,7 @@ Workspace Data Plane owns Bridge schemas, bearer binding, registry and lease lif
 
 ChatGptWebDriver owns the single DOM/App/composer/reply algorithm. BrowserPrimitives supplies target identity/navigation epoch, navigation, DOM evaluation, focus, text/key/click input, target activation and mutation waiting. Generic evaluation/CDP is internal to this boundary, never a Sidecar RPC method. BrowserHarnessChatControl composes this same driver over Session-gated BrowserHarnessPrimitives; DirectCdpPrimitives is primary.
 
-Stage E separates page target identity, concrete document identity/local binding epoch and observed URL. Same-document history routing does not itself replace the document; same-URL reload does. Focus and input mutations receive the expected document at the primitive dispatch boundary and acknowledge identity. Input already dispatched to CDP is not recallable; uncertainty and no-retry constraints are explicit in the proposed Direct CDP contract, and require independent review before implementation.
+Stage E separates page target identity, concrete document identity/local binding epoch and observed URL. Same-document history routing does not itself replace the document; same-URL reload does. Focus and input mutations receive the expected document at the primitive dispatch boundary and acknowledge identity. Input already dispatched to CDP is not recallable: post-write uncertainty quarantines the binding, cannot authorize cleanup/Enter/retry, and requires an explicit same-target reconnect. The independently reviewed PLAN 2 required concrete Runtime context reconciliation and a narrow driver-owned new-chat promotion policy; implementation review remains pending.
 
 Product state directories are deployment-injected private paths outside all workspaces. Missing secure state location fails startup; production cannot fall back to process.cwd(). The Windows Sidecar default is :18765, configurable to another literal-loopback port; no core contract fixes this port.
 
@@ -167,5 +167,7 @@ All core contracts, protocol, state machine, Sidecar client and Web semantics ar
 ## Current baseline and staged ownership
 
 Historical source baseline at `5d303f5`: 403 passed / 3 skipped / 1 failed. Architecture review subsequently completed, F0 was repaired separately at `6c05177`, core ports were extracted at `cb86027`, and shared semantics reviewed at `44f60a2`. Stage D implementation/source audit and test scheduling correction were independently reviewed DONE at `4dc4275`; latest full regression is 569 passed / 3 original skipped / 0 failed. These scoped reviews do not prove Direct CDP, complete recovery or real Windows product E2E. Stage E begins with failing boundary/routing/mutation tests before implementation.
+
+The Stage E candidate now has 631 passed / 3 original skipped / 0 failed, with typecheck, build and isolated package verification passing. Real temporary Chrome mechanics and synthetic-page shared semantics are separate from the successful Browser B readiness-only smoke. Exact-HEAD Stage E implementation review remains pending; later DSH deployment, durable recovery and real Windows product E2E remain unproven.
 
 Stages B–I follow `acceptance-plan.md`; every stage uses falsification tests → implementation → checks → independent commit → exact-HEAD ChatGPT review. Producer changes require a failing consumer test and prior independent architecture review. Architecture changes require updating this contract and review before implementation.
