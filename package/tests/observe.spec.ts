@@ -1,4 +1,4 @@
-import { afterEach, beforeEach, describe, expect, it } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import fs from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
@@ -55,6 +55,51 @@ function shell(overrides: Partial<ObservedExecution> = {}): ObservedExecution {
 }
 
 describe('shell evidence observation', () => {
+  it.each(['awaiting-plan', 'executed', 'awaiting-review', 'done', 'blocked', 'error'] as const)(
+    'does not grant an evidence owner while the task is %s', async taskState => {
+      await bindTask('planner_task_inactive', 4, taskState)
+      expect(await freezeShellExecution(shell(), state)).toBeUndefined()
+      expect(recorder.list()).toEqual([])
+    },
+  )
+
+  it.each(['planned', 'executing'] as const)('captures the next review iteration while %s', async taskState => {
+    await bindTask('planner_task_active', 4, taskState)
+    const exec = shell({ name: 'pwsh', arguments: { command: 'Write-Output evidence', workdir: 'build' } })
+    const before = Date.now()
+    const owner = await freezeShellExecution(exec, state)
+    expect(owner).toMatchObject({ workspaceId, workspaceRoot: root, taskId: 'planner_task_active', iteration: 5, cwd: 'build' })
+    expect(owner!.startedAt).toBeGreaterThanOrEqual(before)
+    expect(owner!.startedAt).toBeLessThanOrEqual(Date.now())
+  })
+
+  it.each([
+    { name: 'read_file', arguments: { command: 'pnpm test' } },
+    { name: 'bash', arguments: {} },
+    { name: 'pwsh', arguments: { command: '   ' } },
+  ])('does not consult execution identity for an unrelated or empty command: %s', async input => {
+    const resolveIdentity = vi.fn(async () => ({ workspaceId, displayRoot: root }))
+    expect(await freezeWithIdentity(shell(input), state, resolveIdentity)).toBeUndefined()
+    expect(resolveIdentity).not.toHaveBeenCalled()
+  })
+
+  it('rejects a task-reader result that disagrees with the durable binding', async () => {
+    const bound = (await state.loadTask('d2c_task_a'))!
+    const reader = {
+      loadWorkspace: async () => ({ workspaceRoot: root, conversationId: 'conversation', lastTaskId: 'planner_task_expected', updatedAt: 1 }),
+      loadTask: async () => bound,
+      listTaskIds: async () => [bound.taskId],
+    }
+    expect(await freezeWithIdentity(shell(), reader, async () => ({ workspaceId, displayRoot: root }))).toBeUndefined()
+  })
+
+  it('never records a background result even when it carries a successful exit code and output', async () => {
+    const exec = shell()
+    observeShellResult(exec, { value: { kind: 'background', exitCode: 0, stdout: { text: 'claimed success' } } },
+      await freezeShellExecution(exec, state), recorder)
+    expect(recorder.list()).toEqual([])
+  })
+
   it('does not attribute evidence to another world with the same cwd', async () => {
     const exec = shell()
     const otherId = '22345678-1234-4234-8234-123456789abc'

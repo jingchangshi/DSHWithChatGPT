@@ -20,7 +20,7 @@ Stage A records baseline, target/deployment/protocol/migration documents, commit
 | F5 / D | same neutral client semantics | identical ChatControl contract suite over fake and HTTP client | execute operation suite and server failure cases | same behavior, only localhost endpoint known to client | client knows OS/CDP/Chrome/SSH, inconsistent cancellation | NOT_RUN |
 | F6 / C+H | retain reference compatibility | fake session-gated Browser Harness tools | run shared semantic contract and packaging compatibility | session ownership and exact App semantics retained | compatibility coupled into core/primary path | VERIFIED |
 | F6-real | verify installed compatibility executable | real Browser Harness if available | attach only Browser B and run compatibility smoke | genuine upstream process/tool results | mock mislabeled real or primary blocked by missing executable | NOT_RUN |
-| F7 / F | isolate DSH integration | real Cordis lifecycle/profile + fake core | tools/prompts/cwd/events/storage mount/unload, native DeepSeek config | disposers remove wiring; valid Session attribution; default provider config | core imports DSH lifecycle; hardcoded old model; missing cwd Host fallback | NOT_RUN |
+| F7 / F | isolate DSH integration | real Cordis lifecycle/profile + fake core | tools/prompts/cwd/events/storage mount/unload, native DeepSeek config | disposers remove wiring; valid Session attribution; default provider config | core imports DSH lifecycle; hardcoded old model; missing cwd Host fallback | PARTIAL |
 | F8 / G | preserve content authority | current producer leases and hostile boundary fixtures | workspace ID only/missing/stale generation/replacement/traversal/symlink/Git injection/output caps/evidence scopes | denial before provider read; fixed argv/environment; redacted scoped evidence | Host read fallback, stale authority, arbitrary shell, nonce or secrets outside scope | NOT_RUN |
 | F9 / G | isolate exposure ownership | fake tunnel child + authenticated Bridge HTTP | start/rebind/failure/abort/restart cleanup/workspace conflict | no key in args/status; matching reservation cleanup; protocol preserved | child leak, key leak, workspace takeover, failure advances protocol | NOT_RUN |
 | F10 / G | durable restart/reconciliation | persistent task/journal + independently spawned processes | crash before/after send/ack, DSH/Sidecar restart, Chrome reload, cancelled PLAN/REVIEW | identical IDs/HEAD, reacquired lease, no duplicate INIT/EXECUTED, SEND_UNCERTAIN when proof absent | resend after observation timeout or forgotten in-memory cooldown | NOT_RUN |
@@ -53,6 +53,25 @@ failed all 3 cases (entry still owns concrete wiring, inbound adapter absent,
 primary Sidecar configuration unsupported); all 3 existing neutral core boundary
 cases passed. These are expected pre-implementation failures, not regressions
 fixed by weakening assertions.
+
+Stage F inbound adapter foundation on 2026-10-01: `dsh-agent.spec.ts` first
+failed all 5 cases because the adapter was absent. A neutral agent port and
+`DshAgentAdapter` then made these cases pass: argument validation, explicit
+Session cwd, pre-dispatch ownership capture, same-object/one-time result
+attribution, non-vetoing observation failures, and plugin-fiber unload with
+the host still running. The public prompt service owns its contribution effect;
+the fixture models this contract rather than requiring duplicate registration.
+The product composition now mounts this adapter and remains separate from
+Cordis persistence and the outbound execution workspace adapter. The package
+entry delegates to `deployment/dsh-runtime.ts`. Observation regressions cover
+all inactive task states and unrelated/background commands. These are scoped
+contract/integration proofs, not real native Executor or product E2E evidence.
+The Sidecar configuration boundary remains intentionally failing until primary
+deployment composition is implemented. Stage F remains PARTIAL and unaccepted.
+The post-extraction scoped run reports 54 pass / 1 expected failure across
+7 files, exit 1; typecheck and build pass. The isolated packed artifact imports
+and separate Sidecar process checks also pass. These results do not claim a
+full-suite run or primary DSH profile acceptance for this foundation.
 
 2026-10-01, HEAD `5d303f5d3a17ec66e1250432368c09bf88ec0d63`, command `corepack pnpm test` in package/: 31 files, 403 passed / 3 skipped / 1 failed, exit 1. Failing test: browser cancellation cleanup at `tests/browser.spec.ts:168`. Output retained outside workspace and released to development review via CodexWithChatGPT execution_output. Reproduction is not a repair.
 
