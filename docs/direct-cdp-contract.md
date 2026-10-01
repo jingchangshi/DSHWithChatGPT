@@ -35,6 +35,34 @@ changes; ignoring every URL change is insufficient.
 
 ## Mechanical focus and guarded mutation
 
+### Transition provenance repair contract (PLAN 3; not yet implemented)
+
+An observation of the final URL cannot prove that no foreign route was visited.
+Each concrete binding must retain ordered, generic same-document URL transitions
+with a monotonic sequence. A semantic fence includes the sequence it has already
+admitted. Observations and mutation acknowledgements must expose every transition
+since that fence, including changes inside a single Input acknowledgement and
+between the components of a key, mouse or focus gesture. Returning to the original
+URL must not erase a detour. The driver processes the complete sequence in order;
+it alone interprets ChatGPT routes, admits one final-Enter promotion and rejects
+foreign transitions before accepting a reply or issuing another semantic input.
+
+History storage has explicit event, byte and age bounds. Missing, expired,
+overflowed, malformed or discontinuous provenance fails closed as a target
+failure; no fallback to final-URL equality is permitted. A fresh binding/document
+cannot inherit an old sequence fence. Benign query/hash transitions remain
+admissible only when every intermediate route retains the pinned conversation.
+Fake and session-gated Harness mechanics must preserve the same contract without
+copying route policy. Real Chrome evidence must cover both root-to-two-conversation
+promotion and a conversation detour that returns to its original URL.
+
+Complete same-document history plus a trustworthy Input acknowledgement is a
+mechanical success, subject to semantic admission by the driver. Document loss,
+lost acknowledgement or unavailable history after socket write remains uncertain
+and quarantined. This preserves the existing distinction between transport
+uncertainty and a known, semantically rejected route transition; it does not claim
+atomic Input fencing or a proven zero mutation after dispatch.
+
 BrowserPrimitives exposes `focus(selector, context)` alongside type, press and
 click. Typing focus places the caret after the existing content; this is generic
 element mechanics, including non-editable child atoms. A real Chrome regression

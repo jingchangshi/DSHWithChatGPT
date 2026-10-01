@@ -100,6 +100,19 @@ it('rejects a second conversation promotion hidden inside the final Enter acknow
   expect(await primitives.evaluate('window.keys')).toEqual(['Enter'])
 }, 10_000)
 
+it('rejects a real same-document detour even when the final conversation URL returns', async () => {
+  const driver = await page()
+  await primitives.evaluate("history.replaceState(null, '', '/c/owned')")
+  await driver.sendControlMessage('owned request')
+  await primitives.evaluate(`(() => {
+    history.pushState(null, '', '/c/foreign');
+    history.replaceState(null, '', '/c/owned');
+    window.addReply('untrusted reply after detour'); return true;
+  })()`)
+  await expect(driver.waitForReply(8000)).rejects.toBeInstanceOf(BrowserTargetChangedError)
+  expect(await primitives.evaluate('window.keys')).toEqual(['Enter'])
+}, 10_000)
+
 it('detects logout without synthetic success', async () => {
   const driver = await page({ logout: true })
   await expect(driver.ensureReady()).rejects.toMatchObject({ name: 'ChatGptLoggedOutError' })
