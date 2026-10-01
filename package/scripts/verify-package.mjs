@@ -48,7 +48,7 @@ await writeFile(path.join(isolated, 'probe.ts'), `
 import { bindExecutionReadLease, type ExecutionReadLease } from '@deepseek-ai/dsh-execution-world/read-lease';
 import { bindExecutionGitLease, type ExecutionGitLease } from '@deepseek-ai/dsh-execution-world/git-lease';
 import type { FsReadRootOpenOptions } from '@deepseek-ai/dsh-fs';
-import { SidecarChatControlClient, type ControlOperation } from 'dsh-with-chatgpt/sidecar';
+import { SidecarChatControlClient, type ControlOperation, type ChatControlDiagnostics, type ChatReadiness } from 'dsh-with-chatgpt/sidecar';
 import { startSidecar, protectPrivateStateDirectory } from 'dsh-with-chatgpt/sidecar/server';
 import { DirectCdpPrimitives, type BrowserPrimitives, type BrowserMutationContext } from 'dsh-with-chatgpt/browser';
 declare const primitives: BrowserPrimitives;
@@ -58,6 +58,9 @@ const connect: typeof DirectCdpPrimitives.connect = DirectCdpPrimitives.connect;
 void [focused, connect];
 const operation: ControlOperation = { operationId: 'packaged-send' };
 const control = new SidecarChatControlClient({ endpoint: 'http://127.0.0.1:18765', authentication: 'type-probe-only' });
+const diagnostics: ChatControlDiagnostics = control;
+const readiness: Promise<ChatReadiness> = diagnostics.readiness();
+void readiness;
 const send: Promise<void> = control.sendControlMessage('control', undefined, operation);
 void [send, startSidecar, protectPrivateStateDirectory];
 const options: FsReadRootOpenOptions = { aliasPolicy: 'deny' };

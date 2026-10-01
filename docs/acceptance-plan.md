@@ -103,6 +103,26 @@ bootstrap and neutral browser/App diagnostic forwarding remain pending;
 independent PLAN4 is planning input, not Stage F acceptance. Native Executor
 generation and the complete primary Planner/App/DSH E2E remain NOT_RUN.
 
+Stage F optional diagnostics candidate on 2026-10-01: tests first recorded six
+missing-interface failures, six typed-error classification failures (three
+legacy cases preserved), and a neutral-cancellation failure before their fixes.
+The optional core diagnostics port and authenticated `readiness`/`probeApp`
+methods now preserve observed facts, exact deployment App binding, bounded
+arguments, active-provider exclusion and owned composer semantics. App probes
+use separate `probing-app`/`observed-app` journal states: cancellation/restart
+cannot authorize repeated selection, and accepted old-generation probes cannot
+claim fresh App availability. Doctor retains typed failures and propagates
+cancellation while preserving existing App proof prerequisites.
+
+The final candidate full run reports 60 files, 725 pass / 3 original skip /
+0 fail, duration 146.78 seconds. The earlier 724-pass run predates the neutral
+cancellation regression. Typecheck/build pass. Isolated packaging first found
+two missing diagnostic type exports (TS2305); after adding them, the installed
+artifact passes strict type compilation, isolated imports and separate Sidecar
+replay/shutdown checks. These are candidate source/contract proofs, not Stage F
+acceptance. The canonical owned process and native DSH profile, real primary
+doctor/App verification and complete Windows E2E still require execution.
+
 2026-10-01, HEAD `5d303f5d3a17ec66e1250432368c09bf88ec0d63`, command `corepack pnpm test` in package/: 31 files, 403 passed / 3 skipped / 1 failed, exit 1. Failing test: browser cancellation cleanup at `tests/browser.spec.ts:168`. Output retained outside workspace and released to development review via CodexWithChatGPT execution_output. Reproduction is not a repair.
 
 ## Required adversarial cases

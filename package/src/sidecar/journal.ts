@@ -4,12 +4,12 @@ import { isAbsolute, join, resolve } from 'node:path'
 import { z } from 'zod'
 import { SidecarRpcError } from './errors.ts'
 
-const phases = ['prepared', 'sending', 'observed-sent', 'awaiting-reply', 'accepted', 'uncertain', 'cancelled', 'failed'] as const
+const phases = ['prepared', 'sending', 'observed-sent', 'probing-app', 'observed-app', 'awaiting-reply', 'accepted', 'uncertain', 'cancelled', 'failed'] as const
 export type DeliveryPhase = typeof phases[number]
 const intentSchema = z.object({
   operationId: z.string().regex(/^[A-Za-z0-9_.:-]{1,128}$/),
   payloadDigest: z.string().regex(/^[a-f0-9]{64}$/),
-  method: z.enum(['sendControlMessage', 'waitForReply', 'openConversation', 'ensureReady', 'recover']),
+  method: z.enum(['sendControlMessage', 'waitForReply', 'openConversation', 'ensureReady', 'recover', 'probeApp']),
   createdAt: z.number().int().nonnegative(),
   correlationDigest: z.string().regex(/^[a-f0-9]{64}$/).optional(),
 }).strict()
@@ -21,7 +21,9 @@ type Store = z.infer<typeof storeSchema>
 export interface DeliveryJournalConfig { directory: string; maxEntries: number; maxBytes: number; maxAgeMs: number; now?: () => number }
 const terminal = new Set<DeliveryPhase>(['accepted', 'cancelled', 'failed'])
 const transitions: Record<DeliveryPhase, readonly DeliveryPhase[]> = {
-  prepared: ['sending', 'awaiting-reply', 'cancelled', 'failed'],
+  prepared: ['sending', 'probing-app', 'awaiting-reply', 'cancelled', 'failed'],
+  'probing-app': ['observed-app', 'uncertain'],
+  'observed-app': ['accepted', 'uncertain'],
   sending: ['observed-sent', 'uncertain'],
   'observed-sent': ['accepted', 'awaiting-reply', 'uncertain'],
   'awaiting-reply': ['accepted', 'cancelled', 'failed', 'uncertain'],
@@ -63,7 +65,7 @@ export class DeliveryJournal {
       } catch (error) { if ((error as NodeJS.ErrnoException).code !== 'ENOENT') throw error }
       await journal.reclaimStaging()
       const next = structuredClone(journal.store)
-      for (const entry of next.entries) if (['sending', 'observed-sent', 'awaiting-reply'].includes(entry.phase)) { entry.phase = 'uncertain'; entry.updatedAt = journal.now() }
+      for (const entry of next.entries) if (['sending', 'observed-sent', 'probing-app', 'observed-app', 'awaiting-reply'].includes(entry.phase)) { entry.phase = 'uncertain'; entry.updatedAt = journal.now() }
       await journal.publish(next)
       return journal
     } catch (error) {

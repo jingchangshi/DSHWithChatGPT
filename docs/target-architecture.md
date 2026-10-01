@@ -116,6 +116,7 @@ Suggested modules: `core/ports`, `protocol`, `orchestrator`, `chat-control`, `ch
 | Protocol | strict neutral envelopes and pure transitions | DSH, Cordis, browser, CDP, OS, SSH, tunnel implementation |
 | Orchestrator | workflow, durable state, correlation | Browser Harness/Chrome concrete adapters, Cordis lifecycle |
 | ChatControl | health, ensureReady, openConversation, sendControlMessage, waitForReply, recover, currentConversation | workspace, shell, Git, evidence bodies |
+| ChatControlDiagnostics (optional) | observed readiness facts and exact configured-App selection probe | arbitrary primitives, service-health inference, workspace facts or complete task-loop acceptance |
 | StateStore | asynchronous get/put/delete plus atomic task transition operation | production memory fallback |
 | ExecutionWorkspacePort | identity and operation-scoped capabilities | inferred authority or Host fallback |
 | DshAgentAdapter (inbound) | invokes neutral plan/review/status/recover application use cases; tool/prompt wiring, session cwd and execution observations | core importing DSH/Cordis lifecycle |

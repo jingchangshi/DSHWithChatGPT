@@ -1,4 +1,5 @@
-import type { BrowserControl } from '../browser/index.ts'
+import type { ChatControl } from '../core/ports/chat-control.ts'
+import type { ChatControlDiagnostics } from '../core/ports/chat-diagnostics.ts'
 import { BrowserStaleError, ChatGptLoggedOutError, ChatGptAppUnavailableError } from '../browser/adapter.ts'
 import type { TunnelStatus } from '../tunnel/supervisor.ts'
 import { OperationCancelledError, throwIfCancelled, withCancellation } from '../cancellation.ts'
@@ -25,7 +26,7 @@ export interface DoctorInputs {
   workspaceRoot: string
   workspaceId: string
   appName: string
-  browser: BrowserControl
+  browser: ChatControl & Partial<ChatControlDiagnostics>
   runtime: { tunnel: TunnelStatus; bridge: { workspaceId: string } }
   bridgeHttp: { port: number; token: string }
   probeApp?: (signal?: AbortSignal) => Promise<void>
@@ -33,6 +34,22 @@ export interface DoctorInputs {
 }
 
 const BRIDGE_PROBE_TIMEOUT_MS = 5_000
+const controlFailureCodes = new Set([
+  'CHATGPT_LOGGED_OUT', 'CHATGPT_APP_UNAVAILABLE', 'CHAT_CONTROL_DIAGNOSTICS_UNAVAILABLE',
+  'SIDECAR_UNAVAILABLE', 'SIDECAR_TIMEOUT', 'SIDECAR_BUSY', 'SIDECAR_GENERATION_CHANGED',
+  'SIDECAR_AUTH_REQUIRED', 'SIDECAR_INVALID_REQUEST', 'SIDECAR_VERSION_UNSUPPORTED',
+  'SEND_UNCERTAIN', 'BROWSER_STALE', 'BROWSER_TARGET_CHANGED', 'REPLAY_CONFLICT', 'JOURNAL_UNAVAILABLE',
+])
+function isControlCancelled(error: unknown): boolean {
+  return error instanceof OperationCancelledError || (error as { code?: unknown } | null)?.code === 'OPERATION_CANCELLED'
+}
+function controlFailureCode(error: unknown): string {
+  if (error instanceof BrowserStaleError) return 'BROWSER_HARNESS_UNAVAILABLE' // Legacy provider result.
+  if (error instanceof ChatGptLoggedOutError) return 'CHATGPT_LOGGED_OUT'
+  if (error instanceof ChatGptAppUnavailableError) return 'CHATGPT_APP_UNAVAILABLE'
+  const code = (error as { code?: unknown } | null)?.code
+  return typeof code === 'string' && controlFailureCodes.has(code) ? code : 'CHAT_CONTROL_UNAVAILABLE'
+}
 
 const capabilityReasons = new Set([
   'RUNTIME_LEASE_UNAVAILABLE', 'ROOT_SAFE_READ_UNAVAILABLE', 'GIT_READ_UNAVAILABLE',
@@ -121,7 +138,7 @@ export async function runDoctor(inputs: DoctorInputs): Promise<DoctorResult> {
           throwIfCancelled(inputs.signal)
           check.detail = 'authenticated execution workspace operation succeeded'
         } catch (error) {
-          if (inputs.signal?.aborted || error instanceof OperationCancelledError) throw new OperationCancelledError()
+          if (inputs.signal?.aborted || isControlCancelled(error)) throw new OperationCancelledError()
           check.ok = false
           check.detail = 'authenticated execution workspace operation failed'
           check.code = 'WORKSPACE_OPERATION_FAILED'
@@ -129,7 +146,7 @@ export async function runDoctor(inputs: DoctorInputs): Promise<DoctorResult> {
       }
     }
   } catch (error) {
-    if (inputs.signal?.aborted || error instanceof OperationCancelledError) throw new OperationCancelledError()
+    if (inputs.signal?.aborted || isControlCancelled(error)) throw new OperationCancelledError()
     const bridge = checks.find(item => item.id === 'bridge')!
     bridge.detail = 'authenticated workspace_info request failed'
     bridge.code = 'BRIDGE_PROBE_FAILED'
@@ -142,12 +159,10 @@ export async function runDoctor(inputs: DoctorInputs): Promise<DoctorResult> {
     app.detail = `exact ChatGPT App is selectable and composer was cleaned: ${inputs.appName}`
     delete app.code
   } catch (error) {
-    if (inputs.signal?.aborted || error instanceof OperationCancelledError) throw new OperationCancelledError()
+    if (inputs.signal?.aborted || isControlCancelled(error)) throw new OperationCancelledError()
     const app = checks.find(item => item.id === 'chatgpt_app')!
     app.detail = 'exact ChatGPT App could not be selected; verify the app and browser session'
-    app.code = error instanceof ChatGptLoggedOutError ? 'CHATGPT_LOGGED_OUT'
-      : error instanceof ChatGptAppUnavailableError ? 'CHATGPT_APP_UNAVAILABLE'
-      : 'BROWSER_HARNESS_UNAVAILABLE'
+    app.code = controlFailureCode(error)
     if (error instanceof BrowserStaleError) app.detail = 'Browser Harness App probe or composer cleanup failed'
   }
   try {
@@ -159,10 +174,10 @@ export async function runDoctor(inputs: DoctorInputs): Promise<DoctorResult> {
     if (check.ok) delete check.code
     else check.code = browser.loggedOut ? 'CHATGPT_LOGGED_OUT' : 'CHATGPT_SESSION_NOT_READY'
   } catch (error) {
-    if (inputs.signal?.aborted || error instanceof OperationCancelledError) throw new OperationCancelledError()
+    if (inputs.signal?.aborted || isControlCancelled(error)) throw new OperationCancelledError()
     const check = checks.find(item => item.id === 'chatgpt_session')!
-    check.detail = 'Browser Harness session probe failed; check the provider and Session ownership'
-    check.code = 'BROWSER_HARNESS_UNAVAILABLE'
+    check.detail = 'Chat session readiness probe failed; check the control provider and Session ownership'
+    check.code = controlFailureCode(error)
   }
   throwIfCancelled(inputs.signal)
   const localReady = checks.filter(check => check.id !== 'remote_workspace_access' && check.id !== 'execution_output_access').every(check => check.ok)
@@ -198,7 +213,7 @@ async function proveApp(inputs: DoctorInputs, expected: AppProof): Promise<strin
   } catch (error) {
     if (inputs.signal?.aborted) throw new OperationCancelledError()
     if (timeout.signal.aborted) return 'APP_PROOF_TIMEOUT'
-    if (error instanceof OperationCancelledError) throw error
+    if (isControlCancelled(error)) throw new OperationCancelledError()
     return sent ? 'APP_PROOF_REPLY_MISSING' : 'APP_PROOF_SEND_FAILED'
   } finally {
     clearTimeout(timer)

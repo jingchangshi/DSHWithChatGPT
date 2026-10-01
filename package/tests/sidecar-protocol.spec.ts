@@ -2,6 +2,16 @@ import { describe, expect, it } from 'vitest'
 
 const request = () => ({ version: 1, requestId: 'transport-attempt-1', operationId: 'logical-operation-1', generation: 'sidecar-generation-1', method: 'health', params: {} })
 describe('strict semantic RPC protocol', () => {
+  it('allows only bounded diagnostic arguments and no primitive passthrough', async () => {
+    const { parseSidecarRequest } = await import('../src/sidecar/protocol.ts')
+    expect(parseSidecarRequest({ ...request(), method: 'readiness', params: {} })).toMatchObject({ method: 'readiness' })
+    expect(parseSidecarRequest({ ...request(), method: 'probeApp', params: { appName: 'Product App' } })).toMatchObject({ method: 'probeApp' })
+    for (const params of [{ expression: 'JS' }, { url: 'https://example.com' }, { cdp: 'Input.dispatchKeyEvent' }]) {
+      expect(() => parseSidecarRequest({ ...request(), method: 'readiness', params })).toThrow()
+      expect(() => parseSidecarRequest({ ...request(), method: 'probeApp', params: { appName: 'Product App', ...params } })).toThrow()
+    }
+    for (const appName of ['', 'x'.repeat(257)]) expect(() => parseSidecarRequest({ ...request(), method: 'probeApp', params: { appName } })).toThrow()
+  })
   it('retains transport and operation identities as distinct fields', async () => {
     const { parseSidecarRequest } = await import('../src/sidecar/protocol.ts')
     expect(parseSidecarRequest(request())).toMatchObject({ requestId: 'transport-attempt-1', operationId: 'logical-operation-1' })

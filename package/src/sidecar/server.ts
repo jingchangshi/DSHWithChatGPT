@@ -2,6 +2,7 @@ import { createHash, randomUUID, timingSafeEqual } from 'node:crypto'
 import { createServer, type IncomingMessage, type ServerResponse } from 'node:http'
 import type { AddressInfo } from 'node:net'
 import type { ChatControl } from '../core/ports/chat-control.ts'
+import type { ChatControlDiagnostics } from '../core/ports/chat-diagnostics.ts'
 import { verifyPrivateStateDirectory } from '../deployment/private-state.ts'
 export { protectPrivateStateDirectory } from '../deployment/private-state.ts'
 import { DeliveryJournal, type DeliveryEntry, type DeliveryPhase } from './journal.ts'
@@ -10,7 +11,9 @@ import { parseSidecarRequest, SIDECAR_MAX_REPLY_BYTES, SIDECAR_MAX_REQUEST_BYTES
 
 export interface SidecarServerConfig {
   host: '127.0.0.1'; port: number; authentication: string; stateDirectory: string
-  driver: ChatControl; requestTimeoutMs?: number; maxRequestBytes?: number; maxReplyBytes?: number
+  driver: ChatControl & Partial<ChatControlDiagnostics>; requestTimeoutMs?: number; maxRequestBytes?: number; maxReplyBytes?: number
+  /** Trusted deployment binding; RPC callers cannot change the selected product App. */
+  configuredAppName?: string
   /** Trusted deployment diagnostics; never exposed as an RPC method. */
   onDeliveryPhase?: (entry: DeliveryEntry, signal: AbortSignal) => void | Promise<void>
 }
@@ -31,6 +34,7 @@ function providerError(error: unknown): SidecarErrorCode {
 
 /** Owns only semantic control and private delivery state; has no workspace handle. */
 export async function startSidecar(config: SidecarServerConfig) {
+  if (config.configuredAppName !== undefined && (!config.configuredAppName || config.configuredAppName.length > 256 || config.configuredAppName.trim() !== config.configuredAppName)) throw new SidecarRpcError('SIDECAR_INVALID_REQUEST')
   const timeoutMs = config.requestTimeoutMs ?? 30_000
   const maxRequestBytes = config.maxRequestBytes ?? SIDECAR_MAX_REQUEST_BYTES
   const maxReplyBytes = config.maxReplyBytes ?? SIDECAR_MAX_REPLY_BYTES
@@ -45,7 +49,7 @@ export async function startSidecar(config: SidecarServerConfig) {
   const operations = new Map<string, { digest: string; outcome: Promise<Outcome>; retryable: boolean }>()
   let shuttingDown = false
   let active: { operationId: string; controller: AbortController; settled: Promise<void> } | undefined
-  const durable = (request: SidecarRequest) => ['sendControlMessage', 'waitForReply', 'openConversation', 'ensureReady', 'recover'].includes(request.method)
+  const durable = (request: SidecarRequest) => ['sendControlMessage', 'waitForReply', 'openConversation', 'ensureReady', 'recover', 'probeApp'].includes(request.method)
 
   async function run(request: SidecarRequest): Promise<Outcome> {
     if (request.method === 'health') return { ok: true, result: { ok: !shuttingDown, detail: shuttingDown ? 'shutting down' : 'semantic service available' } }
@@ -61,6 +65,11 @@ export async function startSidecar(config: SidecarServerConfig) {
       return { ok: true, result: null }
     }
     if (shuttingDown) return failure('SIDECAR_SHUTTING_DOWN')
+    if (request.method === 'readiness' && !config.driver.readiness) return failure('CHAT_CONTROL_DIAGNOSTICS_UNAVAILABLE')
+    if (request.method === 'probeApp') {
+      if (!config.driver.probeApp || config.configuredAppName === undefined) return failure('CHAT_CONTROL_DIAGNOSTICS_UNAVAILABLE')
+      if (request.params.appName !== config.configuredAppName) return failure('CHATGPT_APP_UNAVAILABLE')
+    }
     if (active) return failure('SIDECAR_BUSY')
     const controller = new AbortController()
     let settle!: () => void
@@ -97,7 +106,7 @@ export async function startSidecar(config: SidecarServerConfig) {
         }
         await observe(entry)
         if (controller.signal.aborted) { await journal.transition(request.operationId, 'cancelled'); return failure('OPERATION_CANCELLED') }
-        await publishPhase(request.method === 'sendControlMessage' ? 'sending' : 'awaiting-reply')
+        await publishPhase(request.method === 'sendControlMessage' ? 'sending' : request.method === 'probeApp' ? 'probing-app' : 'awaiting-reply')
       }
       controller.signal.throwIfAborted()
       invoked = true
@@ -109,6 +118,8 @@ export async function startSidecar(config: SidecarServerConfig) {
           case 'waitForReply': return config.driver.waitForReply(request.params.timeoutMs, controller.signal, { operationId: request.operationId, correlation: request.correlation })
           case 'currentConversation': return await config.driver.currentConversation(controller.signal) ?? null
           case 'recover': await config.driver.recover(controller.signal); return null
+          case 'readiness': return config.driver.readiness!(controller.signal)
+          case 'probeApp': await config.driver.probeApp!(config.configuredAppName!, controller.signal, { operationId: request.operationId, correlation: request.correlation }); return null
         }
       })()
       // Retain ownership until even an abort-ignoring provider settles. Otherwise
@@ -125,6 +136,7 @@ export async function startSidecar(config: SidecarServerConfig) {
       if (Buffer.byteLength(JSON.stringify(result)) > maxReplyBytes - 256) throw new SidecarRpcError('SIDECAR_RESPONSE_TOO_LARGE')
       if (durable(request)) {
         if (request.method === 'sendControlMessage') await publishPhase('observed-sent')
+        if (request.method === 'probeApp') await publishPhase('observed-app')
         await publishPhase('accepted')
       }
       return { ok: true, result }
@@ -134,7 +146,7 @@ export async function startSidecar(config: SidecarServerConfig) {
         if (entry?.phase === 'prepared') {
           try { await journal.transition(request.operationId, controller.signal.aborted ? 'cancelled' : 'failed') } catch { return failure('JOURNAL_UNAVAILABLE') }
         }
-        if (entry && ['sending', 'observed-sent', 'awaiting-reply'].includes(entry.phase)) {
+        if (entry && ['sending', 'observed-sent', 'probing-app', 'observed-app', 'awaiting-reply'].includes(entry.phase)) {
           try { await journal.transition(request.operationId, 'uncertain') } catch { return failure('JOURNAL_UNAVAILABLE') }
         }
       }

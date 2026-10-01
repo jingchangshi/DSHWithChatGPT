@@ -5,7 +5,7 @@ export const SIDECAR_RPC_VERSION = 1 as const
 export const SIDECAR_MAX_REQUEST_BYTES = 65_536
 export const SIDECAR_MAX_REPLY_BYTES = 65_536
 export const SIDECAR_MAX_WAIT_MS = 600_000
-export const SIDECAR_METHODS = ['health', 'ensureReady', 'openConversation', 'sendControlMessage', 'waitForReply', 'currentConversation', 'recover', 'cancel', 'shutdown'] as const
+export const SIDECAR_METHODS = ['health', 'ensureReady', 'openConversation', 'sendControlMessage', 'waitForReply', 'currentConversation', 'recover', 'readiness', 'probeApp', 'cancel', 'shutdown'] as const
 export type SidecarMethod = typeof SIDECAR_METHODS[number]
 const identifier = z.string().regex(/^[A-Za-z0-9_.:-]{1,128}$/)
 const conversation = z.string().regex(/^[A-Za-z0-9_-]{1,128}$/)
@@ -38,6 +38,8 @@ const requestSchema = z.discriminatedUnion('method', [
   z.object({ ...envelope, method: z.literal('waitForReply'), params: z.object({ timeoutMs: z.number().int().positive().max(SIDECAR_MAX_WAIT_MS) }).strict() }).strict(),
   z.object({ ...envelope, method: z.literal('currentConversation'), params: empty }).strict(),
   z.object({ ...envelope, method: z.literal('recover'), params: empty }).strict(),
+  z.object({ ...envelope, method: z.literal('readiness'), params: empty }).strict(),
+  z.object({ ...envelope, method: z.literal('probeApp'), params: z.object({ appName: z.string().min(1).max(256) }).strict() }).strict(),
   z.object({ ...envelope, method: z.literal('cancel'), params: z.object({ operationId: identifier }).strict() }).strict(),
   z.object({ ...envelope, method: z.literal('shutdown'), params: empty }).strict(),
 ])

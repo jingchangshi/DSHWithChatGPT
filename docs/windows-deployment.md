@@ -45,10 +45,12 @@ Sidecar credential and authenticated service health checks precede Bridge and
 exposure startup. This client adapter does not implicitly launch, adopt or stop
 another process. Private state no longer falls back to `process.cwd()` when the
 OS state base is missing. The existing legacy state directory is retained until
-explicit migration. Canonical profile/process bootstrap and neutral doctor
-readiness integration are still pending: the old doctor requires optional
-browser-specific readiness/App probes that the current semantic RPC does not
-expose. Its failure must not be reported as successful primary readiness.
+explicit migration. The optional neutral diagnostic port now forwards browser
+readiness facts and exact configured-App selection through authenticated RPC;
+see [chat-control-diagnostics.md](chat-control-diagnostics.md) for its write and
+restart rules. Canonical profile/process bootstrap and real primary readiness
+acceptance remain pending. Diagnostic unit evidence does not prove Browser B,
+native Executor or real App data access.
 
 Sidecar authentication, Workspace Data Plane bearer and external CONTROL_PLANE credentials have independent scopes. Windows credential/state files require a current-user DACL or approved credential protection; POSIX mode 0600 alone proves no Windows isolation. Verify actual ACL protection. Secrets enter task-owned children only through required inherited environment or protected references, never argv/status. Private state paths are deployment-injected outside workspaces with no process.cwd() fallback.
 

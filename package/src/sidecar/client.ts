@@ -1,5 +1,6 @@
 import { z } from 'zod'
 import type { ChatControl, ChatReply, ControlOperation } from '../core/ports/chat-control.ts'
+import type { ChatControlDiagnostics, ChatReadiness } from '../core/ports/chat-diagnostics.ts'
 import { SIDECAR_ERROR_CODES, SidecarRpcError } from './errors.ts'
 import { parseControlOperation, parseSidecarRequest, SIDECAR_MAX_REPLY_BYTES, SIDECAR_MAX_REQUEST_BYTES, type SidecarMethod, validateSidecarEndpoint } from './protocol.ts'
 
@@ -11,10 +12,11 @@ const responseSchema = z.discriminatedUnion('ok', [
 const healthSchema = z.object({ ok: z.boolean(), detail: z.string().max(128) }).strict()
 const replySchema = z.object({ text: z.string(), complete: z.boolean() }).strict()
 const conversationSchema = z.string().regex(/^[A-Za-z0-9_-]{1,128}$/)
+const readinessSchema = z.object({ url: z.string().max(2048), composer: z.boolean(), loggedOut: z.boolean() }).strict()
 export interface SidecarClientConfig { endpoint: string; authentication: string; requestTimeoutMs?: number }
 
 /** A semantic HTTP client. Deployment, browser and workspace ownership stay elsewhere. */
-export class SidecarChatControlClient implements ChatControl {
+export class SidecarChatControlClient implements ChatControl, ChatControlDiagnostics {
   private readonly endpoint: string
   private readonly timeoutMs: number
   private generation: string | undefined
@@ -100,6 +102,14 @@ export class SidecarChatControlClient implements ChatControl {
     return parsed.data
   }
   async recover(signal?: AbortSignal): Promise<void> { this.checkVoid(await this.call('recover', {}, signal)) }
+  async readiness(signal?: AbortSignal): Promise<ChatReadiness> {
+    const parsed = readinessSchema.safeParse(await this.call('readiness', {}, signal))
+    if (!parsed.success) throw new SidecarRpcError('SIDECAR_INVALID_REQUEST')
+    return parsed.data
+  }
+  async probeApp(appName: string, signal?: AbortSignal, operation?: ControlOperation): Promise<void> {
+    this.checkVoid(await this.call('probeApp', { appName }, signal, this.timeoutMs, operation))
+  }
   async currentConversation(signal?: AbortSignal): Promise<string | undefined> {
     const value = await this.call('currentConversation', {}, signal)
     if (value === null) return undefined
