@@ -19,6 +19,25 @@ Status: PARTIAL — Stage A target; environment snapshot and command results are
 1. Start Browser B using `scripts/start-product-browser.ps1`; user performs login/2FA/CAPTCHA. Existing unrelated Chrome profiles and processes must not be changed. Verify the listener's actual address, dedicated profile and target before binding.
 2. Supply a random Sidecar authentication secret via environment or private user-state credential file, never CLI argv or workspace. Sidecar uses a configured loopback CDP endpoint; the semantic client only knows its loopback RPC endpoint.
 3. Start `chat-control-sidecar`, verifying RPC version, startup generation, target binding and authenticated health. No arbitrary methods/navigation/JS pass through RPC.
+
+The packaged `chat-control-sidecar` executable is
+`lib/deployment/sidecar-process-entry.js`. It requires deployment environment
+references `PLANNERBRIDGE_SIDECAR_CREDENTIAL_FILE`,
+`PLANNERBRIDGE_SIDECAR_STATE_DIRECTORY`, `PLANNERBRIDGE_SIDECAR_EXCLUDED_ROOTS`
+(JSON array of workspace roots), `PLANNERBRIDGE_SIDECAR_CDP_ENDPOINT`, and
+`PLANNERBRIDGE_SIDECAR_TARGET_ID`. The target ID must identify the dedicated
+product page; the entry never discovers or selects a first tab. Optional
+`PLANNERBRIDGE_SIDECAR_PORT` defaults to 18765 and
+`PLANNERBRIDGE_SIDECAR_APP_NAME` defaults to `DSH with ChatGPT`. Credentials
+must already exist with protected permissions; the entry creates only its
+private journal directory. It emits a bounded ready record without secrets,
+and releases CDP on authenticated shutdown or process termination.
+
+With these references supplied, run
+`node package/scripts/verify-real-sidecar-entry.mjs <unpacked-package-directory>`
+to verify an owned real process, authenticated health, browser readiness,
+graceful shutdown and transport closure. This does not send a message or prove
+App data access. Use the canonical Planner–Executor runner for that gate.
 4. Compose a DSH product profile using supported `dsh` profile launch. Mount PlannerBridge plus native DeepSeek adapter, with `provider: deepseek-official`, `model: deepseek-flash`; omit reasoning overrides. Explicitly omit Browser Harness provider/executable for primary acceptance.
 5. Inherit only required credentials from trusted local configuration into task-owned child environment. The existing verification script reads DEEPSEEK_API_KEY from the user's .env without publishing its value. Reading .env for a probe does not configure DSH automatically.
 6. Acquire Execution World identity and current capabilities, bind authenticated Bridge and start exclusive secure exposure. Product Custom App must be exactly the configured App; development connector cannot substitute for it.

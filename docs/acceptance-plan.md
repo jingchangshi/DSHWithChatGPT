@@ -165,6 +165,27 @@ Acceptance result is derived from recorded assertions, not hardcoded true/false.
 
 ## External prerequisites and reporting
 
+Real product attempt (2026-10-02): the canonical Planner–Executor runner
+launched a real native DeepSeek Executor, protected authenticated Sidecar with
+the shared semantic driver/Direct CDP, and managed product exposure. The first
+local doctor reported `localReady=true`; subsequent App proof did not return
+verified facts, followed by `BROWSER_TARGET_CHANGED` / `BROWSER_STALE`.
+`plannerExecutorAccepted=false`; no implementation/test/commit/review loop was
+accepted. A factless browser reply and a failed reply observation remain
+distinct evidence; the transport cause must not be inferred from the reply.
+The development connection remains separate and working. An external App
+probe after the DSH child exited returned HTTP 429; this is not proof of the
+original App failure's cause.
+
+The packaged canonical `chat-control-sidecar` entry was then run as an owned
+real process: authenticated health, real logged-in browser readiness,
+authenticated shutdown, zero process exit and transport closure passed. This
+proves executable composition/lifecycle only, not App data-plane or planning
+acceptance. Diagnostic regression cases preserve typed transport/target
+failures during proof without automatic resend; missing facts do not corrupt
+a subsequent local probe. Generic operation-state additions are deferred until
+a reproducing test demonstrates a need; existing target fencing stays intact.
+
 Profile bootstrap repair evidence (2026-10-01): the canonical isolated DSH
 runner initially failed with `SIDECAR_CREDENTIAL_UNAVAILABLE`. The runner now
 owns a protected disposable credential reference and a separate semantic

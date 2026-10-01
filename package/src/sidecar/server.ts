@@ -213,21 +213,24 @@ export async function startSidecar(config: SidecarServerConfig) {
   server.headersTimeout = timeoutMs
   server.maxHeadersCount = 16
   let closing: Promise<void> | undefined
+  let resolveClosed!: () => void
+  const closed = new Promise<void>(resolve => { resolveClosed = resolve })
   function close(): Promise<void> {
     return closing ??= (async () => {
       shuttingDown = true
       active?.controller.abort(new SidecarRpcError('SIDECAR_SHUTTING_DOWN'))
-      const closed = new Promise<void>(resolve => server.close(() => resolve()))
+      const httpClosed = new Promise<void>(resolve => server.close(() => resolve()))
       let shutdownTimer: ReturnType<typeof setTimeout> | undefined
       await Promise.race([active?.settled ?? Promise.resolve(), new Promise<void>(resolve => { shutdownTimer = setTimeout(resolve, 2_000) })])
       if (shutdownTimer) clearTimeout(shutdownTimer)
       server.closeAllConnections()
-      await closed
+      await httpClosed
       await journal.close()
+      resolveClosed()
     })()
   }
   try { await new Promise<void>((resolve, reject) => { server.once('error', reject); server.listen(config.port, config.host, resolve) }) }
   catch (error) { await journal.close(); throw new SidecarRpcError('SIDECAR_UNAVAILABLE') }
   const address = server.address() as AddressInfo
-  return { endpoint: `http://127.0.0.1:${address.port}/`, generation, close }
+  return { endpoint: `http://127.0.0.1:${address.port}/`, generation, close, closed }
 }

@@ -2,6 +2,7 @@ import { describe, expect, it, vi } from 'vitest'
 import { runDoctor, type DoctorInputs } from '../src/readiness/doctor.ts'
 import { startBridgeServer } from '../src/bridge/server.ts'
 import { OperationCancelledError } from '../src/cancellation.ts'
+import { SidecarRpcError } from '../src/sidecar/errors.ts'
 
 const challenge = 'TEST_CHALLENGE_MUST_NOT_LEAK'
 const root = { path: '', visibleEntryCount: 0, truncated: false, firstVisibleEntry: null }
@@ -27,6 +28,28 @@ async function fixture() {
 }
 
 describe('doctor App proof orchestration', () => {
+  it.each(['BROWSER_TARGET_CHANGED', 'SEND_UNCERTAIN', 'SIDECAR_UNAVAILABLE'] as const)('preserves %s during proof without resending', async code => {
+    const current = await fixture()
+    current.wait.mockRejectedValue(new SidecarRpcError(code))
+    try {
+      const result = await runDoctor(current.inputs)
+      expect(result.checks.find(check => check.id === 'remote_workspace_access')?.code).toBe(code)
+      expect(result.appDataPlaneVerified).toBe(false)
+      expect(current.send).toHaveBeenCalledTimes(1)
+      expect(current.wait).toHaveBeenCalledTimes(1)
+      expect(JSON.stringify(result)).not.toContain(challenge)
+    } finally { await current.server.close() }
+  })
+  it('rejects a factless reply while keeping later local probes read-only', async () => {
+    const current = await fixture()
+    current.wait.mockResolvedValue({ text: 'No tools available', complete: true })
+    try {
+      const result = await runDoctor(current.inputs)
+      expect(result.checks.find(check => check.id === 'remote_workspace_access')?.code).toBe('APP_PROOF_REPLY_MISSING')
+      expect(await runDoctor({ ...current.inputs, mode: 'local' })).toMatchObject({ localReady: true, appDataPlaneVerified: false })
+      expect(current.send).toHaveBeenCalledTimes(1)
+    } finally { await current.server.close() }
+  })
   it('verifies remote facts without leaking the challenge or claiming full C2C', async () => {
     const current = await fixture()
     try {

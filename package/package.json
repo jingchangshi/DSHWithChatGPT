@@ -7,6 +7,7 @@
   "description": "DeepSeek Harness plugin: ChatGPT Web plans and reviews over a read-only MCP data plane; DSH/GLM owns execution.",
   "main": "lib/index.js",
   "types": "./lib/index.d.ts",
+  "bin": { "chat-control-sidecar": "lib/deployment/sidecar-process-entry.js" },
   "exports": {
     ".": {
       "types": "./lib/index.d.ts",

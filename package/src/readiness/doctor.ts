@@ -1,6 +1,7 @@
 import type { ChatControl } from '../core/ports/chat-control.ts'
 import type { ChatControlDiagnostics } from '../core/ports/chat-diagnostics.ts'
 import { BrowserStaleError, ChatGptLoggedOutError, ChatGptAppUnavailableError } from '../browser/adapter.ts'
+import { BrowserTargetChangedError } from '../browser/epoch.ts'
 import type { TunnelStatus } from '../tunnel/supervisor.ts'
 import { OperationCancelledError, throwIfCancelled, withCancellation } from '../cancellation.ts'
 import { appProofPrompt, gitFact, rootFact, verifyAppProof, type AppProof } from './app-proof.ts'
@@ -44,6 +45,7 @@ function isControlCancelled(error: unknown): boolean {
   return error instanceof OperationCancelledError || (error as { code?: unknown } | null)?.code === 'OPERATION_CANCELLED'
 }
 function controlFailureCode(error: unknown): string {
+  if (error instanceof BrowserTargetChangedError) return 'BROWSER_TARGET_CHANGED'
   if (error instanceof BrowserStaleError) return 'BROWSER_HARNESS_UNAVAILABLE' // Legacy provider result.
   if (error instanceof ChatGptLoggedOutError) return 'CHATGPT_LOGGED_OUT'
   if (error instanceof ChatGptAppUnavailableError) return 'CHATGPT_APP_UNAVAILABLE'
@@ -214,6 +216,8 @@ async function proveApp(inputs: DoctorInputs, expected: AppProof): Promise<strin
     if (inputs.signal?.aborted) throw new OperationCancelledError()
     if (timeout.signal.aborted) return 'APP_PROOF_TIMEOUT'
     if (isControlCancelled(error)) throw new OperationCancelledError()
+    const providerCode = controlFailureCode(error)
+    if (providerCode !== 'CHAT_CONTROL_UNAVAILABLE') return providerCode
     return sent ? 'APP_PROOF_REPLY_MISSING' : 'APP_PROOF_SEND_FAILED'
   } finally {
     clearTimeout(timer)
