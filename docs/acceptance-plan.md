@@ -273,3 +273,18 @@ registration tests plus 4 alias tests passed. Typecheck/build and configured
 isolated package checks passed. These are migration/packaging checks, not a new
 full-suite or real product acceptance claim. F11 stays PARTIAL pending launcher,
 test-name/documentation migration and exact-HEAD review.
+
+Logged-out semantic regression (2026-10-02): a public composer accompanied by
+a visible English/Chinese login control must not imply an authenticated user.
+Four shared-contract cases failed against the prior driver across both fake DOM
+and session-gated compatibility primitives. The shared driver now rejects that
+state before input; hidden/inert controls and message-content buttons do not
+count as account-login surfaces. Focused semantic/doctor tests passed 169/169.
+This is fixture evidence only. Starting a separate real no-login browser was
+rejected by automatic approval (`blocked by policy`, no more specific reason);
+real logged-out website acceptance remains NOT_RUN. The logged-in product
+browser's separate visibility prerequisite still needs user activation.
+Final bounded suite for this candidate: 67 files, 783 passed / 3 original
+skipped / 0 failed; typecheck/build and configured isolated package import and
+separate Sidecar lifecycle checks passed. Real website logout proof and final
+goal acceptance are not implied by this result.

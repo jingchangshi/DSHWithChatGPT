@@ -78,6 +78,22 @@ export function webSemanticContract(name: string, create: Factory): void {
       await vi.runAllTimersAsync()
       expect(await result).toBeInstanceOf(ChatGptLoggedOutError)
     })
+    it.each(['Log in', '登录'])('refuses an anonymous composer with visible %s before input', async label => {
+      const f = await create(composer + `<button>${label}</button>`, { appName: '' })
+      await expect(f.browser.ensureReady()).rejects.toBeInstanceOf(ChatGptLoggedOutError)
+      await expect(f.browser.sendControlMessage('must not enter anonymous chat')).rejects.toBeInstanceOf(ChatGptLoggedOutError)
+      expect(f.inputs).toEqual([])
+      expect(f.keys).toEqual([])
+      expect(f.window.document.querySelector('[role="textbox"]')!.textContent).toBe('')
+    })
+    it('ignores hidden login controls when the authenticated composer is available', async () => {
+      const f = await create(composer + '<button style="display:none">Log in</button>', { appName: '' })
+      await expect(f.browser.ensureReady()).resolves.toBeUndefined()
+    })
+    it('ignores login-labelled content in an assistant reply', async () => {
+      const f = await create(composer + '<article data-message-author-role="assistant"><button>Log in</button></article>', { appName: '' })
+      await expect(f.browser.ensureReady()).resolves.toBeUndefined()
+    })
     it('reopens a conversation and restores semantic readiness', async () => {
       const f = await create(composer, { appName: '' })
       expect(await f.browser.openConversation('conversation-123')).toBe('conversation-123')

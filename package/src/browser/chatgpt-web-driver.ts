@@ -450,8 +450,10 @@ export class ChatGptWebDriver implements ChatControl {
       'const latest = messages.length > 0 ? messages[messages.length - 1].node : null;',
       'const animated = latest?.getAttribute("data-markdown-text-style") === "assistant-message" && latest.hasAttribute("data-markdown-animated");',
       'const stop = Array.from(document.querySelectorAll("button")).some((button) => { const label = (button.getAttribute("aria-label") || button.textContent || "").toLowerCase(); return label.includes("stop streaming") || label === "stop"; });',
-      'const login = Array.from(document.querySelectorAll("a,button")).some((node) => { const text = (node.textContent || "").trim().toLowerCase(); return ["log in", "login", "sign up", "登录", "注册"].includes(text); });',
-      'return { text: latest ? (latest.innerText || latest.textContent || "") : "", assistantCount: messages.length, streaming: animated || stop, loggedOut: !composer && login, composer: !!composer, composerCount: composerNodes.length };',
+      // An anonymous ChatGPT page can still provide a composer. A visible
+      // account-login control, outside message content, must fail closed.
+      'const login = Array.from(document.querySelectorAll("a,button")).some((node) => { const r = node.getBoundingClientRect(); const s = getComputedStyle(node); if (r.width <= 0 || r.height <= 0 || s.display === "none" || s.visibility === "hidden" || node.closest(\'[aria-hidden="true"], [inert], [data-message-author-role], [data-markdown-text-style]\')) return false; const text = (node.textContent || "").trim().toLowerCase(); return ["log in", "login", "sign up", "登录", "注册"].includes(text); });',
+      'return { text: latest ? (latest.innerText || latest.textContent || "") : "", assistantCount: messages.length, streaming: animated || stop, loggedOut: login, composer: !!composer, composerCount: composerNodes.length };',
       '})()',
     ].join(' ')
     const value = await this.evaluate<unknown>(expression, signal)
