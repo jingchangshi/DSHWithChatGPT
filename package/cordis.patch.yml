@@ -3,13 +3,16 @@
 # - ChatGPT custom MCP app named exactly "DSH with ChatGPT"
 # - CONTROL_PLANE_TUNNEL_ID and CONTROL_PLANE_API_KEY in the DSH environment
 # - tunnel-client available on PATH
+# - dedicated product Chrome and authenticated Sidecar started by deployment
+# - protected Sidecar credential at the documented OS private-state reference
 - insert:
     - id: dsh-with-chatgpt
       name: dsh-with-chatgpt
       config:
         bridgePort: 0
         replyTimeoutMs: 240000
-        browserMode: browser-harness-mcp
+        browserMode: sidecar
+        sidecarEndpoint: http://127.0.0.1:18765
         chatgptAppName: DSH with ChatGPT
         maxIterations: 12
         gitPolicy: commit-push

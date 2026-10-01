@@ -28,6 +28,28 @@ Sidecar deployment configuration is `endpoint`, `authentication`, `rpcVersion`, 
 
 ## RPC safety and supervision
 
+Stage F implementation is PARTIAL. The DSH plugin now defaults to `browserMode:
+sidecar`; Browser Harness requires the explicit legacy value
+`browser-harness-mcp`. The deployment adapter resolves `sidecarEndpoint`
+(default `http://127.0.0.1:18765`) and `sidecarCredentialFile` before using the
+neutral HTTP client. The default credential reference is
+`LOCALAPPDATA/PlannerBridge/credentials/authentication.secret`. It contains a
+bare 43–128-character base64url token, with no prefix or newline. Its parent
+directory and file must allow only the current owner; Windows verification
+inspects actual DACLs. The reader rejects workspace locations, reparse points,
+hard links, excessive content and unprotected permissions, and never repairs
+an existing credential's ACLs. The delivery journal retains its own separate
+filename allowlist. No secret is accepted through plugin tool arguments.
+
+Sidecar credential and authenticated service health checks precede Bridge and
+exposure startup. This client adapter does not implicitly launch, adopt or stop
+another process. Private state no longer falls back to `process.cwd()` when the
+OS state base is missing. The existing legacy state directory is retained until
+explicit migration. Canonical profile/process bootstrap and neutral doctor
+readiness integration are still pending: the old doctor requires optional
+browser-specific readiness/App probes that the current semantic RPC does not
+expose. Its failure must not be reported as successful primary readiness.
+
 Sidecar authentication, Workspace Data Plane bearer and external CONTROL_PLANE credentials have independent scopes. Windows credential/state files require a current-user DACL or approved credential protection; POSIX mode 0600 alone proves no Windows isolation. Verify actual ACL protection. Secrets enter task-owned children only through required inherited environment or protected references, never argv/status. Private state paths are deployment-injected outside workspaces with no process.cwd() fallback.
 
 Bind one explicitly selected target in the dedicated Browser B endpoint. Missing or ambiguous targets fail closed; never search other profiles. Full document navigation/reload, target replacement and reconnect invalidate old document fences and pending handles. Same-document History API routing updates URL without replacing the document; conversation policy remains in the shared driver. The proposed Stage E details and dispatch uncertainty limits are in [direct-cdp-contract.md](direct-cdp-contract.md).

@@ -42,6 +42,10 @@ import { WorkspaceRecorders } from '../execution/workspaces.ts'
 import { OpenAiSecureTunnelAdapter } from '../adapters/mcp-exposure/openai-secure-tunnel.ts'
 import { throwIfCancelled } from '../cancellation.ts'
 import { runDoctor } from '../readiness/doctor.ts'
+import { DeploymentSidecarControl } from './sidecar-control.ts'
+import { validateSidecarEndpoint } from '../sidecar/protocol.ts'
+import type { BrowserControl } from '../browser/adapter.ts'
+import { SidecarRpcError } from '../sidecar/errors.ts'
 
 // ---------------------------------------------------------------- config
 
@@ -51,7 +55,9 @@ export interface Config {
   /** Reply wait timeout for ChatGPT rounds, ms. */
   replyTimeoutMs: number
   /** Browser control plane flavor. */
-  browserMode: 'browser-harness-mcp'
+  browserMode: 'sidecar' | 'browser-harness-mcp'
+  sidecarEndpoint: string
+  sidecarCredentialFile?: string
   /** Exact ChatGPT custom-app name activated for every D2C message. */
   chatgptAppName: string
   /** Autonomous review/fix safety bound. */
@@ -82,7 +88,9 @@ export interface Config {
 export const Config: z.ZodType<Config> = z.object({
   bridgePort: z.number().default(0),
   replyTimeoutMs: z.number().default(240_000),
-  browserMode: z.enum(['browser-harness-mcp']).default('browser-harness-mcp'),
+  browserMode: z.enum(['sidecar', 'browser-harness-mcp']).default('sidecar'),
+  sidecarEndpoint: z.string().refine(value => { try { validateSidecarEndpoint(value); return true } catch { return false } }, 'literal loopback Sidecar endpoint required').default('http://127.0.0.1:18765'),
+  sidecarCredentialFile: z.string().optional(),
   chatgptAppName: z.string().default('DSH with ChatGPT'),
   maxIterations: z.number().int().min(1).max(64).default(12),
   gitPolicy: z.enum(['worktree', 'commit-push']).default('worktree'),
@@ -162,7 +170,20 @@ export async function apply(ctx: Context, config: Config): Promise<void> {
     // ---- browser control
     // Browser Harness tools are session-gated, so every model-facing tool call
     // gets a coordinator bound to the CURRENT DSH agent/session.
-    const makeBrowser = (agent: unknown) => new BrowserHarnessAdapter(ctx, agent as never, config.chatgptAppName)
+    const sidecarControls = new Map<string, DeploymentSidecarControl>()
+    const makeBrowser = (agent: unknown, workspace: WorkspaceRuntimeIdentity): BrowserControl => {
+      if (config.browserMode === 'browser-harness-mcp') return new BrowserHarnessAdapter(ctx, agent as never, config.chatgptAppName)
+      const key = workspace.workspaceId + '\0' + workspace.displayRoot
+      const existing = sidecarControls.get(key)
+      if (existing) return existing
+      const control = new DeploymentSidecarControl({
+        endpoint: config.sidecarEndpoint,
+        credentialFile: config.sidecarCredentialFile ?? joinPath(privateStateBase(), 'PlannerBridge', 'credentials', 'authentication.secret'),
+        excludedRoots: [workspace.displayRoot],
+      })
+      sidecarControls.set(key, control)
+      return control
+    }
 
     // ---- bridge + Secure MCP Tunnel runtime
     const bridges = new Map<string, BridgeServer>()
@@ -239,6 +260,11 @@ export async function apply(ctx: Context, config: Config): Promise<void> {
 
     async function ensureRuntime(workspace: WorkspaceRuntimeIdentity, signal?: AbortSignal) {
       throwIfCancelled(signal)
+      if (config.browserMode === 'sidecar') {
+        const health = await makeBrowser(undefined, workspace).health()
+        throwIfCancelled(signal)
+        if (!health.ok) throw new SidecarRpcError('SIDECAR_UNAVAILABLE')
+      }
       const start = async () => {
         const bridge = await ensureBridge(workspace)
         throwIfCancelled(signal)
@@ -258,7 +284,7 @@ export async function apply(ctx: Context, config: Config): Promise<void> {
     function coordinatorFor(workspace: WorkspaceRuntimeIdentity, agent: unknown): ChatGptCoordinator {
       return new ChatGptCoordinator({
         plannerInstructions: CHATGPT_BOOT_PROMPT,
-        browser: makeBrowser(agent),
+        browser: makeBrowser(agent, workspace),
         store: coordinatorState,
         workspaceRoot: workspace.displayRoot,
         workspaceId: workspace.workspaceId,
@@ -568,10 +594,10 @@ export async function apply(ctx: Context, config: Config): Promise<void> {
           workspaceRoot: workspaceRoot.displayRoot,
           workspaceId: runtime.bridge.workspaceId,
           appName: config.chatgptAppName,
-          browser: makeBrowser(exec?.agent),
+          browser: makeBrowser(exec?.agent, workspaceRoot),
           runtime: { bridge: runtime.bridge, tunnel: runtime.tunnelStatus },
           bridgeHttp: { port: runtime.bridge.port, token: runtime.bridge.token },
-          probeApp: signal => makeBrowser(exec?.agent).probeApp?.(config.chatgptAppName, signal) ?? Promise.reject(new Error('browser app probe unavailable')),
+          probeApp: signal => makeBrowser(exec?.agent, workspaceRoot).probeApp?.(config.chatgptAppName, signal) ?? Promise.reject(new Error('browser app probe unavailable')),
           signal: exec?.signal,
         })
       },
@@ -615,6 +641,7 @@ export async function apply(ctx: Context, config: Config): Promise<void> {
       await exposure.close()
       await Promise.allSettled([...bridges.values()].map(bridge => bridge.close()))
       bridges.clear()
+      sidecarControls.clear()
     }, 'dsh-with-chatgpt runtime cleanup')
   }
 
@@ -631,8 +658,14 @@ function workspaceOf(ctx: Context, exec: ToolExec | undefined): Promise<Workspac
 
 /** State dir under the OS config home (never inside a workspace). */
 function joinStateDir(): string {
-  const base = process.env['LOCALAPPDATA'] ?? process.env['XDG_STATE_HOME'] ?? process.env['HOME'] ?? process.cwd()
-  return joinPath(String(base), 'dsh-with-chatgpt')
+  // Preserve the documented legacy state location until explicit migration.
+  return joinPath(privateStateBase(), 'dsh-with-chatgpt')
+}
+
+function privateStateBase(): string {
+  const base = process.env['LOCALAPPDATA'] ?? process.env['XDG_STATE_HOME'] ?? process.env['HOME']
+  if (!base) throw new Error('PRIVATE_STATE_BASE_UNAVAILABLE')
+  return base
 }
 
 /** Random hex token. */

@@ -66,12 +66,42 @@ Cordis persistence and the outbound execution workspace adapter. The package
 entry delegates to `deployment/dsh-runtime.ts`. Observation regressions cover
 all inactive task states and unrelated/background commands. These are scoped
 contract/integration proofs, not real native Executor or product E2E evidence.
-The Sidecar configuration boundary remains intentionally failing until primary
-deployment composition is implemented. Stage F remains PARTIAL and unaccepted.
+At this foundation commit the Sidecar configuration boundary remained an
+expected failure pending primary composition. Stage F remained PARTIAL and
+unaccepted.
 The post-extraction scoped run reports 54 pass / 1 expected failure across
 7 files, exit 1; typecheck and build pass. The isolated packed artifact imports
 and separate Sidecar process checks also pass. These results do not claim a
 full-suite run or primary DSH profile acceptance for this foundation.
+
+Stage F primary client candidate on 2026-10-01: 10 credential tests first failed
+on the missing reader; client/default-path tests then reported 8 expected
+failures and 2 preserved boundary passes. The actual plugin also failed a new
+startup-order test because it tried exposure before a missing credential was
+detected. Implemented deployment-owned credential verification, neutral
+Sidecar client forwarding, explicit compatibility opt-in and health-before-
+exposure ordering made these gates pass. A Windows PowerShell parameter-set
+error in the initial ACL verifier and a TypeScript return-type error were fixed
+without relaxing checks. Credential evidence includes actual Windows DACL
+inspection and rejection after broadening file access. The old delivery-journal
+filename allowlist remains unchanged.
+
+The bounded full suite (`corepack pnpm exec vitest run --maxWorkers=2`) reports
+59 files, 707 pass / 3 original skip / 0 fail, duration 155.87 seconds. An initial
+command misforwarded `--`, leaving the worker limit inactive; its 703 pass /
+4 process-startup failures / 3 skip result is retained separately. No test
+timeout or assertion was weakened. Typecheck/build and isolated package checks
+pass. Two supported DSH launches from the explicit legacy identity fixture
+also pass alias/restart/reload and hardened Windows fixed Git checks; its
+browser-tool fixture is not primary Browser B or native model evidence.
+
+After that full run, an additional bundle-closure test exposed the profile
+patch's silent compatibility override (1 fail / 4 pass). Changing that patch
+to explicit Sidecar mode and endpoint yields 5 boundary passes. The full-suite
+count above predates this additional case. Canonical Sidecar process/profile
+bootstrap and neutral browser/App diagnostic forwarding remain pending;
+independent PLAN4 is planning input, not Stage F acceptance. Native Executor
+generation and the complete primary Planner/App/DSH E2E remain NOT_RUN.
 
 2026-10-01, HEAD `5d303f5d3a17ec66e1250432368c09bf88ec0d63`, command `corepack pnpm test` in package/: 31 files, 403 passed / 3 skipped / 1 failed, exit 1. Failing test: browser cancellation cleanup at `tests/browser.spec.ts:168`. Output retained outside workspace and released to development review via CodexWithChatGPT execution_output. Reproduction is not a repair.
 

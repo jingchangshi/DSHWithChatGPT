@@ -57,7 +57,8 @@ const rows = [
   ['subprocess', '@deepseek-ai/dsh-subprocess-local'],
   ['sandbox', '@deepseek-ai/dsh-sandbox-local'],
   ['identity', packageEntry('@deepseek-ai/dsh-execution-world'), { mode: 'persisted-local', allocationLockPath: path.join(root, 'identity.lock') }],
-  ['collaboration', packageEntry('dsh-with-chatgpt'), { tunnelMode: 'external', gitPolicy: 'worktree', gitReadPolicy: 'allow-hardened-windows' }],
+  // Legacy identity smoke intentionally exercises the opt-in compatibility path.
+  ['collaboration', packageEntry('dsh-with-chatgpt'), { browserMode: 'browser-harness-mcp', tunnelMode: 'external', gitPolicy: 'worktree', gitReadPolicy: 'allow-hardened-windows' }],
   ['probe', new URL('../tests/fixtures/profile-identity-probe.mjs', import.meta.url).href, { workspace, alias, otherWorkspace }],
 ].map(([id, name, config]) => ({ id, name, ...(config ? { config } : {}) }))
 await writeFile(path.join(profile, 'cordis.patch.yml'), JSON.stringify([{ insert: rows }], null, 2))

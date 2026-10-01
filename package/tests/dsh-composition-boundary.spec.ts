@@ -23,6 +23,16 @@ function dependencies(file: string): string[] {
 }
 
 describe('DSH inbound adapter and deployment boundary', () => {
+  it('defaults to the primary Sidecar path and requires explicit compatibility selection', () => {
+    expect(Config.parse({}).browserMode).toBe('sidecar')
+    expect(Config.parse({ browserMode: 'browser-harness-mcp' }).browserMode).toBe('browser-harness-mcp')
+  })
+  it('installs the primary path rather than silently overriding defaults in the bundle patch', () => {
+    const patch = readFileSync(resolve(sourceRoot, '../cordis.patch.yml'), 'utf8')
+    expect(patch).toMatch(/browserMode:\s+sidecar\s/)
+    expect(patch).toMatch(/sidecarEndpoint:\s+http:\/\/127\.0\.0\.1:18765\s/)
+    expect(patch).not.toContain('browser-harness-mcp')
+  })
   it('keeps concrete runtime composition out of the package entry', () => {
     const entry = resolve(sourceRoot, 'index.ts')
     const forbidden = dependencies(entry).filter(name => /(?:browser|tunnel|bridge|execution|workspace|orchestrator|storage-domain|adapters\/cordis)/.test(name))

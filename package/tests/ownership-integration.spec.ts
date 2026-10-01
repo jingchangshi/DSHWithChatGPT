@@ -38,7 +38,7 @@ async function fixture() {
   for (const service of ['fs', 'subprocess', 'sandbox']) ctx.provide(service, {})
   ctx.provide('tools', { register: (tool: Tool & { name: string }) => { tools.set(tool.name, tool) } })
   ctx.provide('systemPrompt', { section: () => {}, getSectionOrder: () => 0 })
-  await ctx.plugin({ apply, Config, inject }, { tunnelMode: 'managed', gitRead: true, gitPolicy: 'worktree' })
+  await ctx.plugin({ apply, Config, inject }, { browserMode: 'browser-harness-mcp',  tunnelMode: 'managed', gitRead: true, gitPolicy: 'worktree' })
   const call = (name: string, workspace = 'owner-fixture-a', signal = new AbortController().signal, args: Record<string, unknown> = {}) =>
     tools.get(name)!.execute(args, { agent: { session: { header: { cwd: workspace } } }, signal })
   return { ctx, records, tunnel, ready, call }

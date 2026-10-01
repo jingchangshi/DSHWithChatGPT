@@ -1,6 +1,8 @@
 import { describe, expect, it, vi } from 'vitest'
 import { Context } from '@deepseek-ai/cordis'
 import { setImmediate } from 'node:timers/promises'
+import { join } from 'node:path'
+import { tmpdir } from 'node:os'
 import { apply, Config, inject, resolveGitReadPolicy } from '../src/index.ts'
 import { BrowserHarnessAdapter } from '../src/browser/harness.ts'
 import { TunnelSupervisor } from '../src/tunnel/supervisor.ts'
@@ -19,6 +21,33 @@ interface RegisteredTool {
 }
 
 describe('production collaboration service requirements', () => {
+  it('fails the primary deployment before exposure when the protected Sidecar credential is missing', async () => {
+    const ctx = new Context()
+    const tools = new Map<string, RegisteredTool>()
+    const workspaceId = 'plannerbridge-primary-fixture'
+    const read = vi.spyOn(readLeases, 'bindExecutionReadLease').mockResolvedValue({
+      workspaceId: workspaceId as readLeases.ExecutionReadLease['workspaceId'],
+      fs: { stat: async () => undefined, readText: async () => '', listDir: async () => [] }, dispose: async () => {},
+    })
+    const tunnel = vi.spyOn(TunnelSupervisor.prototype, 'ensure').mockRejectedValue(new Error('unexpected exposure startup'))
+    const browser = vi.spyOn(BrowserHarnessAdapter.prototype, 'ensureReady')
+    try {
+      ctx.provide('storageDomain', { open: async () => ({ close: async () => {}, table: () => ({ get: async () => undefined }) }) })
+      ctx.provide('executionWorldIdentity', { resolve: async () => workspaceId })
+      for (const service of ['fs', 'subprocess', 'sandbox']) ctx.provide(service, {})
+      ctx.provide('tools', { register: (tool: RegisteredTool) => { tools.set(tool.name, tool) } })
+      ctx.provide('systemPrompt', { section: () => {}, getSectionOrder: () => 0 })
+      await ctx.plugin({ apply, Config, inject }, { sidecarCredentialFile: join(tmpdir(), 'plannerbridge-no-such-credential.secret'), tunnelMode: 'managed' })
+      await expect(tools.get('chatgpt_status')!.execute({}, {
+        agent: { session: { header: { cwd: '/execution/world' } } }, signal: new AbortController().signal,
+      })).rejects.toMatchObject({ code: 'SIDECAR_CREDENTIAL_UNAVAILABLE' })
+      expect(tunnel).not.toHaveBeenCalled()
+      expect(browser).not.toHaveBeenCalled()
+    } finally {
+      await ctx.fiber.dispose()
+      read.mockRestore(); tunnel.mockRestore(); browser.mockRestore()
+    }
+  })
   it.each([
     ['chatgpt_plan', {}], ['chatgpt_plan', { goal: undefined }],
     ['chatgpt_review', {}], ['chatgpt_review', { taskId: undefined }],
@@ -38,7 +67,7 @@ describe('production collaboration service requirements', () => {
     ctx.provide('tools', { register: (tool: RegisteredTool) => { tools.set(tool.name, tool) } })
     ctx.provide('systemPrompt', { section: () => {}, getSectionOrder: () => 0 })
     try {
-      await ctx.plugin({ apply, Config, inject }, {})
+      await ctx.plugin({ apply, Config, inject }, { browserMode: 'browser-harness-mcp', })
       await expect(tools.get(name)!.execute(args, {
         agent: { session: { header: { cwd: '/fixture' } } }, signal: new AbortController().signal,
       })).rejects.toThrow('INVALID_TOOL_ARGUMENTS')
@@ -58,7 +87,7 @@ describe('production collaboration service requirements', () => {
     ctx.provide('tools', { register: (tool: { name: string; parameters: Record<string, unknown> }) => { tools.set(tool.name, tool) } })
     ctx.provide('systemPrompt', { section: () => {}, getSectionOrder: () => 0 })
     try {
-      await ctx.plugin({ apply, Config, inject }, {})
+      await ctx.plugin({ apply, Config, inject }, { browserMode: 'browser-harness-mcp', })
       expect(tools.size).toBe(5)
       for (const tool of tools.values()) {
         expect(tool.parameters.type).toBe('object')
@@ -84,7 +113,7 @@ describe('production collaboration service requirements', () => {
     ctx.provide('tools', { register: () => {} })
     ctx.provide('systemPrompt', { section: () => {}, getSectionOrder: () => 0 })
     try {
-      await ctx.plugin({ apply, Config, inject }, {})
+      await ctx.plugin({ apply, Config, inject }, { browserMode: 'browser-harness-mcp', })
       expect(specs.map(spec => ({ name: spec.name, version: spec.version, tables: Object.keys(spec.tables).sort() }))).toEqual([
         { name: 'd2c_state', version: 1, tables: ['bindings', 'index', 'tasks'] },
         { name: 'd2c_control', version: 1, tables: ['managed_tunnel'] },
@@ -121,7 +150,7 @@ describe('production collaboration service requirements', () => {
       for (const service of ['fs', 'subprocess', 'sandbox']) ctx.provide(service, {})
       ctx.provide('tools', { register: (tool: RegisteredTool) => { tools.set(tool.name, tool) } })
       ctx.provide('systemPrompt', { section: () => {}, getSectionOrder: () => 0 })
-      await ctx.plugin({ apply, Config, inject }, { tunnelMode: 'managed', gitRead: true })
+      await ctx.plugin({ apply, Config, inject }, { browserMode: 'browser-harness-mcp',  tunnelMode: 'managed', gitRead: true })
       await expect(tools.get('chatgpt_plan')!.execute({ goal: 'fixture' }, {
         agent: { session: { header: { cwd: '/fixture' } } }, signal: new AbortController().signal,
       })).rejects.toThrow('fixture tunnel failure')
@@ -157,7 +186,7 @@ describe('production collaboration service requirements', () => {
       ctx.provide('sandbox', {})
       ctx.provide('tools', { register: (tool: RegisteredTool) => { tools.set(tool.name, tool) } })
       ctx.provide('systemPrompt', { section: () => {}, getSectionOrder: () => 0 })
-      await ctx.plugin({ apply, Config, inject }, { tunnelMode: 'external', gitRead: true })
+      await ctx.plugin({ apply, Config, inject }, { browserMode: 'browser-harness-mcp',  tunnelMode: 'external', gitRead: true })
       await expect(tools.get('chatgpt_review')!.execute({ taskId: 'unbound' }, {
         agent: { session: { header: { cwd: '/fixture' } } }, signal: new AbortController().signal,
       })).rejects.toThrow('EXECUTION_OUTPUT_UNAVAILABLE')
@@ -203,7 +232,7 @@ describe('production collaboration service requirements', () => {
     ctx.provide('sandbox', {})
     ctx.provide('tools', { register })
     ctx.provide('systemPrompt', { section: () => {}, getSectionOrder: () => 0 })
-    const loading = ctx.plugin({ apply, Config, inject }, {}).then(() => { settled = true })
+    const loading = ctx.plugin({ apply, Config, inject }, { browserMode: 'browser-harness-mcp', }).then(() => { settled = true })
     try {
       await started.promise
       await setImmediate()
@@ -237,7 +266,7 @@ describe('production collaboration service requirements', () => {
       ctx.provide('sandbox', {})
       ctx.provide('tools', { register: (tool: RegisteredTool) => { tools.set(tool.name, tool) } })
       ctx.provide('systemPrompt', { section: () => {}, getSectionOrder: () => 0 })
-      await ctx.plugin({ apply, Config, inject }, { tunnelMode: 'external' })
+      await ctx.plugin({ apply, Config, inject }, { browserMode: 'browser-harness-mcp',  tunnelMode: 'external' })
       const tool = tools.get(toolName)
       expect(tool).toBeDefined()
       const signal = new AbortController().signal

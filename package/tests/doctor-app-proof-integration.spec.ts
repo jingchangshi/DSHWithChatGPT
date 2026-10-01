@@ -72,7 +72,7 @@ describe('registered doctor App proof', () => {
     })
     ctx.provide('systemPrompt', { section: () => {}, getSectionOrder: () => 0 })
     try {
-      await ctx.plugin({ apply, Config, inject }, { tunnelMode: 'managed', gitRead: true, gitPolicy: 'worktree' })
+      await ctx.plugin({ apply, Config, inject }, { browserMode: 'browser-harness-mcp',  tunnelMode: 'managed', gitRead: true, gitPolicy: 'worktree' })
       const exec = { agent: { session: { header: { cwd: workspaceId } } }, signal: new AbortController().signal }
       const status = await tools.get('chatgpt_status')!.execute({}, exec) as { connectorConfigPath: string }
       const metadata = await readFile(status.connectorConfigPath, 'utf8')
