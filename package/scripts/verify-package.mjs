@@ -73,6 +73,11 @@ for (const name of ${JSON.stringify(Object.keys(dependencies))}) {
   console.log(name + ': isolated import OK');
 }
 const plugin = await import('dsh-with-chatgpt');
+const browser = await import('dsh-with-chatgpt/browser');
+assert.equal(typeof browser.ChatGptWebDriver, 'function');
+assert.equal(typeof browser.BrowserHarnessPrimitives, 'function');
+assert.equal(typeof browser.BrowserHarnessChatControl, 'function');
+assert.ok(browser.BrowserHarnessAdapter.prototype instanceof browser.BrowserHarnessChatControl);
 const lease = await import('@deepseek-ai/dsh-execution-world/read-lease');
 const gitLease = await import('@deepseek-ai/dsh-execution-world/git-lease');
 assert.equal(typeof lease.bindExecutionReadLease, 'function');

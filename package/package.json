@@ -20,6 +20,10 @@
       "types": "./lib/workspace/index.d.ts",
       "default": "./lib/workspace/index.js"
     },
+    "./browser": {
+      "types": "./lib/browser/index.d.ts",
+      "default": "./lib/browser/index.js"
+    },
     "./package.json": "./package.json"
   },
   "dsh": {

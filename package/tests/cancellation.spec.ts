@@ -1,3 +1,4 @@
+import { legacyBrowserObservation } from './fixtures/legacy-browser-observation.ts'
 import { describe, expect, it } from 'vitest'
 import { BrowserHarnessAdapter } from '../src/browser/harness.ts'
 import type { BrowserControl } from '../src/browser/adapter.ts'
@@ -44,9 +45,9 @@ describe('caller cancellation', () => {
       get: () => ({
         execute: ({ name, arguments: args }: { name: string; arguments: Record<string, unknown> }) => {
           if (name.endsWith('browser_js')) {
-            if (String(args.expression).includes('visibility: document.visibilityState')) return Promise.resolve({ value: { visibility: 'visible', url: 'https://chatgpt.com/' } })
-            if (String(args.expression).includes('composer.setAttribute')) return Promise.resolve({ value: { count: 1, empty: true, owned: true, focused: true } })
-            return Promise.resolve({ value: { text: '', assistantCount: 0, streaming: false, loggedOut: false, composer: true } })
+            if (String(args.expression).includes('visibility: document.visibilityState')) return Promise.resolve({ value: legacyBrowserObservation(String(args.expression), { visibility: 'visible', url: 'https://chatgpt.com/' }) })
+            if (String(args.expression).includes('composer.setAttribute')) return Promise.resolve({ value: legacyBrowserObservation(String(args.expression), { count: 1, empty: true, owned: true, focused: true }) })
+            return Promise.resolve({ value: legacyBrowserObservation(String(args.expression), { text: '', assistantCount: 0, streaming: false, loggedOut: false, composer: true }) })
           }
           if (name.endsWith('browser_press')) {
             return new Promise(resolve => {

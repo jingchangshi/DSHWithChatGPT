@@ -1,3 +1,4 @@
+import { legacyBrowserObservation } from './fixtures/legacy-browser-observation.ts'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { readFile } from 'node:fs/promises'
 import { randomUUID } from 'node:crypto'
@@ -54,15 +55,15 @@ describe('registered doctor App proof', () => {
         }
         if (name === 'browser_js') {
           const expression = request.arguments.expression!
-          if (expression.includes('composer.setAttribute')) return { value: { count: 1, empty: true, owned: true, focused: true } }
-          if (expression.includes('visibility: document.visibilityState')) return { value: { visibility: 'visible', url: 'https://chatgpt.com/c/fixture' } }
-          if (expression.includes('return content.trim() ===')) return { value: true }
-          if (expression.includes('const candidates')) return { value: { found: true, x: 1, y: 1 } }
-          if (expression.includes('const decorators')) return { value: true }
-          if (expression.includes('const external =')) return { value: true }
+          if (expression.includes('composer.setAttribute')) return { value: legacyBrowserObservation(String(request.arguments.expression), { count: 1, empty: true, owned: true, focused: true }, 'https://chatgpt.com/c/fixture') }
+          if (expression.includes('visibility: document.visibilityState')) return { value: legacyBrowserObservation(String(request.arguments.expression), { visibility: 'visible', url: 'https://chatgpt.com/c/fixture' }, 'https://chatgpt.com/c/fixture') }
+          if (expression.includes('return content.trim() ===')) return { value: legacyBrowserObservation(String(request.arguments.expression), true, 'https://chatgpt.com/c/fixture') }
+          if (expression.includes('const candidates')) return { value: legacyBrowserObservation(String(request.arguments.expression), { found: true, x: 1, y: 1 }, 'https://chatgpt.com/c/fixture') }
+          if (expression.includes('const decorators')) return { value: legacyBrowserObservation(String(request.arguments.expression), true, 'https://chatgpt.com/c/fixture') }
+          if (expression.includes('const external =')) return { value: legacyBrowserObservation(String(request.arguments.expression), true, 'https://chatgpt.com/c/fixture') }
           if (reply !== '') replyReads++
           const text = scenario === 'delayed' && replyReads <= 3 ? reply.slice(0, 32) : reply
-          return { value: { text, assistantCount: reply ? 1 : 0, streaming: false, loggedOut: false, composer: true } }
+          return { value: legacyBrowserObservation(String(request.arguments.expression), { text, assistantCount: reply ? 1 : 0, streaming: false, loggedOut: false, composer: true }, 'https://chatgpt.com/c/fixture') }
         }
         return { value: {} }
       },
