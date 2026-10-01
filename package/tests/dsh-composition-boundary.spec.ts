@@ -68,4 +68,16 @@ describe('DSH inbound adapter and deployment boundary', () => {
       sidecarCredentialFile: resolve(sourceRoot, '../../../private-state/sidecar.secret'),
     })
   })
+
+  it('supports an explicit deployment-owned Sidecar process without making it a core concern', () => {
+    expect(Config.parse({
+      browserMode: 'sidecar',
+      sidecarProcessCommand: 'chat-control-sidecar',
+      sidecarProcessArgs: ['--config', 'sidecar.json'],
+    })).toMatchObject({
+      browserMode: 'sidecar',
+      sidecarProcessCommand: 'chat-control-sidecar',
+      sidecarProcessArgs: ['--config', 'sidecar.json'],
+    })
+  })
 })

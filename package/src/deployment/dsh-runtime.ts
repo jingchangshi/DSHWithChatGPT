@@ -46,6 +46,8 @@ import { DeploymentSidecarControl } from './sidecar-control.ts'
 import { validateSidecarEndpoint } from '../sidecar/protocol.ts'
 import type { BrowserControl } from '../browser/adapter.ts'
 import { SidecarRpcError } from '../sidecar/errors.ts'
+import { SidecarSupervisor } from './sidecar-supervisor.ts'
+import { readSidecarCredential } from './sidecar-credential.ts'
 
 // ---------------------------------------------------------------- config
 
@@ -58,6 +60,9 @@ export interface Config {
   browserMode: 'sidecar' | 'browser-harness-mcp'
   sidecarEndpoint: string
   sidecarCredentialFile?: string
+  /** Optional owned Sidecar executable; omitted means externally managed. */
+  sidecarProcessCommand?: string
+  sidecarProcessArgs?: string[]
   /** Exact ChatGPT custom-app name activated for every D2C message. */
   chatgptAppName: string
   /** Autonomous review/fix safety bound. */
@@ -91,6 +96,8 @@ export const Config: z.ZodType<Config> = z.object({
   browserMode: z.enum(['sidecar', 'browser-harness-mcp']).default('sidecar'),
   sidecarEndpoint: z.string().refine(value => { try { validateSidecarEndpoint(value); return true } catch { return false } }, 'literal loopback Sidecar endpoint required').default('http://127.0.0.1:18765'),
   sidecarCredentialFile: z.string().optional(),
+  sidecarProcessCommand: z.string().min(1).optional(),
+  sidecarProcessArgs: z.array(z.string()).optional(),
   chatgptAppName: z.string().default('DSH with ChatGPT'),
   maxIterations: z.number().int().min(1).max(64).default(12),
   gitPolicy: z.enum(['worktree', 'commit-push']).default('worktree'),
@@ -171,6 +178,7 @@ export async function apply(ctx: Context, config: Config): Promise<void> {
     // Browser Harness tools are session-gated, so every model-facing tool call
     // gets a coordinator bound to the CURRENT DSH agent/session.
     const sidecarControls = new Map<string, DeploymentSidecarControl>()
+    const sidecarSupervisors = new Map<string, SidecarSupervisor>()
     const makeBrowser = (agent: unknown, workspace: WorkspaceRuntimeIdentity): BrowserControl => {
       if (config.browserMode === 'browser-harness-mcp') return new BrowserHarnessAdapter(ctx, agent as never, config.chatgptAppName)
       const key = workspace.workspaceId + '\0' + workspace.displayRoot
@@ -261,6 +269,16 @@ export async function apply(ctx: Context, config: Config): Promise<void> {
     async function ensureRuntime(workspace: WorkspaceRuntimeIdentity, signal?: AbortSignal) {
       throwIfCancelled(signal)
       if (config.browserMode === 'sidecar') {
+        if (config.sidecarProcessCommand !== undefined) {
+          const key = workspace.workspaceId + '\0' + workspace.displayRoot
+          if (!sidecarSupervisors.has(key)) {
+            const credentialFile = config.sidecarCredentialFile ?? joinPath(privateStateBase(), 'PlannerBridge', 'credentials', 'authentication.secret')
+            const authentication = await readSidecarCredential(credentialFile, [workspace.displayRoot])
+            const supervisor = new SidecarSupervisor({ command: config.sidecarProcessCommand, args: config.sidecarProcessArgs, endpoint: config.sidecarEndpoint, authentication, startupTimeoutMs: config.tunnelStartupTimeoutMs })
+            await supervisor.start(signal)
+            sidecarSupervisors.set(key, supervisor)
+          }
+        }
         const health = await makeBrowser(undefined, workspace).health()
         throwIfCancelled(signal)
         if (!health.ok) throw new SidecarRpcError('SIDECAR_UNAVAILABLE')
@@ -640,7 +658,9 @@ export async function apply(ctx: Context, config: Config): Promise<void> {
     ctx.effect(() => async () => {
       await exposure.close()
       await Promise.allSettled([...bridges.values()].map(bridge => bridge.close()))
+      await Promise.allSettled([...sidecarSupervisors.values()].map(supervisor => supervisor.close()))
       bridges.clear()
+      sidecarSupervisors.clear()
       sidecarControls.clear()
     }, 'dsh-with-chatgpt runtime cleanup')
   }
