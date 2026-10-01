@@ -244,3 +244,22 @@ DSH plan/review results now carry workspaceId and head projected only from the
 coordinator-validated reviewer envelope. Reconnect reports its resolved
 workspaceId. These additive result fields let the external observer verify the
 full identity without treating executor-supplied arguments as reviewer facts.
+
+DSH schema compatibility regression (2026-10-02): the real packed run at
+`73eb429` finished with `plannerExecutorAccepted=false` and exit 1. Its boot
+log identifies an unsupported `head.type` array; the collaboration plugin did
+not activate, and no local/App readiness, PLAN or REVIEW was executed. The
+previous mock registration contract did not enforce the consumer's schema
+subset. A packed-plugin consumer check now loads the actual built DSH schema
+validator and reproduced the same failure before the repair. Nullable HEAD
+uses disjoint string/null `oneOf` branches. The check validates all five input
+and output schemas and rejects a numeric HEAD, and runs before both profile
+smoke and live model launch. This adds consumer compatibility evidence without
+changing the producer API or weakening exact reviewer identity requirements.
+Validation: 67 files / 775 passed / 3 original skipped / 0 failed with one
+worker; typecheck/build and configured pnpm 10 packed import/Sidecar checks
+passed. A default-parallel attempt timed out and remains recorded separately.
+Two real DSH composition-fixture launches passed tool registration, stable
+workspace identity across restart/aliases, authenticated Git reads and unchanged
+repository state. Real product App proof and full Windows acceptance remain
+unverified; this repair still requires independent exact-HEAD review.

@@ -99,7 +99,7 @@ describe('production collaboration service requirements', () => {
       expect(tools.get('chatgpt_review')!.parameters).toMatchObject({ properties: { taskId: { type: 'string' }, changedFiles: { type: 'array', items: { type: 'string' } }, testsRecorded: { type: 'boolean' } }, required: ['taskId'] })
       expect(tools.get('chatgpt_doctor')!.parameters).toMatchObject({ properties: { mode: { type: 'string', enum: ['local', 'app-proof'] } }, required: [] })
       for (const name of ['chatgpt_plan', 'chatgpt_review']) {
-        expect(tools.get(name)!.output.schema.properties).toMatchObject({ workspaceId: { type: 'string' }, head: { type: ['string', 'null'] } })
+        expect(tools.get(name)!.output.schema.properties).toMatchObject({ workspaceId: { type: 'string' }, head: { oneOf: [{ type: 'string' }, { type: 'null' }] } })
         expect(tools.get(name)!.output.schema.required).toEqual(expect.arrayContaining(['workspaceId', 'head']))
       }
       expect(tools.get('chatgpt_reconnect')!.output.schema.properties.workspaceId).toMatchObject({ type: 'string' })

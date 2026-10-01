@@ -4,13 +4,16 @@ import { spawnSync, spawn } from 'node:child_process'
 import { mkdtemp, mkdir, readFile, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
-import { pathToFileURL } from 'node:url'
+import { fileURLToPath, pathToFileURL } from 'node:url'
 import { evaluateAcceptance } from './planner-executor-acceptance.mjs'
 const [source, installation] = process.argv.slice(2)
 const runId = randomUUID()
 const cli = process.env.DSH_CLI
 assert.ok(cli && path.isAbsolute(cli), 'DSH_CLI must name the built DSH CLI entry')
 assert.ok(source && installation, 'Usage: node scripts/verify-planner-executor-e2e.mjs <DSH source> <packed installation>')
+const schemaCheck = spawnSync(process.execPath, [fileURLToPath(new URL('./verify-dsh-tool-schemas.mjs', import.meta.url)), source, installation], { encoding: 'utf8', windowsHide: true })
+assert.equal(schemaCheck.status, 0, schemaCheck.stdout + schemaCheck.stderr)
+console.log(schemaCheck.stdout.trim())
 for (const key of ['DSH_CLI', 'DEEPSEEK_API_KEY', 'CONTROL_PLANE_API_KEY', 'CONTROL_PLANE_TUNNEL_ID', 'MCP_EXPOSURE_CLIENT']) assert.ok(process.env[key], key + ' is required')
 assert.equal(process.env.BROWSER_HARNESS_COMPAT_EXECUTABLE, undefined, 'Primary Planner-Executor acceptance must not mount Browser Harness')
 const root = await mkdtemp(path.join(tmpdir(), 'planner-executor-live-'))

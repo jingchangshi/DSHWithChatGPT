@@ -360,7 +360,7 @@ export async function apply(ctx: Context, config: Config): Promise<void> {
         state: { type: 'string', description: 'Task state after this round.' },
         iteration: { type: 'integer', description: 'Protocol iteration.' },
         workspaceId: { type: 'string', description: 'Workspace identity from the validated reviewer envelope.' },
-        head: { type: ['string', 'null'], description: 'HEAD from the validated reviewer envelope; null for an initial plan.' },
+        head: { oneOf: [{ type: 'string' }, { type: 'null' }], description: 'HEAD from the validated reviewer envelope; null for an initial plan.' },
         actions: { type: 'string', description: 'ACTIONS section from the ChatGPT envelope.' },
         successCriteria: { type: 'string', description: 'SUCCESS_CRITERIA section (plan rounds).' },
         rationale: { type: 'string', description: 'RATIONALE section (plan rounds).' },

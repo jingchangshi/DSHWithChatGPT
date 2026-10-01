@@ -5,13 +5,16 @@ import { mkdir, mkdtemp, readFile, symlink, writeFile } from 'node:fs/promises'
 import { createRequire } from 'node:module'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
-import { pathToFileURL } from 'node:url'
+import { fileURLToPath, pathToFileURL } from 'node:url'
 import { createProfileSidecarFixture } from './profile-sidecar-fixture.mjs'
 
 const [source, installation] = process.argv.slice(2)
 assert.ok(source && installation, 'Usage: pnpm test:profile <DSH source root> <isolated package installation>')
 const sourceRoot = path.resolve(source)
 const installationRoot = path.resolve(installation)
+const schemaCheck = spawnSync(process.execPath, [fileURLToPath(new URL('./verify-dsh-tool-schemas.mjs', import.meta.url)), sourceRoot, installationRoot], { encoding: 'utf8', windowsHide: true })
+assert.equal(schemaCheck.status, 0, schemaCheck.stdout + schemaCheck.stderr)
+console.log(schemaCheck.stdout.trim())
 const requireDsh = createRequire(path.join(sourceRoot, 'package.json'))
 const root = await mkdtemp(path.join(tmpdir(), 'dsh-chatgpt-profile-'))
 const home = path.join(root, 'home')
