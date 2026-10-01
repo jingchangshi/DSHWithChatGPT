@@ -49,6 +49,18 @@ pnpm test:profile <DSH-source-root> <isolated-installation-from-test:package>
 
 ## Live model acceptance
 
+The canonical primary acceptance command is `pnpm test:planner-executor-e2e
+<DSH-built-source-root> <packed-installation>`. It requires `DSH_CLI`,
+`DEEPSEEK_API_KEY`, `CONTROL_PLANE_TUNNEL_ID`, `CONTROL_PLANE_API_KEY` and
+`MCP_EXPOSURE_CLIENT` in the launch environment. The runner creates a fresh
+non-protected branch and bare remote, pins the native
+`deepseek-official`/`deepseek-flash` Executor, and deliberately refuses a
+`BROWSER_HARNESS_COMPAT_EXECUTABLE` value. It derives
+`plannerExecutorAccepted` only when successful test output, an independent
+review echo, exact nonce provenance and the no-leak observer assertions all
+agree. Missing external prerequisites fail before acceptance and do not produce
+a false success.
+
 `pnpm test:live-c2c <DSH-built-source-root> <packed-installation>` creates a disposable interval-subtraction repository and a local bare Git remote. Set `C2C_DSH_CLI` to the absolute built CLI entry, `C2C_EXECUTION_BASE_URL` and `C2C_EXECUTION_API_KEY` for the authorized execution provider, and `CONTROL_PLANE_TUNNEL_ID`, `CONTROL_PLANE_API_KEY`, `C2C_TUNNEL_CLIENT`, and `C2C_BROWSER_HARNESS` for the existing App connection. Credentials stay in the launch environment, not generated profile files. The profile uses the packed consumer and explicitly linked producer peers through the documented plugin installer; rebuild producer host artifacts before running.
 
 The runner submits a normal user task to a real low-reasoning model Session. The observer records actual tool outcomes without invoking collaboration tools or editing the fixture. A successful test emits a fresh stdout-only marker; reviews must independently obtain it from recorded output. The current runner records readiness and first-round evidence, and checkpoints a natural fix PLAN for restart. It does not yet orchestrate phase two or claim full acceptance: `fullC2CAccepted` remains false. `pnpm test:live-c2c-observer` tests evidence bookkeeping without a model, browser, or network and is not an E2E test.
