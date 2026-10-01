@@ -77,6 +77,31 @@ it('retains the reply baseline across an acknowledged same-document new-chat rou
   expect(await result).toEqual({ text: 'new conversation reply', complete: true })
 })
 
+it('rejects two same-document conversation transitions before final press returns', async () => {
+  vi.useFakeTimers()
+  const { ChatGptWebDriver } = await import('../src/browser/chatgpt-web-driver.ts')
+  const fixture = fakeBrowserFixture('<div role="textbox" contenteditable="true"></div>', { appName: '' })
+  const press = fixture.primitives.press
+  fixture.primitives.press = async (key, modifiers, context) => {
+    const ack = await press(key, modifiers, context)
+    if (key === 'Enter') {
+      fixture.window.history.pushState(null, '', '/c/promoted')
+      fixture.window.history.pushState(null, '', '/c/B')
+    }
+    return { ...ack, target: await fixture.primitives.currentTarget() }
+  }
+  const driver = new ChatGptWebDriver(fixture.primitives, '')
+  const sendError = await driver.sendControlMessage('owned request').catch(error => error)
+  expect(fixture.keys).toEqual(['Enter'])
+  if (sendError) expect(sendError).toBeInstanceOf(BrowserTargetChangedError)
+  else {
+    fixture.window.document.body.insertAdjacentHTML('beforeend', '<article data-message-author-role="assistant">foreign B reply</article>')
+    const reply = driver.waitForReply(8000).catch(error => error)
+    await vi.runAllTimersAsync()
+    expect(await reply).toBeInstanceOf(BrowserTargetChangedError)
+  }
+})
+
 it('passes the captured document fence to the final input mutation', async () => {
   const { ChatGptWebDriver } = await import('../src/browser/chatgpt-web-driver.ts')
   const fixture = fakeBrowserFixture('<div role="textbox" contenteditable="true"></div>', { appName: '' })

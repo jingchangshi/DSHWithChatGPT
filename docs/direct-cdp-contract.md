@@ -125,3 +125,12 @@ is excluded from the ordinary test suite and never inserts a Planner message.
 Candidate validation: 631 passed / 3 original skipped / 0 failed across 52 files;
 typecheck, build and isolated package verification passed. These are scoped Stage E
 observations, not a claim that the whole architecture or Windows product E2E is done.
+
+Additional falsification at `d2211be0943a5bb18efbcd95bb0e9425ff395adc` found an
+uncovered contract violation: root -> `/c/promoted` -> `/c/B` inside one keydown,
+before the final Input acknowledgement, loses the intermediate route. Both fake
+mechanics and real Chrome/real CDP with synthetic content accepted B's reply after
+one Enter. The green baseline therefore does not prove the single-promotion
+invariant. New expected-red regressions retain this counterexample. Stage E stays
+PARTIAL/FAILED for this invariant, pending a reviewed transport-neutral transition
+provenance contract and repair; conversation policy must remain in the driver.

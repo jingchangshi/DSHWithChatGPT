@@ -77,6 +77,29 @@ it('rejects unrelated same-document replies and same-URL replacement', async () 
   await expect(driver.waitForReply(5000)).rejects.toMatchObject({ name: 'BrowserTargetChangedError' })
 }, 10_000)
 
+it('rejects a second conversation promotion hidden inside the final Enter acknowledgement', async () => {
+  const driver = await page()
+  // The fixture's first handler promotes root to /c/promoted. This second
+  // handler switches to B within the same keydown, before the Input response.
+  await primitives.evaluate(`(() => {
+    window.routeTrace = [];
+    const push = history.pushState.bind(history);
+    history.pushState = (...args) => { window.routeTrace.push(args[2]); return push(...args) };
+    document.querySelector('[role=textbox]').addEventListener('keydown', event => {
+      if (event.key === 'Enter') history.pushState(null, '', '/c/B');
+    }); return true;
+  })()`)
+  const sendError = await driver.sendControlMessage('owned request').catch(error => error)
+  expect(await primitives.evaluate('window.routeTrace')).toEqual(['/c/promoted', '/c/B'])
+  expect(await primitives.evaluate('window.enterCount')).toBe(1)
+  if (sendError) expect(sendError).toBeInstanceOf(BrowserTargetChangedError)
+  else {
+    await primitives.evaluate('window.addReply("foreign B reply")')
+    await expect(driver.waitForReply(8000)).rejects.toBeInstanceOf(BrowserTargetChangedError)
+  }
+  expect(await primitives.evaluate('window.keys')).toEqual(['Enter'])
+}, 10_000)
+
 it('detects logout without synthetic success', async () => {
   const driver = await page({ logout: true })
   await expect(driver.ensureReady()).rejects.toMatchObject({ name: 'ChatGptLoggedOutError' })
