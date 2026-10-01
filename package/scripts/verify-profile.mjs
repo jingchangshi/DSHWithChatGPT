@@ -6,6 +6,7 @@ import { createRequire } from 'node:module'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { pathToFileURL } from 'node:url'
+import { createProfileSidecarFixture } from './profile-sidecar-fixture.mjs'
 
 const [source, installation] = process.argv.slice(2)
 assert.ok(source && installation, 'Usage: pnpm test:profile <DSH source root> <isolated package installation>')
@@ -40,6 +41,9 @@ await writeFile(path.join(workspace, 'untracked.txt'), 'untracked mutation marke
 await symlink(workspace, alias, process.platform === 'win32' ? 'junction' : 'dir')
 await writeFile(path.join(profile, 'package.json'), JSON.stringify({ name: 'planner-executor-smoke', private: true, dsh: { profile: { bundles: [] } } }))
 const packageEntry = name => pathToFileURL(path.join(installationRoot, 'node_modules', name, 'lib', 'index.js')).href
+const sidecar = await createProfileSidecarFixture(root, pathToFileURL(path.join(installationRoot, 'node_modules', 'dsh-with-chatgpt', 'lib', 'sidecar', 'server.js')).href)
+console.log('Profile verification mode: composition-fixture; real Browser/App proof NOT_RUN')
+try {
 const rows = [
   ['logger', '@deepseek-ai/cordis-plugin-logger-console'],
   ['timer', '@deepseek-ai/cordis-plugin-timer'],
@@ -62,7 +66,7 @@ const rows = [
   ['agent-default-model', '@deepseek-ai/dsh-agent-default-model', { provider: 'deepseek-official', model: 'deepseek-flash' }],
   ['llm-deepseek', '@deepseek-ai/dsh-llm-deepseek', { apiKeyEnv: 'DEEPSEEK_API_KEY' }],
   // The profile smoke exercises the primary semantic Sidecar composition.
-  ['collaboration', packageEntry('dsh-with-chatgpt'), { browserMode: 'sidecar', sidecarEndpoint: 'http://127.0.0.1:18765', tunnelMode: 'external', gitPolicy: 'worktree', gitReadPolicy: 'allow-hardened-windows' }],
+  ['collaboration', packageEntry('dsh-with-chatgpt'), { browserMode: 'sidecar', sidecarEndpoint: sidecar.endpoint, sidecarCredentialFile: sidecar.credentialFile, tunnelMode: 'external', gitPolicy: 'worktree', gitReadPolicy: 'allow-hardened-windows' }],
   ['probe', new URL('../tests/fixtures/profile-identity-probe.mjs', import.meta.url).href, { workspace, alias, otherWorkspace }],
 ].map(([id, name, config]) => ({ id, name, ...(config ? { config } : {}) }))
 await writeFile(path.join(profile, 'cordis.patch.yml'), JSON.stringify([{ insert: rows }], null, 2))
@@ -77,6 +81,9 @@ for (const iteration of [1, 2]) {
     encoding: 'utf8', timeout: 90_000, windowsHide: true,
   })
   await writeFile(path.join(root, `boot-${iteration}.log`), child.stdout + child.stderr)
+  const authentication = await readFile(sidecar.credentialFile, 'utf8')
+  assert.equal((child.stdout + child.stderr).includes(authentication), false, 'Credential leaked into boot output')
+  assert.equal((await readFile(path.join(profile, 'cordis.patch.yml'), 'utf8')).includes(authentication), false, 'Profile must contain only credential references')
   console.log(`Profile attempt ${iteration}: exit ${child.status}; evidence ${root}`)
   if (child.error) throw child.error
   assert.equal(child.status, 0, child.stderr)
@@ -92,3 +99,4 @@ for (const iteration of [1, 2]) {
 assert.deepEqual(reports[0].statuses.map(status => status.workspaceId), reports[1].statuses.map(status => status.workspaceId))
 assert.notEqual(reports[0].runId, reports[1].runId)
 console.log('Real DSH profile: identity stable across aliases/restart/plugin reload; authenticated Git status/diff/log preserve repository state; execution output remains unavailable')
+} finally { await sidecar.close() }

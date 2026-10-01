@@ -165,6 +165,18 @@ Acceptance result is derived from recorded assertions, not hardcoded true/false.
 
 ## External prerequisites and reporting
 
+Profile bootstrap repair evidence (2026-10-01): the canonical isolated DSH
+runner initially failed with `SIDECAR_CREDENTIAL_UNAVAILABLE`. The runner now
+owns a protected disposable credential reference and a separate semantic
+Sidecar fixture. Two real DSH launches passed identity preservation across
+aliases/restart and plugin reload, authenticated workspace/Git reads, unchanged
+repository contents and Bridge closure. The fixture lifecycle/authentication
+test passed; 12 focused profile/credential tests passed, including actual
+Windows permission rejection. This is composition evidence only: real Browser
+B, product App proof, native model generation and full Windows E2E remain
+NOT_RUN. Stage F and Package stay PARTIAL pending independent review and the
+remaining product gates.
+
 Run the logged-out fail-closed check in a task-owned temporary no-login profile, preserving persistent Browser B login. Record actual native DeepSeek generation and the invoked client → Sidecar → shared driver → Direct CDP path. Dependency/profile inspection must prove Browser Harness absent; sandbox assurance requires actual hardened Windows enforcement.
 
 Finish independent architecture/unit/contract/integration/packaging work before asking for real product credentials. At a genuinely external gate, record BLOCKED for that gate with exact prerequisite, continue other work and request only login/2FA/CAPTCHA/real credential input when necessary. Overall goal remains active until full required Windows scope is proven or repeated genuine impasse meets goal blocked policy.

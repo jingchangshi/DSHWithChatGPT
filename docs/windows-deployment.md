@@ -64,6 +64,18 @@ Cancellation targets the durable logical ControlOperation via cancel(controlOper
 
 Avoid starting a second Sidecar when port/health ownership is unclear. Services are task-owned; never terminate unrelated browser/server processes. Provide explicit start/stop/health commands and logs with secret redaction, no cookies/session storage or private ChatGPT APIs.
 
-## Future deployment
+## Isolated profile composition verification
+
+`package/scripts/verify-profile.mjs` owns a separate semantic Sidecar fixture on
+an ephemeral loopback port. It generates a random credential in a disposable,
+current-user-only directory outside the workspace, passes only the credential
+file reference to the DSH profile, and keeps the journal in a separate protected
+directory. The fixture deliberately exposes no browser readiness or App proof
+and refuses conversation mutations. Its process is closed even on verification
+failure. This checks real DSH startup, workspace identity, authenticated Git
+reads and reload/restart composition; it does not verify ChatGPT or model
+generation. Boot output and profile configuration are checked for token leaks.
+
+## Future deployment scope
 
 Linux execution is FUTURE. The same client talks to configured localhost after deployment-managed secure forwarding to the Windows Sidecar. No Linux Chrome/Browser Harness, remote :9222, SSH lifecycle manager or Linux acceptance is required now. Workspace Data Plane lives with the Executor, not the browser Sidecar.
