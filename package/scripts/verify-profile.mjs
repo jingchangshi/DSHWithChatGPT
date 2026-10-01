@@ -14,7 +14,7 @@ const installationRoot = path.resolve(installation)
 const requireDsh = createRequire(path.join(sourceRoot, 'package.json'))
 const root = await mkdtemp(path.join(tmpdir(), 'dsh-chatgpt-profile-'))
 const home = path.join(root, 'home')
-const profile = path.join(home, 'profiles', 'c2c-smoke')
+const profile = path.join(home, 'profiles', 'planner-executor-smoke')
 const workspace = path.join(root, 'workspace')
 const otherWorkspace = path.join(root, 'other-workspace')
 const alias = path.join(root, 'alias')
@@ -38,7 +38,7 @@ await writeFile(path.join(workspace, 'staged.txt'), 'staged mutation marker\n')
 git('add', 'staged.txt')
 await writeFile(path.join(workspace, 'untracked.txt'), 'untracked mutation marker\n')
 await symlink(workspace, alias, process.platform === 'win32' ? 'junction' : 'dir')
-await writeFile(path.join(profile, 'package.json'), JSON.stringify({ name: 'c2c-smoke', private: true, dsh: { profile: { bundles: [] } } }))
+await writeFile(path.join(profile, 'package.json'), JSON.stringify({ name: 'planner-executor-smoke', private: true, dsh: { profile: { bundles: [] } } }))
 const packageEntry = name => pathToFileURL(path.join(installationRoot, 'node_modules', name, 'lib', 'index.js')).href
 const rows = [
   ['logger', '@deepseek-ai/cordis-plugin-logger-console'],
@@ -57,19 +57,19 @@ const rows = [
   ['subprocess', '@deepseek-ai/dsh-subprocess-local'],
   ['sandbox', '@deepseek-ai/dsh-sandbox-local'],
   ['identity', packageEntry('@deepseek-ai/dsh-execution-world'), { mode: 'persisted-local', allocationLockPath: path.join(root, 'identity.lock') }],
-  // Legacy identity smoke intentionally exercises the opt-in compatibility path.
-  ['collaboration', packageEntry('dsh-with-chatgpt'), { browserMode: 'browser-harness-mcp', tunnelMode: 'external', gitPolicy: 'worktree', gitReadPolicy: 'allow-hardened-windows' }],
+  // The profile smoke exercises the primary semantic Sidecar composition.
+  ['collaboration', packageEntry('dsh-with-chatgpt'), { browserMode: 'sidecar', sidecarEndpoint: 'http://127.0.0.1:18765', tunnelMode: 'external', gitPolicy: 'worktree', gitReadPolicy: 'allow-hardened-windows' }],
   ['probe', new URL('../tests/fixtures/profile-identity-probe.mjs', import.meta.url).href, { workspace, alias, otherWorkspace }],
 ].map(([id, name, config]) => ({ id, name, ...(config ? { config } : {}) }))
 await writeFile(path.join(profile, 'cordis.patch.yml'), JSON.stringify([{ insert: rows }], null, 2))
-const args = ['--import', pathToFileURL(requireDsh.resolve('tsx/esm')).href, path.join(sourceRoot, 'apps/cli/src/bin.ts'), '--profile', 'c2c-smoke']
+const args = ['--import', pathToFileURL(requireDsh.resolve('tsx/esm')).href, path.join(sourceRoot, 'apps/cli/src/bin.ts'), '--profile', 'planner-executor-smoke']
 const reports = []
 for (const iteration of [1, 2]) {
   const runId = randomUUID()
   const report = path.join(root, `report-${runId}.json`)
   const child = spawnSync(process.execPath, args, {
     cwd: workspace,
-    env: { ...process.env, DSH_HOME: home, LOCALAPPDATA: path.join(root, 'state'), XDG_STATE_HOME: path.join(root, 'state'), TSX_TSCONFIG_PATH: path.join(sourceRoot, 'tsconfig.base.json'), DSH_C2C_SMOKE_RUN_ID: runId, DSH_C2C_SMOKE_REPORT: report },
+    env: { ...process.env, DSH_HOME: home, LOCALAPPDATA: path.join(root, 'state'), XDG_STATE_HOME: path.join(root, 'state'), TSX_TSCONFIG_PATH: path.join(sourceRoot, 'tsconfig.base.json'), DSH_PLANNER_EXECUTOR_SMOKE_RUN_ID: runId, DSH_PLANNER_EXECUTOR_SMOKE_REPORT: report },
     encoding: 'utf8', timeout: 90_000, windowsHide: true,
   })
   await writeFile(path.join(root, `boot-${iteration}.log`), child.stdout + child.stderr)

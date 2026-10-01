@@ -4,7 +4,7 @@ import { lstat, readFile, readdir, readlink, writeFile } from 'node:fs/promises'
 import path from 'node:path'
 import { request } from 'node:http'
 
-export const name = 'c2c-profile-identity-probe'
+export const name = 'planner-executor-profile-identity-probe'
 export const inject = ['loader', 'agents', 'agentLoop', 'tools', 'executionWorldIdentity']
 
 async function repositorySnapshot(root) {
@@ -113,8 +113,8 @@ function assertListenerClosed(port) {
 }
 
 export function apply(ctx, config) {
-  const runId = process.env.DSH_C2C_SMOKE_RUN_ID
-  const report = process.env.DSH_C2C_SMOKE_REPORT
+  const runId = process.env.DSH_PLANNER_EXECUTOR_SMOKE_RUN_ID
+  const report = process.env.DSH_PLANNER_EXECUTOR_SMOKE_REPORT
   assert.ok(runId && report, 'Profile probe must be launched by its verification runner')
   setImmediate(async () => {
     const handles = []
