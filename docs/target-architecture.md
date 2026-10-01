@@ -1,6 +1,6 @@
 # PlannerBridge target architecture
 
-Status: PARTIAL — design candidate for Stage A independent review. This is the canonical target, not a claim about implemented behavior. `goal.md` defines scope; `env-win.md` records dated observations. Older documents describe the legacy implementation until explicitly migrated.
+Status: PARTIAL — canonical architecture with implementation reviewed through Stage D; full Windows product acceptance remains incomplete. `goal.md` defines scope; `env-win.md` records dated observations. Older documents describe the legacy implementation until explicitly migrated. The proposed Stage E refinement is [direct-cdp-contract.md](direct-cdp-contract.md); its implementation and live gates remain unverified.
 
 PlannerBridge is a provider-neutral Planner/Reviewer ↔ Executor collaboration runtime. The first deployment uses ChatGPT Web and Windows DSH with DeepSeek-V4.1-Flash. The repository/package may retain their existing names for installation compatibility. CodexWithChatGPT is exclusively a development tool.
 
@@ -128,6 +128,8 @@ Workspace Data Plane owns Bridge schemas, bearer binding, registry and lease lif
 
 ChatGptWebDriver owns the single DOM/App/composer/reply algorithm. BrowserPrimitives supplies target identity/navigation epoch, navigation, DOM evaluation, focus, text/key/click input, target activation and mutation waiting. Generic evaluation/CDP is internal to this boundary, never a Sidecar RPC method. BrowserHarnessChatControl composes this same driver over Session-gated BrowserHarnessPrimitives; DirectCdpPrimitives is primary.
 
+Stage E separates page target identity, concrete document identity/local binding epoch and observed URL. Same-document history routing does not itself replace the document; same-URL reload does. Focus and input mutations receive the expected document at the primitive dispatch boundary and acknowledge identity. Input already dispatched to CDP is not recallable; uncertainty and no-retry constraints are explicit in the proposed Direct CDP contract, and require independent review before implementation.
+
 Product state directories are deployment-injected private paths outside all workspaces. Missing secure state location fails startup; production cannot fall back to process.cwd(). The Windows Sidecar default is :18765, configurable to another literal-loopback port; no core contract fixes this port.
 
 ## Ownership and lifecycle
@@ -164,6 +166,6 @@ All core contracts, protocol, state machine, Sidecar client and Web semantics ar
 
 ## Current baseline and staged ownership
 
-2026-10-01 source baseline at `5d303f5`: 403 passed / 3 skipped / 1 failed. The existing cancellation cleanup test fails at `browser.spec.ts:168`; cleanup currently reuses the cancelled caller signal. Stage A remains PARTIAL after architecture fix PLAN against draft `46abd15`. Immediately after architecture DONE, establish regression coverage and fix ownership-safe bounded cleanup in a separate reviewed commit, before Stage B ports extraction or any abstraction restructuring. No product source is modified during Stage A.
+Historical source baseline at `5d303f5`: 403 passed / 3 skipped / 1 failed. Architecture review subsequently completed, F0 was repaired separately at `6c05177`, core ports were extracted at `cb86027`, and shared semantics reviewed at `44f60a2`. Stage D implementation/source audit and test scheduling correction were independently reviewed DONE at `4dc4275`; latest full regression is 569 passed / 3 original skipped / 0 failed. These scoped reviews do not prove Direct CDP, complete recovery or real Windows product E2E. Stage E begins with failing boundary/routing/mutation tests before implementation.
 
 Stages B–I follow `acceptance-plan.md`; every stage uses falsification tests → implementation → checks → independent commit → exact-HEAD ChatGPT review. Producer changes require a failing consumer test and prior independent architecture review. Architecture changes require updating this contract and review before implementation.
