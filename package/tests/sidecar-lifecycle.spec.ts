@@ -1,7 +1,7 @@
 import { randomUUID } from 'node:crypto'
 import { readFile, stat } from 'node:fs/promises'
 import { join } from 'node:path'
-import { afterEach, describe, expect, it } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import { sidecarProcess } from './fixtures/sidecar-process.ts'
 
 const children: Awaited<ReturnType<typeof sidecarProcess>>[] = []
@@ -92,19 +92,23 @@ describe('separate-process operation delivery lifecycle', () => {
     expect(await second).toMatchObject({ ok: true })
     expect(child.sends).toEqual(['one in-flight operation'])
   })
-  it('shuts down the transport and flushes uncertainty while a driver ignores abort', async () => {
-    const child = await start()
-    const request = envelope(child, 'hang-before-ack')
-    const pending = rpc(child, request).catch(error => error)
-    await child.waitForPhase(request.operationId, 'sending')
-    expect(await rpc(child, { ...request, requestId: randomUUID(), operationId: randomUUID(), method: 'shutdown', params: {} })).toMatchObject({ ok: true })
-    expect(await pending).toMatchObject({ ok: false, error: { code: 'SIDECAR_SHUTTING_DOWN' } })
-    const deadline = Date.now() + 3_000
-    while (Date.now() < deadline) { try { await stat(join(child.stateDirectory, 'owner.lock')) } catch (error) { if ((error as NodeJS.ErrnoException).code === 'ENOENT') break; throw error } await new Promise(resolve => setTimeout(resolve, 20)) }
-    await expect(stat(join(child.stateDirectory, 'owner.lock'))).rejects.toMatchObject({ code: 'ENOENT' })
-    const stored = JSON.parse(await readFile(join(child.stateDirectory, 'delivery.json'), 'utf8'))
-    expect(stored.entries.find((entry: any) => entry.operationId === request.operationId).phase).toBe('uncertain')
-    await expect(fetch(child.endpoint)).rejects.toThrow()
+  describe('bounded shutdown after process readiness', () => {
+    let child: Awaited<ReturnType<typeof start>>
+    // Startup has its own 5s bound. Keep it outside the shutdown assertion budget.
+    beforeEach(async () => { child = await start() })
+    it('shuts down the transport and flushes uncertainty while a driver ignores abort', async () => {
+      const request = envelope(child, 'hang-before-ack')
+      const pending = rpc(child, request).catch(error => error)
+      await child.waitForPhase(request.operationId, 'sending')
+      expect(await rpc(child, { ...request, requestId: randomUUID(), operationId: randomUUID(), method: 'shutdown', params: {} })).toMatchObject({ ok: true })
+      expect(await pending).toMatchObject({ ok: false, error: { code: 'SIDECAR_SHUTTING_DOWN' } })
+      const deadline = Date.now() + 3_000
+      while (Date.now() < deadline) { try { await stat(join(child.stateDirectory, 'owner.lock')) } catch (error) { if ((error as NodeJS.ErrnoException).code === 'ENOENT') break; throw error } await new Promise(resolve => setTimeout(resolve, 20)) }
+      await expect(stat(join(child.stateDirectory, 'owner.lock'))).rejects.toMatchObject({ code: 'ENOENT' })
+      const stored = JSON.parse(await readFile(join(child.stateDirectory, 'delivery.json'), 'utf8'))
+      expect(stored.entries.find((entry: any) => entry.operationId === request.operationId).phase).toBe('uncertain')
+      await expect(fetch(child.endpoint)).rejects.toThrow()
+    })
   })
   it('allows a fresh attempt of the same operation after BUSY refused admission', async () => {
     const child = await start()
