@@ -16,6 +16,7 @@ import { join as joinPath } from 'node:path'
 import { randomBytes, randomFillSync } from 'node:crypto'
 import type { Context } from '@deepseek-ai/cordis'
 import { DshAgentAdapter } from '../adapters/dsh/agent.ts'
+import { roundIdentity } from '../adapters/dsh/round-identity.ts'
 import type { AgentTool } from '../core/ports/agent.ts'
 import { DshExecutionWorkspaceAdapter } from '../adapters/dsh/execution-workspace.ts'
 import type { ExecutionWorkspacePort } from '../core/ports/execution-workspace.ts'
@@ -358,12 +359,14 @@ export async function apply(ctx: Context, config: Config): Promise<void> {
         taskId: { type: 'string', description: 'D2C task id.' },
         state: { type: 'string', description: 'Task state after this round.' },
         iteration: { type: 'integer', description: 'Protocol iteration.' },
+        workspaceId: { type: 'string', description: 'Workspace identity from the validated reviewer envelope.' },
+        head: { type: ['string', 'null'], description: 'HEAD from the validated reviewer envelope; null for an initial plan.' },
         actions: { type: 'string', description: 'ACTIONS section from the ChatGPT envelope.' },
         successCriteria: { type: 'string', description: 'SUCCESS_CRITERIA section (plan rounds).' },
         rationale: { type: 'string', description: 'RATIONALE section (plan rounds).' },
         summary: { type: 'string', description: 'SUMMARY section (review rounds).' },
       },
-      required: ['taskId', 'state', 'iteration'],
+      required: ['taskId', 'state', 'iteration', 'workspaceId', 'head'],
     } as const
 
     /** Render a round payload as compact model-facing text. */
@@ -372,6 +375,8 @@ export async function apply(ctx: Context, config: Config): Promise<void> {
       lines.push('taskId: ' + String(value['taskId']))
       lines.push('state: ' + String(value['state']))
       lines.push('iteration: ' + String(value['iteration']))
+      lines.push('workspaceId: ' + String(value['workspaceId']))
+      if (typeof value['head'] === 'string') lines.push('head: ' + value['head'])
       for (const key of ['actions', 'successCriteria', 'rationale', 'summary'] as const) {
         const text = value[key]
         if (typeof text === 'string' && text.length > 0) lines.push(key + ':\\n' + text)
@@ -412,6 +417,7 @@ export async function apply(ctx: Context, config: Config): Promise<void> {
             taskId: round.taskId,
             state: round.record.state,
             iteration: round.record.iteration,
+            ...roundIdentity(round.envelope),
             actions: round.envelope.sections.get('ACTIONS') ?? '',
             successCriteria: round.envelope.sections.get('SUCCESS_CRITERIA') ?? '',
             rationale: round.envelope.sections.get('RATIONALE') ?? '',
@@ -487,6 +493,7 @@ export async function apply(ctx: Context, config: Config): Promise<void> {
             taskId: round.taskId,
             state: round.record.state,
             iteration: round.record.iteration,
+            ...roundIdentity(round.envelope),
             summary: round.envelope.sections.get('SUMMARY') ?? '',
             actions: round.envelope.sections.get('ACTIONS') ?? '',
           }
@@ -559,10 +566,11 @@ export async function apply(ctx: Context, config: Config): Promise<void> {
           additionalProperties: false,
           properties: {
             recovered: { type: 'boolean', description: 'Whether a prior task was found and rebound.' },
+            workspaceId: { type: 'string', description: 'Resolved workspace identity for this recovery.' },
             task: { description: 'Recovered task record, or null.' },
             detail: { type: 'string', description: 'Human-readable recovery detail.' },
           },
-          required: ['recovered', 'task', 'detail'],
+          required: ['recovered', 'task', 'detail', 'workspaceId'],
         },
         render: (_args: Record<string, unknown>, value: Record<string, unknown>) => [{
           type: 'text' as const,
@@ -573,7 +581,7 @@ export async function apply(ctx: Context, config: Config): Promise<void> {
         const coordinator = coordinatorFor(workspaceRoot, exec?.agent)
         if (exposureAdapter.effectiveMode() === 'managed') {
           if (await ownership.reconnect(workspaceRoot.workspaceId) === 'cleared') {
-            return { recovered: false, task: null, detail: 'orphaned pre-task reservation cleared; no task was persisted' }
+            return { recovered: false, task: null, workspaceId: workspaceRoot.workspaceId, detail: 'orphaned pre-task reservation cleared; no task was persisted' }
           }
           const taskId = await coordinator.latestTaskId()
           const previous = taskId === undefined ? undefined : await coordinatorState.loadTask(taskId)
@@ -585,6 +593,7 @@ export async function apply(ctx: Context, config: Config): Promise<void> {
         const task = await coordinator.recover(exec?.signal)
         return {
           recovered: task !== undefined,
+          workspaceId: workspaceRoot.workspaceId,
           task: task ?? null,
           detail: task !== undefined ? 'conversation rebound; task state intact' : 'no prior task for this workspace',
         }

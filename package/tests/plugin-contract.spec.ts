@@ -80,11 +80,11 @@ describe('production collaboration service requirements', () => {
   })
   it('publishes object JSON Schemas for all five collaboration tools', async () => {
     const ctx = new Context()
-    const tools = new Map<string, { name: string; parameters: Record<string, unknown> }>()
+    const tools = new Map<string, { name: string; parameters: Record<string, unknown>; output: { schema: Record<string, any> } }>()
     ctx.provide('storageDomain', { open: async () => ({ close: async () => {} }) })
     ctx.provide('executionWorldIdentity', { resolve: async () => 'workspace' })
     for (const service of ['fs', 'subprocess', 'sandbox']) ctx.provide(service, {})
-    ctx.provide('tools', { register: (tool: { name: string; parameters: Record<string, unknown> }) => { tools.set(tool.name, tool) } })
+    ctx.provide('tools', { register: (tool: { name: string; parameters: Record<string, unknown>; output: { schema: Record<string, any> } }) => { tools.set(tool.name, tool) } })
     ctx.provide('systemPrompt', { section: () => {}, getSectionOrder: () => 0 })
     try {
       await ctx.plugin({ apply, Config, inject }, { browserMode: 'browser-harness-mcp', })
@@ -98,6 +98,11 @@ describe('production collaboration service requirements', () => {
       expect(tools.get('chatgpt_plan')!.parameters).toMatchObject({ properties: { goal: { type: 'string' } }, required: ['goal'] })
       expect(tools.get('chatgpt_review')!.parameters).toMatchObject({ properties: { taskId: { type: 'string' }, changedFiles: { type: 'array', items: { type: 'string' } }, testsRecorded: { type: 'boolean' } }, required: ['taskId'] })
       expect(tools.get('chatgpt_doctor')!.parameters).toMatchObject({ properties: { mode: { type: 'string', enum: ['local', 'app-proof'] } }, required: [] })
+      for (const name of ['chatgpt_plan', 'chatgpt_review']) {
+        expect(tools.get(name)!.output.schema.properties).toMatchObject({ workspaceId: { type: 'string' }, head: { type: ['string', 'null'] } })
+        expect(tools.get(name)!.output.schema.required).toEqual(expect.arrayContaining(['workspaceId', 'head']))
+      }
+      expect(tools.get('chatgpt_reconnect')!.output.schema.properties.workspaceId).toMatchObject({ type: 'string' })
       for (const name of ['chatgpt_status', 'chatgpt_reconnect']) expect(tools.get(name)!.parameters).toMatchObject({ properties: {}, required: [] })
       expect(JSON.stringify([...tools.values()].map(tool => tool.parameters))).not.toContain('"required":true')
       expect(JSON.stringify([...tools.values()].map(tool => tool.parameters))).not.toContain('"type":"json"')

@@ -225,3 +225,22 @@ Exposure false-ready regression gate:
   doctor local/App/full flags remain false without ready exposure.
 - Failure condition: any false-ready result or leaked owned child.
 - Status: PARTIAL pending exact-HEAD independent review and real updated runtime.
+
+Exact-identity E2E oracle gate:
+- Goal: refuse stale DONE, old successful nonce, borrowed readiness and successful
+  executor exits without independently accepted final evidence.
+- Fixture: execute the real runner's final reporting/exit block against ordered
+  independent observer events and adversarial task/workspace/iteration/HEAD data.
+- Action: correlate final review result with its unique dispatch, the latest
+  successful test result and its frozen pre-dispatch identity, plus a matching
+  persisted phase-one checkpoint and phase-two reconnect before new execution.
+- Expected evidence: exact reviewed/pushed HEAD, clean ordinary branch, zero
+  ahead count, same task/workspace/round, latest random output marker, explicit
+  local and App proof from the planner's session; all failures exit nonzero.
+- Failure condition: any stale, missing, mismatched or leaked evidence accepted.
+- Status: PARTIAL pending implementation verification and independent review.
+
+DSH plan/review results now carry workspaceId and head projected only from the
+coordinator-validated reviewer envelope. Reconnect reports its resolved
+workspaceId. These additive result fields let the external observer verify the
+full identity without treating executor-supplied arguments as reviewer facts.
