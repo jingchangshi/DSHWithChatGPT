@@ -24,7 +24,7 @@ Stage A records baseline, target/deployment/protocol/migration documents, commit
 | F8 / G | preserve content authority | current producer leases and hostile boundary fixtures | workspace ID only/missing/stale generation/replacement/traversal/symlink/Git injection/output caps/evidence scopes | denial before provider read; fixed argv/environment; redacted scoped evidence | Host read fallback, stale authority, arbitrary shell, nonce or secrets outside scope | VERIFIED |
 | F9 / G | isolate exposure ownership | fake tunnel child + authenticated Bridge HTTP | start/rebind/failure/abort/restart cleanup/workspace conflict | no key in args/status; matching reservation cleanup; protocol preserved | child leak, key leak, workspace takeover, failure advances protocol | PARTIAL |
 | F10 / G | durable restart/reconciliation | persistent task/journal + independently spawned processes | crash before/after send/ack, DSH/Sidecar restart, Chrome reload, cancelled PLAN/REVIEW | identical IDs/HEAD, reacquired lease, no duplicate INIT/EXECUTED, SEND_UNCERTAIN when proof absent | resend after observation timeout or forgotten in-memory cooldown | PARTIAL |
-| F11 / H | migrate names without hidden compatibility debt | inventory + import/export/script/package checks | scan canonical source/test/docs and invoke explicit old aliases | canonical identifiers neutral; old public edges documented and bounded | blind replace, silently retained private coupling, externally-owned rename | NOT_RUN |
+| F11 / H | migrate names without hidden compatibility debt | inventory + import/export/script/package checks | scan canonical source/test/docs and invoke explicit old aliases | canonical identifiers neutral; old public edges documented and bounded | blind replace, silently retained private coupling, externally-owned rename | PARTIAL |
 | Package / H | usable installed artifacts | packed tarball + isolated supported DSH profiles | build/typecheck/pack/export/import/profile/sidecar executable checks | all runtime closure included; no development bridge dependency | source-only success, missing files or runtime Codex dependency | PARTIAL |
 | Windows sandbox / G+I | real hardened execution authority | real Windows ACL provider + task workspace | execute root-contained reads and fixed Git queries with hostile escapes | hardened-windows assurance and actual deny evidence | mere mock/metadata, relaxed security for green tests | NOT_RUN |
 | Fake-stack / H | workflow under adversarial boundaries | separate Sidecar + fake driver + real Git fixture + persisted core | full plan/fix/review, faults and restart | deterministic identities and commit/push verified | fake result reported as real Web/model acceptance | NOT_RUN |
@@ -263,3 +263,13 @@ Two real DSH composition-fixture launches passed tool registration, stable
 workspace identity across restart/aliases, authenticated Git reads and unchanged
 repository state. Real product App proof and full Windows acceptance remain
 unverified; this repair still requires independent exact-HEAD review.
+
+Stage H incremental migration: the private pre-task recovery error is neutral,
+and the released legacy live-runner entry delegates to the canonical actual
+Planner–Executor runner instead of maintaining a second model/browser policy or
+hardcoded result. Tests-first evidence covers exact ownership diagnostics and
+real child-process argument/environment/exit parity; 33 focused ownership and
+registration tests plus 4 alias tests passed. Typecheck/build and configured
+isolated package checks passed. These are migration/packaging checks, not a new
+full-suite or real product acceptance claim. F11 stays PARTIAL pending launcher,
+test-name/documentation migration and exact-HEAD review.

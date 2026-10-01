@@ -54,6 +54,7 @@
     "test:profile-sidecar-fixture": "node --test scripts/profile-sidecar-fixture.test.mjs",
     "test:planner-executor-e2e": "node scripts/verify-planner-executor-e2e.mjs",
     "test:planner-executor-observer": "node --test scripts/planner-executor-observer.test.mjs",
+    "test:legacy-acceptance-entry": "node --test scripts/legacy-acceptance-entry.test.mjs",
     "test:live-c2c-observer": "node --test scripts/c2c-e2e-observer.test.mjs",
     "test:live-c2c": "node scripts/verify-live-c2c.mjs",
     "test:launcher": "node --test scripts/c2c-launcher.test.mjs",

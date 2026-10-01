@@ -92,7 +92,7 @@ describe('durable managed tunnel ownership', () => {
     await save()
     await manager.settle(next)
     expect((await store.get())?.phase).toBe('pre-task')
-    await expect(manager.reconnect('workspace')).rejects.toThrow('C2C_PRETASK_RECOVERY_REQUIRED')
+    await expect(manager.reconnect('workspace')).rejects.toThrow(/^PRETASK_RECOVERY_REQUIRED$/)
   })
 
   it('permits only same-workspace reconnect to clear an orphaned pre-task after restart', async () => {

@@ -68,7 +68,7 @@ export interface Config {
   chatgptAppName: string
   /** Autonomous review/fix safety bound. */
   maxIterations: number
-  /** Whether autonomous C2C reviews the worktree or committed+pushed iterations. */
+  /** Whether autonomous review uses the worktree or committed+pushed iterations. */
   gitPolicy: 'worktree' | 'commit-push'
   /** Explicit policy for fixed execution-workspace Git reads. */
   gitReadPolicy?: 'require-full' | 'allow-hardened-windows' | 'disabled'
@@ -642,7 +642,7 @@ export async function apply(ctx: Context, config: Config): Promise<void> {
         name: 'dsh-with-chatgpt:collaboration',
         order: 'TOOL_WORKFLOW',
         text: [
-          'dsh-with-chatgpt present: when the user asks to collaborate with ChatGPT / C2C, run the collaboration loop autonomously.',
+          'dsh-with-chatgpt present: when the user asks to collaborate with ChatGPT, run the collaboration loop autonomously.',
           '- Use chatgpt_plan first. ChatGPT owns WHAT/WHY; you own HOW and all edits/shell/tests/git.',
           '- Never paste source, diffs, or logs into ChatGPT; it reads the exact workspace through the read-only MCP app.',
           '- Do not pause for user confirmation between PLAN, implementation, tests, and REVIEW. If review returns PLAN, implement the fix and review again until DONE.',

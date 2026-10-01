@@ -54,3 +54,29 @@ DSH package name `dsh-with-chatgpt`, current public collaboration tools and Cust
 7. Stage I: independently validate genuine Windows primary E2E and final exact HEAD. Remove acceptance hardcoded booleans instead of relabeling partial output.
 
 No blind global replace, speculative API deletion, historical branch rewrite, forced push, released-state overwrite, externally-owned rename or security weakening. Every stage is a separate commit and review. Compatibility removal is a later documented breaking release after old task/state/profile recovery coverage and migration evidence.
+
+## Stage H incremental evidence (2026-10-02)
+
+The private pre-task recovery diagnostic is now `PRETASK_RECOVERY_REQUIRED`;
+its exact-message regression failed before the rename and ownership/integration
+contracts passed afterward. Workspace evidence comments and the current DSH
+collaboration prompt use responsibility-based names. Upstream license/protocol
+attribution and the released always-false `fullC2CVerified` field remain explicit
+compatibility boundaries.
+
+The released `verify-live-c2c.mjs` entry is now a thin process alias for
+`verify-planner-executor-e2e.mjs`, with the canonical runner as the sole owner of
+model, browser, evidence and acceptance policy. It no longer implements a
+parallel Browser Harness/generic-model run or a hardcoded acceptance result.
+Only `C2C_DSH_CLI` and `C2C_TUNNEL_CLIENT` fall back to `DSH_CLI` and
+`MCP_EXPOSURE_CLIENT` when their canonical values are absent. Canonical values
+win conflicts; the deprecated entry prints no values. It forwards argument
+boundaries and exit status, requires the native `DEEPSEEK_API_KEY`, and does
+not reinterpret an old generic provider key as a DeepSeek credential. Four
+tests execute the unchanged alias against an independently spawned canonical
+child, covering canonical-only, legacy-only and conflicting references plus
+forbidden duplicate policy. All four failed against the original entry and
+passed after migration. Removal is deferred to a documented breaking release.
+
+F11 remains PARTIAL: legacy deployment launchers, test filenames and outdated
+product documentation still require migration/parity and independent review.

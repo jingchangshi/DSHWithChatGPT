@@ -25,7 +25,7 @@ export function sessionWorkspaceRoot(cwd: unknown): string {
   return canonicalWorkspaceRoot(cwd).root
 }
 
-/** A shell observation without a valid Session workspace cannot own C2C evidence. */
+/** A shell observation without a valid Session workspace cannot own execution evidence. */
 export function observedWorkspaceRoot(cwd: unknown): string | undefined {
   try {
     return sessionWorkspaceRoot(cwd)

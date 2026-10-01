@@ -87,7 +87,7 @@ export class ManagedTunnelOwnership {
       const current = await this.store.get()
       if (current !== undefined) {
         if (current.workspaceId !== workspaceId || current.taskId !== taskId) throw new Error('TUNNEL_WORKSPACE_BUSY')
-        if (current.phase !== 'task') throw new Error('C2C_PRETASK_RECOVERY_REQUIRED')
+        if (current.phase !== 'task') throw new Error('PRETASK_RECOVERY_REQUIRED')
         return current
       }
       if ((await this.pendingTasks()).some(id => id !== taskId)) throw new Error('TUNNEL_LEGACY_TASK_CONFLICT')
@@ -117,7 +117,7 @@ export class ManagedTunnelOwnership {
         return 'continue'
       }
       if (current.phase === 'pre-task') {
-        if (task !== undefined) throw new Error('C2C_PRETASK_RECOVERY_REQUIRED')
+        if (task !== undefined) throw new Error('PRETASK_RECOVERY_REQUIRED')
         await this.store.delete()
         return 'cleared'
       }
