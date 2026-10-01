@@ -3,7 +3,7 @@ import { defineDomain, domainTable, type Domain } from '@deepseek-ai/dsh-storage
 import type { PersistedTask } from '../../core/model.ts'
 import type { StateStore as StateBackend } from '../../orchestrator/state.ts'
 
-const taskRecordSchema = z.object({
+export const taskRecordSchema = z.object({
   taskId: z.string(),
   goal: z.string(),
   state: z.enum(['awaiting-plan', 'planned', 'executing', 'executed', 'awaiting-review', 'done', 'blocked', 'error']),

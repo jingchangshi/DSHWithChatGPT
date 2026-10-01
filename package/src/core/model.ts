@@ -11,6 +11,8 @@ export type TaskState =
 
 /** Persisted task state. */
 export interface PersistedTask {
+  /** Missing only on released v1 records; never infer a version from the ID. */
+  protocolVersion?: 1 | 2
   taskId: string
   goal: string
   state: TaskState
@@ -24,6 +26,12 @@ export interface PersistedTask {
   updatedAt: number
   /** Last error detail, when state === 'error'. */
   lastError: string | null
+}
+
+export function taskProtocolVersion(task: PersistedTask): 1 | 2 {
+  const version = task.protocolVersion === undefined ? 1 : task.protocolVersion
+  if (version !== 1 && version !== 2) throw Object.assign(new Error('PROTOCOL_STATE_CONFLICT'), { code: 'PROTOCOL_STATE_CONFLICT' })
+  return version
 }
 
 /** Persisted workspace binding. */

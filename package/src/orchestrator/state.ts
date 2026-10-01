@@ -1,4 +1,5 @@
 import type { PersistedTask, PersistedWorkspaceBinding } from '../core/model.ts'
+import { taskProtocolVersion } from '../core/model.ts'
 export type { TaskState, PersistedTask, PersistedWorkspaceBinding } from '../core/model.ts'
 import { StateRevisionConflictError, type StateStore as RevisionedStateStore, type TaskSnapshot } from '../core/ports/state-store.ts'
 
@@ -46,6 +47,7 @@ export class CoordinatorState implements RevisionedStateStore {
 
   createTask(task: PersistedTask): Promise<TaskSnapshot> {
     return this.serialized(async () => {
+      taskProtocolVersion(task)
       if (await this.loadTask(task.taskId) !== undefined) throw new StateRevisionConflictError(task.taskId)
       return this.writeTask(task, 0)
     })
@@ -55,6 +57,7 @@ export class CoordinatorState implements RevisionedStateStore {
     return this.serialized(async () => {
       const previous = await this.loadTask(taskId)
       if (task.taskId !== taskId || previous === undefined || previous.updatedAt !== expectedRevision) throw new StateRevisionConflictError(taskId)
+      this.requireSameProtocol(previous, task)
       return this.writeTask(task, expectedRevision)
     })
   }
@@ -69,13 +72,21 @@ export class CoordinatorState implements RevisionedStateStore {
     // Legacy administrative API. Canonical task transitions use commitTask.
     await this.serialized(async () => {
       const previous = await this.loadTask(task.taskId)
+      if (previous !== undefined) this.requireSameProtocol(previous, task)
+      else taskProtocolVersion(task)
       const saved = await this.writeTask(task, previous?.updatedAt ?? 0)
       task.updatedAt = saved.revision
     })
   }
 
+  private requireSameProtocol(previous: PersistedTask, next: PersistedTask): void {
+    if (taskProtocolVersion(previous) !== taskProtocolVersion(next)) throw Object.assign(new Error('PROTOCOL_VERSION_IMMUTABLE'), { code: 'PROTOCOL_VERSION_IMMUTABLE' })
+  }
+
   async loadTask(taskId: string): Promise<PersistedTask | undefined> {
-    return structuredClone(await this.store.get<PersistedTask>(TASK_KEY(taskId)))
+    const task = await this.store.get<PersistedTask>(TASK_KEY(taskId))
+    if (task !== undefined) taskProtocolVersion(task)
+    return structuredClone(task)
   }
 
   async deleteTask(taskId: string): Promise<void> {

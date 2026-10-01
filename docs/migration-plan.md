@@ -6,6 +6,24 @@ Reference snapshots under cwc-research/**, historical e2e logs and retained revi
 
 ## Inventory classes and actions
 
+### Protocol storage foundation (2026-10-02)
+
+The released `d2c_state` version 1 declaration is unchanged. A separate
+`plannerbridge_state` version 1 declaration requires explicit protocol version 2.
+`ProtocolStateBackend` reads both domains, rejects duplicate task identity or
+wrong-domain versions, and writes each task only to its original protocol domain.
+Missing version means released v1; no task copying, delivery history synthesis,
+or automatic upgrade occurs. Task commits and administrative saves reject a
+protocol version change. Conflicting equally dated workspace bindings fail closed;
+indexes are combined without removing released entries.
+
+This is an additive storage foundation, not production v2 enablement. Deployment
+still opens the legacy domain and uses its v1 coordinator. The canonical adapter
+validates writes before the domain medium is touched. Tests cover the real Cordis
+domain layer over an explicitly selected disposable file medium and reopen both
+domains; this is not a production storage or whole-process crash acceptance proof.
+Durable outbound/reply fields and coordinator selection remain separate work.
+
 | Occurrence family | Location | Class | Action / canonical responsibility |
 |---|---|---|---|
 | current feature branch name | both repositories' Git refs, environment snapshots | BRANCH_HISTORY_ONLY | keep user-selected branch; don't introduce new names from it |

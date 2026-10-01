@@ -288,3 +288,20 @@ Final bounded suite for this candidate: 67 files, 783 passed / 3 original
 skipped / 0 failed; typecheck/build and configured isolated package import and
 separate Sidecar lifecycle checks passed. Real website logout proof and final
 goal acceptance are not implied by this result.
+
+Protocol foundation (2026-10-02): canonical v2 codec is additive and separately
+reviewed at HEAD `2b8e782`. Red evidence: 33 missing-module cases, then two
+delimiter-injection/separator cases. Green evidence: 72 canonical and released
+protocol cases; 68 files / 823 passed / 3 original skipped / 0 failed with two
+workers. The unconstrained run had 42 failures involving process startup,
+permissions and browser deadlines; its output is retained rather than replaced
+by the successful bounded run. Typecheck/build and configured isolated package
+verification passed, including public protocol type imports.
+
+Storage foundation: separate canonical schema and explicit dual-domain routing
+have tests-first evidence (10 initial failures, four corrupt-version failures,
+one invalid domain-write failure). Focused 35 cases pass, including real Cordis
+domain close/reopen over a disposable fixture file medium and unchanged released
+record bytes. This does not establish production storage, coordinator v2, durable
+send/reply recovery, or full Windows acceptance. The deployment still uses v1;
+the new storage adapter and router are additive foundations awaiting integration.
