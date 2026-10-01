@@ -108,7 +108,7 @@ describe('production collaboration service requirements', () => {
       expect(JSON.stringify([...tools.values()].map(tool => tool.parameters))).not.toContain('"type":"json"')
     } finally { await ctx.fiber.dispose() }
   })
-  it('preserves task storage v1 and opens a separate control domain', async () => {
+  it('preserves task storage v1 and opens canonical and control domains separately', async () => {
     const ctx = new Context()
     const specs: Array<{ name: string; version: number; tables: Record<string, unknown> }> = []
     const close = vi.fn(async () => {})
@@ -121,10 +121,11 @@ describe('production collaboration service requirements', () => {
       await ctx.plugin({ apply, Config, inject }, { browserMode: 'browser-harness-mcp', })
       expect(specs.map(spec => ({ name: spec.name, version: spec.version, tables: Object.keys(spec.tables).sort() }))).toEqual([
         { name: 'd2c_state', version: 1, tables: ['bindings', 'index', 'tasks'] },
+        { name: 'plannerbridge_state', version: 1, tables: ['bindings', 'index', 'tasks'] },
         { name: 'd2c_control', version: 1, tables: ['managed_tunnel'] },
       ])
     } finally { await ctx.fiber.dispose() }
-    expect(close).toHaveBeenCalledTimes(2)
+    expect(close).toHaveBeenCalledTimes(3)
   })
 
   it('persists a pre-task claim before tunnel startup and rolls it back on startup failure', async () => {
@@ -251,7 +252,39 @@ describe('production collaboration service requirements', () => {
       await loading
       await ctx.fiber.dispose()
     }
-    expect(close).toHaveBeenCalledTimes(2)
+    expect(close).toHaveBeenCalledTimes(3)
+  })
+
+  it('does not publish tools until the canonical domain opens and closes every acquired domain', async () => {
+    const ctx = new Context()
+    const started = Promise.withResolvers<void>()
+    const canonical = Promise.withResolvers<void>()
+    const closed: string[] = []
+    const opened: string[] = []
+    const register = vi.fn()
+    ctx.provide('storageDomain', { open: async (spec: { name: string }) => {
+      opened.push(spec.name)
+      if (spec.name === 'plannerbridge_state') { started.resolve(); await canonical.promise }
+      return { close: async () => { closed.push(spec.name) } }
+    } })
+    ctx.provide('executionWorldIdentity', { resolve: async () => 'fixture-id' })
+    for (const service of ['fs', 'subprocess', 'sandbox']) ctx.provide(service, {})
+    ctx.provide('tools', { register })
+    ctx.provide('systemPrompt', { section: () => {}, getSectionOrder: () => 0 })
+    const loading = ctx.plugin({ apply, Config, inject }, { browserMode: 'browser-harness-mcp' })
+    try {
+      await started.promise
+      expect(opened).toEqual(['d2c_state', 'plannerbridge_state'])
+      expect(register).not.toHaveBeenCalled()
+      canonical.resolve()
+      await loading
+      expect(register).toHaveBeenCalledTimes(5)
+    } finally {
+      canonical.resolve()
+      await loading
+      await ctx.fiber.dispose()
+    }
+    expect(closed.sort()).toEqual(['d2c_control', 'd2c_state', 'plannerbridge_state'])
   })
 
   it.each(['chatgpt_plan', 'chatgpt_review'])('%s refuses unavailable content before browser or tunnel activity', async (toolName) => {
@@ -290,6 +323,6 @@ describe('production collaboration service requirements', () => {
       ready.mockRestore()
       tunnel.mockRestore()
     }
-    expect(close).toHaveBeenCalledTimes(2)
+    expect(close).toHaveBeenCalledTimes(3)
   })
 })

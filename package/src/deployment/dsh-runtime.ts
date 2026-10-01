@@ -24,6 +24,8 @@ import type { McpExposureProvider } from '../core/ports/mcp-exposure.ts'
 import { z } from 'zod'
 import { defineDomain, domainTable } from '@deepseek-ai/dsh-storage-domain'
 import { legacyStateDomain, CordisStateBackend } from '../adapters/cordis/state-store.ts'
+import { plannerStateDomain, PlannerCordisStateBackend } from '../adapters/cordis/planner-state-store.ts'
+import { ProtocolStateBackend } from '../orchestrator/protocol-state-backend.ts'
 import { ChatGptCoordinator } from '../orchestrator/index.ts'
 import { CHATGPT_BOOT_PROMPT } from '../protocol/legacy-planner-policy.ts'
 import { CoordinatorState } from '../orchestrator/state.ts'
@@ -149,7 +151,11 @@ export async function apply(ctx: Context, config: Config): Promise<void> {
     if (storageDomain === undefined) throw new Error('DURABLE_STORAGE_UNAVAILABLE')
     const domain = await storageDomain.open(legacyStateDomain)
     ctx.effect(() => () => domain.close(), 'dsh-with-chatgpt durable state')
-    const coordinatorState = new CoordinatorState(new CordisStateBackend(domain))
+    const plannerDomain = await storageDomain.open(plannerStateDomain)
+    ctx.effect(() => () => plannerDomain.close(), 'PlannerBridge durable state')
+    const coordinatorState = new CoordinatorState(new ProtocolStateBackend(
+      new CordisStateBackend(domain), new PlannerCordisStateBackend(plannerDomain),
+    ))
     const control = await storageDomain.open(controlDomain)
     ctx.effect(() => () => control.close(), 'dsh-with-chatgpt control state')
     const ownership = new ManagedTunnelOwnership({

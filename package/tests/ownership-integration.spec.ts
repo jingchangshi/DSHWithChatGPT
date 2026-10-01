@@ -45,6 +45,34 @@ async function fixture() {
 }
 
 describe('registered ownership enforcement', () => {
+  it('includes canonical pending tasks in production ownership checks without copying them to legacy storage', async () => {
+    const current = await fixture()
+    const taskId = 'pb_' + 'a'.repeat(32)
+    const task = { protocolVersion: 2, taskId, state: 'planned' }
+    current.records.set('plannerbridge_state/index/tasks', { ids: [taskId] })
+    current.records.set('plannerbridge_state/tasks/' + taskId, task)
+    try {
+      await expect(current.call('chatgpt_status', 'owner-fixture-b')).rejects.toThrow('TUNNEL_LEGACY_TASK_PENDING')
+      expect(current.records.get('plannerbridge_state/tasks/' + taskId)).toEqual(task)
+      expect(current.records.has('d2c_state/tasks/' + taskId)).toBe(false)
+      expect(current.tunnel).not.toHaveBeenCalled()
+      expect(current.ready).not.toHaveBeenCalled()
+    } finally { await current.ctx.fiber.dispose() }
+  })
+
+  it('fails a mixed-domain task collision before production exposure', async () => {
+    const current = await fixture()
+    const taskId = 'pb_' + 'b'.repeat(32)
+    current.records.set('d2c_state/index/tasks', { ids: [taskId] })
+    current.records.set('d2c_state/tasks/' + taskId, { taskId, state: 'planned' })
+    current.records.set('plannerbridge_state/tasks/' + taskId, { protocolVersion: 2, taskId, state: 'planned' })
+    try {
+      await expect(current.call('chatgpt_status')).rejects.toThrow('PROTOCOL_STATE_CONFLICT')
+      expect(current.tunnel).not.toHaveBeenCalled()
+      expect(current.ready).not.toHaveBeenCalled()
+    } finally { await current.ctx.fiber.dispose() }
+  })
+
   it('rejects status and a new PLAN before tunnel startup when legacy tasks are pending', async () => {
     const current = await fixture()
     current.records.set('d2c_state/index/tasks', { ids: ['legacy'] })

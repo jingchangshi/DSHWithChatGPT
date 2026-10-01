@@ -303,8 +303,14 @@ have tests-first evidence (10 initial failures, four corrupt-version failures,
 one invalid domain-write failure). Focused 35 cases pass, including real Cordis
 domain close/reopen over a disposable fixture file medium and unchanged released
 record bytes. This does not establish production storage, coordinator v2, durable
-send/reply recovery, or full Windows acceptance. The deployment still uses v1;
-the new storage adapter and router are additive foundations awaiting integration.
+send/reply recovery, or full Windows acceptance. Production activation now opens
+both task domains and uses the explicit router, including combined pending-task
+ownership checks and mixed-domain collision refusal. All three acquired domains
+are closed by the deployment lifecycle; tools wait for canonical storage readiness.
+Task creation and protocol execution still use v1. The legacy coordinator rejects
+v2 plan/review/recovery before browser activity, pending canonical coordinator
+integration; status remains a read-only task lookup. No existing record is copied
+or upgraded by opening the router.
 
 Reply observation foundation: six red-first driver cases demonstrate missing
 baseline capture/reconstruction fencing, one RPC contract case demonstrates

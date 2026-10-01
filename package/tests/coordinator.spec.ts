@@ -68,6 +68,31 @@ function makeCoordinator(replies: string[]): { coordinator: ChatGptCoordinator; 
 }
 
 describe('coordinator happy path', () => {
+  it.each(['plan', 'review', 'recover'])('rejects canonical %s before any legacy browser operation', async (operation) => {
+    const store = new CoordinatorState(createMemoryStore())
+    const browser = fakeBrowser([])
+    const activity: string[] = []
+    browser.ensureReady = async () => { activity.push('ready') }
+    browser.openConversation = async () => { activity.push('open'); return 'conv-1' }
+    browser.waitForReply = async () => { activity.push('wait'); return { text: '', complete: true } }
+    const taskId = 'pb_' + 'c'.repeat(32)
+    const task = { protocolVersion: 2 as const, taskId, goal: 'canonical task',
+      state: operation === 'review' ? 'planned' as const : 'awaiting-plan' as const,
+      iteration: operation === 'review' ? 1 : 0,
+      waitingFor: operation === 'review' ? 'dsh-execution' as const : 'chatgpt-plan' as const,
+      conversationId: 'conv-1', lastReviewedHead: null, createdAt: 1, updatedAt: 1, lastError: null }
+    const saved = await store.createTask(task)
+    await store.bindWorkspace('test-workspace', { workspaceRoot: 'workspace', conversationId: 'conv-1', lastTaskId: taskId })
+    const coordinator = new ChatGptCoordinator({ browser, store, workspaceRoot: 'workspace', workspaceId: 'test-workspace' })
+    const result = operation === 'plan' ? coordinator.awaitPlan(taskId)
+      : operation === 'recover' ? coordinator.recover()
+      : coordinator.reportExecuted(taskId, { changedFiles: [], head: 'a'.repeat(40), testsRecorded: true })
+    await expect(result).rejects.toMatchObject({ code: 'PROTOCOL_COORDINATOR_UNAVAILABLE' })
+    expect(activity).toEqual([])
+    expect(browser.sent).toEqual([])
+    expect(await store.loadTaskSnapshot(taskId)).toEqual(saved)
+  })
+
   it('rejects a reply for another loaded task without advancing either task', async () => {
     const browser = fakeBrowser([])
     const store = new CoordinatorState(createMemoryStore())

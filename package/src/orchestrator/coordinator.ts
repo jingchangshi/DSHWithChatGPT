@@ -12,6 +12,7 @@ import { extractEnvelopeText } from '../protocol/legacy-reply.ts'
 export { CHATGPT_BOOT_PROMPT } from '../protocol/legacy-planner-policy.ts'
 import { formatEnvelope, parseEnvelope } from '../protocol/index.ts'
 import type { PersistedTask, TaskState } from '../core/model.ts'
+import { taskProtocolVersion } from '../core/model.ts'
 import type { StateStore } from '../core/ports/state-store.ts'
 import { OperationCancelledError, throwIfCancelled } from '../cancellation.ts'
 
@@ -254,6 +255,7 @@ export class ChatGptCoordinator {
     if (taskId === undefined) return undefined
     const task = await this.state.loadTask(taskId)
     if (task === undefined) return undefined
+    this.requireLegacyTask(task)
     this.restoreMachine(task)
     await this.options.browser.ensureReady(signal)
     await this.options.browser.openConversation(task.conversationId ?? undefined, signal)
@@ -295,6 +297,11 @@ export class ChatGptCoordinator {
   private async requireTask(taskId: string) {
     const task = await this.state.loadTaskSnapshot(taskId)
     if (task === undefined) throw new ProtocolError('unknown-task', `task ${taskId} not found in durable state`)
+    this.requireLegacyTask(task.value)
     return task
+  }
+
+  private requireLegacyTask(task: PersistedTask): void {
+    if (taskProtocolVersion(task) !== 1) throw Object.assign(new Error('PROTOCOL_COORDINATOR_UNAVAILABLE'), { code: 'PROTOCOL_COORDINATOR_UNAVAILABLE' })
   }
 }
