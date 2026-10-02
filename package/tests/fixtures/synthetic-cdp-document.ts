@@ -25,7 +25,7 @@ export async function syntheticCdpDocument(endpoint: string, targetId: string) {
   })
   await session.command('Fetch.enable', { patterns: [{ urlPattern: 'https://chatgpt.com/*', requestStage: 'Request' }] })
   return {
-    serve(options: { apps?: string[]; draft?: string; logout?: boolean; foreignOnInput?: boolean; replaceOnInput?: boolean; baseline?: boolean; paragraphComposer?: boolean; alterParagraph?: boolean } = {}) {
+    serve(options: { apps?: string[]; draft?: string; logout?: boolean; foreignOnInput?: boolean; replaceOnInput?: boolean; baseline?: boolean; paragraphComposer?: boolean; alterParagraph?: boolean; hiddenParagraph?: boolean } = {}) {
       html = `<!doctype html><meta charset="utf-8"><title>Synthetic semantic fixture</title>
 <style>[role=textbox]{width:450px;min-height:80px;border:1px solid black} button{min-width:180px;min-height:40px}</style>
 ${options.logout ? '<button>Log in</button>' : '<div role="textbox" contenteditable="true"></div>'}
@@ -47,6 +47,7 @@ if (composer) {
       lines.forEach((line, index) => {
         if (options.alterParagraph) line = line.replace('Keep  two', 'Keep two');
         const paragraph = document.createElement('p');
+        if (options.hiddenParagraph && index === lines.length - 1) paragraph.hidden = true;
         if (index === 0 && retained && line.startsWith(name)) {
           paragraph.append(retained, document.createTextNode(line.slice(name.length)));
         } else if (line) paragraph.textContent = line;

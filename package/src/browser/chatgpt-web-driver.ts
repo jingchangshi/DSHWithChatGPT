@@ -49,6 +49,13 @@ const composerText = node => {
   if (typeof node.value === 'string') return node.value;
   const paragraphs = Array.from(node.childNodes);
   if (!paragraphs.length || !paragraphs.every(child => child.nodeType === 1 && child.tagName === 'P')) return node.innerText || node.textContent || '';
+  for (const paragraph of paragraphs) {
+    for (const element of [paragraph, ...paragraph.querySelectorAll('*')]) {
+      if (element !== paragraph && !(element.textContent || '').length) continue;
+      const style = getComputedStyle(element);
+      if (element.closest('[hidden], [aria-hidden="true"], [inert]') || style.display === 'none' || style.visibility === 'hidden' || style.visibility === 'collapse') throw new Error('Paragraph composer contains hidden content');
+    }
+  }
   const inlineText = child => {
     if (child.nodeType === 3) return child.data;
     if (child.nodeType !== 1) return '';

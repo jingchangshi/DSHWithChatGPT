@@ -51,6 +51,14 @@ it('refuses changed payload whitespace in a paragraph composer without sending',
   expect(await primitives.evaluate('document.querySelector("[role=textbox]").textContent.includes("Keep two spaces.")')).toBe(true)
 })
 
+it('refuses hidden paragraph payload without sending or deleting its draft', async () => {
+  await page({ apps: ['DSH with ChatGPT'], paragraphComposer: true, hiddenParagraph: true })
+  const driver = new ChatGptWebDriver(primitives, 'DSH with ChatGPT')
+  await expect(driver.sendControlMessage('STATE: INIT\nHidden goal.')).rejects.toMatchObject({ name: 'BrowserStaleError' })
+  expect(await primitives.evaluate('window.enterCount')).toBe(0)
+  expect(await primitives.evaluate('document.querySelector("[role=textbox]").textContent.includes("Hidden goal.")')).toBe(true)
+})
+
 it.each([[], ['DSH with ChatGPT', 'DSH with ChatGPT']])('rejects missing or ambiguous App without sending', async apps => {
   await page({ apps })
   const driver = new ChatGptWebDriver(primitives, 'DSH with ChatGPT')
