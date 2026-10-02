@@ -54,6 +54,83 @@ describe('canonical coordinator v2 creation gate', () => {
       return callback({ workspaceId: 'world', signal: signal ?? new AbortController().signal, snapshot })
     } }
   }
+  it.each(['sending', 'uncertain'] as const)('recovers EXECUTED %s from its source without resending or replacing intent', async phase => {
+    const authority = gitAuthority(async () => proof)
+    const { c, b, taskId } = await planned({ gitAuthority: authority })
+    const commit = c.stateHandle.commitTask.bind(c.stateHandle)
+    let fail = true
+    c.stateHandle.commitTask = async (id, revision, value) => {
+      if (fail && (value as any).round?.kind === 'EXECUTED' && (value as any).round.phase === 'observed-sent') throw new Error('publication crash')
+      return commit(id, revision, value)
+    }
+    await expect(c.reportCanonicalExecuted(taskId, { changedFiles: [], head: proof.head, testsRecorded: true })).rejects.toThrow('publication crash')
+    fail = false
+    let pending = (await c.stateHandle.loadTaskSnapshot(taskId))!
+    if (phase === 'uncertain') pending = await commit(taskId, pending.revision, {
+      ...pending.value, round: { ...(pending.value as any).round, phase },
+    } as any)
+    const intent = structuredClone((pending.value as any).round)
+    b.waitForReply = async () => ({ complete: true, text: formatPlannerEnvelope({ sender: 'planner', state: 'DONE',
+      taskId, workspaceId: 'world', iteration: 1, inReplyTo: 1, head: proof.head, sections: { SUMMARY: 'Recovered' } }) })
+    const restarted = new ChatGptCoordinator({ browser: b, store: c.stateHandle, workspaceRoot: 'C:\\ws\\canonical',
+      workspaceId: 'world', canonicalProtocol: true, gitAuthority: authority })
+    const result = await restarted.reportCanonicalExecuted(taskId, { changedFiles: ['ignored'], head: proof.head, testsRecorded: true })
+    const round = (result.record as any).round
+    expect(round.phase).toBe('accepted')
+    expect(round.sendOperationId).toBe(intent.sendOperationId)
+    expect(round.waitOperationId).toBe(intent.waitOperationId)
+    expect(round.controlDigest).toBe(intent.controlDigest)
+    expect(round.baseline).toEqual(intent.baseline)
+    expect(round.git).toEqual(intent.git)
+    expect(b.sent).toHaveLength(2)
+  })
+  it.each(['missing-source', 'changed-source', 'cancelled-source', 'stale-revision'] as const)('fences EXECUTED recovery with %s before waiting', async scenario => {
+    const authority = gitAuthority(async () => proof)
+    const { c, b, taskId } = await planned({ gitAuthority: authority })
+    b.captureSendObservation = async () => { throw new Error('proof unavailable') }
+    await expect(c.reportCanonicalExecuted(taskId, { changedFiles: [], head: proof.head, testsRecorded: true })).rejects.toThrow()
+    const pending = (await c.stateHandle.loadTaskSnapshot(taskId))!
+    const abort = new AbortController()
+    let expected = pending
+    let observations = 0
+    b.captureSendObservation = async () => {
+      observations++
+      if (scenario === 'missing-source') throw Object.assign(new Error('SEND_UNCERTAIN'), { code: 'SEND_UNCERTAIN' })
+      if (scenario === 'cancelled-source') abort.abort()
+      if (scenario === 'stale-revision') expected = await c.stateHandle.commitTask(taskId, pending.revision, pending.value)
+      return { ...baseline, conversationId: 'owned-chat', ...(scenario === 'changed-source' ? { assistantCount: 9 } : {}) }
+    }
+    let waits = 0
+    b.waitForReply = async () => { waits++; throw new Error('unexpected wait') }
+    await expect(c.reportCanonicalExecuted(taskId, { changedFiles: [], head: proof.head, testsRecorded: true }, abort.signal)).rejects.toThrow()
+    expect(await c.stateHandle.loadTaskSnapshot(taskId)).toEqual(expected)
+    expect(waits).toBe(0)
+    expect(observations).toBe(1)
+    expect(b.sent).toHaveLength(2)
+  })
+  it('recovers a failed DONE publication with the same pending round and no duplicate EXECUTED', async () => {
+    const authority = gitAuthority(async () => proof)
+    const { c, b, taskId } = await planned({ gitAuthority: authority })
+    b.waitForReply = async () => ({ complete: true, text: formatPlannerEnvelope({ sender: 'planner', state: 'DONE',
+      taskId, workspaceId: 'world', iteration: 1, inReplyTo: 1, head: proof.head, sections: { SUMMARY: 'Atomic result' } }) })
+    const commit = c.stateHandle.commitTask.bind(c.stateHandle)
+    let fail = true
+    c.stateHandle.commitTask = async (id, revision, value) => {
+      if (fail && value.state === 'done') throw new Error('publication crash')
+      return commit(id, revision, value)
+    }
+    await expect(c.reportCanonicalExecuted(taskId, { changedFiles: [], head: proof.head, testsRecorded: true })).rejects.toThrow('publication crash')
+    const pending = (await c.stateHandle.loadTaskSnapshot(taskId))!
+    expect((pending.value as any).round.phase).toBe('awaiting-reply')
+    expect((pending.value as any).round.outcome).toBeUndefined()
+    expect(pending.value.state).toBe('awaiting-review')
+    fail = false
+    const result = await c.reportCanonicalExecuted(taskId, { changedFiles: [], head: proof.head, testsRecorded: true })
+    expect(result.record.state).toBe('done')
+    expect((result.record as any).round.outcome.sections.SUMMARY).toBe('Atomic result')
+    expect((result.record as any).round.sendOperationId).toBe((pending.value as any).round.sendOperationId)
+    expect(b.sent).toHaveLength(2)
+  })
   it.each([
     [{ clean: false }, 'GIT_WORKTREE_DIRTY'],
     [{ ahead: 1 }, 'GIT_NOT_PUSHED'],

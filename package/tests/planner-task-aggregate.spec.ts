@@ -32,6 +32,23 @@ function accepted(value: PersistedTask) {
 }
 
 describe('canonical task aggregate persistence without runtime enablement', () => {
+  it('admits bootstrap route and epoch promotion only once without relaxing semantic baseline identity', async () => {
+    const store = new CoordinatorState(createMemoryStore())
+    const created = await store.createTask(typed(prepared()))
+    const sending = await store.commitTask(taskId, created.revision, typed({ ...created.value, round: { ...prepared().round, phase: 'sending' } }))
+    const next: any = { ...sending.value, conversationId: 'owned', round: { ...prepared().round, phase: 'observed-sent',
+      baseline: { ...baseline, conversationId: 'owned', observationEpoch: 'e'.repeat(64) } } }
+    for (const field of ['assistantCount', 'textDigest']) {
+      const corrupt = structuredClone(next)
+      corrupt.round.baseline[field] = field === 'assistantCount' ? 1 : 'f'.repeat(64)
+      await expect(store.commitTask(taskId, sending.revision, corrupt)).rejects.toMatchObject({ code: 'REPLAY_CONFLICT' })
+      expect(await store.loadTaskSnapshot(taskId)).toEqual(sending)
+    }
+    const bound = await store.commitTask(taskId, sending.revision, next)
+    await expect(store.commitTask(taskId, bound.revision, { ...bound.value, round: { ...next.round, phase: 'awaiting-reply',
+      baseline: { ...next.round.baseline, observationEpoch: 'f'.repeat(64) } } } as any)).rejects.toMatchObject({ code: 'REPLAY_CONFLICT' })
+    expect(await store.loadTaskSnapshot(taskId)).toEqual(bound)
+  })
   it('admits bounded v2 intent in the real canonical schema and never requires a bootstrap conversation', () => {
     expect(plannerStateDomain.tables.tasks.valueSchema.parse(prepared())).toEqual(prepared())
   })

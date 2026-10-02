@@ -7,6 +7,10 @@ import { startSidecar } from '../src/sidecar/server.ts'
 import { SidecarChatControlClient } from '../src/sidecar/client.ts'
 import { protectPrivateStateDirectory } from '../src/deployment/private-state.ts'
 import { parseSidecarRequest } from '../src/sidecar/protocol.ts'
+import { ChatGptCoordinator } from '../src/orchestrator/coordinator.ts'
+import { CoordinatorState, createMemoryStore } from '../src/orchestrator/state.ts'
+import type { ReplyObservationBaseline } from '../src/core/ports/chat-control.ts'
+import { formatPlannerEnvelope } from '../src/protocol/planner-envelope.ts'
 
 const services: Awaited<ReturnType<typeof startSidecar>>[] = [], directories: string[] = []
 afterEach(async () => {
@@ -29,14 +33,66 @@ async function fixture() {
   const reconcile = vi.fn(async () => bound)
   const reply = vi.fn(async () => ({ text: 'private planner reply', complete: true }))
   const driver = { health: async () => ({ ok: true, detail: 'synthetic fixture' }), ensureReady: async () => {},
-    openConversation: async () => '', currentConversation: current, recover: async () => {}, sendControlMessage: message,
-    waitForReply: reply, captureReplyBaseline: async () => original, reconcileReplyBaseline: reconcile }
+    openConversation: async (id?: string) => id ?? 'owned', currentConversation: current, recover: async () => {}, sendControlMessage: message,
+    waitForReply: reply, captureReplyBaseline: async (): Promise<ReplyObservationBaseline> => original, reconcileReplyBaseline: reconcile }
   const config = { host: '127.0.0.1' as const, port: 0, authentication: 'test-only', stateDirectory: directory, driver, requestTimeoutMs: 1_000 }
   async function start() { const service = await startSidecar(config); services.push(service); return { service,
     client: new SidecarChatControlClient({ endpoint: service.endpoint, authentication: config.authentication, requestTimeoutMs: 1_000 }) as any } }
-  return { ...(await start()), start, directory, message, current, reconcile, reply }
+  return { ...(await start()), start, directory, message, current, reconcile, reply, driver }
 }
 describe('journal-derived send observation, synthetic provider only', () => {
+  it('binds the coordinator aggregate to the real Sidecar RPC observation with a changed epoch', async () => {
+    const f = await fixture()
+    const state = new CoordinatorState(createMemoryStore())
+    const coordinator = new ChatGptCoordinator({ browser: f.client, store: state,
+      workspaceRoot: 'C:\\ws\\canonical', workspaceId: 'world', canonicalProtocol: true })
+    const taskId = 'pb_' + 'e'.repeat(32)
+    await coordinator.startCanonicalTask(taskId, 'bootstrap epoch fidelity')
+    const saved = await coordinator.status(taskId) as any
+    expect(saved.round.phase).toBe('observed-sent')
+    expect(saved.round.baseline).toEqual(bound)
+    const disk = JSON.parse(await readFile(join(f.directory, 'delivery.json'), 'utf8'))
+    const source = disk.entries.find((entry: any) => entry.operationId === saved.round.sendOperationId)
+    expect(source.bootstrap.replyBaseline).toEqual(original)
+    expect(source.bootstrapBaseline).toEqual(bound)
+    expect(f.message).toHaveBeenCalledOnce()
+  })
+  it('recovers an ACKed EXECUTED after Sidecar restart using its journal and publishes DONE atomically', async () => {
+    const f = await fixture()
+    const store = new CoordinatorState(createMemoryStore())
+    const proof = { head: 'a'.repeat(40), upstreamHead: 'a'.repeat(40), branch: 'feature', upstream: 'origin/feature', clean: true, ahead: 0, behind: 0 }
+    const gitAuthority = { async withAuthority<T>(callback: (authority: any) => Promise<T>, signal?: AbortSignal) {
+      return callback({ workspaceId: 'world', signal: signal ?? new AbortController().signal, snapshot: async () => proof })
+    } }
+    const options = { store, workspaceRoot: 'C:\\ws\\canonical', workspaceId: 'world', canonicalProtocol: true, gitAuthority }
+    const coordinator = new ChatGptCoordinator({ ...options, browser: f.client })
+    const taskId = 'pb_' + 'f'.repeat(32)
+    await coordinator.startCanonicalTask(taskId, 'recover review')
+    f.reply.mockResolvedValueOnce({ complete: true, text: formatPlannerEnvelope({ sender: 'planner', state: 'PLAN', taskId,
+      workspaceId: 'world', iteration: 1, inReplyTo: 0, sections: { ACTIONS: 'Implement' } }) })
+    await coordinator.awaitPlan(taskId)
+    f.driver.captureReplyBaseline = async () => bound
+    const commit = store.commitTask.bind(store)
+    let fail = true
+    store.commitTask = async (id, revision, value) => {
+      if (fail && (value as any).round?.kind === 'EXECUTED' && (value as any).round.phase === 'observed-sent') throw new Error('publication crash')
+      return commit(id, revision, value)
+    }
+    const crash = await coordinator.reportCanonicalExecuted(taskId, { changedFiles: [], head: proof.head, testsRecorded: true }).catch(error => error)
+    expect(crash.message, crash.stack).toBe('publication crash')
+    const pending = (await store.loadTask(taskId)) as any
+    expect(pending.round.phase).toBe('sending')
+    fail = false
+    await f.service.close()
+    const restarted = new ChatGptCoordinator({ ...options, browser: (await f.start()).client })
+    f.reply.mockResolvedValueOnce({ complete: true, text: formatPlannerEnvelope({ sender: 'planner', state: 'DONE', taskId,
+      workspaceId: 'world', iteration: 1, inReplyTo: 1, head: proof.head, sections: { SUMMARY: 'Reviewed' } }) })
+    const result = await restarted.reportCanonicalExecuted(taskId, { changedFiles: [], head: proof.head, testsRecorded: true })
+    expect(result.record.state).toBe('done')
+    expect((result.record as any).round).toMatchObject({ phase: 'accepted', sendOperationId: pending.round.sendOperationId,
+      outcome: { state: 'DONE', head: proof.head, sections: { SUMMARY: 'Reviewed' } } })
+    expect(f.message).toHaveBeenCalledTimes(2)
+  })
   it('retains the input owner and refuses capture until provider ACK returns', async () => {
     const f = await fixture()
     let release!: () => void

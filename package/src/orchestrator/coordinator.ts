@@ -267,6 +267,7 @@ export class ChatGptCoordinator {
     const activeRound = active.round!
     const reply = await this.options.browser.waitForReply(this.replyTimeoutMs, signal, {
       operationId: activeRound.waitOperationId,
+      replyBaseline: activeRound.baseline,
       replyRecovery: { sendOperationId: activeRound.sendOperationId },
       correlation: { taskId, iteration: activeRound.iteration, workspaceId: this.options.workspaceId, phase: 'PLAN' },
     })
@@ -301,7 +302,33 @@ export class ChatGptCoordinator {
       if (taskProtocolVersion(aggregate) !== 2 || aggregate.workspaceId !== this.options.workspaceId || !aggregate.round) {
         throw new ProtocolError('unexpected-reply', 'canonical task history unavailable')
       }
-      const resuming = aggregate.round.kind === 'EXECUTED' && ['observed-sent', 'awaiting-reply'].includes(aggregate.round.phase)
+      const resuming = aggregate.round.kind === 'EXECUTED' && ['sending', 'observed-sent', 'awaiting-reply', 'uncertain'].includes(aggregate.round.phase)
+      if (resuming) {
+        const round = aggregate.round
+        const proof = this.requireGitProof(await authority.snapshot(), round.git!.head)
+        this.requireGitAuthority(authority, activeSignal)
+        if (summary.head !== round.git!.head || proof.branch !== round.git!.branch || proof.upstream !== round.git!.upstream) {
+          throw Object.assign(new Error('GIT_STATE_CHANGED'), { code: 'GIT_STATE_CHANGED' })
+        }
+        if (round.phase === 'sending' || round.phase === 'uncertain') {
+          const observation = this.options.browser as Partial<ChatSendObservationControl>
+          if (typeof observation.captureSendObservation !== 'function') {
+            throw Object.assign(new Error('SEND_UNCERTAIN'), { code: 'SEND_UNCERTAIN' })
+          }
+          // Source-derived proof only. The current browser route and caller's
+          // summary cannot establish that this immutable intent was delivered.
+          const bound = await observation.captureSendObservation(round.sendOperationId, activeSignal)
+          this.requireGitAuthority(authority, activeSignal)
+          if (bound.version !== round.baseline.version || bound.conversationId !== round.baseline.conversationId
+            || bound.assistantCount !== round.baseline.assistantCount || bound.textDigest !== round.baseline.textDigest
+            || bound.observationEpoch !== round.baseline.observationEpoch) {
+            throw Object.assign(new Error('SEND_UNCERTAIN'), { code: 'SEND_UNCERTAIN' })
+          }
+          snapshot = await this.state.commitTask(taskId, snapshot.revision, {
+            ...aggregate, round: { ...round, phase: round.phase === 'sending' ? 'observed-sent' : 'awaiting-reply' },
+          } as PlannerTaskAggregate)
+        }
+      }
       if (!resuming) {
         if (aggregate.round.phase !== 'accepted' || aggregate.round.outcome?.state !== 'PLAN') {
           throw Object.assign(new Error('SEND_UNCERTAIN'), { code: 'SEND_UNCERTAIN' })
@@ -347,7 +374,9 @@ export class ChatGptCoordinator {
         this.requireGitAuthority(authority, activeSignal)
         const bound = await observation.captureSendObservation(round.sendOperationId, activeSignal)
         this.requireGitAuthority(authority, activeSignal)
-        if (bound.conversationId !== baseline.conversationId || bound.assistantCount !== baseline.assistantCount || bound.textDigest !== baseline.textDigest) {
+        if (bound.version !== baseline.version || bound.conversationId !== baseline.conversationId
+          || bound.assistantCount !== baseline.assistantCount || bound.textDigest !== baseline.textDigest
+          || bound.observationEpoch !== baseline.observationEpoch) {
           throw Object.assign(new Error('SEND_UNCERTAIN'), { code: 'SEND_UNCERTAIN' })
         }
         snapshot = await this.state.commitTask(taskId, snapshot.revision, {
@@ -362,7 +391,7 @@ export class ChatGptCoordinator {
         round = aggregate.round!
       }
       const reply = await this.options.browser.waitForReply(this.replyTimeoutMs, activeSignal, {
-        operationId: round.waitOperationId, replyRecovery: { sendOperationId: round.sendOperationId },
+        operationId: round.waitOperationId, replyBaseline: round.baseline, replyRecovery: { sendOperationId: round.sendOperationId },
         correlation: { taskId, workspaceId: this.options.workspaceId, iteration: round.iteration, phase: 'DONE', head: round.git!.head },
       })
       this.requireGitAuthority(authority, activeSignal)

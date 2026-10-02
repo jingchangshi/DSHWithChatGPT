@@ -96,12 +96,13 @@ export function requirePlannerTaskTransition(previous: PersistedTask | undefined
   const oldIdentity = identity(old)
   const nextIdentity = identity(round)
   // Bootstrap binding records the provider conversation observed by the same
-  // live send operation. The baseline's route field is therefore allowed to
-  // change from null exactly at sending -> observed-sent; all other intent
-  // fields remain immutable.
+  // live send operation. Creating the conversation also promotes its document
+  // epoch. Both fields can change exactly once at sending -> observed-sent;
+  // the source journal retains the original intent and all semantic baseline
+  // fields remain immutable here.
   if (old.phase === 'sending' && round.phase === 'observed-sent'
     && old.baseline.conversationId === null && round.baseline.conversationId !== null) {
-    nextIdentity.baseline = { ...nextIdentity.baseline, conversationId: null }
+    nextIdentity.baseline = { ...nextIdentity.baseline, conversationId: null, observationEpoch: old.baseline.observationEpoch }
   }
   if (!isDeepStrictEqual(oldIdentity, nextIdentity)) fail('REPLAY_CONFLICT')
   if (!transitions[old.phase].includes(round.phase)) fail('REPLAY_CONFLICT')
