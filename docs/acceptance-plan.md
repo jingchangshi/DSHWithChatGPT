@@ -4,6 +4,10 @@ Status: PARTIAL — the full Windows deployment remains unfinished. Scoped canon
 
 ## Baseline and stages
 
+The latest whole-goal priority refresh is [current-delivery-plan.md](current-delivery-plan.md).
+It preserves all original requirements and separates the successful real App
+proof from the still-failed INIT/product acceptance gate.
+
 ### Current goal audit and delivery priority (2026-10-02)
 
 Latest full fake-stack delivery checkpoint: `189222b`; latest bounded

@@ -33,6 +33,24 @@ it('selects one exact App and dispatches the control message exactly once', asyn
   expect(await driver.currentConversation()).toBe('promoted')
 })
 
+it('preserves multiline control payload through paragraph-based composer rendering', async () => {
+  await page({ apps: ['DSH with ChatGPT'], paragraphComposer: true })
+  const driver = new ChatGptWebDriver(primitives, 'DSH with ChatGPT')
+  const control = '[PLANNER_EXECUTOR]\nSTATE: INIT\n\nGOAL:\nImplement interval subtraction.\nKeep  two spaces and\tthis tab.'
+  await driver.sendControlMessage(control)
+  expect(await primitives.evaluate('window.enterCount')).toBe(1)
+  expect(await primitives.evaluate('window.sent.map(text => text.replace(/\u00a0/g, " "))')).toEqual(['DSH with ChatGPT ' + control])
+  expect(await driver.currentConversation()).toBe('promoted')
+})
+
+it('refuses changed payload whitespace in a paragraph composer without sending', async () => {
+  await page({ apps: ['DSH with ChatGPT'], paragraphComposer: true, alterParagraph: true })
+  const driver = new ChatGptWebDriver(primitives, 'DSH with ChatGPT')
+  await expect(driver.sendControlMessage('STATE: INIT\n\nKeep  two spaces.')).rejects.toMatchObject({ name: 'BrowserStaleError' })
+  expect(await primitives.evaluate('window.enterCount')).toBe(0)
+  expect(await primitives.evaluate('document.querySelector("[role=textbox]").textContent.includes("Keep two spaces.")')).toBe(true)
+})
+
 it.each([[], ['DSH with ChatGPT', 'DSH with ChatGPT']])('rejects missing or ambiguous App without sending', async apps => {
   await page({ apps })
   const driver = new ChatGptWebDriver(primitives, 'DSH with ChatGPT')

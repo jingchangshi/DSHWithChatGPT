@@ -25,7 +25,7 @@ export async function syntheticCdpDocument(endpoint: string, targetId: string) {
   })
   await session.command('Fetch.enable', { patterns: [{ urlPattern: 'https://chatgpt.com/*', requestStage: 'Request' }] })
   return {
-    serve(options: { apps?: string[]; draft?: string; logout?: boolean; foreignOnInput?: boolean; replaceOnInput?: boolean; baseline?: boolean } = {}) {
+    serve(options: { apps?: string[]; draft?: string; logout?: boolean; foreignOnInput?: boolean; replaceOnInput?: boolean; baseline?: boolean; paragraphComposer?: boolean; alterParagraph?: boolean } = {}) {
       html = `<!doctype html><meta charset="utf-8"><title>Synthetic semantic fixture</title>
 <style>[role=textbox]{width:450px;min-height:80px;border:1px solid black} button{min-width:180px;min-height:40px}</style>
 ${options.logout ? '<button>Log in</button>' : '<div role="textbox" contenteditable="true"></div>'}
@@ -36,6 +36,25 @@ window.enterCount = 0; window.sent = []; window.keys = [];
 const composer = document.querySelector('[role=textbox]');
 if (composer) {
   composer.textContent = options.draft || (location.pathname === '/c/replacement' ? 'replacement draft' : '');
+  composer.addEventListener('beforeinput', event => {
+    if (options.paragraphComposer && event.data?.includes('\\n')) {
+      event.preventDefault();
+      const lines = (composer.innerText + event.data).split('\\n');
+      const atom = composer.querySelector('[app-mention-display-name]');
+      const retained = atom?.cloneNode(true);
+      const name = atom?.getAttribute('app-mention-display-name') || '';
+      composer.replaceChildren();
+      lines.forEach((line, index) => {
+        if (options.alterParagraph) line = line.replace('Keep  two', 'Keep two');
+        const paragraph = document.createElement('p');
+        if (index === 0 && retained && line.startsWith(name)) {
+          paragraph.append(retained, document.createTextNode(line.slice(name.length)));
+        } else if (line) paragraph.textContent = line;
+        else paragraph.append(document.createElement('br'));
+        composer.append(paragraph);
+      });
+    }
+  });
   composer.addEventListener('input', () => {
     if (options.foreignOnInput) { history.pushState(null, '', '/c/foreign'); composer.textContent = 'foreign draft'; }
     if (options.replaceOnInput) location.href = '/c/replacement';
@@ -43,7 +62,8 @@ if (composer) {
   composer.addEventListener('keydown', event => {
     window.keys.push(event.key);
     if (event.key === 'Enter') {
-      event.preventDefault(); window.enterCount++; window.sent.push(composer.innerText);
+      event.preventDefault(); window.enterCount++; window.sent.push(options.paragraphComposer && composer.querySelector('p')
+        ? Array.from(composer.children).map(node => node.textContent).join('\\n') : composer.innerText);
       if (location.pathname === '/') history.pushState(null, '', '/c/promoted');
       composer.textContent = '';
     }

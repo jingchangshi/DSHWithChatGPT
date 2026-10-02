@@ -43,6 +43,24 @@ const composer = composerNodes.length === 1 ? composerNodes[0] : null;
 // contenteditable presents a leading separator as NBSP. Normalize only this
 // browser spacing representation when comparing ownership, never the payload.
 const draftText = text => String(text).replace(/\u00a0/g, ' ').trim();
+// Paragraph editors render additional visual line breaks in innerText. Read
+// their logical paragraph boundaries without collapsing payload whitespace.
+const composerText = node => {
+  if (typeof node.value === 'string') return node.value;
+  const paragraphs = Array.from(node.childNodes);
+  if (!paragraphs.length || !paragraphs.every(child => child.nodeType === 1 && child.tagName === 'P')) return node.innerText || node.textContent || '';
+  const inlineText = child => {
+    if (child.nodeType === 3) return child.data;
+    if (child.nodeType !== 1) return '';
+    if (child.tagName === 'BR') return '\n';
+    return Array.from(child.childNodes).map(inlineText).join('');
+  };
+  return paragraphs.map(paragraph => {
+    const children = Array.from(paragraph.childNodes);
+    if (children.length === 1 && children[0].nodeType === 1 && children[0].tagName === 'BR') return '';
+    return children.filter(child => !(child.nodeType === 1 && child.tagName === 'BR' && child.classList.contains('ProseMirror-trailingBreak'))).map(inlineText).join('');
+  }).join('\n');
+};
 `
 
 /** Shared ChatGPT Web semantics, independent of transport and host. */
@@ -437,7 +455,7 @@ export class ChatGptWebDriver implements ChatRecoveryControl {
     const valid = await this.evaluate<unknown>([
       '(() => {', composerScript,
       'if (!composer) return false;',
-      'const content = typeof composer.value === "string" ? composer.value : (composer.innerText || composer.textContent || "");',
+      'const content = composerText(composer);',
       'return draftText(content) === draftText(' + JSON.stringify('@' + appName) + ') && !composer.querySelector(' + JSON.stringify('[contenteditable="false"], [data-lexical-decorator="true"], [data-mention], [app-mention-display-name]') + ');',
       '})()',
     ].join(' '), signal)
@@ -528,7 +546,7 @@ export class ChatGptWebDriver implements ChatRecoveryControl {
       'if (!composer) return { count: composerNodes.length, empty: false };',
       'composer.setAttribute("data-plannerbridge-composer-target", "1");',
       'const draft = ' + JSON.stringify(draft ?? { texts: [] }) + ';',
-      'const content = draftText(typeof composer.value === "string" ? composer.value : (composer.innerText || composer.textContent || ""));',
+      'const content = draftText(composerText(composer));',
       String.raw`return { count: 1, empty: !content && !composer.querySelector('[contenteditable="false"], [data-lexical-decorator="true"], [data-mention]'), owned: draft.texts.some(text => draftText(text) === content), focused: document.activeElement === composer || composer.contains(document.activeElement) };`,
       '})()',
     ].join(' '), signal)
@@ -631,7 +649,7 @@ export class ChatGptWebDriver implements ChatRecoveryControl {
     const selected = await this.evaluate<unknown>([
       '(() => {', composerScript,
       'if (!composer || document.activeElement !== composer) return false;',
-      'const content = typeof composer.value === "string" ? composer.value : (composer.innerText || composer.textContent || "");',
+      'const content = composerText(composer);',
       'const draft = ' + JSON.stringify(draft) + ';',
       'if (!draft.texts.some(text => draftText(text) === draftText(content))) return false;',
       'if (typeof composer.value === "string") return composer.selectionStart === 0 && composer.selectionEnd === composer.value.length;',
