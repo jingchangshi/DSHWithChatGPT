@@ -33,10 +33,10 @@ export function apply(ctx, config) {
     if (result.isError === true) emit({ kind: 'tool-error', name: exec.name, code: result.error?.code, message: content.slice(0, 1500) })
     const record = { kind: 'result', name: exec.name, callId: exec.callId, ...dispatched.get(exec.callId), sessionId: exec.agent?.session.id, isError: result.isError === true, exitCode: value?.exitCode, nonce }
     dispatched.delete(exec.callId)
-    if (exec.name.startsWith('chatgpt_')) Object.assign(record, { taskId: value?.taskId ?? value?.task?.taskId, workspaceId: value?.workspaceId, head: value?.head, state: value?.state ?? value?.task?.state, iteration: value?.iteration ?? value?.task?.iteration, recovered: value?.recovered, localReady: value?.localReady, appDataPlaneVerified: value?.appDataPlaneVerified, checks: value?.checks, reviewNonce: typeof value?.summary === 'string' ? marker(value.summary) : undefined })
-    if (!record.isError && record.taskId && record.workspaceId && Number.isInteger(record.iteration)) scopes.set(record.sessionId, { taskId: record.taskId, workspaceId: record.workspaceId, iteration: record.iteration })
+    if (exec.name.startsWith('chatgpt_')) Object.assign(record, { taskId: value?.taskId ?? value?.task?.taskId, workspaceId: value?.workspaceId, head: value?.head, state: value?.state ?? value?.task?.state, iteration: value?.iteration ?? value?.task?.iteration, protocolVersion: value?.protocolVersion ?? value?.task?.protocolVersion, recovered: value?.recovered, localReady: value?.localReady, appDataPlaneVerified: value?.appDataPlaneVerified, checks: value?.checks, reviewNonce: typeof value?.summary === 'string' ? marker(value.summary) : undefined })
+    if (!record.isError && record.taskId && record.workspaceId && Number.isInteger(record.iteration)) scopes.set(record.sessionId, { taskId: record.taskId, workspaceId: record.workspaceId, iteration: record.iteration, protocolVersion: record.protocolVersion })
     emit(record)
-    if (config.stopOnFix && process.env.PLANNER_EXECUTOR_PHASE === '1' && exec.name === 'chatgpt_review' && value?.state === 'planned' && exec.agent) pending.set(exec.agent.session.id, { sessionId: exec.agent.session.id, taskId: value.taskId, workspaceId: value.workspaceId, iteration: value.iteration, callId: exec.callId })
+    if (config.stopOnFix && process.env.PLANNER_EXECUTOR_PHASE === '1' && exec.name === 'chatgpt_review' && value?.state === 'planned' && exec.agent) pending.set(exec.agent.session.id, { sessionId: exec.agent.session.id, taskId: value.taskId, workspaceId: value.workspaceId, iteration: value.iteration, protocolVersion: value.protocolVersion, callId: exec.callId })
   })
   ctx.on('session/event', (session, event) => {
     const checkpoint = pending.get(session.id)

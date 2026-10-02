@@ -1,4 +1,4 @@
-import type { ExecutionWorkspacePort } from '../../core/ports/execution-workspace.ts'
+import type { ExecutionWorkspacePort, WorkspaceAuthority } from '../../core/ports/execution-workspace.ts'
 import type { GitAuthority, GitAuthorityPort } from '../../core/ports/git-authority.ts'
 import { WorkspaceRuntimeRegistry } from '../../workspace/runtime.ts'
 import { gitStatus } from '../../workspace/git.ts'
@@ -12,17 +12,19 @@ export class DshGitAuthorityAdapter implements GitAuthorityPort {
     locator: unknown
     workspaceId: string
     gitAssurance?: 'hardened'
+    /** Reuse the producer authority owned by the enclosing tool operation. */
+    authority?: WorkspaceAuthority
   }) {}
 
   withAuthority<Result>(callback: (authority: GitAuthority) => Promise<Result>, signal?: AbortSignal): Promise<Result> {
-    return this.options.workspace.withOperation({ locator: this.options.locator, capabilities: ['gitRead'],
-      ...(this.options.gitAssurance ? { gitAssurance: this.options.gitAssurance } : {}) }, async owner => {
+    const run = async (owner: WorkspaceAuthority): Promise<Result> => {
       if (owner.identity.workspaceId !== this.options.workspaceId) throw new Error('GIT_PROOF_UNAVAILABLE')
       owner.require('gitRead')
       const acquired = this.options.registry.require(this.options.workspaceId, 'gitRead')
       let settled = false
       const check = () => {
         if (settled) throw new Error('GIT_PROOF_UNAVAILABLE')
+        throwIfCancelled(signal)
         throwIfCancelled(owner.signal)
         owner.require('gitRead')
         if (this.options.registry.require(this.options.workspaceId, 'gitRead').token !== acquired.token) throw new Error('GIT_PROOF_UNAVAILABLE')
@@ -45,6 +47,9 @@ export class DshGitAuthorityAdapter implements GitAuthorityPort {
             clean: !second.dirty, ahead: second.ahead, behind: second.behind }
         } })
       } finally { settled = true }
-    }, signal)
+    }
+    if (this.options.authority) return run(this.options.authority)
+    return this.options.workspace.withOperation({ locator: this.options.locator, capabilities: ['gitRead'],
+      ...(this.options.gitAssurance ? { gitAssurance: this.options.gitAssurance } : {}) }, run, signal)
   }
 }

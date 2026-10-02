@@ -101,7 +101,11 @@ export class SidecarChatControlClient implements ChatSendObservationControl, Cha
   }
   async ensureReady(signal?: AbortSignal): Promise<void> { this.checkVoid(await this.call('ensureReady', {}, signal)) }
   async openConversation(conversationId?: string, signal?: AbortSignal): Promise<string> {
-    const parsed = conversationSchema.safeParse(await this.call('openConversation', { conversationId }, signal))
+    const result = await this.call('openConversation', { conversationId }, signal)
+    // The semantic driver's explicit new-chat route has no conversation ID
+    // until the first owned send is observed. Known routes still require IDs.
+    if (conversationId === undefined && result === '') return ''
+    const parsed = conversationSchema.safeParse(result)
     if (!parsed.success) throw new SidecarRpcError('SIDECAR_INVALID_REQUEST')
     return parsed.data
   }

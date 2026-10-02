@@ -1,6 +1,7 @@
 import type { TaskReader } from '../core/ports/state-store.ts'
 import type { ExecutionOutputScope } from '../workspace/runtime.ts'
 import { evidenceIteration } from './observe.ts'
+import { taskProtocolVersion } from '../core/model.ts'
 
 export async function reviewOutputScope(
   state: TaskReader,
@@ -14,7 +15,7 @@ export async function reviewOutputScope(
   switch (task.state) {
     case 'planned':
     case 'executing':
-      return { taskId, iteration: evidenceIteration(task.iteration) }
+      return { taskId, iteration: evidenceIteration(task.iteration, taskProtocolVersion(task)) }
     case 'executed':
     case 'awaiting-review':
       return { taskId, iteration: task.iteration }

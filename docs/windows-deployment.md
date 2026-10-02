@@ -16,6 +16,13 @@ Status: PARTIAL — Stage A target; environment snapshot and command results are
 
 ## Composition and startup
 
+Primary Sidecar tasks use protocol v2 and always require a clean, non-protected
+task branch with an exact committed HEAD pushed to its configured upstream
+before review. Status and the Executor prompt advertise `commit-push` for this
+primary path. The historical `gitPolicy: worktree` setting applies only to v1
+compatibility review; it cannot relax canonical Git proof. Persisted v1 tasks
+retain their original dispatch and evidence iteration semantics.
+
 1. Start Browser B using `scripts/start-product-browser.ps1`; user performs login/2FA/CAPTCHA. Existing unrelated Chrome profiles and processes must not be changed. Verify the listener's actual address, dedicated profile and target before binding.
 2. Supply a random Sidecar authentication secret via environment or private user-state credential file, never CLI argv or workspace. Sidecar uses a configured loopback CDP endpoint; the semantic client only knows its loopback RPC endpoint.
 3. Start `chat-control-sidecar`, verifying RPC version, startup generation, target binding and authenticated health. No arbitrary methods/navigation/JS pass through RPC.

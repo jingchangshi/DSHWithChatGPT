@@ -32,7 +32,7 @@ test('observer freezes shell task/workspace/iteration before dispatch and record
   const observed = fixture(report)
   const agent = { session: { id: 'session' } }
   const plan = { name: 'chatgpt_plan', callId: 'plan', agent, arguments: { goal: 'work' } }
-  observed.handlers.get('tools/result')(plan, { value: { taskId: 'task', workspaceId: 'workspace', iteration: 2, state: 'planned' } })
+  observed.handlers.get('tools/result')(plan, { value: { taskId: 'task', workspaceId: 'workspace', iteration: 2, state: 'planned', protocolVersion: 2 } })
   const exec = { name: 'pwsh', callId: 'shell', agent, arguments: { command: 'npm test' } }
   await observed.handlers.get('tools/execute')(exec, async () => ({}))
   observed.handlers.get('tools/result')(plan, { value: { taskId: 'other', workspaceId: 'other-workspace', iteration: 9, state: 'planned' } })
@@ -41,6 +41,7 @@ test('observer freezes shell task/workspace/iteration before dispatch and record
   assert.equal(recorded.taskId, 'task')
   assert.equal(recorded.workspaceId, 'workspace')
   assert.equal(recorded.iteration, 2)
+  assert.equal(recorded.protocolVersion, 2)
   const review = { name: 'chatgpt_review', callId: 'review', agent, arguments: { taskId: 'other', head: 'b'.repeat(40) } }
   await observed.handlers.get('tools/execute')(review, async () => ({}))
   observed.handlers.get('tools/result')(review, { value: { taskId: 'other', workspaceId: 'other-workspace', iteration: 10, state: 'done', head: 'b'.repeat(40) } })

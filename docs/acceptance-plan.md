@@ -26,6 +26,45 @@ The remaining critical path is product integration and real acceptance:
 | Final global review | NOT_RUN | audit final HEAD against every goal requirement and actual evidence |
 | Linux cross-host | FUTURE | no Linux implementation prerequisite for this Windows delivery |
 
+#### Goal refocus after production integration candidate (2026-10-02)
+
+The current uncommitted candidate wires Sidecar production start/review to v2,
+borrows the enclosing producer Git authority, and makes execution observation
+and the acceptance oracle use canonical same-round review identity. These are
+source changes with focused synthetic integration evidence, not installed
+product acceptance; the older production-composition row above describes the
+committed checkpoint. The candidate still needs build, regression, commit and
+independent exact-HEAD review. The in-development full run has already reported
+a bootstrap-client test failure and must not be described as passing.
+
+The delivery bottleneck is now proving the installed Windows chain, rather than
+adding more protocol abstractions. The next deliverables remain the four nodes
+below. A new repair must name a demonstrated failure or an unmet mandatory goal
+gate, its bounded fix, and the evidence that closes it. Once the relevant checks
+pass, advance to the next delivery node instead of opening another speculative
+hardening round. Do not reopen accepted foundations without new contradictory
+evidence, weaken security or assertions, or substitute synthetic DONE for real
+product completion.
+
+Overall completion requires the actual DSH/DeepSeek/ChatGPT loop, independent
+workspace/Git/raw-output reads including the stdout-only nonce, required recovery,
+matching task/workspace/iteration/pushed HEAD, and final global exact-HEAD review.
+Development connector health and scoped review counts do not close those gates.
+
+Iteration-48 candidate validation: after source freeze and a completed build,
+the full single-worker regression passed 83 files / 1040 tests, with 3 existing
+skips and no failures. This is not proof that earlier default-concurrency
+instability is resolved. The focused production/Git-authority/bootstrap RPC
+run passed 29 tests, and the observer's separate Node suite passed 3 tests.
+The isolated packed artifact passed import/type/runtime closure and separate
+synthetic Sidecar checks. Two actual DSH profile processes passed identity,
+reload/restart and authenticated Git-read checks with a synthetic Sidecar;
+they do not exercise the real Planner/Executor model loop. The development-time
+run remains recorded as 1037 pass / 2 fail / 3 skip: one failure loaded the old
+client during edits, and one child could not import a built file while a clean
+build overlapped the run. Independent exact-HEAD review and real primary E2E
+remain pending. Raw outputs are released as iteration-48 development records.
+
 Delivery order:
 
 1. Wire the canonical coordinator, producer-backed Git authority and matching

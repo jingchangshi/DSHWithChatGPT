@@ -41,6 +41,12 @@ async function fixture() {
   return { ...(await start()), start, directory, message, current, reconcile, reply, driver }
 }
 describe('journal-derived send observation, synthetic provider only', () => {
+  it('allows an empty new-conversation route through the client only for an explicit bootstrap open', async () => {
+    const f = await fixture()
+    f.driver.openConversation = async () => ''
+    expect(await f.client.openConversation()).toBe('')
+    await expect(f.client.openConversation('owned')).rejects.toMatchObject({ code: 'SIDECAR_INVALID_REQUEST' })
+  })
   it('binds the coordinator aggregate to the real Sidecar RPC observation with a changed epoch', async () => {
     const f = await fixture()
     const state = new CoordinatorState(createMemoryStore())

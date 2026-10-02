@@ -14,7 +14,8 @@ export function evaluateAcceptance({ records, runId, code, restartPending, git }
   const checkpoint = last(record => record.kind === 'restart-checkpoint')
   const fix = checkpoint && events.find(record => record.kind === 'result' && record.name === 'chatgpt_review' && record.callId === checkpoint.callId && record.sessionId === checkpoint.sessionId && record.state === 'planned' && !record.isError)
   const reconnect = last(record => record.kind === 'result' && record.name === 'chatgpt_reconnect' && !record.isError && record.recovered === true)
-  const sameTask = record => !!plan && !!record && record.taskId === plan.taskId && record.workspaceId === plan.workspaceId
+  const sameTask = record => !!plan && !!record && plan.protocolVersion === 2 && record.protocolVersion === 2
+    && record.taskId === plan.taskId && record.workspaceId === plan.workspaceId
   const tuplePresent = !!plan && typeof plan.taskId === 'string' && plan.taskId.length > 0 && typeof plan.workspaceId === 'string' && plan.workspaceId.length > 0
   const recoveryVerified = restartPending === true && sameTask(checkpoint) && sameTask(reconnect)
     && sameTask(fix) && fix.iteration === checkpoint.iteration && index(fix) < index(checkpoint)
@@ -23,7 +24,7 @@ export function evaluateAcceptance({ records, runId, code, restartPending, git }
     && index(reconnect) < index(testDispatch)
   const identityVerified = tuplePresent && sameTask(review) && sameTask(dispatch)
     && !review.isError && review.state === 'done' && dispatch.reviewTaskId === review.taskId
-    && Number.isInteger(dispatch.iteration) && review.iteration === dispatch.iteration + 1
+    && Number.isInteger(dispatch.iteration) && review.iteration === dispatch.iteration
     && review.phase === '2' && dispatch.phase === review.phase && index(dispatch) < index(review)
     && /^[a-f0-9]{40,64}$/.test(git.head) && review.head === git.head && dispatch.reviewHead === git.head
     && git.clean === true && typeof git.branch === 'string' && git.branch !== '' && !['main', 'master'].includes(git.branch)

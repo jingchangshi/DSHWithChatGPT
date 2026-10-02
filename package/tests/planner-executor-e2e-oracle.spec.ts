@@ -4,7 +4,7 @@ import { describe, expect, it } from 'vitest'
 
 const head = 'b'.repeat(40)
 const nonce = 'c'.repeat(32)
-const scope = { runId: 'run', taskId: 'task', workspaceId: 'workspace', sessionId: 'session' }
+const scope = { runId: 'run', taskId: 'task', workspaceId: 'workspace', sessionId: 'session', protocolVersion: 2 }
 function fixture() {
   return [
     { ...scope, phase: '1', kind: 'result', name: 'chatgpt_doctor', mode: 'local', localReady: true },
@@ -16,7 +16,7 @@ function fixture() {
     { ...scope, phase: '2', kind: 'dispatch', name: 'pwsh', iteration: 2, callId: 'test', testCommand: true },
     { ...scope, phase: '2', kind: 'result', name: 'pwsh', iteration: 2, callId: 'test', exitCode: 0, nonce },
     { ...scope, phase: '2', kind: 'dispatch', name: 'chatgpt_review', iteration: 2, callId: 'review', reviewTaskId: 'task', reviewHead: head },
-    { ...scope, phase: '2', kind: 'result', name: 'chatgpt_review', iteration: 3, callId: 'review', state: 'done', reviewNonce: nonce, head },
+    { ...scope, phase: '2', kind: 'result', name: 'chatgpt_review', iteration: 2, callId: 'review', state: 'done', reviewNonce: nonce, head },
   ] as Array<Record<string, any>>
 }
 
@@ -40,6 +40,20 @@ async function runOracle(records: Array<Record<string, any>>, code: number | nul
 }
 
 describe('real Planner-Executor runner acceptance oracle', () => {
+  it.each([undefined, 1])('refuses legacy or absent protocol provenance (%s) even with otherwise matching legacy evidence', async version => {
+    const records = fixture()
+    for (const record of records) record.protocolVersion = version
+    records[9]!.iteration = 3
+    expect((await runOracle(records)).plannerExecutorAccepted).toBe(false)
+  })
+  it('rejects canonical DONE that uses legacy iteration advancement', async () => {
+    const records = fixture(); records[9]!.iteration = 3
+    expect((await runOracle(records)).plannerExecutorAccepted).toBe(false)
+  })
+  it('rejects protocol provenance changing across restart', async () => {
+    const records = fixture(); records[5]!.protocolVersion = 1
+    expect((await runOracle(records)).plannerExecutorAccepted).toBe(false)
+  })
   it('accepts correlated final DONE, latest test and pushed identity after recovery', async () => {
     expect(await runOracle(fixture())).toMatchObject({ plannerExecutorAccepted: true, exitCode: 0 })
   })

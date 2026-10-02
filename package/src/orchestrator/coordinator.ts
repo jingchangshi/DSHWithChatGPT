@@ -144,6 +144,10 @@ export class ChatGptCoordinator {
     if (typeof observation.captureReplyBaseline !== 'function' || typeof observation.captureSendObservation !== 'function') {
       throw Object.assign(new Error('CANONICAL_OBSERVATION_UNAVAILABLE'), { code: 'CANONICAL_OBSERVATION_UNAVAILABLE' })
     }
+    // A readiness/App probe or previous task can leave an existing chat open.
+    // Start on an explicit fresh route before capturing bootstrap intent.
+    await this.options.browser.openConversation(undefined, opts.signal)
+    throwIfCancelled(opts.signal)
     const baseline = await observation.captureReplyBaseline(opts.signal)
     throwIfCancelled(opts.signal)
     if (baseline.conversationId !== null) {

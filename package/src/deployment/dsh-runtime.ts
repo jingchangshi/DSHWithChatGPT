@@ -19,7 +19,11 @@ import { DshAgentAdapter } from '../adapters/dsh/agent.ts'
 import { roundIdentity } from '../adapters/dsh/round-identity.ts'
 import type { AgentTool } from '../core/ports/agent.ts'
 import { DshExecutionWorkspaceAdapter } from '../adapters/dsh/execution-workspace.ts'
-import type { ExecutionWorkspacePort } from '../core/ports/execution-workspace.ts'
+import { DshGitAuthorityAdapter } from '../adapters/dsh/git-authority.ts'
+import type { ExecutionWorkspacePort, WorkspaceAuthority } from '../core/ports/execution-workspace.ts'
+import { taskProtocolVersion } from '../core/model.ts'
+import { mintPlannerTaskId } from '../protocol/planner-envelope.ts'
+import { plannerInstructions } from '../protocol/planner-instructions.ts'
 import type { McpExposureProvider } from '../core/ports/mcp-exposure.ts'
 import { z } from 'zod'
 import { defineDomain, domainTable } from '@deepseek-ai/dsh-storage-domain'
@@ -146,6 +150,9 @@ export const inject = ['tools', 'systemPrompt', 'storageDomain', 'executionWorld
 /** Activate only after durable storage opens; Cordis awaits tool registration. */
 export async function apply(ctx: Context, config: Config): Promise<void> {
   const gitReadPolicy = resolveGitReadPolicy(config)
+  // Canonical tasks have a frozen pushed-HEAD contract. The configurable
+  // worktree policy remains applicable only to explicit legacy task dispatch.
+  const primaryGitPolicy = config.browserMode === 'sidecar' ? 'commit-push' : config.gitPolicy
   const activate = async (): Promise<void> => {
     const storageDomain = ctx.get('storageDomain')
     if (storageDomain === undefined) throw new Error('DURABLE_STORAGE_UNAVAILABLE')
@@ -306,10 +313,15 @@ export async function apply(ctx: Context, config: Config): Promise<void> {
     }
 
     // ---- coordinator
-    function coordinatorFor(workspace: WorkspaceRuntimeIdentity, agent: unknown): ChatGptCoordinator {
+    function coordinatorFor(workspace: WorkspaceRuntimeIdentity, exec?: ToolExec): ChatGptCoordinator {
       return new ChatGptCoordinator({
-        plannerInstructions: CHATGPT_BOOT_PROMPT,
-        browser: makeBrowser(agent, workspace),
+        plannerInstructions: config.browserMode === 'sidecar' ? plannerInstructions(config.chatgptAppName) : CHATGPT_BOOT_PROMPT,
+        canonicalProtocol: config.browserMode === 'sidecar',
+        ...(exec?.workspacePort && exec.authority ? { gitAuthority: new DshGitAuthorityAdapter({
+          workspace: exec.workspacePort, registry: workspaceRuntimes, locator: exec,
+          workspaceId: workspace.workspaceId, authority: exec.authority,
+        }) } : {}),
+        browser: makeBrowser(exec?.agent, workspace),
         store: coordinatorState,
         workspaceRoot: workspace.displayRoot,
         workspaceId: workspace.workspaceId,
@@ -350,7 +362,7 @@ export async function apply(ctx: Context, config: Config): Promise<void> {
               locator: exec,
               capabilities: definition.name === 'chatgpt_plan' || definition.name === 'chatgpt_review'
                 ? ['workspaceContentRead', 'gitRead'] : [],
-            }, authority => definition.execute(args, { ...exec, signal: authority.signal }, authority.identity), exec?.signal)
+            }, authority => definition.execute(args, { ...exec, signal: authority.signal, authority, workspacePort }, authority.identity), exec?.signal)
           }
           return definition.name === 'chatgpt_status' ? operation() : browserOwnership.run(operation)
         },
@@ -362,9 +374,10 @@ export async function apply(ctx: Context, config: Config): Promise<void> {
       type: 'object',
       additionalProperties: false,
       properties: {
-        taskId: { type: 'string', description: 'D2C task id.' },
+        taskId: { type: 'string', description: 'Planner task id.' },
         state: { type: 'string', description: 'Task state after this round.' },
         iteration: { type: 'integer', description: 'Protocol iteration.' },
+        protocolVersion: { type: 'integer', description: 'Validated task protocol version: canonical 2 or legacy 1.' },
         workspaceId: { type: 'string', description: 'Workspace identity from the validated reviewer envelope.' },
         head: { oneOf: [{ type: 'string' }, { type: 'null' }], description: 'HEAD from the validated reviewer envelope; null for an initial plan.' },
         actions: { type: 'string', description: 'ACTIONS section from the ChatGPT envelope.' },
@@ -372,7 +385,7 @@ export async function apply(ctx: Context, config: Config): Promise<void> {
         rationale: { type: 'string', description: 'RATIONALE section (plan rounds).' },
         summary: { type: 'string', description: 'SUMMARY section (review rounds).' },
       },
-      required: ['taskId', 'state', 'iteration', 'workspaceId', 'head'],
+      required: ['taskId', 'state', 'iteration', 'protocolVersion', 'workspaceId', 'head'],
     } as const
 
     /** Render a round payload as compact model-facing text. */
@@ -407,22 +420,25 @@ export async function apply(ctx: Context, config: Config): Promise<void> {
         render: renderRound as never,
       },
       async execute(args: Record<string, unknown>, exec: ToolExec | undefined, workspace: WorkspaceRuntimeIdentity) {
-        const coordinator = coordinatorFor(workspace, exec?.agent)
+        const coordinator = coordinatorFor(workspace, exec)
         workspaceRuntimes.require(workspace.workspaceId, 'workspaceContentRead')
         workspaceRuntimes.require(workspace.workspaceId, 'gitRead')
         // Bridge + tunnel must be ready before INIT so ChatGPT can immediately
         // verify workspace_info for the exact workspace id.
-        const taskId = mintTaskId()
+        const taskId = config.browserMode === 'sidecar' ? mintPlannerTaskId() : mintTaskId()
         const owner = exposureAdapter.effectiveMode() === 'managed' ? await ownership.reserve(workspace.workspaceId, taskId) : undefined
         try {
           await ensureRuntime(workspace, exec?.signal)
-          const started = await coordinator.startTask(taskId, String(args.goal), { signal: exec?.signal })
+          const started = config.browserMode === 'sidecar'
+            ? await coordinator.startCanonicalTask(taskId, String(args.goal), { signal: exec?.signal })
+            : await coordinator.startTask(taskId, String(args.goal), { signal: exec?.signal })
           if (owner !== undefined) await ownership.promote(owner)
           const round = await coordinator.awaitPlan(started.taskId, exec?.signal)
           return {
             taskId: round.taskId,
             state: round.record.state,
             iteration: round.record.iteration,
+            protocolVersion: taskProtocolVersion(round.record),
             ...roundIdentity(round.envelope),
             actions: round.envelope.sections.get('ACTIONS') ?? '',
             successCriteria: round.envelope.sections.get('SUCCESS_CRITERIA') ?? '',
@@ -462,7 +478,8 @@ export async function apply(ctx: Context, config: Config): Promise<void> {
         const owner = exposureAdapter.effectiveMode() === 'managed' ? await ownership.requireTaskOwner(workspace.workspaceId, String(args.taskId)) : undefined
         try {
           await ensureRuntime(workspace, exec?.signal)
-          if (config.gitPolicy === 'commit-push') {
+          const task = await coordinatorState.loadTask(String(args.taskId))
+          if ((task && taskProtocolVersion(task) === 2) || config.gitPolicy === 'commit-push') {
             const executor = workspaceRuntimes.require(workspace.workspaceId, 'gitRead').lease.git
             if (!executor) throw new Error('SUBPROCESS_CAPABILITY_UNAVAILABLE')
             const current = await gitStatus(executor)
@@ -488,17 +505,21 @@ export async function apply(ctx: Context, config: Config): Promise<void> {
               throw new Error('AUTONOMOUS_GIT_POLICY: supplied HEAD does not match current git HEAD')
             }
           }
-          const coordinator = coordinatorFor(workspace, exec?.agent)
-          const round = await coordinator.reportExecuted(String(args.taskId), {
+          const coordinator = coordinatorFor(workspace, exec)
+          const summary = {
             changedFiles: Array.isArray(args.changedFiles) ? args.changedFiles.map(String) : [],
             head: typeof args.head === 'string' ? args.head : null,
             testsRecorded: args.testsRecorded === true,
             ...(args.note !== undefined ? { note: String(args.note).slice(0, 200) } : {}),
-          }, exec?.signal)
+          }
+          const round = task && taskProtocolVersion(task) === 2
+            ? await coordinator.reportCanonicalExecuted(String(args.taskId), { ...summary, head: String(args.head ?? '') }, exec?.signal)
+            : await coordinator.reportExecuted(String(args.taskId), summary, exec?.signal)
           return {
             taskId: round.taskId,
             state: round.record.state,
             iteration: round.record.iteration,
+            protocolVersion: taskProtocolVersion(round.record),
             ...roundIdentity(round.envelope),
             summary: round.envelope.sections.get('SUMMARY') ?? '',
             actions: round.envelope.sections.get('ACTIONS') ?? '',
@@ -540,7 +561,7 @@ export async function apply(ctx: Context, config: Config): Promise<void> {
         }],
       },
       async execute(_args: Record<string, unknown>, exec: ToolExec | undefined, workspaceRoot: WorkspaceRuntimeIdentity) {
-        const coordinator = coordinatorFor(workspaceRoot, exec?.agent)
+        const coordinator = coordinatorFor(workspaceRoot, exec)
         const latestTaskId = await coordinator.latestTaskId()
         const task = latestTaskId !== undefined ? await coordinator.status(latestTaskId) : undefined
         const runtime = await ensureRuntime(workspaceRoot, exec?.signal)
@@ -553,7 +574,7 @@ export async function apply(ctx: Context, config: Config): Promise<void> {
           connectorConfigPath: runtime.bridge.configPath,
           workspaceId: runtime.bridge.workspaceId,
           chatgptAppName: config.chatgptAppName,
-          gitPolicy: config.gitPolicy,
+          gitPolicy: primaryGitPolicy,
           gitReadPolicy,
           maxIterations: config.maxIterations,
           tunnel: runtime.tunnelStatus,
@@ -584,7 +605,7 @@ export async function apply(ctx: Context, config: Config): Promise<void> {
         }],
       },
       async execute(_args: Record<string, unknown>, exec: ToolExec | undefined, workspaceRoot: WorkspaceRuntimeIdentity) {
-        const coordinator = coordinatorFor(workspaceRoot, exec?.agent)
+        const coordinator = coordinatorFor(workspaceRoot, exec)
         if (exposureAdapter.effectiveMode() === 'managed') {
           if (await ownership.reconnect(workspaceRoot.workspaceId) === 'cleared') {
             return { recovered: false, task: null, workspaceId: workspaceRoot.workspaceId, detail: 'orphaned pre-task reservation cleared; no task was persisted' }
@@ -654,9 +675,9 @@ export async function apply(ctx: Context, config: Config): Promise<void> {
           '- Do not pause for user confirmation between PLAN, implementation, tests, and REVIEW. If review returns PLAN, implement the fix and review again until DONE.',
           '- Stop only on DONE, BLOCKED, max-iteration guard, authentication/CAPTCHA, infrastructure failure, unsafe conflict, or a product decision only the user can make.',
           '- Before every review run the relevant tests. Execution results are recorded automatically; investigate failures before review.',
-          '- Current autonomous git policy: ' + config.gitPolicy + '.',
-          ...(config.gitPolicy === 'commit-push' ? [
-            '- In commit-push mode: never commit directly on protected branches ' + config.protectedBranches.join(', ') + '. Create/use a task branch (for example d2c/<task-id>) before mutation when needed.',
+          '- Current autonomous git policy: ' + primaryGitPolicy + '.',
+          ...(primaryGitPolicy === 'commit-push' ? [
+            '- In commit-push mode: never commit directly on protected branches ' + config.protectedBranches.join(', ') + '. Create/use a task branch (for example planner/<task-id>) before mutation when needed.',
             '- After each successful implementation round, commit the intended changes, push the current non-protected branch without force, obtain the exact HEAD, then call chatgpt_review.',
             '- A PLAN returned by review starts the next implementation/commit/push/review iteration automatically.',
           ] : [
@@ -684,7 +705,7 @@ export async function apply(ctx: Context, config: Config): Promise<void> {
 }
 
 /** Minimal tool execution context shape used by this plugin. */
-type ToolExec = { agent?: { session?: { header?: { cwd?: string } } }; signal?: AbortSignal }
+type ToolExec = { agent?: { session?: { header?: { cwd?: string } } }; signal?: AbortSignal; authority?: WorkspaceAuthority; workspacePort?: ExecutionWorkspacePort }
 
 /** Workspace root for a tool execution (session cwd). */
 function workspaceOf(ctx: Context, exec: ToolExec | undefined): Promise<WorkspaceRuntimeIdentity> {

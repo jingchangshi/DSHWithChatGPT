@@ -1,6 +1,7 @@
 import type { WorkspaceRuntimeIdentity } from '../workspace/runtime.ts'
 import type { TaskReader } from '../core/ports/state-store.ts'
 import type { ExecutionRecorder } from './recorder.ts'
+import { taskProtocolVersion } from '../core/model.ts'
 
 export interface ObservedExecution {
   name: string
@@ -25,9 +26,9 @@ export interface FrozenExecutionContext {
   startedAt: number
 }
 
-/** Shell work after PLAN iteration N belongs to the upcoming review iteration N+1. */
-export function evidenceIteration(planIteration: number): number {
-  return planIteration + 1
+/** Canonical evidence stays in PLAN round N; explicit legacy evidence uses N+1. */
+export function evidenceIteration(planIteration: number, protocolVersion: 1 | 2 = 1): number {
+  return planIteration + (protocolVersion === 1 ? 1 : 0)
 }
 
 /** Resolve durable shell ownership before dispatch without affecting tool execution. */
@@ -51,7 +52,7 @@ export async function freezeShellExecution(
     workspaceRoot,
     workspaceId,
     taskId: task.taskId,
-    iteration: evidenceIteration(task.iteration),
+    iteration: evidenceIteration(task.iteration, taskProtocolVersion(task)),
     cwd,
     startedAt,
   }
