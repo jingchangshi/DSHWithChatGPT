@@ -6,10 +6,10 @@ import { tmpdir } from 'node:os'
 import { spawnSync } from 'node:child_process'
 
 const root = join(dirname(fileURLToPath(import.meta.url)), '..', '..')
-const prepare = await readFile(join(root, 'scripts', 'prepare-c2c-codex.ps1'), 'utf8')
-const launch = await readFile(join(root, 'scripts', 'launch-c2c-codex.ps1'), 'utf8')
-const cmd = await readFile(join(root, 'scripts', 'launch-c2c-codex.cmd'), 'utf8')
-const doc = await readFile(join(root, 'docs', 'windows-c2c-launcher.zh-CN.md'), 'utf8')
+const prepare = await readFile(join(root, 'scripts', 'prepare-development-chatgpt.ps1'), 'utf8')
+const launch = await readFile(join(root, 'scripts', 'launch-development-chatgpt.ps1'), 'utf8')
+const cmd = await readFile(join(root, 'scripts', 'launch-development-chatgpt.cmd'), 'utf8')
+const doc = await readFile(join(root, 'docs', 'windows-development-chatgpt-launcher.zh-CN.md'), 'utf8')
 
 assert.match(prepare, /ConvertTo-SecureString|ConvertFrom-SecureString/)
 assert.match(prepare, /SetAccessRuleProtection\(\$true, \$false\)/)
@@ -17,14 +17,14 @@ assert.match(prepare, /CODEX_ALREADY_RUNNING/)
 assert.match(prepare, /ClearLocalConfig/)
 assert.match(prepare, /Start-Process -FilePath \$codex -WorkingDirectory \$RepoRoot/)
 assert.match(prepare, /C2C_EXECUTION_API_KEY/)
-assert.match(prepare, /GetEnvironmentVariable\(\$key, 'Process'\)/)
+assert.match(prepare, /Read-Input \$key/)
 assert.doesNotMatch(prepare, /auth\.json|cookie|session storage/i)
 assert.doesNotMatch(prepare, /Write-Host.*\$(?:envMap|secrets|Value)/i)
 assert.match(launch, /-Check -Launch/)
 assert.match(cmd, /pwsh\.exe -NoProfile/)
 assert.match(doc, /DPAPI/)
 assert.match(doc, /ClearLocalConfig/)
-const temp = await mkdtemp(join(tmpdir(), 'c2c-launcher-test-'))
+const temp = await mkdtemp(join(tmpdir(), 'development-launcher-test-'))
 try {
   const bin = join(temp, 'bin')
   await mkdir(bin)
@@ -76,4 +76,4 @@ try {
   await rm(temp, { recursive: true, force: true })
 }
 
-console.log('c2c launcher tests passed')
+console.log('Development launcher compatibility checks passed')

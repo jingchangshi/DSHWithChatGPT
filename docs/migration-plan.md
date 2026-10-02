@@ -122,8 +122,8 @@ child, covering canonical-only, legacy-only and conflicting references plus
 forbidden duplicate policy. All four failed against the original entry and
 passed after migration. Removal is deferred to a documented breaking release.
 
-F11 remains PARTIAL: development launcher and test filename migration still
-require parity and independent review. Product entries were independently
+F11 remains PARTIAL: remaining test filename migration and final occurrence
+audit still require completion. Product entries were independently
 accepted at `6532555`: legacy entries are thin aliases, canonical CLI values
 win conflicts with value-free warnings, and released DPAPI state remains at
 its existing protected location. No credential move or re-encryption is implied.
@@ -135,3 +135,15 @@ local/App/full acceptance boundaries are explicit. Historical stage evidence
 below retains its dated scope; current production wiring is at `f719163` and
 fake-stack scoped acceptance at `189222b`. This docs gate does not close F11,
 the producer support failure or real Windows acceptance.
+
+Iteration-55 development entry extraction adds canonical prepare/launch-development-chatgpt
+entries; old public prepare/launch entries are thin deprecated wrappers. Released
+version 1 DPAPI fields and c2c-launcher state location remain an explicit deployment
+compatibility schema. Canonical environment values win conflicts; legacy fallback
+warns without values. Read-only check preserves ciphertext and DACL. A regression
+falsification reproduces the old -Check -Launch early exit; the canonical flow now
+reaches single-instance protection. Isolated PowerShell tests use synthetic values,
+an explicit process-discovery/launch fixture and a no-real-launch tripwire. Repeated
+setup exposed unrelated SACL writes requiring SeSecurityPrivilege; the canonical
+implementation modifies only the DACL. This is development-entry evidence, not
+real Codex launch or any product model/App proof. Scoped review is pending.

@@ -57,10 +57,12 @@
     "test:legacy-acceptance-entry": "node --test scripts/legacy-acceptance-entry.test.mjs",
     "test:live-c2c-observer": "node --test scripts/c2c-e2e-observer.test.mjs",
     "test:live-c2c": "node scripts/verify-live-c2c.mjs",
-    "test:launcher": "node --test scripts/c2c-launcher.test.mjs",
+    "test:launcher": "pnpm run test:development-chatgpt-launcher",
     "test:plannerbridge-deployment": "node scripts/plannerbridge-deployment.test.mjs",
     "test:plannerbridge-fake-stack": "node scripts/verify-plannerbridge-fake-stack.mjs",
-    "test:product-c2c": "node scripts/dsh-product-c2c.test.mjs"
+    "test:product-c2c": "node scripts/dsh-product-c2c.test.mjs",
+    "test:development-chatgpt-deployment": "node scripts/development-chatgpt-deployment.test.mjs",
+    "test:development-chatgpt-launcher": "node --test scripts/development-chatgpt-launcher.test.mjs"
   },
   "license": "MIT",
   "engines": {

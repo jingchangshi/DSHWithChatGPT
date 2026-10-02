@@ -2,5 +2,6 @@
 [CmdletBinding()]
 param([switch]$BrowserCheck)
 $ErrorActionPreference = 'Stop'
-& (Join-Path $PSScriptRoot 'prepare-c2c-codex.ps1') -Check -Launch -BrowserCheck:$BrowserCheck
+Write-Warning 'Deprecated entry: use launch-development-chatgpt.ps1.'
+& (Join-Path $PSScriptRoot 'launch-development-chatgpt.ps1') @PSBoundParameters
 exit $LASTEXITCODE

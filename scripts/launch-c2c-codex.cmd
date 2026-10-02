@@ -1,4 +1,5 @@
 @echo off
 setlocal
-pwsh.exe -NoProfile -ExecutionPolicy Bypass -File "%~dp0launch-c2c-codex.ps1" %*
+echo Deprecated entry: use launch-development-chatgpt.cmd.
+call "%~dp0launch-development-chatgpt.cmd" %*
 exit /b %ERRORLEVEL%
