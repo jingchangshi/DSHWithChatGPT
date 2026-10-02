@@ -135,7 +135,7 @@ Stage A records baseline, target/deployment/protocol/migration documents, commit
 | F10 / G | durable restart/reconciliation | persistent task/journal + independently spawned processes | crash before/after send/ack, DSH/Sidecar restart, Chrome reload, cancelled PLAN/REVIEW | identical IDs/HEAD, reacquired lease, no duplicate INIT/EXECUTED, SEND_UNCERTAIN when proof absent | resend after observation timeout or forgotten in-memory cooldown | PARTIAL |
 | F11 / H | migrate names without hidden compatibility debt | inventory + import/export/script/package checks | scan canonical source/test/docs and invoke explicit old aliases | canonical identifiers neutral; old public edges documented and bounded | blind replace, silently retained private coupling, externally-owned rename | PARTIAL |
 | Package / H | usable installed artifacts | packed tarball + isolated supported DSH profiles | build/typecheck/pack/export/import/profile/sidecar executable checks | all runtime closure included; no development bridge dependency | source-only success, missing files or runtime Codex dependency | PARTIAL |
-| Windows sandbox / G+I | real hardened execution authority | real Windows ACL provider + task workspace | execute root-contained reads and fixed Git queries with hostile escapes | hardened-windows assurance and actual deny evidence | mere mock/metadata, relaxed security for green tests | NOT_RUN |
+| Windows sandbox / G+I | real hardened execution authority | real Windows ACL provider + task workspace | execute root-contained reads and fixed Git queries with hostile escapes | hardened-windows assurance and actual deny evidence | mere mock/metadata, relaxed security for green tests | FAILED |
 | Fake-stack / H | workflow under adversarial boundaries | separate Sidecar + fake driver + real Git fixture + persisted core | full plan/fix/review, faults and restart | deterministic identities and commit/push verified | fake result reported as real Web/model acceptance | NOT_RUN |
 | Product App proof / I | live Workspace Data Plane | Browser B, real App/exposure, active task lease | remote memory-only challenge + source/Git/output reads | App independently reads challenge and expected workspace facts | expected values pasted into prompt, development connector substituted | NOT_RUN |
 | Windows primary / I | genuine Planner–Executor task and fix loop | deterministic broken disposable Git repo + local bare remote + real DSH/DeepSeek/ChatGPT | real PLAN/edit/test/commit/push/exact-HEAD REVIEW/fix/DONE with restarts | machine-verifiable full trace and stdout-only random proof nonce | any prohibited shortcut or missing identity/recovery assertion | NOT_RUN |
@@ -152,7 +152,22 @@ are verified independently of the final ChatGPT exact-HEAD review.
 The F8 Workspace Data Plane boundary suites pass `48/48`, covering producer
 lease authority, stale/replaced capabilities, containment, fixed Git queries,
 bounded output and scoped evidence. The separate real Windows ACL gate remains
-`NOT_RUN` until an actual hardened provider denial is observed.
+incomplete until all mandatory actual provider denial/read checks pass.
+
+Iteration-50 native Windows evidence (producer source HEAD
+`0afd708c288b079096affbfeff4626dcf9a19bf1`, clean checkout): the existing
+`fs-local/tests/root-read-win32.spec.ts` passed 14 tests, including junction
+denial, namespace replacement, bounded reads and cancelled handle cleanup.
+These use the actual native filesystem implementation, with deterministic race
+hooks, and are source-plane evidence rather than installed consumer acceptance.
+The existing `execution-world/tests/git-lease-windows.spec.ts` uses actual local
+sandbox/subprocess providers and Windows Job containment; 2 tests passed for
+hostile inherited Git/output environment and rejection of require-full before
+spawn. Its multi-command repository/helper-tripwire test hit the unchanged
+5000 ms test deadline and failed again when isolated. No deadline, assertion,
+producer source or permission guarantee was changed. Consequently the Windows
+sandbox gate is FAILED, not VERIFIED. Raw success and both failures are released
+as iteration-50 records; installed DSH profile Git-read checks remain distinct.
 
 F9/F10 supporting suites pass `74/74`: authenticated loopback Bridge and tunnel
 credential boundaries, coordinator restart/recovery, Sidecar crash/replay and
