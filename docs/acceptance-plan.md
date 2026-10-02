@@ -4,6 +4,51 @@ Status: PARTIAL — the full Windows deployment remains unfinished. Stage E is i
 
 ## Baseline and stages
 
+### Current goal audit and delivery priority (2026-10-02)
+
+Source checkpoint: `13987da`. The independent iteration-47 reviewer withdrew
+its stale epoch finding after re-reading the current source and returned scoped
+DONE. This is not overall acceptance. The latest bounded run has 95 passing
+focused/RPC/process tests and a passing build; the latest full-suite evidence
+still contains failures/timeouts. Historical stage counts below are dated
+evidence, not current completion claims.
+
+The remaining critical path is product integration and real acceptance:
+
+| Goal boundary | Current state | Concrete remaining result |
+|---|---|---|
+| Neutral protocol, Chat Control, Direct CDP and Sidecar | PARTIAL: substantial scoped source/contract evidence | exercise these exact implementations in the installed Windows product |
+| DSH production composition | PARTIAL: runtime still calls released v1 start/review; canonical Git authority is unwired | producer-backed canonical plan/review/reconnect through actual registered tools |
+| Recovery | PARTIAL: accepted-send publication recovery and atomic-result tests pass | required product restart/fix loop, fail-closed uncertain delivery without duplicate input |
+| Workspace Data Plane and security | PARTIAL: capability and scoped-output boundaries exist | real reviewer independently reads workspace/Git/raw output under the active producer lease |
+| Packaging and regression | PARTIAL: builds and prior package proofs exist; full-suite instability unresolved | current installed artifact and explicit full-suite result with no weakened assertions/deadlines |
+| Windows primary E2E | NOT_RUN for the final canonical architecture | real DSH/DeepSeek/ChatGPT task, pushed exact HEAD, stdout-only nonce independently echoed, required restart/fix/DONE |
+| Final global review | NOT_RUN | audit final HEAD against every goal requirement and actual evidence |
+| Linux cross-host | FUTURE | no Linux implementation prerequisite for this Windows delivery |
+
+Delivery order:
+
+1. Wire the canonical coordinator, producer-backed Git authority and matching
+   planner instructions into registered production tools. Preserve released v1
+   records through explicit compatibility dispatch. Update the observer and
+   acceptance policy: its current review `iteration + 1` rule is legacy and
+   cannot validate canonical same-round DONE. Prove the tool-to-runtime path
+   with a focused failing integration test before implementation.
+2. Complete one product-shaped disposable Git fixture loop, including the
+   required restart and fix review. Add only missing boundary tests required by
+   that path or a demonstrated failure; do not expand into an unbounded crash
+   permutation project. Synthetic evidence remains separate from real product
+   evidence and cannot close the Windows E2E row.
+3. Verify the installed package/profile and resolve the demonstrated full-suite
+   failures. Preserve failure output and security checks; neither focused passes
+   nor timeout inflation substitute for the regression gate.
+4. Run the real Windows primary chain without Browser Harness or the development
+   connector, then obtain final exact-HEAD global review and completion matrix.
+
+Local scoped reviews close their stated work only. Further review requests must
+name the next delivery result and the actual blocking gap, rather than reopen
+already accepted foundations or add unrelated abstraction work.
+
 After architecture DONE, isolated F0 repair and exact-HEAD review must pass before Stage B ports extraction or abstraction restructuring. Source baseline and document-review HEAD are separate evidence.
 
 Stage A records baseline, target/deployment/protocol/migration documents, commits and obtains architecture DONE before structural changes. Stages B–H use tests-first commits with independent exact-HEAD review. Stage I requires real product evidence and final global review. No stage claims success solely from an in-process fake.
