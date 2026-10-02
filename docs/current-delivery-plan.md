@@ -9,7 +9,7 @@ accepted within their stated scope. Full product completion is still unproven.
 | Required category | Current status | Evidence or remaining proof |
 |---|---|---|
 | ARCHITECTURE | PARTIAL | Scoped ports/dependency/topology reviews exist; final global exact-HEAD audit remains |
-| SOURCE | PARTIAL | Reviewed implementations and regression evidence; actual INIT repair underway |
+| SOURCE | PARTIAL | Paragraph INIT repair independently reviewed at 29929a9; real input acceptance remains |
 | PROTOCOL | PARTIAL | Canonical v2 identity and same-round oracle tested; real PLAN through DONE absent |
 | CHAT_CONTROL | PARTIAL | Real App selection/proof passed; multiline INIT input failed |
 | DIRECT_CDP | PARTIAL | Real Chrome fixture/input/fence coverage; product multiline rendering gap reproduced |
@@ -18,8 +18,8 @@ accepted within their stated scope. Full product completion is still unproven.
 | WORKSPACE_DATA_PLANE | PARTIAL | Installed authority checks and real App workspace proof passed; independent raw-output nonce review absent |
 | SECURITY | PARTIAL | Containment/credential boundaries verified within scope; producer native Git deadline gate still FAILED |
 | RECOVERY | PARTIAL | Synthetic restart/fix/DONE covered; failed INIT pre-task ownership and real recovery require evidence |
-| PACKAGING | PARTIAL | Previous isolated candidate verified; refresh after runtime repair |
-| TESTS | PARTIAL | Baseline 83 files, 1043 passed, three original skips; changed candidate needs full regression |
+| PACKAGING | PARTIAL | Fresh xvdFqE isolated package and two native installed-profile processes passed; real workflow remains |
+| TESTS | PARTIAL | Current runtime: 83 files, 1046 passed, three original skips; separate producer timeout remains FAILED |
 | WINDOWS_E2E | FAILED | Real attempt passed local/App proof then INIT failed; no accepted PLAN, nonce or DONE |
 | FUTURE_LINUX | FUTURE | No Linux host execution; it does not block Windows delivery |
 
@@ -55,3 +55,33 @@ termination code 4294967295 was retained. This is product App proof, not full
 product acceptance. Current draft inspection is read-only and releases structure,
 not message content. The diagnostic launch with an occlusion flag was rejected
 by automatic policy and was not used as mitigation evidence.
+
+Iteration-59 implementation: real disposable Chrome reproduced the multiline
+paragraph ownership mismatch before implementation. Logical paragraph extraction
+now retains blank lines, inline breaks, spaces and tabs instead of comparing
+extra rendered `innerText` breaks. A changed-space adversary is rejected without
+Enter or deletion. A subsequent hidden-paragraph falsification exposed a gap in
+the first candidate; the final candidate rejects hidden/inert/aria-hidden or CSS
+invisible paragraph text and preserves its draft. Intermediate fixture, invocation
+and embedded-script failures remain released alongside the eventual passes.
+
+Runtime source checkpoint: `29929a9`. Independent actual-source/test supplement
+accepted the bounded parser/ownership scope. Focused contracts: 71 passed;
+typecheck and build pass. Final ordinary full suite: 83 files / 1046 passed /
+three original skips, exit 0. Earlier 1045-pass run belongs to the preceding
+candidate. No current real product PLAN or recovery proof is inferred from these
+checks. The failed INIT draft is retained and no ownership record is deleted.
+
+Fresh isolated package `xvdFqE` passed import and separate-process Sidecar
+verification. Installed profile `Hiv4a2` passed twice with separate native DSH
+processes: stable workspace identity across aliases/restarts, authenticated Git
+reads preserving state, and denied traversal/absolute/junction/expired-lease
+access. This profile uses a composition fixture; real Browser/App proof is
+explicitly NOT_RUN. These passes do not erase the separate producer timeout.
+
+Read-only inspection of the failed product task confirms canonical INIT round
+`sending`, null conversation binding, and a durable send operation. Pre-task
+ownership intentionally blocks reconnect before browser reconciliation. The
+next investigation must distinguish proven unsent delivery from uncertain send;
+neither clearing the claim nor resending from the draft is authorized by these
+facts alone.
