@@ -9,17 +9,17 @@ accepted within their stated scope. Full product completion is still unproven.
 | Required category | Current status | Evidence or remaining proof |
 |---|---|---|
 | ARCHITECTURE | PARTIAL | Scoped ports/dependency/topology reviews exist; final global exact-HEAD audit remains |
-| SOURCE | PARTIAL | Paragraph repair reviewed at 29929a9; bootstrap observation guard reviewed at d0e64ee; real input acceptance remains |
+| SOURCE | PARTIAL | Paragraph repair, observation guard, BR extraction and proof-first recovery implemented; recovery source reviewed at d81193e; global audit remains |
 | PROTOCOL | PARTIAL | Canonical v2 identity and same-round oracle tested; real PLAN through DONE absent |
-| CHAT_CONTROL | PARTIAL | Real App selection/proof passed; multiline INIT input failed |
+| CHAT_CONTROL | PARTIAL | Real App proof and exact original INIT reconciliation passed; no valid product PLAN accepted |
 | DIRECT_CDP | PARTIAL | Real Chrome fixture/input/fence coverage; product multiline rendering gap reproduced |
 | SIDECAR | PARTIAL | Auth/replay/uncertainty contracts covered; real recovery loop remains |
 | DSH_ADAPTER | PARTIAL | Installed native DSH readiness/identity verified; full real executor workflow absent |
 | WORKSPACE_DATA_PLANE | PARTIAL | Installed authority checks and real App workspace proof passed; independent raw-output nonce review absent |
 | SECURITY | PARTIAL | Containment/credential boundaries verified within scope; producer native Git deadline gate still FAILED |
-| RECOVERY | PARTIAL | Synthetic restart/fix/DONE covered; failed INIT pre-task ownership and real recovery require evidence |
-| PACKAGING | PARTIAL | Fresh jMPi1Y isolated package and two native installed-profile processes passed at runtime d0e64ee; real workflow remains |
-| TESTS | PARTIAL | Current runtime: 83 files, 1051 passed, three original skips; separate producer timeout remains FAILED |
+| RECOVERY | PARTIAL | Actual failed INIT journal/task/claim recovered without resend and confirmed across native restart; real fix/restart/DONE loop remains |
+| PACKAGING | PARTIAL | Fresh Nf44is package and two native installed-profile processes passed at runtime d81193e; real workflow remains |
+| TESTS | PARTIAL | Current runtime: 83 files, 1082 passed, three original skips; separate producer timeout remains FAILED |
 | WINDOWS_E2E | FAILED | Real attempt passed local/App proof then INIT failed; no accepted PLAN, nonce or DONE |
 | FUTURE_LINUX | FUTURE | No Linux host execution; it does not block Windows delivery |
 
@@ -146,3 +146,27 @@ Native separate-process tests exercise exact/missing/foreign proof with one
 original send and zero restarted sends. Initial fixture-transition/timestamp
 assertion failures and stale-build process failure remain retained. Source review,
 final full/package/profile and actual product recovery are not yet claimed.
+
+Iteration-62 final evidence at runtime `d81193e`: independent source review
+accepted the proof-first journal/ownership scope. Full ordinary suite passed:
+83 files, 1082 passed, three original skips. Fresh package `Nf44is` and profile
+`cpdCTY` (two native DSH processes) passed. The original product Sidecar was
+gracefully restarted through its authenticated generation-fenced shutdown API;
+the same journal and exact Chrome target were retained. Formal product RPC then
+bound the original uncertain operation using exact outgoing proof, preserved
+intent and returned a stable repeated observation with no send invocation.
+
+The original `Kv2mRt` profile was upgraded to the fresh package, preserving its
+task/storage/configuration and the original installation manifest. Native DSH
+reconnect persisted the original task as observed-sent and promoted the same
+ownership claim. An independent native status-only launch (exit 0) confirmed
+task/workspace/claim/send operation/digest persistence. Its sanitized transcript
+is released. The first diagnostic output guard mistook a printed connection ID
+for a credential and withheld the transcript; follow-up classification confirms
+only CONTROL_PLANE_TUNNEL_ID was printed, neither API key. That failed diagnostic
+report remains recorded and is not replaced by a fabricated success.
+
+No new INIT was sent. The old assistant response says ERROR and is rejected as
+bad-round by the canonical parser; no valid PLAN was accepted. Old failed oracle
+results and termination remain intact. These facts prove bounded actual bootstrap
+recovery, not the full Windows product execution/nonce/fix/restart/DONE chain.
