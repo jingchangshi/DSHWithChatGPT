@@ -17,6 +17,50 @@ function fixture() {
 }
 
 describe('durable managed tunnel ownership', () => {
+  it.each(['matching', 'unknown', 'changed-source', 'changed-owner', 'changed-binding', 'cancelled', 'publication-crash'] as const)('promotes pre-task ownership only after durable bootstrap proof: %s', async scenario => {
+    const { manager, state, store } = fixture()
+    const taskId = 'pb_' + 'a'.repeat(32)
+    const owner = await manager.reserve('workspace', taskId)
+    const baseline = { version: 1 as const, conversationId: null, assistantCount: 0, textDigest: 'a'.repeat(64), observationEpoch: 'b'.repeat(64) }
+    const task: any = { protocolVersion: 2, taskId, workspaceId: 'workspace', goal: 'bootstrap', state: 'awaiting-plan', iteration: 0,
+      waitingFor: 'chatgpt-plan', conversationId: null, lastReviewedHead: null, createdAt: 1, updatedAt: 1, lastError: null,
+      round: { kind: 'INIT', iteration: 0, phase: 'sending', sendOperationId: 'send-owned', waitOperationId: 'wait-owned', controlDigest: 'c'.repeat(64), baseline } }
+    const created = await state.createTask({ ...task, round: { ...task.round, phase: 'prepared' } })
+    await state.commitTask(taskId, created.revision, task)
+    await state.saveTaskIndex([taskId])
+    await state.bindWorkspace('workspace', { workspaceRoot: 'display', lastTaskId: taskId, conversationId: null })
+    const before = await state.loadTask(taskId)
+    const abort = new AbortController()
+    let probes = 0
+    const recover = async () => {
+      probes++
+      expect((await store.get())?.phase).toBe('pre-task')
+      if (scenario === 'unknown') throw new Error('SEND_UNCERTAIN')
+      const snapshot = (await state.loadTaskSnapshot(taskId))!
+      const saved = await state.commitTask(taskId, snapshot.revision, { ...snapshot.value, conversationId: 'owned',
+        round: { ...task.round, ...(scenario === 'changed-source' ? { controlDigest: 'd'.repeat(64) } : {}), phase: 'observed-sent', baseline: { ...baseline, conversationId: 'owned' } } } as any)
+      await state.bindWorkspace('workspace', { workspaceRoot: 'display', lastTaskId: scenario === 'changed-binding' ? 'foreign' : taskId, conversationId: 'owned' })
+      if (scenario === 'changed-owner') await store.put({ ...owner, claimId: 'foreign' })
+      if (scenario === 'cancelled') abort.abort()
+      if (scenario === 'publication-crash') throw new Error('publication crash')
+      return saved.value
+    }
+    if (scenario === 'matching') {
+      expect(await manager.recoverPendingBootstrap('workspace', recover)).toMatchObject({ taskId, conversationId: 'owned' })
+      const promoted = (await store.get())!
+      expect({ ...promoted, updatedAt: owner.updatedAt }).toEqual({ ...owner, phase: 'task' })
+      expect(promoted.updatedAt).toBeGreaterThanOrEqual(owner.updatedAt)
+    } else {
+      await expect(manager.recoverPendingBootstrap('workspace', recover, abort.signal)).rejects.toThrow()
+      expect((await store.get())?.phase).toBe('pre-task')
+      if (scenario === 'unknown') expect(await state.loadTask(taskId)).toEqual(before)
+      if (scenario === 'publication-crash') {
+        expect(await manager.recoverPendingBootstrap('workspace', async () => state.loadTask(taskId))).toMatchObject({ taskId, conversationId: 'owned' })
+        expect((await store.get())?.phase).toBe('task')
+      }
+    }
+    expect(probes).toBe(1)
+  })
   it('blocks unowned runtime setup and new claims while a legacy task is pending', async () => {
     const { manager, save, store } = fixture()
     await save('planned')

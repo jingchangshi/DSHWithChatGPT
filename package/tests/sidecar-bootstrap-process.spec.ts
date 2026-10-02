@@ -21,6 +21,28 @@ async function start(directory: string, options: Parameters<typeof sidecarProces
 // Two separate Windows children with unchanged 5s startup / RPC / phase limits.
 // The external browser view and ACK are synthetic, never real ChatGPT evidence.
 describe('bootstrap observation across independent Sidecar processes', { timeout: 15_000 }, () => {
+  it.each(['exact', 'missing', 'foreign'] as const)('reconciles a canonical lost ACK from %s proof across separate processes', async recoveryView => {
+    const directory = await mkdtemp(join(tmpdir(), 'plannerbridge-bootstrap-process-')); directories.push(directory)
+    const first = await start(directory, { recoveryView: 'exact', bootstrap: true, pausePhase: 'observed-sent' })
+    const baseline = await first.client.captureReplyBaseline()
+    const operation = { operationId: 'canonical-bootstrap-send', replyBaseline: baseline,
+      correlation: { taskId: 'pb_' + 'a'.repeat(32), iteration: 0, workspaceId: 'world', phase: 'INIT' as const } }
+    const pending = first.client.sendControlMessage('owned recovery control', undefined, operation).catch(error => error)
+    await first.child.waitForPhase(operation.operationId, 'observed-sent')
+    await first.child.crash(); expect(await pending).toBeInstanceOf(Error)
+    const restarted = await start(directory, { recoveryView })
+    const file = join(directory, 'delivery.json'), before = await readFile(file, 'utf8')
+    if (recoveryView === 'exact') {
+      const recovered = await restarted.client.captureSendObservation(operation.operationId)
+      expect(recovered).toMatchObject({ conversationId: 'owned', assistantCount: baseline.assistantCount, textDigest: baseline.textDigest })
+      expect(JSON.parse(await readFile(file, 'utf8')).entries.find((e: any) => e.operationId === operation.operationId)).toMatchObject({ phase: 'accepted', bootstrapBaseline: recovered })
+    } else {
+      await expect(restarted.client.captureSendObservation(operation.operationId)).rejects.toMatchObject({ code: 'SEND_UNCERTAIN' })
+      expect(await readFile(file, 'utf8')).toBe(before)
+    }
+    expect(first.child.sends).toEqual(['owned recovery control'])
+    expect(restarted.child.sends).toEqual([])
+  })
   it.each(['before-ack', 'after-ack-unbound', 'after-bound'] as const)('never resends after a crash at %s', async boundary => {
     const directory = await mkdtemp(join(tmpdir(), 'plannerbridge-bootstrap-process-')); directories.push(directory)
     const first = await start(directory, { recoveryView: 'exact', bootstrap: true, ...(boundary === 'before-ack' ? { pausePhase: 'sending' } : {}) })

@@ -153,10 +153,14 @@ export async function startSidecar(config: SidecarServerConfig) {
         switch (request.method) {
           case 'captureSendObservation': {
             const source = journal.lookup(request.params.sendOperationId)
-            if (!source || source.method !== 'sendControlMessage' || source.phase !== 'accepted') throw new SidecarRpcError('SEND_UNCERTAIN')
+            if (!source || source.method !== 'sendControlMessage' || !['accepted', 'uncertain'].includes(source.phase)) throw new SidecarRpcError('SEND_UNCERTAIN')
+            const canonicalBootstrap = source.bootstrap?.binding
+              && /^pb_[0-9a-f]{32,64}$/.test(source.bootstrap.binding.taskId)
+              && source.bootstrap.binding.iteration === 0 && source.bootstrap.binding.head === undefined
+            if (source.phase === 'uncertain' && !canonicalBootstrap) throw new SidecarRpcError('SEND_UNCERTAIN')
             if (source.observation) return source.observation.replyBaseline
             if (source.bootstrapBaseline) return source.bootstrapBaseline
-            if (!source.bootstrap || !acknowledgedSends.has(source.operationId)) throw new SidecarRpcError('SEND_UNCERTAIN')
+            if (!source.bootstrap || (!acknowledgedSends.has(source.operationId) && !canonicalBootstrap)) throw new SidecarRpcError('SEND_UNCERTAIN')
             if (!config.driver.reconcileReplyBaseline) throw new SidecarRpcError('CHAT_CONTROL_OBSERVATION_UNAVAILABLE')
             const conversationId = await config.driver.currentConversation(controller.signal)
             if (!conversationId) throw new SidecarRpcError('SEND_UNCERTAIN')
@@ -165,7 +169,9 @@ export async function startSidecar(config: SidecarServerConfig) {
               || value.data.assistantCount !== source.bootstrap.replyBaseline.assistantCount
               || value.data.textDigest !== source.bootstrap.replyBaseline.textDigest) throw new SidecarRpcError('SEND_UNCERTAIN')
             controller.signal.throwIfAborted()
-            const saved = await journal.bindBootstrap(source.operationId, value.data)
+            const saved = source.phase === 'uncertain'
+              ? await journal.reconcileBootstrap(source.operationId, value.data)
+              : await journal.bindBootstrap(source.operationId, value.data)
             return saved.bootstrapBaseline!
           }
           case 'captureReplyBaseline': {

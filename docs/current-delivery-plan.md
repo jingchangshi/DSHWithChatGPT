@@ -112,3 +112,37 @@ fixture. The next real acceptance launcher references this new installation,
 but has not been executed. User clarification about possible manual sending of
 the old INIT is pending; this does not authorize automatic resend or journal
 promotion.
+
+Iteration-61 read-only diagnosis: user confirms no manual INIT send. Current
+product conversation contains one matching-task outgoing message and an
+assistant reply. Reconstructing the original control envelope from the persisted
+task and unchanged planner instructions reproduces its journal digest. The
+rendered user body contains that exact envelope. Shared message extraction
+instead omits 14 inline BRs in the actual four-paragraph/span structure, so
+exact reconciliation refuses it. Hypothesis: BR elements have zero area and are
+discarded by the geometry visibility test before the BR newline branch. Preserve
+ancestor/hidden/inert/CSS visibility checks while reproducing this geometry case;
+no automatic journal promotion or ownership release is implied.
+
+Runtime `16df18b` exempts only semantic BR rectangles after the unchanged
+ancestor/CSS visibility checks. Exact paragraph/span payload and five hidden
+ancestor regressions pass; focused observation/reconciliation checks: 47 passed.
+Build/typecheck pass; ordinary full regression: 83 files, 1057 passed, three
+original skips. Actual product read-only reconciliation now proves the original
+outgoing digest, exact App/latest-user identity and preceding baseline. No send
+or persistent state was changed by that diagnostic.
+
+Iteration-62 implements the independently planned proof-before-promotion seam.
+Sidecar resolves only canonical journal-owned bootstrap uncertainty through the
+existing exact outgoing-message reconciler, then atomically saves acceptance
+and its bound baseline without changing original intent or replay identity.
+Ordinary ACK binding remains separate; raw sending/prepared journal entries do
+not gain an unchecked transition. The coordinator publishes a proven task
+binding before serialized ownership promotion, revalidating source/claim and
+workspace binding. A crash between task binding and promotion can resume from
+that durable proof. Unknown/changed/cancelled proof keeps the claim; orphan
+reconnect still performs no runtime startup. There is no new send or clear path.
+Native separate-process tests exercise exact/missing/foreign proof with one
+original send and zero restarted sends. Initial fixture-transition/timestamp
+assertion failures and stale-build process failure remain retained. Source review,
+final full/package/profile and actual product recovery are not yet claimed.

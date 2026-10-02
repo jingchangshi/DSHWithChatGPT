@@ -607,6 +607,16 @@ export async function apply(ctx: Context, config: Config): Promise<void> {
       async execute(_args: Record<string, unknown>, exec: ToolExec | undefined, workspaceRoot: WorkspaceRuntimeIdentity) {
         const coordinator = coordinatorFor(workspaceRoot, exec)
         if (exposureAdapter.effectiveMode() === 'managed') {
+          // Runtime setup is workspace-fenced before entering the serialized
+          // recovery callback; it must not recursively acquire ownership.
+          if (await ownership.hasPendingBootstrap(workspaceRoot.workspaceId)) {
+            await ensureRuntime(workspaceRoot, exec?.signal)
+            const bootstrap = await ownership.recoverPendingBootstrap(workspaceRoot.workspaceId,
+              () => coordinator.recover(exec?.signal), exec?.signal)
+            if (bootstrap !== undefined) {
+              return { recovered: true, task: bootstrap, workspaceId: workspaceRoot.workspaceId, detail: 'bootstrap rebound from exact outgoing-message proof; task ownership restored' }
+            }
+          }
           if (await ownership.reconnect(workspaceRoot.workspaceId) === 'cleared') {
             return { recovered: false, task: null, workspaceId: workspaceRoot.workspaceId, detail: 'orphaned pre-task reservation cleared; no task was persisted' }
           }

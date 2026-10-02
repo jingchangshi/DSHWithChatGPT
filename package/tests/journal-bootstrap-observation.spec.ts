@@ -29,6 +29,33 @@ async function accepted() {
   return { ...f, source }
 }
 describe('body-free initial and bound bootstrap journal metadata', () => {
+  it('publishes independently reconciled uncertainty and binding atomically across reopen', async () => {
+    const f = await fixture()
+    const source = { ...intent(), bootstrap: { ...bootstrap, binding: { taskId: 'pb_' + 'a'.repeat(32), iteration: 0, workspaceId: 'world' } } }
+    await f.journal.prepare(source)
+    await f.journal.transition(source.operationId, 'sending')
+    await f.journal.transition(source.operationId, 'uncertain')
+    const originalIntent = f.journal.lookup(source.operationId)!
+    const reconciled = await f.journal.reconcileBootstrap(source.operationId, bound)
+    expect(reconciled).toMatchObject({ phase: 'accepted', bootstrapBaseline: bound, bootstrap: originalIntent.bootstrap, payloadDigest: originalIntent.payloadDigest })
+    await f.journal.close()
+    const reopened = await DeliveryJournal.open(f.config); journals.push(reopened)
+    expect(reopened.lookup(source.operationId)).toEqual(reconciled)
+    await expect(reopened.reconcileBootstrap(source.operationId, { ...bound, textDigest: 'f'.repeat(64) })).rejects.toMatchObject({ code: 'SEND_UNCERTAIN' })
+    expect(reopened.lookup(source.operationId)).toEqual(reconciled)
+  })
+  it.each(['prepared', 'sending', 'unbound', 'count', 'text', 'wrong-task'] as const)('refuses uncertainty reconciliation with %s without rewriting disk', async scenario => {
+    const f = await fixture()
+    const source = { ...intent(), bootstrap: { ...bootstrap,
+      ...(scenario === 'unbound' ? {} : { binding: { taskId: scenario === 'wrong-task' ? 'legacy' : 'pb_' + 'a'.repeat(32), iteration: 0, workspaceId: 'world' } }) } }
+    await f.journal.prepare(source)
+    if (scenario !== 'prepared') await f.journal.transition(source.operationId, 'sending')
+    if (!['prepared', 'sending'].includes(scenario)) await f.journal.transition(source.operationId, 'uncertain')
+    const file = join(f.directory, 'delivery.json'), before = await readFile(file, 'utf8')
+    await expect(f.journal.reconcileBootstrap(source.operationId, { ...bound,
+      ...(scenario === 'count' ? { assistantCount: 1 } : {}), ...(scenario === 'text' ? { textDigest: 'f'.repeat(64) } : {}) })).rejects.toMatchObject({ code: 'SEND_UNCERTAIN' })
+    expect(await readFile(file, 'utf8')).toBe(before)
+  })
   it('publishes a bound result separately and preserves original intent/replay identity across reopen', async () => {
     const f = await accepted()
     const first = await f.journal.bindBootstrap(f.source.operationId, bound)

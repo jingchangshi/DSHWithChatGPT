@@ -167,17 +167,52 @@ describe('journal-derived send observation, synthetic provider only', () => {
   })
   it('refuses an uncertain send that did not return an owned ACK', async () => {
     const f = await fixture()
+    f.reconcile.mockRejectedValueOnce(Object.assign(new Error('no exact message proof'), { code: 'SEND_UNCERTAIN' }))
     f.message.mockRejectedValueOnce(Object.assign(new Error('uncertain'), { code: 'BROWSER_MUTATION_UNCERTAIN' }))
     await expect(f.client.sendControlMessage('private INIT control', undefined, send)).rejects.toThrow()
     await expect(f.client.captureSendObservation(send.operationId)).rejects.toMatchObject({ code: 'SEND_UNCERTAIN' })
-    expect(f.current).not.toHaveBeenCalled(); expect(f.reconcile).not.toHaveBeenCalled()
+    expect(f.message).toHaveBeenCalledOnce()
   })
-  it('does not promote an unbound source after service restart even if the current route looks exact', async () => {
+  it('does not promote an unbound source after service restart without exact outgoing proof', async () => {
     const f = await fixture()
     await f.client.sendControlMessage('private INIT control', undefined, send)
     await f.service.close()
+    f.reconcile.mockRejectedValueOnce(Object.assign(new Error('route alone is insufficient'), { code: 'SEND_UNCERTAIN' }))
     await expect((await f.start()).client.captureSendObservation(send.operationId)).rejects.toMatchObject({ code: 'SEND_UNCERTAIN' })
-    expect(f.current).not.toHaveBeenCalled(); expect(f.reconcile).not.toHaveBeenCalled()
+    expect(f.message).toHaveBeenCalledOnce()
+  })
+  it('binds an uncertain bootstrap after restart only from exact journal-derived proof without resending', async () => {
+    const f = await fixture()
+    f.message.mockRejectedValueOnce(Object.assign(new Error('lost ACK'), { code: 'BROWSER_MUTATION_UNCERTAIN' }))
+    await expect(f.client.sendControlMessage('private INIT control', undefined, send)).rejects.toThrow()
+    const before = JSON.parse(await readFile(join(f.directory, 'delivery.json'), 'utf8')).entries.find((e: any) => e.operationId === send.operationId)
+    expect(before.phase).toBe('uncertain')
+    await f.service.close()
+    const restarted = await f.start()
+    expect(await restarted.client.captureSendObservation(send.operationId)).toEqual(bound)
+    expect(f.reconcile).toHaveBeenCalledWith({ conversationId: 'owned', controlDigest: hash('private INIT control') }, expect.any(AbortSignal))
+    const after = JSON.parse(await readFile(join(f.directory, 'delivery.json'), 'utf8')).entries.find((e: any) => e.operationId === send.operationId)
+    expect(after.bootstrap).toEqual(before.bootstrap)
+    expect(after.payloadDigest).toBe(before.payloadDigest)
+    expect(after.bootstrapBaseline).toEqual(bound)
+    expect(after.phase).toBe('accepted')
+    expect(await restarted.client.captureSendObservation(send.operationId)).toEqual(bound)
+    expect(f.message).toHaveBeenCalledOnce()
+    expect(f.reconcile).toHaveBeenCalledOnce()
+  })
+  it.each(['count', 'text', 'version', 'route', 'missing-proof'] as const)('keeps uncertain bootstrap journal unchanged on invalid %s proof', async scenario => {
+    const f = await fixture()
+    f.message.mockRejectedValueOnce(Object.assign(new Error('lost ACK'), { code: 'BROWSER_MUTATION_UNCERTAIN' }))
+    await expect(f.client.sendControlMessage('private INIT control', undefined, send)).rejects.toThrow()
+    const file = join(f.directory, 'delivery.json'), before = await readFile(file, 'utf8')
+    if (scenario === 'missing-proof') f.reconcile.mockRejectedValueOnce(Object.assign(new Error('foreign/duplicate message'), { code: 'SEND_UNCERTAIN' }))
+    else f.reconcile.mockResolvedValueOnce({ ...bound,
+      ...(scenario === 'count' ? { assistantCount: 1 } : {}),
+      ...(scenario === 'text' ? { textDigest: 'f'.repeat(64) } : {}),
+      ...(scenario === 'version' ? { version: 2 as any } : {}),
+      ...(scenario === 'route' ? { conversationId: 'foreign' } : {}) })
+    await expect(f.client.captureSendObservation(send.operationId)).rejects.toMatchObject({ code: 'SEND_UNCERTAIN' })
+    expect(await readFile(file, 'utf8')).toBe(before)
     expect(f.message).toHaveBeenCalledOnce()
   })
   it('returns a previously bound source after restart without inventing a new binding', async () => {

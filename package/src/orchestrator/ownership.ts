@@ -1,6 +1,8 @@
 import { randomUUID } from 'node:crypto'
 import type { TaskReader } from '../core/ports/state-store.ts'
 import type { PersistedTask } from '../core/model.ts'
+import type { PlannerTaskAggregate } from '../core/planner-task.ts'
+import { throwIfCancelled } from '../cancellation.ts'
 
 export interface ManagedTunnelOwner {
   workspaceId: string
@@ -103,6 +105,53 @@ export class ManagedTunnelOwnership {
       if (!this.matches(current, owner)) return
       const task = await this.state.loadTask(owner.taskId)
       if (terminal(task) || current?.phase === 'pre-task' && task === undefined) await this.store.delete()
+    })
+  }
+
+  hasPendingBootstrap(workspaceId: string): Promise<boolean> {
+    return this.serialized(async () => {
+      const owner = await this.store.get()
+      if (!owner) return false
+      if (owner.workspaceId !== workspaceId) throw new Error('TUNNEL_WORKSPACE_BUSY')
+      if (owner.phase !== 'pre-task') return false
+      const task = await this.state.loadTask(owner.taskId) as PlannerTaskAggregate | undefined
+      return task?.protocolVersion === 2 && task.round?.kind === 'INIT'
+        && task.state === 'awaiting-plan' && ['sending', 'observed-sent'].includes(task.round.phase)
+    })
+  }
+
+  recoverPendingBootstrap(workspaceId: string, recover: () => Promise<PersistedTask | undefined>, signal?: AbortSignal): Promise<PersistedTask | undefined> {
+    return this.serialized(async () => {
+      throwIfCancelled(signal)
+      const owner = await this.store.get()
+      if (!owner || owner.phase !== 'pre-task') return undefined
+      if (owner.workspaceId !== workspaceId) throw new Error('TUNNEL_WORKSPACE_BUSY')
+      const task = await this.state.loadTask(owner.taskId) as PlannerTaskAggregate | undefined
+      if (!task) return undefined
+      const binding = await this.state.loadWorkspace(workspaceId)
+      if (task.protocolVersion !== 2 || task.workspaceId !== workspaceId || binding?.lastTaskId !== owner.taskId
+        || task.state !== 'awaiting-plan' || task.iteration !== 0 || task.round?.kind !== 'INIT'
+        || !(task.conversationId === null && task.round.phase === 'sending'
+          || !!task.conversationId && task.round.phase === 'observed-sent')
+        || (await this.pendingTasks()).some(id => id !== owner.taskId)) throw new Error('PRETASK_RECOVERY_REQUIRED')
+      const recovered = await recover()
+      throwIfCancelled(signal)
+      const current = await this.store.get()
+      if (!this.matches(current, owner) || current?.phase !== 'pre-task') throw new Error('TUNNEL_OWNER_CHANGED')
+      const saved = await this.state.loadTask(owner.taskId) as PlannerTaskAggregate | undefined
+      const rebound = await this.state.loadWorkspace(workspaceId)
+      if (recovered?.taskId !== owner.taskId || saved?.workspaceId !== workspaceId || saved.protocolVersion !== 2
+        || saved.state !== 'awaiting-plan' || saved.iteration !== 0 || !saved.conversationId
+        || rebound?.lastTaskId !== owner.taskId || rebound.conversationId !== saved.conversationId
+        || saved.round?.phase !== 'observed-sent' || saved.round.kind !== 'INIT'
+        || saved.round.sendOperationId !== task.round.sendOperationId || saved.round.waitOperationId !== task.round.waitOperationId
+        || saved.round.controlDigest !== task.round.controlDigest
+        || saved.round.baseline.conversationId !== saved.conversationId
+        || saved.round.baseline.version !== task.round.baseline.version
+        || saved.round.baseline.assistantCount !== task.round.baseline.assistantCount
+        || saved.round.baseline.textDigest !== task.round.baseline.textDigest) throw new Error('PRETASK_RECOVERY_REQUIRED')
+      await this.store.put({ ...owner, phase: 'task', updatedAt: Date.now() })
+      return saved
     })
   }
 

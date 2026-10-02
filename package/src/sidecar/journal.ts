@@ -155,6 +155,25 @@ export class DeliveryJournal {
       return structuredClone(entry)
     })
   }
+  /** Exact read-only bootstrap proof may resolve uncertainty, never replay it. */
+  reconcileBootstrap(operationId: string, value: unknown): Promise<DeliveryEntry> {
+    return this.serialize(async () => {
+      const parsed = boundBaselineSchema.safeParse(value)
+      const next = structuredClone(this.store), entry = next.entries.find(entry => entry.operationId === operationId)
+      if (!parsed.success || !entry?.bootstrap || entry.method !== 'sendControlMessage' || entry.phase !== 'uncertain'
+        || !entry.bootstrap.binding || !/^pb_[0-9a-f]{32,64}$/.test(entry.bootstrap.binding.taskId)
+        || entry.bootstrap.binding.iteration !== 0 || entry.bootstrap.binding.head !== undefined
+        || parsed.data.version !== entry.bootstrap.replyBaseline.version
+        || parsed.data.assistantCount !== entry.bootstrap.replyBaseline.assistantCount
+        || parsed.data.textDigest !== entry.bootstrap.replyBaseline.textDigest) throw new SidecarRpcError('SEND_UNCERTAIN')
+      // The server has independently reconciled the exact outgoing message.
+      // Publish the proof and acceptance together; never re-enter the send.
+      entry.bootstrapBaseline = parsed.data; entry.phase = 'accepted'; entry.updatedAt = this.now()
+      await this.publish(next)
+      return structuredClone(entry)
+    })
+  }
+
   /** Publish acceptance and its digest together; reply bodies never enter disk. */
   completeReply(operationId: string, replyDigest: string): Promise<DeliveryEntry> {
     return this.serialize(async () => {

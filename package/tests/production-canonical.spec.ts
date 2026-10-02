@@ -71,6 +71,28 @@ async function fixture(fixFirst = false, gitPolicy: 'worktree' | 'commit-push' =
 }
 
 describe('canonical production composition', () => {
+  it.each(['matching', 'unknown'] as const)('registered reconnect preserves the pre-task claim until bootstrap proof: %s', async scenario => {
+    const f = await fixture()
+    const observation = vi.mocked(DeploymentSidecarControl.prototype.captureSendObservation)
+    observation.mockRejectedValueOnce(Object.assign(new Error('SEND_UNCERTAIN'), { code: 'SEND_UNCERTAIN' }))
+    try {
+      await expect(f.call('chatgpt_plan', { goal: 'recover bootstrap without duplicate send' })).rejects.toMatchObject({ code: 'SEND_UNCERTAIN' })
+      const ownerKey = 'd2c_control/managed_tunnel/owner'
+      const before = structuredClone(f.records.get(ownerKey))
+      expect(before.phase).toBe('pre-task')
+      if (scenario === 'unknown') {
+        observation.mockRejectedValueOnce(Object.assign(new Error('SEND_UNCERTAIN'), { code: 'SEND_UNCERTAIN' }))
+        await expect(f.call('chatgpt_reconnect')).rejects.toMatchObject({ code: 'SEND_UNCERTAIN' })
+        expect(f.records.get(ownerKey)).toEqual(before)
+      } else {
+        const recovered = await f.call('chatgpt_reconnect')
+        expect(recovered).toMatchObject({ recovered: true, workspaceId: f.workspaceId, task: { taskId: before.taskId, conversationId: 'owned' } })
+        expect(f.records.get(ownerKey)).toMatchObject({ claimId: before.claimId, phase: 'task', taskId: before.taskId })
+        expect(recovered.task.round.phase).toBe('observed-sent')
+      }
+      expect(f.sent).toHaveLength(1)
+    } finally { await f.ctx.fiber.dispose() }
+  })
   it('uses a neutral fresh bearer with unchanged authentication and byte-identical live reuse', async () => {
     const f = await fixture()
     try {
