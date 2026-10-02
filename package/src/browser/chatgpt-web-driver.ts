@@ -33,6 +33,7 @@ interface ComposerDraft {
 
 const composerSelector = '[data-plannerbridge-composer-target="1"]'
 const COMPOSER_CLEANUP_TIMEOUT_MS = 2_000
+const POST_NAVIGATION_SEMANTIC_TIMEOUT_MS = 10_000
 const composerScript = String.raw`
 const composerNodes = Array.from(document.querySelectorAll('#prompt-textarea, [role="textbox"][contenteditable]:not([contenteditable="false"])')).filter(element => {
   const rect = element.getBoundingClientRect();
@@ -77,6 +78,9 @@ export class ChatGptWebDriver implements ChatRecoveryControl {
   private fenced = false
   private route: string | undefined
   private finalEnter: 'before' | 'dispatching' | 'acknowledged' = 'before'
+  private temporaryRoute: string | undefined
+  private sentControlDigest: string | undefined
+  private materializationReloadUsed = false
   private readonly cleanupDeadlines = new WeakMap<AbortSignal, number>()
 
   private readonly browser: BrowserPrimitives
@@ -115,7 +119,7 @@ export class ChatGptWebDriver implements ChatRecoveryControl {
     await this.browser.waitForLoad(15 * 1000, signal).catch(error => {
       if (error instanceof OperationCancelledError) throw error
     })
-    await this.waitForSemanticComposerAfterNavigation(10_000, signal)
+    await this.waitForSemanticComposerAfterNavigation(POST_NAVIGATION_SEMANTIC_TIMEOUT_MS, signal)
     return (await this.conversationId(signal)) ?? ''
   }
 
@@ -188,6 +192,9 @@ export class ChatGptWebDriver implements ChatRecoveryControl {
     this.target = undefined
     this.route = undefined
     this.finalEnter = 'before'
+    this.temporaryRoute = undefined
+    this.sentControlDigest = undefined
+    this.materializationReloadUsed = false
     this.fenced = true
     const state = await this.inspectChatPage(signal)
     if (operation?.replyBaseline) {
@@ -213,6 +220,7 @@ export class ChatGptWebDriver implements ChatRecoveryControl {
       if (!(await this.resolveComposer(signal, { texts: [expected] }, true)).owned) throw new BrowserStaleError('ChatGPT control message changed before sending')
       await this.checkTarget(signal)
       this.finalEnter = 'dispatching'
+      this.sentControlDigest = replyTextDigest(text)
       try {
         this.acceptMutation(await this.browser.press('Enter', undefined, await this.mutationContext(signal)))
         this.finalEnter = 'acknowledged'
@@ -371,9 +379,9 @@ export class ChatGptWebDriver implements ChatRecoveryControl {
     }
   }
 
-  private resetTarget(): void { this.target = undefined; this.fenced = false; this.replyBaseline = undefined; this.route = undefined; this.finalEnter = 'before' }
+  private resetTarget(): void { this.target = undefined; this.fenced = false; this.replyBaseline = undefined; this.route = undefined; this.finalEnter = 'before'; this.temporaryRoute = undefined; this.sentControlDigest = undefined; this.materializationReloadUsed = false }
 
-  private acceptTarget(target: BrowserTargetIdentity, transitions: BrowserTransition[] = []): void {
+  private acceptTarget(target: BrowserTargetIdentity, transitions: BrowserTransition[] = [], promotionProven = false): void {
     if (this.fenced) {
       if (!Number.isSafeInteger(target.transitionSequence) || target.transitionSequence < 0) { this.replyBaseline = undefined; throw new BrowserTargetChangedError() }
       if (this.target) {
@@ -382,7 +390,7 @@ export class ChatGptWebDriver implements ChatRecoveryControl {
         let url = this.target.url
         for (const transition of transitions) {
           if (transition.sequence !== ++sequence || transition.beforeUrl !== url) { this.replyBaseline = undefined; throw new BrowserTargetChangedError() }
-          this.admitRoute(transition.afterUrl)
+          this.admitRoute(transition.afterUrl, promotionProven)
           url = transition.afterUrl
         }
         if (sequence !== target.transitionSequence || url !== target.url) { this.replyBaseline = undefined; throw new BrowserTargetChangedError() }
@@ -391,12 +399,19 @@ export class ChatGptWebDriver implements ChatRecoveryControl {
     }
     this.target = target
   }
-  private admitRoute(url: string): void {
+  private admitRoute(url: string, promotionProven = false): void {
     const route = classifyChatRoute(url)
     if (route === 'OTHER') { this.replyBaseline = undefined; throw new BrowserTargetChangedError() }
     if (this.route === undefined) this.route = route
     else if (route !== this.route) {
-      if (this.route === 'NEW_CHAT' && route.startsWith('CONVERSATION:') && this.finalEnter !== 'before') this.route = route
+      if (this.route === 'NEW_CHAT' && route.startsWith('CONVERSATION:') && this.finalEnter !== 'before') {
+        this.route = route
+        if (isTemporaryChatRoute(route)) this.temporaryRoute = route
+      }
+      else if (promotionProven && this.finalEnter === 'acknowledged' && this.temporaryRoute === this.route && isDurableChatRoute(route)) {
+        this.route = route
+        this.temporaryRoute = undefined
+      }
       else { this.replyBaseline = undefined; throw new BrowserTargetChangedError() }
     }
   }
@@ -409,8 +424,93 @@ export class ChatGptWebDriver implements ChatRecoveryControl {
   private async evaluate<T>(expression: string, signal?: AbortSignal): Promise<T> {
     if (!this.fenced) return this.browser.evaluate<T>(expression, signal)
     const observed = await this.browser.observe<T>(expression, this.target, signal)
-    this.acceptTarget(observed.target, observed.transitions)
+    const promotionProven = await this.proveTemporaryPromotion(observed.target, observed.transitions, signal)
+    if (typeof promotionProven === 'object') {
+      this.target = promotionProven
+      this.route = classifyChatRoute(promotionProven.url)
+      this.temporaryRoute = undefined
+      return this.evaluate<T>(expression, signal)
+    }
+    this.acceptTarget(observed.target, observed.transitions, promotionProven)
     return observed.value
+  }
+
+  /** Temporary IDs are admitted only as part of this send's root promotion.
+   * A route prefix alone never grants ownership of the durable conversation. */
+  private async proveTemporaryPromotion(target: BrowserTargetIdentity, transitions: BrowserTransition[], signal?: AbortSignal): Promise<boolean | BrowserTargetIdentity> {
+    if (!this.target || !sameBrowserTarget(this.target, target)) return false
+    let route = this.route
+    let temporary = this.temporaryRoute
+    let needsProof = false
+    let sequence = this.target.transitionSequence
+    let url = this.target.url
+    for (const transition of transitions) {
+      if (transition.sequence !== ++sequence || transition.beforeUrl !== url) throw new BrowserTargetChangedError()
+      const next = classifyChatRoute(transition.afterUrl)
+      if (route === next) { /* Same-route lifecycle events retain the fence. */ }
+      else if (route === 'NEW_CHAT' && next.startsWith('CONVERSATION:') && this.finalEnter !== 'before') temporary = isTemporaryChatRoute(next) ? next : undefined
+      else if (route !== next && temporary === route && isDurableChatRoute(next)) {
+        if (needsProof) throw new BrowserTargetChangedError()
+        needsProof = true; temporary = undefined
+      } else throw new BrowserTargetChangedError()
+      route = next; url = transition.afterUrl
+    }
+    if (sequence !== target.transitionSequence || url !== target.url) throw new BrowserTargetChangedError()
+    if (!needsProof) return false
+    if (this.finalEnter !== 'acknowledged' || !this.sentControlDigest || !this.appName.trim()) throw new BrowserTargetChangedError()
+    let messages = await this.promotionMessages(target, signal)
+    // The live new-chat UI can render the assistant while omitting the sent user
+    // turn until a durable-route load. Wait read-only, then reload once through
+    // an atomic transport fence. No mismatched/ambiguous user proof gets a retry.
+    const until = Date.now() + 2_000
+    while (messages && !messages.some(message => message.role === 'user') && Date.now() < until) {
+      await abortableDelay(200, signal)
+      messages = await this.promotionMessages(target, signal)
+    }
+    let replacement: BrowserTargetIdentity | undefined
+    if (messages && !messages.some(message => message.role === 'user')) {
+      if (this.materializationReloadUsed || !this.browser.reloadCurrent) throw new BrowserTargetChangedError()
+      this.materializationReloadUsed = true
+      try { replacement = await this.browser.reloadCurrent(target, signal) }
+      catch (error) { throwIfCancelled(signal); throw new BrowserTargetChangedError() }
+      if (replacement.targetId !== target.targetId || replacement.url !== target.url || replacement.documentId === target.documentId || replacement.epoch <= target.epoch) throw new BrowserTargetChangedError()
+      messages = await this.promotionMessages(replacement, signal)
+      // Load completion precedes ChatGPT's semantic message mount. Keep the
+      // replacement cursor fenced while observing its materialized proof.
+      const materializeUntil = Date.now() + POST_NAVIGATION_SEMANTIC_TIMEOUT_MS
+      while ((!messages || !messages.some(message => message.role === 'user') || this.pendingAppRendering(messages)) && Date.now() < materializeUntil) {
+        await abortableDelay(200, signal)
+        messages = await this.promotionMessages(replacement, signal)
+      }
+    }
+    if (!messages) throw new BrowserTargetChangedError()
+    const app = this.appName.trim()
+    const matches = messages.map((message, index) => ({ message, index })).filter(({ message }) =>
+      message.role === 'user' && message.appNames.length === 1 && message.appNames[0] === app
+      && message.text.startsWith(app) && /\s/.test(message.text.slice(app.length, app.length + 1))
+      && replyTextDigest(message.text.slice(app.length + 1)) === this.sentControlDigest)
+    let lastUser = -1
+    for (let index = 0; index < messages.length; index++) if (messages[index]!.role === 'user') lastUser = index
+    if (matches.length !== 1 || matches[0]!.index !== lastUser) throw new BrowserTargetChangedError()
+    return replacement ?? true
+  }
+
+  private async promotionMessages(target: BrowserTargetIdentity, signal?: AbortSignal) {
+    const proof = await this.browser.observe<{ role: string; text: string; appNames: string[] }[] | null>(`(() => { ${messageObservationScript}; return messageObservations; })()`, target, signal)
+    if (!sameBrowserTarget(target, proof.target) || proof.target.url !== target.url || proof.target.transitionSequence !== target.transitionSequence) throw new BrowserTargetChangedError()
+    return proof.value
+  }
+
+  /** Hydration can expose the exact control body with an unresolved App label
+   * and one leading renderer character. This is pending rendering, never proof:
+   * only the later exact App link/prefix/digest checks authorize adoption. */
+  private pendingAppRendering(messages: { role: string; text: string; appNames: string[] }[]): boolean {
+    const users = messages.filter(message => message.role === 'user')
+    const app = this.appName.trim()
+    return users.length === 1 && users[0]!.appNames.length === 0
+      && users[0]!.text.slice(1, app.length + 1) === app
+      && /\s/.test(users[0]!.text.slice(app.length + 1, app.length + 2))
+      && replyTextDigest(users[0]!.text.slice(app.length + 2)) === this.sentControlDigest
   }
 
   private async checkTarget(signal?: AbortSignal): Promise<void> {
@@ -698,6 +798,13 @@ function classifyChatRoute(value: string): string {
     const match = /^\/c\/([^/]+)\/?$/.exec(url.pathname)
     return match ? 'CONVERSATION:' + match[1] : 'OTHER'
   } catch { return 'OTHER' }
+}
+
+function isTemporaryChatRoute(route: string | undefined): boolean {
+  return typeof route === 'string' && /^CONVERSATION:local-chatgpt%3A[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/.test(route)
+}
+function isDurableChatRoute(route: string): boolean {
+  return /^CONVERSATION:[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/.test(route)
 }
 
 function normalizePageState(value: unknown): ChatPageState {

@@ -205,6 +205,26 @@ Stage E remains PARTIAL pending final exact-HEAD independent acceptance. Convers
 policy remains in the driver. Neither green local tests nor this repair prove the
 later real Planner/App/DSH/product end-to-end gates.
 
+The 2026-10-02 real new-chat counterexample adds a bounded exception to route
+admission, not a URL ownership rule. An acknowledged send may pass through the
+exact temporary `local-chatgpt%3A<uuid>` route before its durable UUID. Same
+target/document, complete contiguous history, one promotion, exact configured
+App and unique latest-user control digest are all required before adoption.
+Ordinary conversation switches and pre-acknowledgement double promotion still
+fail. A preexisting temporary route grants no promotion capability.
+
+If the durable live UI omits every user turn, the driver first observes read-only
+for at most two seconds. It may then request one optional `reloadCurrent` action.
+This action is navigation, not read-only evaluation or input retry. Direct CDP
+checks the caller's exact document, URL and history cursor synchronously before
+dispatch, rejects any foreign top-frame/same-document route (including a return),
+and binds the new document to the acknowledged navigation loader. An uncertain
+dispatched reload quarantines the binding. Compatibility transports without this
+capability retain refusal. The driver adopts the replacement epoch only after
+the same exact App/latest-user/control proof; empty, ambiguous or mismatched
+proof never grants ownership. No Enter or send is repeated, and protocol,
+journal, recovery and acceptance oracle requirements remain unchanged.
+
 Repair candidate validation on 2026-10-01: 668 passed / 3 original skipped / 0 failed
 across 55 files; typecheck and build passed. The retained earlier integrated run
 failed 13 tests (legacy fixture metadata/error classification and one isolated

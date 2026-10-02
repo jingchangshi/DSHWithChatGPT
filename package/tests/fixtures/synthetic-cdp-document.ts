@@ -25,7 +25,7 @@ export async function syntheticCdpDocument(endpoint: string, targetId: string) {
   })
   await session.command('Fetch.enable', { patterns: [{ urlPattern: 'https://chatgpt.com/*', requestStage: 'Request' }] })
   return {
-    serve(options: { apps?: string[]; draft?: string; logout?: boolean; foreignOnInput?: boolean; replaceOnInput?: boolean; baseline?: boolean; paragraphComposer?: boolean; alterParagraph?: boolean; hiddenParagraph?: boolean } = {}) {
+    serve(options: { apps?: string[]; draft?: string; logout?: boolean; foreignOnInput?: boolean; replaceOnInput?: boolean; baseline?: boolean; paragraphComposer?: boolean; alterParagraph?: boolean; hiddenParagraph?: boolean; persistedControl?: string; persistedApp?: string; persistedReply?: string; duplicatePersistedUser?: boolean; redirectOnLoad?: string; returnFromRedirect?: boolean; persistedMountDelayMs?: number; pendingAppRendering?: boolean; keepPendingAppRendering?: boolean } = {}) {
       html = `<!doctype html><meta charset="utf-8"><title>Synthetic semantic fixture</title>
 <style>[role=textbox]{width:450px;min-height:80px;border:1px solid black} button{min-width:180px;min-height:40px}</style>
 ${options.logout ? '<button>Log in</button>' : '<div role="textbox" contenteditable="true"></div>'}
@@ -83,6 +83,20 @@ window.addReply = (text, streaming = false) => {
   const node = document.createElement('article'); node.setAttribute('data-message-author-role', 'assistant'); node.textContent = text;
   if (streaming) node.setAttribute('data-markdown-animated', ''); document.body.append(node); return true;
 };
+if (options.pendingAppRendering) {
+  const pending = document.createElement('article'); pending.setAttribute('data-message-author-role', 'user'); pending.id = 'pending-user';
+  pending.textContent = '\\u200bDSH with ChatGPT ' + options.persistedControl; document.body.append(pending);
+}
+const mountPersisted = () => { if (options.keepPendingAppRendering) return; document.querySelector('#pending-user')?.remove(); if (options.persistedControl !== undefined) {
+  const user = document.createElement('article'); user.setAttribute('data-message-author-role', 'user');
+  const app = document.createElement('a'); app.href = '/plugins/owned-app'; app.textContent = options.persistedApp || 'DSH with ChatGPT';
+  user.append(app, document.createTextNode(' ' + options.persistedControl)); document.body.append(user);
+  if (options.duplicatePersistedUser) document.body.append(user.cloneNode(true));
+}
+if (options.persistedReply) window.addReply(options.persistedReply);
+};
+if (options.persistedMountDelayMs) setTimeout(mountPersisted, options.persistedMountDelayMs); else mountPersisted();
+if (options.redirectOnLoad) { const original = location.href; history.replaceState(null, '', options.redirectOnLoad); if (options.returnFromRedirect) history.replaceState(null, '', original); }
 </script>`
       if (failure) throw failure
     },

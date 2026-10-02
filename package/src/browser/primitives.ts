@@ -27,6 +27,9 @@ export interface BrowserPrimitives {
   press(key: string, modifiers: number | undefined, context: BrowserMutationContext): Promise<BrowserMutationAck>
   click(x: number, y: number, context: BrowserMutationContext): Promise<BrowserMutationAck>
   navigate(url: string, signal?: AbortSignal): Promise<void>
+  /** Optional atomic same-route reload. Reject intervening routes and bind the
+   * replacement document to the acknowledged navigation, never replay input. */
+  reloadCurrent?(expected: BrowserTargetIdentity, signal?: AbortSignal): Promise<BrowserTargetIdentity>
   waitForLoad(timeoutMs: number, signal?: AbortSignal): Promise<void>
   waitForMutation(timeoutMs: number, signal?: AbortSignal): Promise<void>
 }
@@ -47,6 +50,10 @@ export class CancellableBrowserPrimitives implements BrowserPrimitives {
   press(key: string, modifiers: number | undefined, context: BrowserMutationContext) { return this.run(() => this.delegate.press(key, modifiers, context), context.signal) }
   click(x: number, y: number, context: BrowserMutationContext) { return this.run(() => this.delegate.click(x, y, context), context.signal) }
   navigate(url: string, signal?: AbortSignal) { return this.run(() => this.delegate.navigate(url, signal), signal) }
+  reloadCurrent(expected: BrowserTargetIdentity, signal?: AbortSignal) {
+    if (!this.delegate.reloadCurrent) return Promise.reject(new Error('Same-route reload unavailable'))
+    return this.run(() => this.delegate.reloadCurrent!(expected, signal), signal)
+  }
   waitForLoad(timeoutMs: number, signal?: AbortSignal) { return this.run(() => this.delegate.waitForLoad(timeoutMs, signal), signal) }
   waitForMutation(timeoutMs: number, signal?: AbortSignal) { return this.run(() => this.delegate.waitForMutation(timeoutMs, signal), signal) }
 }

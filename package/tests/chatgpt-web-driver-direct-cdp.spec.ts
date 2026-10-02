@@ -90,6 +90,183 @@ it('keeps the baseline during new-chat promotion and waits for streaming to sett
   expect(await primitives.evaluate('window.enterCount')).toBe(1)
 }, 15_000)
 
+async function temporaryPromotionDriver(options: { inlineDurable?: boolean; existingTemporary?: boolean } = {}) {
+  await page({ apps: ['DSH with ChatGPT'] }, options.existingTemporary ? '/c/local-chatgpt%3Ae9c9d7d2-9ba8-4691-be51-2222a0fcd69e' : '/')
+  const driver = new ChatGptWebDriver(primitives, 'DSH with ChatGPT')
+  // Actual production trace: same document, contiguous root -> local route ->
+  // repeated local route -> durable route. Keep a visible exact outgoing App
+  // message so the durable identity can be proven rather than prefix-trusted.
+  await primitives.evaluate(`(() => {
+    const push = history.pushState.bind(history);
+    history.pushState = (state, title, url) => push(state, title,
+      url === '/c/promoted' ? '/c/local-chatgpt%3Ae9c9d7d2-9ba8-4691-be51-2222a0fcd69e' : url);
+    const composer = document.querySelector('[role=textbox]');
+    composer.addEventListener('keydown', event => {
+      if (event.key !== 'Enter') return;
+      const message = document.createElement('article');
+      message.setAttribute('data-message-author-role', 'user');
+      for (const node of composer.childNodes) message.append(node.cloneNode(true));
+      const atom = message.querySelector('[app-mention-display-name]');
+      const app = document.createElement('a'); app.href = '/plugins/owned-app'; app.textContent = atom.textContent;
+      atom.replaceWith(app);
+      document.body.append(message);
+    }, true);
+    return true;
+  })()`)
+  if (options.inlineDurable) await primitives.evaluate(`(() => {
+    document.querySelector('[role=textbox]').addEventListener('keydown', event => {
+      if (event.key === 'Enter') history.replaceState(null, '', '/c/6abfada1-f690-83ee-aedf-762de215604f');
+    }); return true;
+  })()`)
+  await driver.sendControlMessage('owned request')
+  return driver
+}
+
+it('proves the sent App message before adopting a temporary new-chat route as a durable conversation', async () => {
+  const driver = await temporaryPromotionDriver()
+  await primitives.evaluate(`(() => {
+    history.replaceState(null, '', location.href);
+    history.replaceState(null, '', '/c/6abfada1-f690-83ee-aedf-762de215604f');
+    window.addReply('complete reply'); return true;
+  })()`)
+  expect(await driver.waitForReply(9000)).toEqual({ text: 'complete reply', complete: true })
+  expect(await driver.currentConversation()).toBe('6abfada1-f690-83ee-aedf-762de215604f')
+  expect(await primitives.evaluate('window.enterCount')).toBe(1)
+}, 12_000)
+
+it.each([
+  'missing message', 'wrong digest', 'wrong App', 'duplicate message', 'later user',
+  'second durable route', 'different temporary route', 'missing history', 'document replacement',
+])('rejects temporary conversation promotion with %s', async failure => {
+  const driver = await temporaryPromotionDriver()
+  const target = await primitives.currentTarget()
+  if (failure === 'document replacement') {
+    await primitives.navigate('https://chatgpt.com/c/6abfada1-f690-83ee-aedf-762de215604f')
+    await primitives.waitForLoad(5000)
+  } else {
+    await primitives.evaluate(`(() => {
+      const failure = ${JSON.stringify(failure)};
+      const user = document.querySelector('[data-message-author-role="user"]');
+      if (failure === 'missing message') user.remove();
+      if (failure === 'wrong digest') user.append(document.createTextNode(' altered'));
+      if (failure === 'wrong App') user.querySelector('a').textContent = 'Different App';
+      if (failure === 'duplicate message') document.body.append(user.cloneNode(true));
+      if (failure === 'later user') { const later = document.createElement('article'); later.setAttribute('data-message-author-role', 'user'); later.textContent = 'foreign request'; document.body.append(later); }
+      if (failure === 'different temporary route') history.replaceState(null, '', '/c/local-chatgpt%3Aaaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa');
+      history.replaceState(null, '', '/c/6abfada1-f690-83ee-aedf-762de215604f');
+      if (failure === 'second durable route') history.replaceState(null, '', '/c/aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa');
+      window.addReply('foreign reply'); return true;
+    })()`)
+    if (failure === 'missing history') {
+      const observe = primitives.observe.bind(primitives)
+      primitives.observe = async (...args) => {
+        const result = await observe(...args)
+        return args[1]?.transitionSequence === target.transitionSequence ? { ...result, transitions: [] } : result
+      }
+      try { await expect(driver.waitForReply(5000)).rejects.toMatchObject({ name: 'BrowserTargetChangedError' }) }
+      finally { primitives.observe = observe }
+      return
+    }
+  }
+  await expect(driver.waitForReply(5000)).rejects.toMatchObject({ name: failure === 'missing message' ? 'BrowserStaleError' : 'BrowserTargetChangedError' })
+  expect(await primitives.evaluate('window.enterCount')).toBe(['document replacement', 'missing message'].includes(failure) ? 0 : 1)
+}, 8000)
+
+it('rejects a later durable conversation after a successful proof-bound promotion', async () => {
+  const driver = await temporaryPromotionDriver()
+  await primitives.evaluate(`(() => { history.replaceState(null, '', '/c/6abfada1-f690-83ee-aedf-762de215604f'); return true })()`)
+  expect(await driver.currentConversation()).toBe('6abfada1-f690-83ee-aedf-762de215604f')
+  await primitives.evaluate(`(() => { history.replaceState(null, '', '/c/aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa'); return true })()`)
+  await expect(driver.currentConversation()).rejects.toMatchObject({ name: 'BrowserTargetChangedError' })
+  expect(await primitives.evaluate('window.enterCount')).toBe(1)
+})
+
+it('rejects temporary-to-durable conversion inside Enter before acknowledgement', async () => {
+  await expect(temporaryPromotionDriver({ inlineDurable: true })).rejects.toMatchObject({ name: 'BrowserTargetChangedError' })
+  expect(await primitives.evaluate('window.enterCount')).toBe(1)
+})
+
+it('does not adopt a preexisting temporary route using a later send', async () => {
+  const driver = await temporaryPromotionDriver({ existingTemporary: true })
+  await primitives.evaluate(`(() => { history.replaceState(null, '', '/c/6abfada1-f690-83ee-aedf-762de215604f'); return true })()`)
+  await expect(driver.currentConversation()).rejects.toMatchObject({ name: 'BrowserTargetChangedError' })
+})
+
+it.each(['navigation', 'message change'])('rejects %s while collecting promotion proof', async failure => {
+  const driver = await temporaryPromotionDriver()
+  await primitives.evaluate(`(() => { history.replaceState(null, '', '/c/6abfada1-f690-83ee-aedf-762de215604f'); return true })()`)
+  const observe = primitives.observe.bind(primitives)
+  let injected = false
+  primitives.observe = async (...args) => {
+    if (!injected && args[0].includes('return messageObservations')) {
+      injected = true
+      await observe(failure === 'navigation'
+        ? `(() => { history.replaceState(null, '', '/c/aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa'); return true })()`
+        : `(() => { document.querySelector('[data-message-author-role="user"]').append(document.createTextNode(' altered')); return true })()`)
+    }
+    return observe(...args)
+  }
+  try { await expect(driver.currentConversation()).rejects.toMatchObject({ name: 'BrowserTargetChangedError' }); expect(injected).toBe(true) }
+  finally { primitives.observe = observe }
+  expect(await primitives.evaluate('window.enterCount')).toBe(1)
+})
+
+it('materializes a missing outgoing message with one fenced durable reload and no Enter replay', async () => {
+  const driver = await temporaryPromotionDriver()
+  expect(await primitives.evaluate('window.enterCount')).toBe(1)
+  document.serve({ apps: ['DSH with ChatGPT'], persistedControl: 'owned request', persistedReply: 'complete reply', persistedMountDelayMs: 2500, pendingAppRendering: true })
+  await primitives.evaluate(`(() => {
+    document.querySelector('[data-message-author-role="user"]').remove();
+    history.replaceState(null, '', '/c/6abfada1-f690-83ee-aedf-762de215604f');
+    window.addReply('complete reply'); return true;
+  })()`)
+  const reload = primitives.reloadCurrent.bind(primitives)
+  let reloads = 0
+  primitives.reloadCurrent = async (...args) => { reloads++; return reload(...args) }
+  try {
+    expect(await driver.waitForReply(12000)).toEqual({ text: 'complete reply', complete: true })
+    expect(await driver.currentConversation()).toBe('6abfada1-f690-83ee-aedf-762de215604f')
+    expect(reloads).toBe(1)
+    expect(await primitives.evaluate('window.enterCount')).toBe(0)
+  } finally { primitives.reloadCurrent = reload }
+}, 15000)
+
+it.each(['wrong digest', 'wrong App', 'no user', 'duplicate user', 'foreign route', 'hidden foreign route', 'unresolved App'])('rejects %s after durable materialization reload', async failure => {
+  const driver = await temporaryPromotionDriver()
+  document.serve({
+    apps: ['DSH with ChatGPT'], persistedControl: failure === 'no user' ? undefined : failure === 'wrong digest' ? 'foreign request' : 'owned request',
+    persistedApp: failure === 'wrong App' ? 'Different App' : undefined,
+    duplicatePersistedUser: failure === 'duplicate user',
+    redirectOnLoad: failure.includes('foreign route') ? '/c/aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa' : undefined,
+    returnFromRedirect: failure === 'hidden foreign route',
+    pendingAppRendering: failure === 'unresolved App', keepPendingAppRendering: failure === 'unresolved App',
+  })
+  await primitives.evaluate(`(() => {
+    document.querySelector('[data-message-author-role="user"]').remove();
+    history.replaceState(null, '', '/c/6abfada1-f690-83ee-aedf-762de215604f'); return true;
+  })()`)
+  if (failure === 'no user' || failure === 'unresolved App') {
+    await expect(driver.waitForReply(5000)).rejects.toMatchObject({ name: 'BrowserStaleError' })
+    await expect(driver.currentConversation()).rejects.toMatchObject({ name: 'BrowserTargetChangedError' })
+  } else await expect(driver.currentConversation()).rejects.toMatchObject({ name: 'BrowserTargetChangedError' })
+  // A rejected reload can quarantine the concrete binding; next fixture owns
+  // an explicit reconnect, never replay or silently adopt the failed operation.
+  if (primitives.bindingState !== 'BOUND') await primitives.reconnect()
+  expect(await primitives.evaluate('window.enterCount')).toBe(0)
+}, 10000)
+
+it('rejects a route excursion before the same-route reload dispatch even after returning', async () => {
+  await page({}, '/c/6abfada1-f690-83ee-aedf-762de215604f')
+  const expected = await primitives.currentTarget()
+  await primitives.evaluate(`(() => {
+    const original = location.href;
+    history.replaceState(null, '', '/c/aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa');
+    history.replaceState(null, '', original); return true;
+  })()`)
+  await expect(primitives.reloadCurrent(expected)).rejects.toMatchObject({ name: 'BrowserTargetChangedError' })
+  expect((await primitives.currentTarget()).documentId).toBe(expected.documentId)
+})
+
 it('rejects unrelated same-document replies and same-URL replacement', async () => {
   let driver = await page({}, '/c/owned')
   await driver.sendControlMessage('owned request')

@@ -6,6 +6,13 @@ read the goal, environment, target architecture, protocol, acceptance plan and
 latest real execution evidence. Previously reviewed source boundaries remain
 accepted within their stated scope. Full product completion is still unproven.
 
+Dedicated acceptance draft policy: on 2026-10-02 the user explicitly authorized
+Codex to clear unsent content and App tags in the dedicated acceptance window
+without another confirmation. This supersedes earlier delivery instructions
+asking the user to clear that window manually. Operator cleanup must verify the
+explicit dedicated target, visible page and mutation fence and must never send
+the draft. This authorization is for the dedicated acceptance window.
+
 | Required category | Current status | Evidence or remaining proof |
 |---|---|---|
 | ARCHITECTURE | PARTIAL | Scoped ports/dependency/topology reviews exist; final global exact-HEAD audit remains |
@@ -248,3 +255,73 @@ visibility blocker. No browser/security setting or product source was changed.
 The next required user action is to unlock the Windows session, then revalidate
 the explicit target and its preexisting draft. Do not repeat window-positioning
 requests as though activation alone could resolve a locked desktop.
+
+Iteration-71 current delivery correction (2026-10-02): the desktop was unlocked
+and the user placed dedicated Chrome and Codex side by side. Explicit product
+target visibility is now verified. Two fresh canonical E2Es remain FAILED with
+their original logs/oracles intact. Sn02Wb failed local App selection. In iEiudt,
+local doctor and exact App selection passed; the diagnostic App proof send was
+accepted, then waitForReply became uncertain with BROWSER_TARGET_CHANGED. No
+Planner INIT or valid PLAN was accepted. Earlier descriptions that classified
+both runs as first-local failures were incorrect and have been corrected in
+independent review iterations 70 and 71.
+
+A single fresh diagnostic-only App message using packaged q2GYTb Web driver
+and Direct CDP reproduced the post-send failure. It is not workspace proof or
+acceptance. Metadata shows one concrete document/epoch and contiguous history:
+homepage -> local-chatgpt%3A UUID -> repeated local route -> durable UUID.
+Enter/send ACK succeeded on the temporary route; the semantic route fence
+rejected its later durable promotion. No old message was replayed and journal4
+was preserved. An initial diagnostic target-load race failed before send and
+its metadata is separately retained.
+
+Independent ChatGPT read raw output 397 and confirmed this bounded mechanism.
+Its plan requires exact latest-user control digest/App proof, same concrete
+document and complete history before a one-time temporary-to-durable adoption.
+A real Chrome/synthetic-document regression was RED at admitRoute in original
+source. A minimal driver-only implementation is under test; it is not yet
+reviewed, packaged or accepted. The third E2E remains deferred until focused/full
+regression, fresh package/profile and bounded source review close this blocker.
+Real fix PLAN/restart/second execution/exact pushed DONE/oracle, producer Git gate
+and final global exact-HEAD audit remain open.
+
+Iteration-73 candidate follow-up: full regression passed 83 files/1093 tests,
+3 original skips,487.25s,exit0. Actual single candidate diagnostic nevertheless
+failed exact user-message proof: stable durable route displayed only the
+assistant response, and read-only extraction found no user turn/App link.
+Diagnostic same-route reload materialized the exact outgoing App message; it
+was not automatic product adoption or acceptance. Independent review requested
+a two-second read-only materialization phase, one controlled same-route reload,
+and exact proof before admitting its new epoch. The bounded reload candidate is
+now under test. Additional pre-ACK, preexisting-local and proof-race adversaries
+passed before this extension. No new full/package/product success is claimed
+for the reload extension until its checks and review finish.
+
+Iteration-75 bounded source and test supplement: ChatGPT independently read the
+current driver promotion/proof methods, Direct CDP reload implementation,
+primitive wrapper, reload adversaries and complete persisted-message fixture.
+It returned DONE_SCOPED for source and adversarial coverage, finding no concrete
+remaining blocker in this scope. This review covers the dirty candidate, not
+exact committed HEAD, packaging or product acceptance. Final focused regression
+passed 4 files/96 tests,86.03s,exit0. The intermediate full extension run remains
+FAILED (4 failed/1101 passed/3 original skips); two original native timing cases
+subsequently passed unchanged in isolation. The frozen ordinary full then passed
+83 files/1106 tests/3 original skips,525.64s,exit0. Typecheck and clean build passed.
+
+The final real diagnostic sent once, proved exact App/control/latest-user
+identity across the same-document temporary-to-durable route, and read the
+complete expected reply. It did not need reload and does not prove the live
+reload path, real workspace proof or PLAN. All diagnostic and failed E2E evidence
+is preserved. Only owned empty diagnostic tabs were closed; the dedicated
+product target and original journal remain. Next: frozen full, fresh package and
+installed profile, commit/push/exact-HEAD bounded review, then a fresh canonical
+E2E with the new packaged native Sidecar and independent journal. The real
+fix/restart/second-execution/DONE chain, producer gate and global audit remain open.
+
+Iteration-76 fresh package `KMPR5Q` passed isolated imports and separate native
+Sidecar/replay/shutdown verification. Installed real DSH profile `rdCHcq` passed
+tool-schema, stable identity across aliases/restart/reload, hardened Git and
+containment checks in both attempts. This is a composition fixture: actual
+Browser/App proof and real Planner/Executor acceptance are NOT_RUN. Artifact
+runtime bytes are built from the frozen iteration-75/76 source candidate; exact
+committed source association and bounded HEAD supplement precede its deployment.

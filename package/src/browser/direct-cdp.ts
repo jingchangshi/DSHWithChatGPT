@@ -305,6 +305,34 @@ export class DirectCdpPrimitives implements BrowserPrimitives {
     }
     throw new BrowserStaleError('CDP page load deadline exceeded')
   }
+  async reloadCurrent(expected: BrowserTargetIdentity, signal?: AbortSignal): Promise<BrowserTargetIdentity> {
+    const exact = () => {
+      const current = this.snapshot()
+      if (!sameBrowserTarget(expected, current) || current.url !== expected.url || current.transitionSequence !== expected.transitionSequence) throw new BrowserTargetChangedError()
+    }
+    exact(); throwIfCancelled(signal)
+    let foreignRoute = false
+    const unsubscribe = this.session.subscribe((method, params) => {
+      if ((method === 'Page.navigatedWithinDocument' && params.frameId === this.frameId && params.url !== expected.url)
+        || (method === 'Page.frameNavigated' && params.frame && !params.frame.parentId && params.frame.url !== expected.url)) foreignRoute = true
+    })
+    let written = false
+    try {
+      const result = await this.session.command<any>('Page.navigate', { url: expected.url }, {
+        signal, settleAfterWrite: true, beforeWrite: exact, onWritten: () => { written = true },
+      })
+      if (result.errorText || !result.loaderId || result.frameId !== this.frameId) throw new BrowserTargetChangedError()
+      if (this.context && this.documentId === expected.documentId) this.context = undefined
+      await this.waitForLoad(deadline(this.options.commandTimeoutMs), signal)
+      const current = (await this.observe('true', undefined, signal)).target
+      if (foreignRoute || current.targetId !== expected.targetId || current.url !== expected.url
+        || current.documentId === expected.documentId || current.epoch <= expected.epoch || this.loaderId !== result.loaderId) throw new BrowserTargetChangedError()
+      return current
+    } catch (error) {
+      if (written) this.state = 'QUARANTINED'
+      throw error
+    } finally { unsubscribe() }
+  }
   async waitForMutation(timeoutMs: number, signal?: AbortSignal): Promise<void> {
     deadline(timeoutMs)
     await this.observe(`new Promise(resolve => { let timer; const observer = new MutationObserver(() => done()); const done = () => { observer.disconnect(); clearTimeout(timer); resolve(true) }; observer.observe(document, { childList: true, subtree: true, characterData: true, attributes: true }); timer = setTimeout(done, ${timeoutMs}) })`, undefined, signal, timeoutMs + 500)
