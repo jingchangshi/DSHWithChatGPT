@@ -22,6 +22,7 @@ function browser() {
     async currentConversation() { return 'owned-chat' },
     async captureReplyBaseline() { return baseline },
     async captureSendObservation() { return { ...baseline, conversationId: 'owned-chat' } },
+    async reconcileReplyBaseline() { return { ...baseline, conversationId: 'owned-chat' } },
   }
   return value
 }
@@ -81,5 +82,28 @@ describe('canonical coordinator v2 creation gate', () => {
     expect(saved.round.phase).toBe('accepted')
     expect(saved.round.outcome.sections.ACTIONS).toBe('Implement and test')
     expect(saved.round.outcome.digest).toMatch(/^[a-f0-9]{64}$/)
+  })
+
+  it('recovers a bound canonical task without sending and rejects an unbound bootstrap route', async () => {
+    const { c, b } = make({ canonicalProtocol: true })
+    const taskId = 'pb_' + '4'.repeat(32)
+    await c.startCanonicalTask(taskId, 'canonical')
+    const recovered = await c.recover()
+    expect(recovered?.taskId).toBe(taskId)
+    expect(b.sent).toHaveLength(1)
+
+    const unbound = make({ canonicalProtocol: true })
+    const pending: any = {
+      protocolVersion: 2, taskId: 'pb_' + '5'.repeat(32), workspaceId: 'world', goal: 'pending',
+      state: 'awaiting-plan', iteration: 0, waitingFor: 'chatgpt-plan', conversationId: null,
+      lastReviewedHead: null, createdAt: 1, updatedAt: 1, lastError: null,
+      round: { kind: 'INIT', iteration: 0, sendOperationId: 'send-pending', waitOperationId: 'wait-pending',
+        controlDigest: 'c'.repeat(64), baseline, phase: 'prepared' },
+    }
+    const created = await unbound.c.stateHandle.createTask(pending)
+    await unbound.c.stateHandle.commitTask(pending.taskId, created.revision, { ...pending, round: { ...pending.round, phase: 'sending' } })
+    await unbound.c.stateHandle.bindWorkspace('world', { workspaceRoot: 'C:\\ws\\canonical', conversationId: null, lastTaskId: pending.taskId })
+    await expect(unbound.c.recover()).rejects.toMatchObject({ code: 'SEND_UNCERTAIN' })
+    expect(unbound.b.sent).toHaveLength(0)
   })
 })

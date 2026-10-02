@@ -17,7 +17,7 @@ import type { StateStore, TaskSnapshot } from '../core/ports/state-store.ts'
 import { OperationCancelledError, throwIfCancelled } from '../cancellation.ts'
 import { createHash, randomUUID } from 'node:crypto'
 import type { PlannerTaskAggregate } from '../core/planner-task.ts'
-import type { ChatSendObservationControl } from '../core/ports/chat-control.ts'
+import type { ChatRecoveryControl, ChatSendObservationControl } from '../core/ports/chat-control.ts'
 import { formatPlannerEnvelope, parsePlannerEnvelope, plannerEnvelopeDigest } from '../protocol/planner-envelope.ts'
 
 /** Coordinator configuration. */
@@ -230,6 +230,21 @@ export class ChatGptCoordinator {
       throw new ProtocolError('unexpected-reply', `task ${taskId} is not waiting for a canonical plan`)
     }
     let current = snapshot
+    if (round.phase === 'uncertain') {
+      const recovery = this.options.browser as Partial<ChatRecoveryControl>
+      if (typeof recovery.reconcileReplyBaseline !== 'function' || persisted.conversationId === null) {
+        throw Object.assign(new Error('SEND_UNCERTAIN'), { code: 'SEND_UNCERTAIN' })
+      }
+      const reconciled = await recovery.reconcileReplyBaseline({
+        conversationId: persisted.conversationId, controlDigest: round.controlDigest,
+      }, signal)
+      if (reconciled.conversationId !== persisted.conversationId) {
+        throw Object.assign(new Error('SEND_UNCERTAIN'), { code: 'SEND_UNCERTAIN' })
+      }
+      current = await this.state.commitTask(taskId, current.revision, {
+        ...persisted, round: { ...round, baseline: reconciled, phase: 'awaiting-reply' },
+      } as PlannerTaskAggregate)
+    }
     if (round.phase === 'observed-sent') {
       current = await this.state.commitTask(taskId, current.revision, {
         ...persisted, round: { ...round, phase: 'awaiting-reply' },
@@ -361,6 +376,15 @@ export class ChatGptCoordinator {
     if (taskId === undefined) return undefined
     const task = await this.state.loadTask(taskId)
     if (task === undefined) return undefined
+    if (taskProtocolVersion(task) === 2 && (task as PlannerTaskAggregate).round !== undefined) {
+      const aggregate = task as PlannerTaskAggregate
+      if (aggregate.conversationId === null) {
+        throw Object.assign(new Error('SEND_UNCERTAIN'), { code: 'SEND_UNCERTAIN' })
+      }
+      await this.options.browser.ensureReady(signal)
+      await this.options.browser.openConversation(aggregate.conversationId, signal)
+      return task
+    }
     this.requireLegacyTask(task)
     this.restoreMachine(task)
     await this.options.browser.ensureReady(signal)
