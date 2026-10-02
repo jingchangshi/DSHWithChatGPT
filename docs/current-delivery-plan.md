@@ -170,3 +170,15 @@ No new INIT was sent. The old assistant response says ERROR and is rejected as
 bad-round by the canonical parser; no valid PLAN was accepted. Old failed oracle
 results and termination remain intact. These facts prove bounded actual bootstrap
 recovery, not the full Windows product execution/nonce/fix/restart/DONE chain.
+
+Independent evidence review at `c552073` freshly read the native confirmation
+and sanitized transcript and accepted bounded bootstrap recovery. It recommends
+one fresh isolated canonical execution while preserving the old task and all
+failed evidence. Keep the authenticated dedicated product browser rather than
+creating a fresh profile that would require another login; the new run will have
+its own workspace/task/storage and use the existing authorized secure connection.
+The next launcher references verified package `Nf44is` but has not run. A no-send
+preflight refused the hidden product tab after automatic activation failed.
+User foreground assistance is requested; no INIT, App-proof or new E2E was sent.
+An awaiting-plan reconnect wait seam remains a bounded follow-up if encountered,
+and must never be addressed by accepting the old malformed ERROR response.
