@@ -50,6 +50,18 @@ App data access. Use the canonical Planner–Executor runner for that gate.
 6. Acquire Execution World identity and current capabilities, bind authenticated Bridge and start exclusive secure exposure. Product Custom App must be exactly the configured App; development connector cannot substitute for it.
 7. Check local readiness separately from actual App challenge proof, then run a genuine Planner–Executor task. A green doctor is never full acceptance.
 
+The interactive Windows session hosting Browser B must be unlocked, with the
+dedicated product page actually visible. Login, composer presence, normal window
+bounds and an accepted activation command do not prove this prerequisite.
+Read-only diagnostics on 2026-10-02 found foreground `LockApp` and WTS session
+flags 0 (locked) while Chrome was visible/not minimized at the native window
+level and its document remained hidden. This explains that observed preflight
+failure; it is not evidence of a Direct CDP target or DOM extraction defect.
+The user must unlock Windows. Never automate unlock credentials, disable the
+lock policy, spoof visibility or replace the visibility fence with focus. Recheck
+the explicit product target and preserve any existing draft after unlock before
+running a no-send semantic preflight and starting real acceptance.
+
 Sidecar deployment configuration is `endpoint`, `authentication`, `rpcVersion`, request/reply deadlines and body limits. When `sidecarProcessCommand` is configured, the deployment layer owns that child process through `SidecarSupervisor`: it starts only after protected credential resolution, waits for authenticated semantic health, fails closed on timeout/exit, and closes the child during runtime disposal. When omitted, the Sidecar remains externally managed. The client does not accept Chrome paths/CDP/Windows/SSH options. Credentials and Sidecar own-state journals stay outside repos; Bridge auth and exposure are distinct from Sidecar auth.
 
 ## RPC safety and supervision

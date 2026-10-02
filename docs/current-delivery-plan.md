@@ -238,3 +238,13 @@ document visibility remains hidden. No INIT/E2E/control message was sent.
 Process readiness does not satisfy the mutation visibility gate. The pending
 user action is to maximize the new dedicated Chrome homepage and minimize Codex
 while automatic visibility detection runs; no reply/composer input is required.
+
+Iteration-67 resumed diagnosis: after the user reported completing window
+positioning, read-only native diagnostics identified foreground `LockApp`.
+Chrome PID 28504 in Windows session 1 was not minimized, but not foreground.
+An independent WTS session-state query returned sessionFlags=0, locked=true.
+This establishes a locked interactive desktop as the current environmental
+visibility blocker. No browser/security setting or product source was changed.
+The next required user action is to unlock the Windows session, then revalidate
+the explicit target and its preexisting draft. Do not repeat window-positioning
+requests as though activation alone could resolve a locked desktop.
