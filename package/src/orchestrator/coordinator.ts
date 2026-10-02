@@ -20,6 +20,8 @@ import type { PlannerTaskAggregate } from '../core/planner-task.ts'
 import type { ChatRecoveryControl, ChatSendObservationControl } from '../core/ports/chat-control.ts'
 import { formatPlannerEnvelope, parsePlannerEnvelope, plannerEnvelopeDigest } from '../protocol/planner-envelope.ts'
 import type { PlannerEnvelope } from '../protocol/planner-envelope.ts'
+import type { GitAuthority, GitAuthorityPort } from '../core/ports/git-authority.ts'
+import type { PlannerGitProof } from '../core/planner-task.ts'
 
 /** Coordinator configuration. */
 export interface CoordinatorOptions {
@@ -39,6 +41,8 @@ export interface CoordinatorOptions {
   plannerInstructions?: string
   /** Explicit production gate for the canonical v2 coordinator path. */
   canonicalProtocol?: boolean
+  /** Current capability owner; durable Git metadata is never authority. */
+  gitAuthority?: GitAuthorityPort
 }
 
 /** Result of starting a task (INIT sent). */
@@ -279,6 +283,128 @@ export class ChatGptCoordinator {
       round: { ...activeRound, phase: 'accepted', outcome },
     } as PlannerTaskAggregate)
     return { taskId, envelope, record: saved.value }
+  }
+
+  /** Canonical review owns fresh Git authority until delivery/acceptance settles. */
+  async reportCanonicalExecuted(taskId: string, summary: {
+    changedFiles: string[]; head: string; testsRecorded: boolean; note?: string
+  }, signal?: AbortSignal): Promise<RoundResult> {
+    throwIfCancelled(signal)
+    if (this.options.canonicalProtocol !== true || !this.options.gitAuthority) {
+      throw Object.assign(new Error('GIT_PROOF_UNAVAILABLE'), { code: 'GIT_PROOF_UNAVAILABLE' })
+    }
+    return this.options.gitAuthority.withAuthority(async authority => {
+      this.requireGitAuthority(authority, signal)
+      const activeSignal = signal ? AbortSignal.any([signal, authority.signal]) : authority.signal
+      let snapshot = await this.requireTask(taskId)
+      let aggregate = snapshot.value as PlannerTaskAggregate
+      if (taskProtocolVersion(aggregate) !== 2 || aggregate.workspaceId !== this.options.workspaceId || !aggregate.round) {
+        throw new ProtocolError('unexpected-reply', 'canonical task history unavailable')
+      }
+      const resuming = aggregate.round.kind === 'EXECUTED' && ['observed-sent', 'awaiting-reply'].includes(aggregate.round.phase)
+      if (!resuming) {
+        if (aggregate.round.phase !== 'accepted' || aggregate.round.outcome?.state !== 'PLAN') {
+          throw Object.assign(new Error('SEND_UNCERTAIN'), { code: 'SEND_UNCERTAIN' })
+        }
+        if (aggregate.iteration > this.maxIterations) throw new ProtocolError('iteration-limit', 'canonical round limit reached')
+        const proof = this.requireGitProof(await authority.snapshot(), summary.head)
+        this.requireGitAuthority(authority, activeSignal)
+        const observation = this.options.browser as Partial<ChatSendObservationControl>
+        if (typeof observation.captureReplyBaseline !== 'function' || typeof observation.captureSendObservation !== 'function') {
+          throw Object.assign(new Error('CANONICAL_OBSERVATION_UNAVAILABLE'), { code: 'CANONICAL_OBSERVATION_UNAVAILABLE' })
+        }
+        await this.options.browser.ensureReady(activeSignal)
+        await this.options.browser.openConversation(aggregate.conversationId ?? undefined, activeSignal)
+        const baseline = await observation.captureReplyBaseline(activeSignal)
+        this.requireGitAuthority(authority, activeSignal)
+        if (baseline.conversationId === null || baseline.conversationId !== aggregate.conversationId) {
+          throw Object.assign(new Error('SEND_UNCERTAIN'), { code: 'SEND_UNCERTAIN' })
+        }
+        const beforeSend = this.requireGitProof(await authority.snapshot(), proof.head)
+        this.requireGitAuthority(authority, activeSignal)
+        if (beforeSend.branch !== proof.branch || beforeSend.upstream !== proof.upstream) {
+          throw Object.assign(new Error('GIT_STATE_CHANGED'), { code: 'GIT_STATE_CHANGED' })
+        }
+        const text = formatPlannerEnvelope({ sender: 'executor', state: 'EXECUTED', taskId,
+          workspaceId: this.options.workspaceId, iteration: aggregate.iteration, inReplyTo: aggregate.iteration,
+          head: proof.head, sections: { RESULT: 'Execution completed. Independently inspect workspace, Git and raw execution evidence.',
+            CHANGED_FILES: summary.changedFiles.length ? summary.changedFiles.join(', ') : '(none)',
+            TESTS: summary.testsRecorded ? 'Read raw execution evidence.' : 'No execution evidence recorded.',
+            ...(summary.note ? { NOTE: summary.note } : {}) } })
+        const round = { kind: 'EXECUTED' as const, iteration: aggregate.iteration, sendOperationId: `send-${randomUUID()}`,
+          waitOperationId: `wait-${randomUUID()}`, controlDigest: createHash('sha256').update(text).digest('hex'),
+          baseline, phase: 'prepared' as const, git: proof }
+        snapshot = await this.state.commitTask(taskId, snapshot.revision, {
+          ...aggregate, state: 'awaiting-review', waitingFor: 'chatgpt-review', round,
+        } as PlannerTaskAggregate)
+        this.requireGitAuthority(authority, activeSignal)
+        snapshot = await this.state.commitTask(taskId, snapshot.revision, {
+          ...snapshot.value, round: { ...round, phase: 'sending' },
+        } as PlannerTaskAggregate)
+        this.requireGitAuthority(authority, activeSignal)
+        await this.options.browser.sendControlMessage(text, activeSignal, { operationId: round.sendOperationId, replyBaseline: baseline,
+          correlation: { taskId, iteration: round.iteration, workspaceId: this.options.workspaceId, phase: 'EXECUTED', head: proof.head } })
+        this.requireGitAuthority(authority, activeSignal)
+        const bound = await observation.captureSendObservation(round.sendOperationId, activeSignal)
+        this.requireGitAuthority(authority, activeSignal)
+        if (bound.conversationId !== baseline.conversationId || bound.assistantCount !== baseline.assistantCount || bound.textDigest !== baseline.textDigest) {
+          throw Object.assign(new Error('SEND_UNCERTAIN'), { code: 'SEND_UNCERTAIN' })
+        }
+        snapshot = await this.state.commitTask(taskId, snapshot.revision, {
+          ...snapshot.value, round: { ...round, phase: 'observed-sent' },
+        } as PlannerTaskAggregate)
+      }
+      aggregate = snapshot.value as PlannerTaskAggregate
+      let round = aggregate.round!
+      if (round.phase === 'observed-sent') {
+        snapshot = await this.state.commitTask(taskId, snapshot.revision, { ...aggregate, round: { ...round, phase: 'awaiting-reply' } } as PlannerTaskAggregate)
+        aggregate = snapshot.value as PlannerTaskAggregate
+        round = aggregate.round!
+      }
+      const reply = await this.options.browser.waitForReply(this.replyTimeoutMs, activeSignal, {
+        operationId: round.waitOperationId, replyRecovery: { sendOperationId: round.sendOperationId },
+        correlation: { taskId, workspaceId: this.options.workspaceId, iteration: round.iteration, phase: 'DONE', head: round.git!.head },
+      })
+      this.requireGitAuthority(authority, activeSignal)
+      const envelope = parsePlannerEnvelope(reply.text, { sender: 'planner' })
+      if (envelope.taskId !== taskId || envelope.headers.get('WORKSPACE_ID') !== this.options.workspaceId
+        || envelope.headers.get('HEAD') !== round.git!.head || envelope.inReplyTo !== round.iteration
+        || !['PLAN', 'DONE', 'BLOCKED', 'ERROR'].includes(envelope.state)
+        || envelope.iteration !== round.iteration + (envelope.state === 'PLAN' ? 1 : 0)) {
+        throw new ProtocolError('unexpected-reply', 'canonical review identity mismatch')
+      }
+      const currentProof = this.requireGitProof(await authority.snapshot(), round.git!.head)
+      this.requireGitAuthority(authority, activeSignal)
+      if (currentProof.branch !== round.git!.branch || currentProof.upstream !== round.git!.upstream) {
+        throw Object.assign(new Error('GIT_STATE_CHANGED'), { code: 'GIT_STATE_CHANGED' })
+      }
+      const state = envelope.state as 'PLAN' | 'DONE' | 'BLOCKED' | 'ERROR'
+      const saved = await this.state.commitTask(taskId, snapshot.revision, {
+        ...aggregate, state: state === 'PLAN' ? 'planned' : state === 'DONE' ? 'done' : state === 'BLOCKED' ? 'blocked' : 'error',
+        iteration: envelope.iteration, waitingFor: state === 'PLAN' ? 'dsh-execution' : state === 'DONE' ? 'none' : 'user',
+        lastReviewedHead: round.git!.head, round: { ...round, phase: 'accepted', outcome: {
+          digest: plannerEnvelopeDigest(envelope), state, iteration: envelope.iteration, inReplyTo: round.iteration,
+          head: round.git!.head, sections: Object.fromEntries(envelope.sections),
+        } },
+      } as PlannerTaskAggregate)
+      return { taskId, envelope, record: saved.value }
+    }, signal)
+  }
+
+  private requireGitAuthority(authority: GitAuthority, signal?: AbortSignal): void {
+    throwIfCancelled(signal)
+    throwIfCancelled(authority.signal)
+    if (authority.workspaceId !== this.options.workspaceId) throw Object.assign(new Error('GIT_PROOF_UNAVAILABLE'), { code: 'GIT_PROOF_UNAVAILABLE' })
+  }
+
+  private requireGitProof(proof: PlannerGitProof, expectedHead: string): PlannerGitProof {
+    const fail = (code: string): never => { throw Object.assign(new Error(code), { code }) }
+    if (!proof || !/^[a-f0-9]{40}(?:[a-f0-9]{24})?$/.test(proof.head) || !proof.branch || !proof.upstream
+      || ['HEAD', 'main', 'master'].includes(proof.branch)) fail('GIT_PROOF_UNAVAILABLE')
+    if (proof.clean !== true) fail('GIT_WORKTREE_DIRTY')
+    if (proof.ahead !== 0 || proof.behind !== 0 || proof.upstreamHead !== proof.head) fail('GIT_NOT_PUSHED')
+    if (proof.head !== expectedHead) fail('GIT_STATE_CHANGED')
+    return { ...proof }
   }
 
   /**

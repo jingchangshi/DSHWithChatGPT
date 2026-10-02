@@ -3,6 +3,7 @@ import { ChatGptCoordinator } from '../src/orchestrator/coordinator.ts'
 import { CoordinatorState, createMemoryStore } from '../src/orchestrator/state.ts'
 import type { ChatSendObservationControl, ControlOperation, ReplyObservationBaseline } from '../src/core/ports/chat-control.ts'
 import { formatPlannerEnvelope } from '../src/protocol/planner-envelope.ts'
+import type { GitAuthorityPort } from '../src/core/ports/git-authority.ts'
 
 const baseline: ReplyObservationBaseline = {
   version: 1, conversationId: null, assistantCount: 0,
@@ -27,7 +28,7 @@ function browser() {
   return value
 }
 
-function make(options: { canonicalProtocol?: boolean } = {}) {
+function make(options: { canonicalProtocol?: boolean; gitAuthority?: GitAuthorityPort } = {}) {
   const b = browser()
   const c = new ChatGptCoordinator({
     browser: b, store: new CoordinatorState(createMemoryStore()),
@@ -37,6 +38,68 @@ function make(options: { canonicalProtocol?: boolean } = {}) {
 }
 
 describe('canonical coordinator v2 creation gate', () => {
+  async function planned(options: { gitAuthority?: GitAuthorityPort }) {
+    const fixture = make({ canonicalProtocol: true, ...options })
+    const taskId = 'pb_' + 'a'.repeat(32)
+    await fixture.c.startCanonicalTask(taskId, 'git-reviewed task')
+    fixture.b.waitForReply = async () => ({ complete: true, text: formatPlannerEnvelope({ sender: 'planner', state: 'PLAN',
+      taskId, workspaceId: 'world', iteration: 1, inReplyTo: 0, sections: { ACTIONS: 'Implement' } }) })
+    await fixture.c.awaitPlan(taskId)
+    fixture.b.captureReplyBaseline = async () => ({ ...baseline, conversationId: 'owned-chat' })
+    return { ...fixture, taskId }
+  }
+  const proof = { head: 'a'.repeat(40), upstreamHead: 'a'.repeat(40), branch: 'feature', upstream: 'origin/feature', clean: true, ahead: 0, behind: 0 }
+  function gitAuthority(snapshot: () => Promise<typeof proof>): GitAuthorityPort {
+    return { async withAuthority(callback, signal) {
+      return callback({ workspaceId: 'world', signal: signal ?? new AbortController().signal, snapshot })
+    } }
+  }
+  it.each([
+    [{ clean: false }, 'GIT_WORKTREE_DIRTY'],
+    [{ ahead: 1 }, 'GIT_NOT_PUSHED'],
+    [{ behind: 1 }, 'GIT_NOT_PUSHED'],
+    [{ branch: 'main' }, 'GIT_PROOF_UNAVAILABLE'],
+    [{ head: 'b'.repeat(40), upstreamHead: 'b'.repeat(40) }, 'GIT_STATE_CHANGED'],
+  ])('rejects invalid fresh Git proof %j before state advance or EXECUTED send', async (change, code) => {
+    const { c, b, taskId } = await planned({ gitAuthority: gitAuthority(async () => ({ ...proof, ...change })) })
+    const before = await c.stateHandle.loadTaskSnapshot(taskId)
+    await expect(c.reportCanonicalExecuted(taskId, { changedFiles: [], head: proof.head, testsRecorded: true })).rejects.toMatchObject({ code })
+    expect(await c.stateHandle.loadTaskSnapshot(taskId)).toEqual(before)
+    expect(b.sent).toHaveLength(1)
+  })
+  it('refuses canonical review without Git authority rather than trusting caller HEAD', async () => {
+    const { c, b, taskId } = await planned({})
+    await expect(c.reportCanonicalExecuted(taskId, { changedFiles: [], head: proof.head, testsRecorded: true })).rejects.toMatchObject({ code: 'GIT_PROOF_UNAVAILABLE' })
+    expect(b.sent).toHaveLength(1)
+  })
+  it('revalidates current HEAD before accepting DONE and leaves the pending round intact on drift', async () => {
+    let snapshots = 0
+    const { c, b, taskId } = await planned({ gitAuthority: gitAuthority(async () => ++snapshots <= 2 ? proof : {
+      ...proof, head: 'b'.repeat(40), upstreamHead: 'b'.repeat(40),
+    }) })
+    b.waitForReply = async () => ({ complete: true, text: formatPlannerEnvelope({ sender: 'planner', state: 'DONE',
+      taskId, workspaceId: 'world', iteration: 1, inReplyTo: 1, head: proof.head, sections: { SUMMARY: 'Reviewed' } }) })
+    await expect(c.reportCanonicalExecuted(taskId, { changedFiles: [], head: proof.head, testsRecorded: true })).rejects.toMatchObject({ code: 'GIT_STATE_CHANGED' })
+    expect((await c.status(taskId) as any).round.phase).toBe('awaiting-reply')
+    expect((await c.status(taskId))?.state).toBe('awaiting-review')
+    expect(snapshots).toBe(3)
+    expect(b.sent).toHaveLength(2)
+  })
+  it('accepts exact-HEAD DONE atomically after fresh revalidation', async () => {
+    let snapshots = 0
+    const { c, b, taskId } = await planned({ gitAuthority: gitAuthority(async () => { snapshots++; return proof }) })
+    b.waitForReply = async () => ({ complete: true, text: formatPlannerEnvelope({ sender: 'planner', state: 'DONE',
+      taskId, workspaceId: 'world', iteration: 1, inReplyTo: 1, head: proof.head, sections: { SUMMARY: 'Independent review' } }) })
+    const result = await c.reportCanonicalExecuted(taskId, { changedFiles: [], head: proof.head, testsRecorded: true })
+    const saved = result.record as any
+    expect(saved.state).toBe('done')
+    expect(saved.iteration).toBe(1)
+    expect(saved.round.phase).toBe('accepted')
+    expect(saved.round.outcome).toMatchObject({ state: 'DONE', head: proof.head, inReplyTo: 1 })
+    expect(saved.round.outcome.digest).toMatch(/^[a-f0-9]{64}$/)
+    expect(snapshots).toBe(3)
+    expect(b.sent).toHaveLength(2)
+  })
   it('recovers an ACK-to-aggregate publication failure using the same source without resending', async () => {
     const { c, b } = make({ canonicalProtocol: true })
     const taskId = 'pb_' + '9'.repeat(32)
