@@ -193,4 +193,10 @@ is tested independently. No production proof/security assertion was removed.
 Final ordinary full rerun: 83 files passed, 1043 tests passed, three original
 skips. The first independent response accepted only scoped execution evidence;
 the requested actual-source supplement reported unavailable connector tools.
-Source supplement acceptance is therefore pending, despite green local checks.
+At that point source supplement acceptance was pending despite green local checks.
+One same-connector availability confirmation subsequently restored tool calls.
+The supplement at `fd8a61b` actually read cancellation, deployment ensureBridge,
+Sidecar normalization and production/cancellation/bridge tests, plus red/focused/
+final-full raw outputs. It accepted the bounded cancellation/auth source scope.
+This does not independently certify every historical document, helper or final
+product requirement; global exact-HEAD review remains outstanding.

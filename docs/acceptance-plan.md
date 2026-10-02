@@ -6,7 +6,12 @@ Status: PARTIAL — the full Windows deployment remains unfinished. Scoped canon
 
 ### Current goal audit and delivery priority (2026-10-02)
 
-Latest reviewed delivery checkpoint: `189222b`. Iteration-51 whole-goal planning
+Latest full fake-stack delivery checkpoint: `189222b`; latest bounded
+cancellation/auth source supplement: `fd8a61b`. The current runtime candidate
+was packaged after `d172c4b` source changes and passed isolated installation.
+Its ordinary full regression is 83 files / 1043 passed / three original skips;
+the previous stale-prefix fixture failure remains recorded below.
+Iteration-51 whole-goal planning
 independently read goal.md, this plan and Git status and confirmed that the
 remaining critical path is finite installed-product acceptance. Accepted
 foundations are not reopened without contradictory evidence. The ordinary
@@ -605,3 +610,14 @@ retained as stale fresh-prefix fixture evidence, followed by its four passing
 cases. Actual-source independent supplement is pending: the review page reported
 unavailable connector tools even though local connection diagnostics were green.
 No real Windows acceptance or global completion follows from these results.
+
+The same-connector availability confirmation restored actual tool calls. At
+`fd8a61b` the independent supplement read cancellation, deployment ensureBridge,
+Sidecar normalization and the production/cancellation/bridge tests, and read the
+red/focused/final-full outputs. It accepted only that bounded source scope.
+The earlier unavailable-tool response is retained as a resolved review transport
+interruption, not source approval or a product App failure. The next product
+candidate is the refreshed isolated installation, not the earlier runtime pack.
+Read-only revalidation still finds the dedicated product page hidden with its
+preexisting plain-text App draft. No live acceptance process or reviewer wait
+exists; user page intervention remains necessary before that run can begin.
