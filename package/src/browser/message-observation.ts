@@ -9,6 +9,9 @@ const messageObservations = (() => {
       const style = getComputedStyle(node);
       if (node.hidden || node.hasAttribute('inert') || node.getAttribute('aria-hidden') === 'true' || style.display === 'none' || style.visibility === 'hidden' || style.visibility === 'collapse') return false;
     }
+    // Inline breaks carry a semantic newline even when their own rectangle has
+    // zero area. Ancestor and CSS visibility checks above still apply.
+    if (element.tagName === 'BR') return true;
     const rect = element.getBoundingClientRect();
     return rect.width > 0 && rect.height > 0;
   };

@@ -20,6 +20,17 @@ describe('shared semantic message observations', () => {
   it('preserves block and explicit line break structure', () => {
     expect(observe(assistant('<p>first<br>line</p><p>second</p>'))[0].text).toBe('first\nline\n\nsecond')
   })
+  it('preserves visible zero-area inline BRs in paragraph/span user messages', () => {
+    const f = domFixture(user('<div><p><a href="/plugins/owned">DSH with ChatGPT</a><span> [PLANNER_BRIDGE]</span><br><span>VERSION: 2</span></p><p><span>GOAL:</span><br><span>Keep  two spaces.\t</span><br><br><span>End.</span></p></div>'))
+    for (const br of f.window.document.querySelectorAll('br')) br.getBoundingClientRect = () => ({ width: 0, height: 0 } as any)
+    const result = f.window.eval(`(() => { ${messageObservationScript}; return messageObservations; })()`)
+    expect(result[0]).toMatchObject({ text: 'DSH with ChatGPT [PLANNER_BRIDGE]\nVERSION: 2\n\nGOAL:\nKeep  two spaces.\t\n\nEnd.', appNames: ['DSH with ChatGPT'] })
+  })
+  it.each(['hidden', 'inert', 'aria-hidden="true"', 'style="display:none"', 'style="visibility:hidden"'])('excludes zero-area BRs under %s ancestors', attr => {
+    const f = domFixture(user(`<span>first</span><span ${attr}><br></span><span>last</span>`))
+    f.window.document.querySelector('br')!.getBoundingClientRect = () => ({ width: 0, height: 0 } as any)
+    expect(f.window.eval(`(() => { ${messageObservationScript}; return messageObservations; })()`)[0].text).toBe('firstlast')
+  })
   it('supports legacy wrappers and standalone markdown messages', () => {
     expect(observe('<article data-message-author-role="assistant"><div data-markdown-text-style="assistant-message">old</div><button>Copy</button></article><div data-markdown-text-style="assistant-message">new</div>').map((m: { text: string }) => m.text)).toEqual(['old', 'new'])
   })
