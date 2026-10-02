@@ -182,3 +182,41 @@ preflight refused the hidden product tab after automatic activation failed.
 User foreground assistance is requested; no INIT, App-proof or new E2E was sent.
 An awaiting-plan reconnect wait seam remains a bounded follow-up if encountered,
 and must never be addressed by accepting the old malformed ERROR response.
+
+Iteration-64 delivery revalidation (2026-10-02): both feature branches were
+fetched and their last 20 commits/status inspected. Main source HEAD is
+`e520ef68464e0b555114e29537c6546fa5f57366`; producer remains
+`0afd708c288b079096affbfeff4626dcf9a19bf1`, clean. The user's refreshed
+`goal.md` remains an uncommitted user change and is not overwritten. No package
+source changed since reviewed runtime `d81193e`.
+
+Fresh current-HEAD typecheck/build passed. Ordinary full regression passed:
+83 files, 1082 tests passed, three original skips, 423.47 seconds, exit 0.
+Fresh isolated package `q2GYTb` passed import and separate-process replay checks;
+profile `fVdIt7` passed schema, identity, hardened Git and containment checks in
+two native DSH processes. Those composition fixtures do not prove Browser/App
+acceptance. Canonical packaged native Sidecar entry on a separate endpoint and
+fresh private journal passed authentication, observed browser readiness and
+owned shutdown. The first verifier launch rejected a noncanonical credential
+reference spelling; correcting the launcher path resolved it without changing
+credential validation or product source. Both outputs are retained/released.
+
+The user confirms no manual original INIT send. Foreground assistance did not
+yet resolve the visibility preflight. A separately created product window in
+the same authenticated dedicated profile retains the original target/draft.
+Read-only diagnostic sampling around activation found a stable explicit page,
+normal window bounds, completed DOM/load/network-idle lifecycle and focus=true,
+but document visibility remained hidden in all 17 samples. Visibility getters
+were not overridden. These facts do not identify native compositor ownership
+or prove a Chrome bug; native readiness does not satisfy mutation visibility.
+No visibility check, launch flag, protocol or oracle was weakened. No fresh
+App proof, INIT or E2E run was launched.
+
+Development ChatGPT independently read the refreshed goal/delivery document
+and current Direct CDP/Web driver source. Its bounded next plan is to classify
+the native visibility prerequisite, then run one fresh isolated canonical E2E;
+accepted foundations are not reopened. The fresh launcher now references
+`q2GYTb`. Final product use also requires its own journal distinct from the
+native-entry verifier journal. The mandatory real fix PLAN/restart/second
+execution/DONE, producer Git gate and final global exact-HEAD review remain
+open; an awaiting-plan wait change remains conditional on fresh-run evidence.

@@ -625,3 +625,21 @@ candidate is the refreshed isolated installation, not the earlier runtime pack.
 Read-only revalidation still finds the dedicated product page hidden with its
 preexisting plain-text App draft. No live acceptance process or reviewer wait
 exists; user page intervention remains necessary before that run can begin.
+
+Iteration-64 current-source baseline (2026-10-02), source HEAD `e520ef6`:
+typecheck/build VERIFIED; ordinary full regression VERIFIED, 83 files,
+1082 passed, three original skips, 423.47 seconds, exit 0. Fresh isolated
+package `q2GYTb` and installed composition profile `fVdIt7` VERIFIED, including
+two separate native DSH processes. Canonical packaged native Sidecar entry
+with a fresh verifier journal VERIFIED for authentication, readiness observation
+and owned shutdown only. Initial noncanonical credential-reference failure is
+retained; only the diagnostic launcher's path spelling was corrected.
+
+Real mutation visibility remains FAILED: activation of a separately created
+same-profile product window returned a stable explicit target and normal
+window bounds, but all 17 read-only samples reported document hidden despite
+focus=true and normal loading lifecycle. This does not prove the native cause.
+No new product INIT or fresh E2E was launched. The original target/draft/task
+and failed-run evidence remain preserved. Fresh real App/PLAN/execution/nonce/
+fix PLAN/restart/second execution/pushed-HEAD DONE are NOT_RUN in this iteration.
+Producer Git gate remains open/FAILED; final global audit remains NOT_RUN.
