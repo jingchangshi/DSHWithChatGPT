@@ -211,10 +211,10 @@ it.each(['navigation', 'message change'])('rejects %s while collecting promotion
   expect(await primitives.evaluate('window.enterCount')).toBe(1)
 })
 
-it('materializes a missing outgoing message with one fenced durable reload and no Enter replay', async () => {
+it.each([{ rendering: 'display label', pendingAppLabel: undefined }, { rendering: 'raw App slug', pendingAppLabel: '$dsh-with-chatgpt' }])('materializes a missing outgoing message with $rendering, one fenced durable reload and no Enter replay', async ({ pendingAppLabel }) => {
   const driver = await temporaryPromotionDriver()
   expect(await primitives.evaluate('window.enterCount')).toBe(1)
-  document.serve({ apps: ['DSH with ChatGPT'], persistedControl: 'owned request', persistedReply: 'complete reply', persistedMountDelayMs: 2500, pendingAppRendering: true })
+  document.serve({ apps: ['DSH with ChatGPT'], persistedControl: 'owned request', persistedReply: 'complete reply', persistedMountDelayMs: 2500, pendingAppRendering: true, pendingAppLabel })
   await primitives.evaluate(`(() => {
     document.querySelector('[data-message-author-role="user"]').remove();
     history.replaceState(null, '', '/c/6abfada1-f690-83ee-aedf-762de215604f');
@@ -231,21 +231,24 @@ it('materializes a missing outgoing message with one fenced durable reload and n
   } finally { primitives.reloadCurrent = reload }
 }, 15000)
 
-it.each(['wrong digest', 'wrong App', 'no user', 'duplicate user', 'foreign route', 'hidden foreign route', 'unresolved App'])('rejects %s after durable materialization reload', async failure => {
+it.each(['wrong digest', 'wrong App', 'no user', 'duplicate user', 'foreign route', 'hidden foreign route', 'unresolved App', 'unresolved raw App', 'raw App wrong digest', 'duplicate raw App', 'raw App wrong resolved App', 'wrong raw App label'])('rejects %s after durable materialization reload', async failure => {
   const driver = await temporaryPromotionDriver()
   document.serve({
-    apps: ['DSH with ChatGPT'], persistedControl: failure === 'no user' ? undefined : failure === 'wrong digest' ? 'foreign request' : 'owned request',
-    persistedApp: failure === 'wrong App' ? 'Different App' : undefined,
-    duplicatePersistedUser: failure === 'duplicate user',
+    apps: ['DSH with ChatGPT'], persistedControl: failure === 'no user' ? undefined : (failure === 'wrong digest' || failure === 'raw App wrong digest') ? 'foreign request' : 'owned request',
+    persistedApp: (failure === 'wrong App' || failure === 'raw App wrong resolved App') ? 'Different App' : undefined,
+    duplicatePersistedUser: failure === 'duplicate user' || failure === 'duplicate raw App',
     redirectOnLoad: failure.includes('foreign route') ? '/c/aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa' : undefined,
     returnFromRedirect: failure === 'hidden foreign route',
-    pendingAppRendering: failure === 'unresolved App', keepPendingAppRendering: failure === 'unresolved App',
+    pendingAppRendering: failure.includes('raw App') || failure === 'unresolved App',
+    pendingAppLabel: failure === 'wrong raw App label' ? '$different-app' : failure.includes('raw App') ? '$dsh-with-chatgpt' : undefined,
+    persistedMountDelayMs: failure.includes('raw App') ? 250 : undefined,
+    keepPendingAppRendering: failure === 'unresolved App' || failure === 'unresolved raw App' || failure === 'wrong raw App label',
   })
   await primitives.evaluate(`(() => {
     document.querySelector('[data-message-author-role="user"]').remove();
     history.replaceState(null, '', '/c/6abfada1-f690-83ee-aedf-762de215604f'); return true;
   })()`)
-  if (failure === 'no user' || failure === 'unresolved App') {
+  if (failure === 'no user' || failure === 'unresolved App' || failure === 'unresolved raw App') {
     await expect(driver.waitForReply(5000)).rejects.toMatchObject({ name: 'BrowserStaleError' })
     await expect(driver.currentConversation()).rejects.toMatchObject({ name: 'BrowserTargetChangedError' })
   } else await expect(driver.currentConversation()).rejects.toMatchObject({ name: 'BrowserTargetChangedError' })

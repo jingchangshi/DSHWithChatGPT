@@ -643,3 +643,41 @@ No new product INIT or fresh E2E was launched. The original target/draft/task
 and failed-run evidence remain preserved. Fresh real App/PLAN/execution/nonce/
 fix PLAN/restart/second execution/pushed-HEAD DONE are NOT_RUN in this iteration.
 Producer Git gate remains open/FAILED; final global audit remains NOT_RUN.
+
+Iterations-71 through80 current correction (2026-10-02): desktop unlock and
+side-by-side positioning resolved the previously observed visibility
+prerequisite. The user authorized operator clearing of unsent drafts in the
+explicit dedicated acceptance window; original failure journals remain intact.
+Pushed source23ae394 and matching runtime packageKMPR5Q have VERIFIED ordinary
+full regression (83 files/1106 passed/3 original skips,525.64s), typecheck/build,
+isolated imports/native Sidecar and installed DSH profile rdCHcq. Independent
+actual-source/adversarial/exact-HEAD review returned DONE_SCOPED for the bounded
+temporary-to-durable route/materialization repair, not whole-goal completion.
+
+Fresh canonical mKVL1f is FAILED: local doctor and exact App selection passed,
+App-proof send accepted, reply observation uncertain BROWSER_TARGET_CHANGED.
+Every acceptance oracle flag remains false; no valid PLAN was accepted. Later
+read-only exact App/control observation is not historical provenance. A separate
+unchanged-runtime diagnostic iBfXrV passed real App workspace proof, then INIT
+capture failed after fenced reload before exact semantic App proof. Diagnostic
+irYTmi captured raw unresolved App slug rendering with exact control digest,
+followed later by the exact App link. Neither diagnostic substitutes for E2E.
+The initial diagnostic launcher path failure and both terminated attempts retain
+their original evidence/status. Native diagnostic services were shut down via
+authenticated generation-fenced requests.
+
+Iteration80 raw-slug pending-render candidate has a behavioral RED on23ae394,
+94 focused GREEN tests and successful typecheck/build. Source review found no
+concrete safety defect. Frozen ordinary full81 passed83 files/1112 tests/3 original
+skips,584.52s,exit0. Package/profile/committed-HEAD gates remain pending. Raw slug
+permits bounded waiting only, never ownership; final
+exact App link/prefix/control digest/latest user proof and original caller
+deadline remain required. Real PLAN, executor tests/stdout nonce, fix PLAN,
+actual DSH restart/reconnect, second execution, pushed same-round DONE/oracle and
+final global audit remain unverified. Producer Git gate remains FAILED/open.
+
+Iteration81 fresh packageUw4AM9 and installed DSH profile nLJRqI VERIFIED:
+isolated imports, native Sidecar replay/shutdown, tool schema, stable identity,
+hardened Git and containment checks passed. Profile mode is composition-fixture;
+actual Browser/App proof is NOT_RUN. Exact committed-HEAD supplement and fresh
+canonical real E2E remain required.

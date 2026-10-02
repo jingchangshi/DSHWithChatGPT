@@ -18,25 +18,24 @@ the draft. This authorization is for the dedicated acceptance window.
 | ARCHITECTURE | PARTIAL | Scoped ports/dependency/topology reviews exist; final global exact-HEAD audit remains |
 | SOURCE | PARTIAL | Paragraph repair, observation guard, BR extraction and proof-first recovery implemented; recovery source reviewed at d81193e; global audit remains |
 | PROTOCOL | PARTIAL | Canonical v2 identity and same-round oracle tested; real PLAN through DONE absent |
-| CHAT_CONTROL | PARTIAL | Real App proof and exact original INIT reconciliation passed; no valid product PLAN accepted |
-| DIRECT_CDP | PARTIAL | Real Chrome fixture/input/fence coverage and multiline repair accepted; current product visibility prerequisite unresolved |
+| CHAT_CONTROL | PARTIAL | Real App proof passed in diagnostic iBfXrV; fresh canonical mKVL1f failed proof; no valid product PLAN accepted |
+| DIRECT_CDP | PARTIAL | Pushed23ae394 promotion/reload repair scoped accepted; observed raw App slug hydration extension under frozen full regression |
 | SIDECAR | PARTIAL | Auth/replay/uncertainty contracts covered; real recovery loop remains |
 | DSH_ADAPTER | PARTIAL | Installed native DSH readiness/identity verified; full real executor workflow absent |
 | WORKSPACE_DATA_PLANE | PARTIAL | Installed authority checks and real App workspace proof passed; independent raw-output nonce review absent |
 | SECURITY | PARTIAL | Containment/credential boundaries verified within scope; producer native Git deadline gate still FAILED |
 | RECOVERY | PARTIAL | Actual failed INIT journal/task/claim recovered without resend and confirmed across native restart; real fix/restart/DONE loop remains |
-| PACKAGING | PARTIAL | Fresh q2GYTb package and fVdIt7 profile passed at source e520ef6; packaged native product process deployed; real workflow remains |
-| TESTS | PARTIAL | Current runtime: 83 files, 1082 passed, three original skips; separate producer timeout remains FAILED |
-| WINDOWS_E2E | FAILED | Real attempt passed local/App proof then INIT failed; no accepted PLAN, nonce or DONE |
+| PACKAGING | PARTIAL | KMPR5Q package/native Sidecar and rdCHcq installed profile passed for23ae394; rawslug candidate needs fresh artifact/profile |
+| TESTS | PARTIAL | Rawslug frozen candidate:83 files/1112 passed/3 original skips,584.52s;94 focused PASS; producer gate remains FAILED |
+| WINDOWS_E2E | FAILED | Fresh mKVL1f passed local readiness and accepted App-proof send, then uncertain reply; no PLAN, nonce or DONE |
 | FUTURE_LINUX | FUTURE | No Linux host execution; it does not block Windows delivery |
 
 Implementation order:
 
-1. Resolve the observed native product-window visibility prerequisite. Stable
-   target, login/composer readiness and accepted activation do not prove document
-   visibility. Keep the visibility fence and existing draft; apply a deployment
-   or source correction only after evidence establishes its cause.
-2. Use the verified fresh package/profile and packaged native Sidecar with its
+1. Close only the observed raw App slug hydration blocker with the reproduced
+   RED, bounded wait-only correction, focused/full regression and independent
+   source review. Final exact App/control/history proof remains authoritative.
+2. Generate the current candidate's fresh package/profile and native Sidecar with its
    independent product journal. Preserve old task/journal/failure evidence; the
    new run creates fresh home/state/workspace/task/remote. Do not reopen accepted
    multiline extraction or proof-first recovery foundations without a counterexample.
@@ -325,3 +324,46 @@ containment checks in both attempts. This is a composition fixture: actual
 Browser/App proof and real Planner/Executor acceptance are NOT_RUN. Artifact
 runtime bytes are built from the frozen iteration-75/76 source candidate; exact
 committed source association and bounded HEAD supplement precede its deployment.
+
+Iterations-76/77 deployed exact pushed repair `23ae394` as packaged native process
+33800/generation39fdb0bc with new target8884DE and independent journal5. No-send
+App preflight passed. Fresh canonical `mKVL1f` nevertheless FAILED: localReady and
+App selection passed, App-proof send was accepted, reply wait became uncertain
+BROWSER_TARGET_CHANGED. No INIT/PLAN was accepted and every oracle flag is false.
+Its later read-only exact user/App/control digest cannot establish earlier
+lifecycle provenance. Original run, journal and page are preserved.
+
+Iterations-78/79 diagnostics kept packaged runtime behavior unchanged and logged
+only bounded driver/CDP metadata. An initial diagnostic startup used a
+noncanonical state path, failed before any send and was corrected; prematurely
+launched `PvGP5Y` was stopped with original4294967295 termination retained.
+Diagnostic `iBfXrV` passed real App proof, then INIT capture failed after an
+acknowledged same-route reload and incomplete semantic App rendering. The
+executor reconnect loop was stopped, original4294967295 retained; its diagnostic
+target later ceased responding to page commands while another target responded.
+This does not establish a desktop lock or a source-level renderer cause.
+
+Diagnostic `irYTmi` captured the first rejected App-proof user: raw
+`$dsh-with-chatgpt` label, no App link, exact control tail at offset18. Later
+read-only observation found the settled configured App link and exact tail at17.
+It remains FAILED, not acceptance. Independent iteration79 approved only a
+bounded pending-rendering extension. Raw slug never grants ownership: exactly
+one unresolved user, configured display-name slug syntax and full control digest
+only allow waiting under the original deadline; final exact link/prefix/latest
+user proof is unchanged. Real CDP delayed-link regression is RED on23ae394 at the
+exact-proof assertion. The minimal candidate and permanent/wrong-digest/duplicate/
+wrong-resolved-App/wrong-slug adversaries are being verified. Next: focused/full,
+fresh package/profile, committed exact-HEAD review, then fresh canonical product
+acceptance. All original failures remain preserved; no old message is resent.
+
+Iteration81 frozen raw-slug candidate ordinary full regression VERIFIED:
+83 files/1112 passed/3 original skips,584.52s,exit0. Typecheck/build and94 focused
+tests passed. Independent actual-source/test review80 found no source safety
+blocker. Fresh package/profile and committed-HEAD supplement remain required
+before the next real run.
+
+Iteration81 packageUw4AM9 VERIFIED for isolated imports/native Sidecar and
+profile nLJRqI VERIFIED for real DSH schema, stable identity and hardened Git/
+containment checks across both native attempts. These remain composition
+fixtures, not real Browser/App/Planner acceptance. Current frozen candidate is
+ready for commit/push and exact-HEAD scoped supplement before fresh deployment.

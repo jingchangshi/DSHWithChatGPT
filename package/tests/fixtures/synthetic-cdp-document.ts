@@ -25,7 +25,7 @@ export async function syntheticCdpDocument(endpoint: string, targetId: string) {
   })
   await session.command('Fetch.enable', { patterns: [{ urlPattern: 'https://chatgpt.com/*', requestStage: 'Request' }] })
   return {
-    serve(options: { apps?: string[]; draft?: string; logout?: boolean; foreignOnInput?: boolean; replaceOnInput?: boolean; baseline?: boolean; paragraphComposer?: boolean; alterParagraph?: boolean; hiddenParagraph?: boolean; persistedControl?: string; persistedApp?: string; persistedReply?: string; duplicatePersistedUser?: boolean; redirectOnLoad?: string; returnFromRedirect?: boolean; persistedMountDelayMs?: number; pendingAppRendering?: boolean; keepPendingAppRendering?: boolean } = {}) {
+    serve(options: { apps?: string[]; draft?: string; logout?: boolean; foreignOnInput?: boolean; replaceOnInput?: boolean; baseline?: boolean; paragraphComposer?: boolean; alterParagraph?: boolean; hiddenParagraph?: boolean; persistedControl?: string; persistedApp?: string; persistedReply?: string; duplicatePersistedUser?: boolean; redirectOnLoad?: string; returnFromRedirect?: boolean; persistedMountDelayMs?: number; pendingAppRendering?: boolean; pendingAppLabel?: string; keepPendingAppRendering?: boolean } = {}) {
       html = `<!doctype html><meta charset="utf-8"><title>Synthetic semantic fixture</title>
 <style>[role=textbox]{width:450px;min-height:80px;border:1px solid black} button{min-width:180px;min-height:40px}</style>
 ${options.logout ? '<button>Log in</button>' : '<div role="textbox" contenteditable="true"></div>'}
@@ -85,7 +85,8 @@ window.addReply = (text, streaming = false) => {
 };
 if (options.pendingAppRendering) {
   const pending = document.createElement('article'); pending.setAttribute('data-message-author-role', 'user'); pending.id = 'pending-user';
-  pending.textContent = '\\u200bDSH with ChatGPT ' + options.persistedControl; document.body.append(pending);
+  pending.textContent = (options.pendingAppLabel || '\\u200bDSH with ChatGPT') + ' ' + options.persistedControl; document.body.append(pending);
+  if (options.duplicatePersistedUser) { const duplicate = pending.cloneNode(true); duplicate.id = 'duplicate-pending-user'; document.body.append(duplicate); }
 }
 const mountPersisted = () => { if (options.keepPendingAppRendering) return; document.querySelector('#pending-user')?.remove(); if (options.persistedControl !== undefined) {
   const user = document.createElement('article'); user.setAttribute('data-message-author-role', 'user');

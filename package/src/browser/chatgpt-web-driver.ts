@@ -501,16 +501,21 @@ export class ChatGptWebDriver implements ChatRecoveryControl {
     return proof.value
   }
 
-  /** Hydration can expose the exact control body with an unresolved App label
-   * and one leading renderer character. This is pending rendering, never proof:
+  /** Hydration can expose the exact control body with an unresolved App label,
+   * either a raw slug or one leading renderer character. This is never proof:
    * only the later exact App link/prefix/digest checks authorize adoption. */
   private pendingAppRendering(messages: { role: string; text: string; appNames: string[] }[]): boolean {
     const users = messages.filter(message => message.role === 'user')
     const app = this.appName.trim()
-    return users.length === 1 && users[0]!.appNames.length === 0
-      && users[0]!.text.slice(1, app.length + 1) === app
-      && /\s/.test(users[0]!.text.slice(app.length + 1, app.length + 2))
-      && replyTextDigest(users[0]!.text.slice(app.length + 2)) === this.sentControlDigest
+    if (users.length !== 1 || users[0]!.appNames.length !== 0) return false
+    const text = users[0]!.text
+    if (text.slice(1, app.length + 1) === app
+      && /\s/.test(text.slice(app.length + 1, app.length + 2))
+      && replyTextDigest(text.slice(app.length + 2)) === this.sentControlDigest) return true
+    const slug = '$' + app.toLowerCase().replace(/\s+/g, '-')
+    return slug.length <= 257 && /^\$[a-z0-9]+(?:-[a-z0-9]+)*$/.test(slug)
+      && text.startsWith(slug) && /\s/.test(text.slice(slug.length, slug.length + 1))
+      && replyTextDigest(text.slice(slug.length + 1)) === this.sentControlDigest
   }
 
   private async checkTarget(signal?: AbortSignal): Promise<void> {

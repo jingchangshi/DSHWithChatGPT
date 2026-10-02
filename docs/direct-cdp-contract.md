@@ -225,6 +225,14 @@ the same exact App/latest-user/control proof; empty, ambiguous or mismatched
 proof never grants ownership. No Enter or send is repeated, and protocol,
 journal, recovery and acceptance oracle requirements remain unchanged.
 
+Pending App hydration may expose the configured App's ASCII raw `$slug` instead
+of its display-name link. One unresolved user, exact configured-name slug,
+separator and complete control-tail digest permit only bounded waiting in the
+existing semantic window. Wrong slug/digest, duplicate users or a resolved wrong
+App do not qualify. Permanent raw rendering still fails the original caller
+deadline without adoption. Only the final exact App link/display prefix/latest
+user/full digest proof authorizes ownership; raw slug is never authority.
+
 Repair candidate validation on 2026-10-01: 668 passed / 3 original skipped / 0 failed
 across 55 files; typecheck and build passed. The retained earlier integrated run
 failed 13 tests (legacy fixture metadata/error classification and one isolated
