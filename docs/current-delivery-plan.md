@@ -12,30 +12,30 @@ accepted within their stated scope. Full product completion is still unproven.
 | SOURCE | PARTIAL | Paragraph repair, observation guard, BR extraction and proof-first recovery implemented; recovery source reviewed at d81193e; global audit remains |
 | PROTOCOL | PARTIAL | Canonical v2 identity and same-round oracle tested; real PLAN through DONE absent |
 | CHAT_CONTROL | PARTIAL | Real App proof and exact original INIT reconciliation passed; no valid product PLAN accepted |
-| DIRECT_CDP | PARTIAL | Real Chrome fixture/input/fence coverage; product multiline rendering gap reproduced |
+| DIRECT_CDP | PARTIAL | Real Chrome fixture/input/fence coverage and multiline repair accepted; current product visibility prerequisite unresolved |
 | SIDECAR | PARTIAL | Auth/replay/uncertainty contracts covered; real recovery loop remains |
 | DSH_ADAPTER | PARTIAL | Installed native DSH readiness/identity verified; full real executor workflow absent |
 | WORKSPACE_DATA_PLANE | PARTIAL | Installed authority checks and real App workspace proof passed; independent raw-output nonce review absent |
 | SECURITY | PARTIAL | Containment/credential boundaries verified within scope; producer native Git deadline gate still FAILED |
 | RECOVERY | PARTIAL | Actual failed INIT journal/task/claim recovered without resend and confirmed across native restart; real fix/restart/DONE loop remains |
-| PACKAGING | PARTIAL | Fresh Nf44is package and two native installed-profile processes passed at runtime d81193e; real workflow remains |
+| PACKAGING | PARTIAL | Fresh q2GYTb package and fVdIt7 profile passed at source e520ef6; packaged native product process deployed; real workflow remains |
 | TESTS | PARTIAL | Current runtime: 83 files, 1082 passed, three original skips; separate producer timeout remains FAILED |
 | WINDOWS_E2E | FAILED | Real attempt passed local/App proof then INIT failed; no accepted PLAN, nonce or DONE |
 | FUTURE_LINUX | FUTURE | No Linux host execution; it does not block Windows delivery |
 
 Implementation order:
 
-1. Reproduce the actual multiline INIT composer mismatch using a real disposable
-   Chrome and a paragraph editor fixture. Preserve exact payload whitespace,
-   App identity, target fences, no duplicate Enter and foreign-draft protection.
-   Repair only the demonstrated representation mismatch, then focused tests and
-   independent source review. Keep the failed product draft intact.
-2. Inspect durable pre-task reservation/failed operation ownership. Establish a
-   failing recovery test only for a demonstrated missing guarantee; reconnect
-   may clear only an abandoned owned reservation, never live or foreign state.
-3. Build, full regression, isolated package/profile validation and refreshed
-   installed candidate. Preserve failures and distinguish original skips from
-   cases filtered out by focused test selection.
+1. Resolve the observed native product-window visibility prerequisite. Stable
+   target, login/composer readiness and accepted activation do not prove document
+   visibility. Keep the visibility fence and existing draft; apply a deployment
+   or source correction only after evidence establishes its cause.
+2. Use the verified fresh package/profile and packaged native Sidecar with its
+   independent product journal. Preserve old task/journal/failure evidence; the
+   new run creates fresh home/state/workspace/task/remote. Do not reopen accepted
+   multiline extraction or proof-first recovery foundations without a counterexample.
+3. Require a no-send semantic preflight before launching the canonical runner.
+   Browser Harness remains absent. Refresh package/baseline only if source changes
+   require it; the current source baseline is recorded below.
 4. Run one controlled real Windows DSH/DeepSeek/App workflow after local readiness
    and exact input proof. Require real fix PLAN, restart/reconnect, tests, commit,
    push and same-round exact task/workspace/iteration/HEAD DONE. Generate nonce
@@ -220,3 +220,21 @@ accepted foundations are not reopened. The fresh launcher now references
 native-entry verifier journal. The mandatory real fix PLAN/restart/second
 execution/DONE, producer Git gate and final global exact-HEAD review remain
 open; an awaiting-plan wait change remains conditional on fresh-run evidence.
+
+Following iteration-64 deployment preparation: original native Sidecar exited
+normally after authenticated generation-fenced shutdown. The packaged `q2GYTb`
+canonical entry now runs as PID 35740, generation
+`72916222-f328-43a5-aab6-c306cb3acdb7`, on the product endpoint. It explicitly binds
+the fresh product target and private `tBJ6y8/product-journal-2`, distinct from both
+the original product journal and the entry-verifier journal. Two preliminary
+launches involving an empty preprotected directory failed and are retained;
+the final launcher delegates protection solely to canonical startup and uses
+another fresh directory. This is a deployment correction, not a source fix or
+proof that the empty-directory failure cause is understood.
+
+Formal authenticated client preflight reports health=true, composer=true and
+loggedOut=false. Its no-send configured-App probe returns BROWSER_STALE because
+document visibility remains hidden. No INIT/E2E/control message was sent.
+Process readiness does not satisfy the mutation visibility gate. The pending
+user action is to maximize the new dedicated Chrome homepage and minimize Codex
+while automatic visibility detection runs; no reply/composer input is required.
