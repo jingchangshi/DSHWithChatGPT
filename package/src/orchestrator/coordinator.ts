@@ -17,7 +17,7 @@ import type { StateStore, TaskSnapshot } from '../core/ports/state-store.ts'
 import { OperationCancelledError, throwIfCancelled } from '../cancellation.ts'
 import { createHash, randomUUID } from 'node:crypto'
 import type { PlannerTaskAggregate } from '../core/planner-task.ts'
-import type { ChatRecoveryControl, ChatSendObservationControl } from '../core/ports/chat-control.ts'
+import type { ChatRecoveryControl, ChatSendObservationControl, ReplyObservationBaseline } from '../core/ports/chat-control.ts'
 import { formatPlannerEnvelope, parsePlannerEnvelope, plannerEnvelopeDigest } from '../protocol/planner-envelope.ts'
 import type { PlannerEnvelope } from '../protocol/planner-envelope.ts'
 import type { GitAuthority, GitAuthorityPort } from '../core/ports/git-authority.ts'
@@ -187,6 +187,7 @@ export class ChatGptCoordinator {
     throwIfCancelled(opts.signal)
     const bound = await observation.captureSendObservation(sendOperationId, opts.signal)
     throwIfCancelled(opts.signal)
+    this.requireBootstrapObservation(bound, baseline)
     snapshot = await this.state.commitTask(taskId, snapshot.revision, {
       ...snapshot.value, conversationId: bound.conversationId,
       round: { ...((snapshot.value as PlannerTaskAggregate).round!), baseline: bound, phase: 'observed-sent' },
@@ -554,6 +555,7 @@ export class ChatGptCoordinator {
         }
         const bound = await observation.captureSendObservation(aggregate.round.sendOperationId, signal)
         throwIfCancelled(signal)
+        this.requireBootstrapObservation(bound, aggregate.round.baseline)
         const saved = await this.state.commitTask(taskId, task.updatedAt, {
           ...aggregate, conversationId: bound.conversationId,
           round: { ...aggregate.round, baseline: bound, phase: 'observed-sent' },
@@ -574,6 +576,13 @@ export class ChatGptCoordinator {
     return task
   }
 
+
+  private requireBootstrapObservation(bound: ReplyObservationBaseline, baseline: ReplyObservationBaseline): void {
+    if (bound.version !== baseline.version || typeof bound.conversationId !== 'string' || bound.conversationId.trim() === ''
+      || bound.assistantCount !== baseline.assistantCount || bound.textDigest !== baseline.textDigest) {
+      throw Object.assign(new Error('SEND_UNCERTAIN'), { code: 'SEND_UNCERTAIN' })
+    }
+  }
 
   private validateTaskReply(envelope: Envelope, taskId: string): void {
     if (envelope.taskId !== taskId) {

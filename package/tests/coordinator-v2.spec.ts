@@ -302,6 +302,35 @@ describe('canonical coordinator v2 creation gate', () => {
     expect(saved.round.outcome.digest).toMatch(/^[a-f0-9]{64}$/)
   })
 
+  it.each(['count', 'text', 'version', 'empty-route', 'matching'] as const)('fences bootstrap recovery observation with %s without resending', async scenario => {
+    const { c, b } = make({ canonicalProtocol: true })
+    const taskId = 'pb_' + '6'.repeat(32)
+    b.captureSendObservation = async () => { throw Object.assign(new Error('SEND_UNCERTAIN'), { code: 'SEND_UNCERTAIN' }) }
+    await expect(c.startCanonicalTask(taskId, 'recover bootstrap')).rejects.toMatchObject({ code: 'SEND_UNCERTAIN' })
+    const before = await c.stateHandle.loadTaskSnapshot(taskId)
+    const binding = await c.stateHandle.loadWorkspace('world')
+    b.captureSendObservation = async operationId => {
+      expect(operationId).toBe((before!.value as any).round.sendOperationId)
+      return { ...baseline, conversationId: scenario === 'empty-route' ? '' : 'owned-chat',
+        ...(scenario === 'count' ? { assistantCount: 1 } : {}),
+        ...(scenario === 'text' ? { textDigest: 'f'.repeat(64) } : {}),
+        ...(scenario === 'version' ? { version: 2 as any } : {}) }
+    }
+    const restarted = new ChatGptCoordinator({ browser: b, store: c.stateHandle,
+      workspaceRoot: 'C:\\ws\\canonical', workspaceId: 'world', canonicalProtocol: true })
+    if (scenario === 'matching') {
+      const recovered = await restarted.recover() as any
+      expect(recovered.conversationId).toBe('owned-chat')
+      expect(recovered.round.phase).toBe('observed-sent')
+      expect(recovered.round.controlDigest).toBe((before!.value as any).round.controlDigest)
+    } else {
+      await expect(restarted.recover()).rejects.toMatchObject({ code: 'SEND_UNCERTAIN' })
+      expect(await c.stateHandle.loadTaskSnapshot(taskId)).toEqual(before)
+      expect(await c.stateHandle.loadWorkspace('world')).toEqual(binding)
+    }
+    expect(b.sent).toHaveLength(1)
+  })
+
   it('recovers a bound canonical task without sending and rejects an unbound bootstrap route', async () => {
     const { c, b } = make({ canonicalProtocol: true })
     const taskId = 'pb_' + '4'.repeat(32)
