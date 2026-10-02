@@ -4,6 +4,11 @@ import { syntheticCdpDocument } from './fixtures/synthetic-cdp-document.ts'
 import { DirectCdpPrimitives } from '../src/browser/direct-cdp.ts'
 import { ChatGptWebDriver } from '../src/browser/chatgpt-web-driver.ts'
 import { BrowserTargetChangedError } from '../src/browser/epoch.ts'
+import { mkdtemp, readFile, rm } from 'node:fs/promises'
+import { join } from 'node:path'
+import { tmpdir } from 'node:os'
+import { startSidecar, protectPrivateStateDirectory } from '../src/sidecar/server.ts'
+import { SidecarChatControlClient } from '../src/sidecar/client.ts'
 
 // REAL CHROME / REAL CDP / SYNTHETIC CHATGPT-SHAPED PAGE.
 // Fetch interception supplies local test content, never real ChatGPT evidence.
@@ -90,7 +95,7 @@ it('keeps the baseline during new-chat promotion and waits for streaming to sett
   expect(await primitives.evaluate('window.enterCount')).toBe(1)
 }, 15_000)
 
-async function temporaryPromotionDriver(options: { inlineDurable?: boolean; existingTemporary?: boolean } = {}) {
+async function temporaryPromotionDriver(options: { inlineDurable?: boolean; existingTemporary?: boolean; deferSend?: boolean } = {}) {
   await page({ apps: ['DSH with ChatGPT'] }, options.existingTemporary ? '/c/local-chatgpt%3Ae9c9d7d2-9ba8-4691-be51-2222a0fcd69e' : '/')
   const driver = new ChatGptWebDriver(primitives, 'DSH with ChatGPT')
   // Actual production trace: same document, contiguous root -> local route ->
@@ -118,9 +123,60 @@ async function temporaryPromotionDriver(options: { inlineDurable?: boolean; exis
       if (event.key === 'Enter') history.replaceState(null, '', '/c/6abfada1-f690-83ee-aedf-762de215604f');
     }); return true;
   })()`)
-  await driver.sendControlMessage('owned request')
+  if (!options.deferSend) await driver.sendControlMessage('owned request')
   return driver
 }
+
+it.each(['exact proof', 'wrong digest', 'duplicate user', 'document replacement', 'permanent temporary', 'cancelled'] as const)(
+  'resolves an acknowledged bootstrap through real CDP with %s', async scenario => {
+  const driver = await temporaryPromotionDriver({ deferSend: true })
+  const original = await driver.captureReplyBaseline()
+  await primitives.evaluate(`(() => {
+    const scenario = ${JSON.stringify(scenario)};
+    document.querySelector('[role=textbox]').addEventListener('keydown', event => {
+      if (event.key === 'Enter' && scenario !== 'permanent temporary') setTimeout(() => {
+        const user = document.querySelector('[data-message-author-role=user]');
+        if (scenario === 'wrong digest') user.append(' foreign');
+        if (scenario === 'duplicate user') document.body.append(user.cloneNode(true));
+        if (scenario === 'document replacement') location.href = '/c/6abfada1-f690-83ee-aedf-762de215604f';
+        else history.replaceState(null, '', '/c/6abfada1-f690-83ee-aedf-762de215604f');
+      }, 800);
+    }); return true;
+  })()`)
+  const directory = await mkdtemp(join(tmpdir(), 'plannerbridge-direct-bootstrap-'))
+  let service: Awaited<ReturnType<typeof startSidecar>> | undefined
+  try {
+    await protectPrivateStateDirectory(directory, [])
+    service = await startSidecar({ host: '127.0.0.1', port: 0, authentication: 'test-only', stateDirectory: directory, driver, requestTimeoutMs: 3000 })
+    const client = new SidecarChatControlClient({ endpoint: service.endpoint, authentication: 'test-only', requestTimeoutMs: 3000 })
+    const operation = { operationId: 'owned-bootstrap', replyBaseline: original,
+      correlation: { taskId: 'pb_' + 'd'.repeat(32), iteration: 0, workspaceId: 'world', phase: 'INIT' as const } }
+    await client.sendControlMessage('owned request', undefined, operation)
+    if (scenario !== 'exact proof') {
+      const code = scenario === 'cancelled' ? 'OPERATION_CANCELLED'
+        : scenario === 'permanent temporary' ? 'SIDECAR_TIMEOUT' : 'BROWSER_TARGET_CHANGED'
+      await expect(client.captureSendObservation(operation.operationId, scenario === 'cancelled' ? AbortSignal.timeout(200) : undefined)).rejects.toMatchObject({ code })
+      const source = JSON.parse(await readFile(join(directory, 'delivery.json'), 'utf8')).entries.find((entry: any) => entry.operationId === operation.operationId)
+      expect(source.phase).toBe('accepted')
+      expect(source.bootstrapBaseline).toBeUndefined()
+      expect(source.bootstrap.replyBaseline).toEqual(original)
+      if (scenario !== 'document replacement') expect(await primitives.evaluate('window.enterCount')).toBe(1)
+      return
+    }
+    const bound = await client.captureSendObservation(operation.operationId)
+    expect(bound.conversationId).toBe('6abfada1-f690-83ee-aedf-762de215604f')
+    expect(bound.assistantCount).toBe(original.assistantCount)
+    expect(bound.textDigest).toBe(original.textDigest)
+    expect(await primitives.evaluate('window.enterCount')).toBe(1)
+    const source = JSON.parse(await readFile(join(directory, 'delivery.json'), 'utf8')).entries.find((entry: any) => entry.operationId === operation.operationId)
+    expect(source.phase).toBe('accepted')
+    expect(source.bootstrap.replyBaseline).toEqual(original)
+    expect(source.bootstrapBaseline).toEqual(bound)
+  } finally {
+    await service?.close()
+    await rm(directory, { recursive: true, force: true })
+  }
+}, 8000)
 
 it('proves the sent App message before adopting a temporary new-chat route as a durable conversation', async () => {
   const driver = await temporaryPromotionDriver()

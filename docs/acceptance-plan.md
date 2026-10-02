@@ -2,6 +2,16 @@
 
 Status: PARTIAL — the full Windows deployment remains unfinished. Scoped canonical wiring, installed authority and fake-stack evidence are recorded below; real model/App/recovery acceptance and final global review remain incomplete. Earlier rows retain their original dated snapshot unless explicitly updated below. Every gate uses Goal, Fixture, Action, Expected evidence, Failure condition and Status. Unit/fake evidence never substitutes for browser/model/Windows integration. Only VERIFIED / FAILED / NOT_RUN / PARTIAL / BLOCKED / FUTURE / NOT_APPLICABLE are result statuses.
 
+Iteration87 unreviewed bootstrap-order candidate: real-CDP/RPC regression RED on
+b43e4a0 at captureSendObservation SEND_UNCERTAIN, then six exact/hostile/deadline
+cases GREEN. Focused3files83tests PASS; typecheck/build PASS; frozen full83files
+1118PASS3original skips663.11s. Package r3jZQe PASS; installed DSH profile9b6b1J
+PASS in both native attempts. These are composition fixtures (Browser/App
+NOT_RUN). Earlier unchanged-runtime diagnostic kp2FCM passed real App proof but
+failed INIT bootstrap binding; owned operator termination4294967295/all-false
+oracle retained. No canonical PLAN/execution/recovery/DONE acceptance or
+independent review of this candidate is claimed. See browser-platform-investigation.md.
+
 ## Baseline and stages
 
 The latest whole-goal priority refresh is [current-delivery-plan.md](current-delivery-plan.md).
@@ -681,3 +691,12 @@ isolated imports, native Sidecar replay/shutdown, tool schema, stable identity,
 hardened Git and containment checks passed. Profile mode is composition-fixture;
 actual Browser/App proof is NOT_RUN. Exact committed-HEAD supplement and fresh
 canonical real E2E remain required.
+
+Iteration82 canonical VlgEmy on exact b43e4a0/Uw4AM9/new native journal8 FAILED:
+local readiness passed, one App-proof send accepted, original90s wait uncertain
+APP_PROOF_TIMEOUT. No second send or valid PLAN; oracle flags remain false.
+DSH exited0 before operator stop, oracle exit1. Service shutdown was authenticated
+and generation-fenced. Current OS observation at15:20:59Z found LockApp; this is
+a present environment prerequisite, not evidence of the earlier timeout cause.
+Unlock was requested, no deadline/source/proof/oracle change made. Fresh real
+acceptance remains required after visible unlocked revalidation.

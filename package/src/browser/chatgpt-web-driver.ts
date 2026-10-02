@@ -307,6 +307,25 @@ export class ChatGptWebDriver implements ChatRecoveryControl {
   }
 
   async currentConversation(signal?: AbortSignal): Promise<string | undefined> {
+    // Bootstrap observation precedes waitForReply. Resolve only this live
+    // acknowledged new-chat send, retaining the same exact promotion proof.
+    const pending = () => this.fenced && this.finalEnter === 'acknowledged' && this.sentControlDigest !== undefined
+      && (this.route === 'NEW_CHAT' || (this.temporaryRoute !== undefined && this.temporaryRoute === this.route))
+    if (pending()) {
+      const deadline = new AbortController()
+      const timeout = setTimeout(() => deadline.abort(), POST_NAVIGATION_SEMANTIC_TIMEOUT_MS)
+      const active = signal ? AbortSignal.any([signal, deadline.signal]) : deadline.signal
+      try {
+        while (pending()) {
+          await this.checkTarget(active)
+          if (pending()) await abortableDelay(200, active)
+        }
+      } catch (error) {
+        throwIfCancelled(signal)
+        if (deadline.signal.aborted) throw new SendUncertainError()
+        throw error
+      } finally { clearTimeout(timeout) }
+    }
     return this.conversationId(signal)
   }
 

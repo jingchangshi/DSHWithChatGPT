@@ -367,3 +367,43 @@ profile nLJRqI VERIFIED for real DSH schema, stable identity and hardened Git/
 containment checks across both native attempts. These remain composition
 fixtures, not real Browser/App/Planner acceptance. Current frozen candidate is
 ready for commit/push and exact-HEAD scoped supplement before fresh deployment.
+
+Iteration81 exact pushed `b43e4a0` received DONE_SCOPED for the raw-slug repair.
+Matching Uw4AM9 runtime bytes were verified. Fresh native process31880/generation
+0d5a37c1 used new targetD266E5 and journal8; no-send readiness/App probe passed.
+Canonical `VlgEmy` is FAILED: localReady and exact App selection passed, one
+App-proof send was accepted, wait became uncertain at the original90s deadline
+with APP_PROOF_TIMEOUT. This is not proof that promotion succeeded. Executor
+reconnect succeeded with recovered=false, then another App probe failed before
+any second send. The DSH process had already exited0 before the operator stop
+attempt; oracle exit1 and every flag false are retained, not manual termination.
+Native service was shut down with authentication/generation fencing.
+
+Iterations83–87 checked official plugin documentation, Chromium lifecycle and
+community/donor evidence; no general OpenAI rejection was established. Fresh
+unchanged-runtime diagnostic kp2FCM passed real App data-plane proof, but INIT
+returned SEND_UNCERTAIN after driver ACK on a temporary route. Accepted bootstrap
+journal had no bound baseline/INIT wait. Operator termination4294967295 and
+all-false oracle result are preserved. This is diagnostic evidence only.
+
+Real-CDP plus authenticated RPC regression reproduced that bootstrap ordering
+failure. Candidate currentConversation now waits only for its owned acknowledged
+new-chat/temporary send under the existing caller deadline and semantic cap,
+using unchanged exact promotion proof. Six exact/hostile/cancellation cases and
+focused3files83tests passed; typecheck/build passed. Frozen ordinary full passed
+83files1118tests3original skips663.11s. Package r3jZQe and installed DSH profile
+9b6b1J passed native composition checks; package driver bytes match frozen build.
+No independent review or candidate deployment yet. Development IAB repeatedly
+times out despite healthy connectivity; same-page display request is queued.
+Next: independent actual-source/exact-HEAD scoped review, then fresh canonical
+product acceptance. Global real execution/recovery/DONE and producer gates remain
+open. User goal.md is preserved and excluded from candidate commits.
+
+At2026-10-02T15:20:59Z a fresh read-only OS probe identified foreground LockApp
+and lockAppRunning=true. This proves the current locked environment, not the
+historical cause of VlgEmy's timeout or earlier renderer failures. User unlock
+was requested once and automatic detection is pending. Do not rerun product
+mutations while locked, replay an uncertain message, increase deadlines or
+attribute the preceding failure without its lifecycle evidence. Next: confirm
+unlocked visible empty target, independently assess raw82, then the appropriate
+fresh isolated product/diagnostic run. No source fix is currently established.
