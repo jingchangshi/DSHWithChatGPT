@@ -22,7 +22,14 @@ const profile = path.join(home, 'profiles', 'planner-executor-smoke')
 const workspace = path.join(root, 'workspace')
 const otherWorkspace = path.join(root, 'other-workspace')
 const alias = path.join(root, 'alias')
-await Promise.all([profile, workspace, otherWorkspace].map(directory => mkdir(directory, { recursive: true })))
+const outside = path.join(root, 'outside')
+const tripwire = path.join(root, 'tripwire')
+await Promise.all([profile, workspace, otherWorkspace, outside, tripwire].map(directory => mkdir(directory, { recursive: true })))
+const forbiddenContent = 'outside-fixture-' + randomUUID()
+await writeFile(path.join(outside, 'sentinel.txt'), forbiddenContent)
+await writeFile(path.join(workspace, '.gitignore'), 'escape/\n')
+await writeFile(path.join(workspace, '.gitattributes'), '*.txt diff=hostile\n')
+await symlink(outside, path.join(workspace, 'escape'), process.platform === 'win32' ? 'junction' : 'dir')
 function git(...args) {
   const result = spawnSync('git', args, { cwd: workspace, encoding: 'utf8', windowsHide: true })
   if (result.error) throw result.error
@@ -37,6 +44,8 @@ await writeFile(path.join(workspace, 'tracked.txt'), 'tracked baseline\n')
 await writeFile(path.join(workspace, 'staged.txt'), 'staged baseline\n')
 git('add', '.')
 git('commit', '-qm', 'profile baseline')
+const helper = "echo escaped > '" + path.join(tripwire, 'helper-ran').replaceAll('\\', '/') + "'"
+for (const key of ['diff.external', 'diff.hostile.textconv', 'core.fsmonitor', 'core.pager', 'credential.helper']) git('config', key, helper)
 await writeFile(path.join(workspace, 'tracked.txt'), 'tracked mutation marker\n')
 await writeFile(path.join(workspace, 'staged.txt'), 'staged mutation marker\n')
 git('add', 'staged.txt')
@@ -70,7 +79,7 @@ const rows = [
   ['llm-deepseek', '@deepseek-ai/dsh-llm-deepseek', { apiKeyEnv: 'DEEPSEEK_API_KEY' }],
   // The profile smoke exercises the primary semantic Sidecar composition.
   ['collaboration', packageEntry('dsh-with-chatgpt'), { browserMode: 'sidecar', sidecarEndpoint: sidecar.endpoint, sidecarCredentialFile: sidecar.credentialFile, tunnelMode: 'external', gitPolicy: 'worktree', gitReadPolicy: 'allow-hardened-windows' }],
-  ['probe', new URL('../tests/fixtures/profile-identity-probe.mjs', import.meta.url).href, { workspace, alias, otherWorkspace }],
+  ['probe', new URL('../tests/fixtures/profile-identity-probe.mjs', import.meta.url).href, { workspace, alias, otherWorkspace, outside, tripwire, forbiddenContent }],
 ].map(([id, name, config]) => ({ id, name, ...(config ? { config } : {}) }))
 await writeFile(path.join(profile, 'cordis.patch.yml'), JSON.stringify([{ insert: rows }], null, 2))
 const args = ['--import', pathToFileURL(requireDsh.resolve('tsx/esm')).href, path.join(sourceRoot, 'apps/cli/src/bin.ts'), '--profile', 'planner-executor-smoke']
@@ -97,6 +106,9 @@ for (const iteration of [1, 2]) {
   assert.equal(result.ok, true, result.error)
   assert.equal(result.gitAcceptance?.ok, true)
   assert.ok(['hardened-windows', 'full'].includes(result.gitAcceptance.assurance))
+  assert.equal(result.boundaryAcceptance?.ok, true, 'Installed provider authority boundaries were not verified')
+  assert.deepEqual(result.boundaryAcceptance.denied, ['traversal', 'absolute', 'junction', 'expired-lease'])
+  assert.equal(result.boundaryAcceptance.tripwireUnchanged, true)
   reports.push(result)
 }
 assert.deepEqual(reports[0].statuses.map(status => status.workspaceId), reports[1].statuses.map(status => status.workspaceId))

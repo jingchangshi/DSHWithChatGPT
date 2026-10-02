@@ -34,11 +34,28 @@ async function mcpValue(response) {
   return JSON.parse(text)
 }
 
-async function observeDoctor(execute, status, workspace) {
+async function observeDoctor(execute, status, workspace, boundary) {
   const before = await repositorySnapshot(workspace)
+  const tripwireBefore = await repositorySnapshot(boundary.tripwire)
   const originalFetch = globalThis.fetch
   const expectedUrl = 'http://127.0.0.1:' + status.bridgePort + '/mcp'
   const observed = new Map()
+  const denied = []
+  let authorityHeaders
+  const call = (headers, name, args) => originalFetch(expectedUrl, {
+    method: 'POST', headers, signal: AbortSignal.timeout(20_000),
+    body: JSON.stringify({ jsonrpc: '2.0', id: randomUUID(), method: 'tools/call', params: { name, arguments: args } }),
+  })
+  async function requireDenied(headers, label, requested, expectedCode) {
+    const response = await call(headers, 'read_file', { path: requested })
+    assert.equal(response.ok, true, 'Boundary transport failed')
+    const envelope = await response.json()
+    assert.equal(envelope.result, undefined, 'A denied read returned a result')
+    assert.match(envelope.error?.message ?? '', expectedCode,
+      'Expected authority denial for ' + label + ': ' + JSON.stringify(envelope.error))
+    assert.equal(JSON.stringify(envelope).includes(boundary.forbiddenContent), false, 'Outside fixture content escaped')
+    denied.push(label)
+  }
   let observationError
   globalThis.fetch = async (url, init) => {
     const response = await originalFetch(url, init)
@@ -51,6 +68,16 @@ async function observeDoctor(execute, status, workspace) {
       const value = await mcpValue(response.clone())
       observed.set(request.params.name, value)
       if (request.params.name === 'git_status') {
+        authorityHeaders = headers
+        const inside = await mcpValue(await call(headers, 'read_file', { path: 'tracked.txt' }))
+        assert.equal(inside.content, 'tracked mutation marker\n', 'Positive contained read failed')
+        // The installed runtime intentionally sanitizes provider errors at the
+        // bridge boundary. Positive reads and independent no-content assertions
+        // distinguish these denied requests from an unavailable read backend.
+        const deniedRead = /^WORKSPACE_BACKEND_FAILED: workspace read failed$/
+        await requireDenied(headers, 'traversal', '../outside/sentinel.txt', deniedRead)
+        await requireDenied(headers, 'absolute', path.join(boundary.outside, 'sentinel.txt'), deniedRead)
+        await requireDenied(headers, 'junction', 'escape/sentinel.txt', deniedRead)
         for (const [name, args] of [['git_diff', { max_bytes: 65536 }], ['git_log', { limit: 5 }]]) {
           const supplemental = await originalFetch(expectedUrl, {
             method: 'POST', headers, signal: AbortSignal.timeout(20_000),
@@ -73,6 +100,9 @@ async function observeDoctor(execute, status, workspace) {
   }
   if (observationError) throw observationError
   assert.equal(globalThis.fetch, originalFetch)
+  assert.ok(authorityHeaders, 'Active authority was never observed')
+  await requireDenied(authorityHeaders, 'expired-lease', 'tracked.txt', /WORKSPACE_CAPABILITY_UNAVAILABLE/)
+  assert.deepEqual(await repositorySnapshot(boundary.tripwire), tripwireBefore, 'A Git helper executed outside the workspace')
   const after = await repositorySnapshot(workspace)
   const changed = new Set([...before, ...after].map(entry => entry.relative))
   for (const relative of changed) {
@@ -94,7 +124,8 @@ async function observeDoctor(execute, status, workspace) {
   const diff = JSON.stringify(observed.get('git_diff'))
   for (const marker of ['tracked mutation marker', 'staged mutation marker', 'untracked mutation marker']) assert.ok(diff.includes(marker), 'Missing diff marker: ' + marker)
   assert.ok(JSON.stringify(observed.get('git_log')).includes('profile baseline'))
-  return { result, evidence: { ok: true, assurance: info.capabilities.gitRead.assurance, operations: [...observed.keys()], unchanged: true } }
+  return { result, evidence: { ok: true, assurance: info.capabilities.gitRead.assurance, operations: [...observed.keys()], unchanged: true },
+    boundaryEvidence: { ok: true, denied, tripwireUnchanged: true } }
 }
 
 function assertListenerClosed(port) {
@@ -130,6 +161,7 @@ export function apply(ctx, config) {
       initialTools = ctx.tools.schemas().map(tool => tool.name)
       const statuses = []
       let gitAcceptance
+      let boundaryAcceptance
       for (const cwd of [config.workspace, config.alias, config.otherWorkspace]) {
         const handle = await ctx.agents.create({ sessionId: randomUUID(), meta: { cwd } })
         handles.push(handle)
@@ -141,9 +173,10 @@ export function apply(ctx, config) {
         assert.equal(value.bridgeRunning, true)
         statuses.push({ workspaceId: value.workspaceId, bridgePort: value.bridgePort, latestTask: value.latestTask })
         if (statuses.length === 1) {
-          const observed = await observeDoctor(execute, value, config.workspace)
+          const observed = await observeDoctor(execute, value, config.workspace, config)
           const result = observed.result
           gitAcceptance = observed.evidence
+          boundaryAcceptance = observed.boundaryEvidence
           assert.equal(result.isError, false, JSON.stringify(result))
           const doctor = JSON.parse(result.content.find(block => block.type === 'text').text)
           assert.equal(doctor.ready, false)
@@ -172,7 +205,7 @@ export function apply(ctx, config) {
       const reloaded = await ctx.tools.execute({ agent: handles[0].agent, signal: new AbortController().signal, callId: randomUUID(), name: 'chatgpt_status', arguments: {} })
       assert.equal(reloaded.isError, false, JSON.stringify(reloaded))
       assert.equal(JSON.parse(reloaded.content.find(block => block.type === 'text').text).workspaceId, statuses[0].workspaceId)
-      outcome = { ok: true, statuses, calls, gitAcceptance }
+      outcome = { ok: true, statuses, calls, gitAcceptance, boundaryAcceptance }
     } catch (error) {
       outcome = { ok: false, error: String(error), calls, initialTools, tools: ctx.tools.schemas().map(tool => tool.name), plugins: [...ctx.loader.entries()].map(entry => ({ id: entry.options.id, state: entry.fiber?.state, callback: entry.fiber?.runtime?.callback?.name, tools: entry.options.id === 'collaboration' ? entry.fiber?.ctx.get('tools')?.schemas().map(tool => tool.name) : undefined })) }
     } finally {
