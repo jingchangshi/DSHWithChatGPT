@@ -19,6 +19,7 @@ import { createHash, randomUUID } from 'node:crypto'
 import type { PlannerTaskAggregate } from '../core/planner-task.ts'
 import type { ChatRecoveryControl, ChatSendObservationControl } from '../core/ports/chat-control.ts'
 import { formatPlannerEnvelope, parsePlannerEnvelope, plannerEnvelopeDigest } from '../protocol/planner-envelope.ts'
+import type { PlannerEnvelope } from '../protocol/planner-envelope.ts'
 
 /** Coordinator configuration. */
 export interface CoordinatorOptions {
@@ -49,7 +50,7 @@ export interface StartResult {
 /** Result of one ChatGPT round-trip. */
 export interface RoundResult {
   taskId: string
-  envelope: Envelope
+  envelope: Envelope | PlannerEnvelope
   record: PersistedTask
 }
 
@@ -140,6 +141,7 @@ export class ChatGptCoordinator {
       throw Object.assign(new Error('CANONICAL_OBSERVATION_UNAVAILABLE'), { code: 'CANONICAL_OBSERVATION_UNAVAILABLE' })
     }
     const baseline = await observation.captureReplyBaseline(opts.signal)
+    throwIfCancelled(opts.signal)
     if (baseline.conversationId !== null) {
       throw Object.assign(new Error('CANONICAL_BOOTSTRAP_ROUTE_BOUND'), { code: 'CANONICAL_BOOTSTRAP_ROUTE_BOUND' })
     }
@@ -163,6 +165,9 @@ export class ChatGptCoordinator {
     let snapshot = await this.state.createTask(aggregate)
     const ids = await this.state.listTaskIds()
     if (!ids.includes(taskId)) await this.state.saveTaskIndex([...ids, taskId])
+    await this.state.bindWorkspace(this.options.workspaceId, {
+      workspaceRoot: this.options.workspaceRoot, conversationId: null, lastTaskId: taskId,
+    })
     snapshot = await this.state.commitTask(taskId, snapshot.revision, {
       ...snapshot.value, round: { ...aggregate.round!, phase: 'sending' },
     } as PlannerTaskAggregate)
@@ -171,7 +176,9 @@ export class ChatGptCoordinator {
       correlation: { taskId, iteration: 0, workspaceId: this.options.workspaceId, phase: 'INIT' },
       replyBaseline: baseline,
     })
+    throwIfCancelled(opts.signal)
     const bound = await observation.captureSendObservation(sendOperationId, opts.signal)
+    throwIfCancelled(opts.signal)
     snapshot = await this.state.commitTask(taskId, snapshot.revision, {
       ...snapshot.value, conversationId: bound.conversationId,
       round: { ...((snapshot.value as PlannerTaskAggregate).round!), baseline: bound, phase: 'observed-sent' },
@@ -238,11 +245,13 @@ export class ChatGptCoordinator {
       const reconciled = await recovery.reconcileReplyBaseline({
         conversationId: persisted.conversationId, controlDigest: round.controlDigest,
       }, signal)
-      if (reconciled.conversationId !== persisted.conversationId) {
+      throwIfCancelled(signal)
+      if (reconciled.version !== round.baseline.version || reconciled.conversationId !== persisted.conversationId
+        || reconciled.assistantCount !== round.baseline.assistantCount || reconciled.textDigest !== round.baseline.textDigest) {
         throw Object.assign(new Error('SEND_UNCERTAIN'), { code: 'SEND_UNCERTAIN' })
       }
       current = await this.state.commitTask(taskId, current.revision, {
-        ...persisted, round: { ...round, baseline: reconciled, phase: 'awaiting-reply' },
+        ...persisted, round: { ...round, phase: 'awaiting-reply' },
       } as PlannerTaskAggregate)
     }
     if (round.phase === 'observed-sent') {
@@ -257,6 +266,7 @@ export class ChatGptCoordinator {
       replyRecovery: { sendOperationId: activeRound.sendOperationId },
       correlation: { taskId, iteration: activeRound.iteration, workspaceId: this.options.workspaceId, phase: 'PLAN' },
     })
+    throwIfCancelled(signal)
     const envelope = parsePlannerEnvelope(reply.text, { sender: 'planner' })
     if (envelope.taskId !== taskId || envelope.headers.get('WORKSPACE_ID') !== this.options.workspaceId
       || envelope.state !== 'PLAN' || envelope.iteration !== 1 || envelope.inReplyTo !== 0) {
@@ -268,7 +278,7 @@ export class ChatGptCoordinator {
       ...active, state: 'planned', iteration: 1, waitingFor: 'dsh-execution', lastReviewedHead: null,
       round: { ...activeRound, phase: 'accepted', outcome },
     } as PlannerTaskAggregate)
-    return { taskId, envelope: envelope as unknown as Envelope, record: saved.value }
+    return { taskId, envelope, record: saved.value }
   }
 
   /**
@@ -379,7 +389,20 @@ export class ChatGptCoordinator {
     if (taskProtocolVersion(task) === 2 && (task as PlannerTaskAggregate).round !== undefined) {
       const aggregate = task as PlannerTaskAggregate
       if (aggregate.conversationId === null) {
-        throw Object.assign(new Error('SEND_UNCERTAIN'), { code: 'SEND_UNCERTAIN' })
+        const observation = this.options.browser as Partial<ChatSendObservationControl>
+        if (aggregate.round?.phase !== 'sending' || typeof observation.captureSendObservation !== 'function') {
+          throw Object.assign(new Error('SEND_UNCERTAIN'), { code: 'SEND_UNCERTAIN' })
+        }
+        const bound = await observation.captureSendObservation(aggregate.round.sendOperationId, signal)
+        throwIfCancelled(signal)
+        const saved = await this.state.commitTask(taskId, task.updatedAt, {
+          ...aggregate, conversationId: bound.conversationId,
+          round: { ...aggregate.round, baseline: bound, phase: 'observed-sent' },
+        } as PlannerTaskAggregate)
+        await this.state.bindWorkspace(this.options.workspaceId, {
+          workspaceRoot: this.options.workspaceRoot, conversationId: bound.conversationId, lastTaskId: taskId,
+        })
+        return saved.value
       }
       await this.options.browser.ensureReady(signal)
       await this.options.browser.openConversation(aggregate.conversationId, signal)
