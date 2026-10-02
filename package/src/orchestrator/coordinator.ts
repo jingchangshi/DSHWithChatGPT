@@ -13,8 +13,12 @@ export { CHATGPT_BOOT_PROMPT } from '../protocol/legacy-planner-policy.ts'
 import { formatEnvelope, parseEnvelope } from '../protocol/index.ts'
 import type { PersistedTask, TaskState } from '../core/model.ts'
 import { taskProtocolVersion } from '../core/model.ts'
-import type { StateStore } from '../core/ports/state-store.ts'
+import type { StateStore, TaskSnapshot } from '../core/ports/state-store.ts'
 import { OperationCancelledError, throwIfCancelled } from '../cancellation.ts'
+import { createHash, randomUUID } from 'node:crypto'
+import type { PlannerTaskAggregate } from '../core/planner-task.ts'
+import type { ChatSendObservationControl } from '../core/ports/chat-control.ts'
+import { formatPlannerEnvelope, parsePlannerEnvelope, plannerEnvelopeDigest } from '../protocol/planner-envelope.ts'
 
 /** Coordinator configuration. */
 export interface CoordinatorOptions {
@@ -32,6 +36,8 @@ export interface CoordinatorOptions {
   maxIterations?: number
   /** Instructions supplied by inbound deployment composition. */
   plannerInstructions?: string
+  /** Explicit production gate for the canonical v2 coordinator path. */
+  canonicalProtocol?: boolean
 }
 
 /** Result of starting a task (INIT sent). */
@@ -115,12 +121,78 @@ export class ChatGptCoordinator {
   }
 
   /**
+   * Start the canonical v2 path. This is deliberately separate from the
+   * released v1 entry point and requires an explicit deployment opt-in.
+   * Intent is published before browser delivery; route binding is accepted
+   * only from the transport's send acknowledgement observation.
+   */
+  async startCanonicalTask(taskId: string, goal: string, opts: { signal?: AbortSignal } = {}): Promise<StartResult> {
+    throwIfCancelled(opts.signal)
+    if (this.options.canonicalProtocol !== true) {
+      throw Object.assign(new Error('CANONICAL_PROTOCOL_DISABLED'), { code: 'CANONICAL_PROTOCOL_DISABLED' })
+    }
+    if (!/^pb_[0-9a-f]{32,64}$/.test(taskId) || goal.trim() === '' || await this.state.loadTask(taskId) !== undefined) {
+      throw new ProtocolError('task-id-unavailable', 'canonical task identity is unavailable')
+    }
+    await this.options.browser.ensureReady(opts.signal)
+    const observation = this.options.browser as Partial<ChatSendObservationControl>
+    if (typeof observation.captureReplyBaseline !== 'function' || typeof observation.captureSendObservation !== 'function') {
+      throw Object.assign(new Error('CANONICAL_OBSERVATION_UNAVAILABLE'), { code: 'CANONICAL_OBSERVATION_UNAVAILABLE' })
+    }
+    const baseline = await observation.captureReplyBaseline(opts.signal)
+    if (baseline.conversationId !== null) {
+      throw Object.assign(new Error('CANONICAL_BOOTSTRAP_ROUTE_BOUND'), { code: 'CANONICAL_BOOTSTRAP_ROUTE_BOUND' })
+    }
+    const sendOperationId = `send-${randomUUID()}`
+    const waitOperationId = `wait-${randomUUID()}`
+    const envelope = formatPlannerEnvelope({
+      sender: 'executor', state: 'INIT', taskId, iteration: 0,
+      workspaceId: this.options.workspaceId,
+      sections: { GOAL: goal, INSTRUCTION: this.options.plannerInstructions ?? 'Plan this task using the canonical protocol.' },
+    })
+    const aggregate: PlannerTaskAggregate = {
+      protocolVersion: 2, taskId, workspaceId: this.options.workspaceId, goal,
+      state: 'awaiting-plan', iteration: 0, waitingFor: 'chatgpt-plan', conversationId: null,
+      lastReviewedHead: null, createdAt: Date.now(), updatedAt: Date.now(), lastError: null,
+      round: {
+        kind: 'INIT', iteration: 0, sendOperationId, waitOperationId,
+        controlDigest: createHash('sha256').update(envelope, 'utf8').digest('hex'),
+        baseline, phase: 'prepared',
+      },
+    }
+    let snapshot = await this.state.createTask(aggregate)
+    const ids = await this.state.listTaskIds()
+    if (!ids.includes(taskId)) await this.state.saveTaskIndex([...ids, taskId])
+    snapshot = await this.state.commitTask(taskId, snapshot.revision, {
+      ...snapshot.value, round: { ...aggregate.round!, phase: 'sending' },
+    } as PlannerTaskAggregate)
+    await this.options.browser.sendControlMessage(envelope, opts.signal, {
+      operationId: sendOperationId,
+      correlation: { taskId, iteration: 0, workspaceId: this.options.workspaceId, phase: 'INIT' },
+      replyBaseline: baseline,
+    })
+    const bound = await observation.captureSendObservation(sendOperationId, opts.signal)
+    snapshot = await this.state.commitTask(taskId, snapshot.revision, {
+      ...snapshot.value, conversationId: bound.conversationId,
+      round: { ...((snapshot.value as PlannerTaskAggregate).round!), baseline: bound, phase: 'observed-sent' },
+    } as PlannerTaskAggregate)
+    await this.state.bindWorkspace(this.options.workspaceId, {
+      workspaceRoot: this.options.workspaceRoot, conversationId: bound.conversationId, lastTaskId: taskId,
+    })
+    return { taskId, sentEnvelope: envelope }
+  }
+
+  /**
    * Wait for the ChatGPT reply to the latest send and fold it into the
    * machine. Rejects stale/mismatched envelopes (ProtocolError).
    */
   async awaitPlan(taskId: string, signal?: AbortSignal): Promise<RoundResult> {
     throwIfCancelled(signal)
     const snapshot = await this.requireTask(taskId)
+    if (taskProtocolVersion(snapshot.value) === 2 && (snapshot.value as PlannerTaskAggregate).round !== undefined) {
+      return this.awaitCanonicalPlan(taskId, snapshot, signal)
+    }
+    this.requireLegacyTask(snapshot.value)
     const persisted = snapshot.value
     const machine = this.restoreMachine(persisted)
     const record = machine.get(taskId)
@@ -151,6 +223,39 @@ export class ChatGptCoordinator {
     return { taskId, envelope, record: saved.value }
   }
 
+  private async awaitCanonicalPlan(taskId: string, snapshot: TaskSnapshot, signal?: AbortSignal): Promise<RoundResult> {
+    const persisted = snapshot.value as PlannerTaskAggregate
+    const round = persisted.round
+    if (!round || !['observed-sent', 'awaiting-reply', 'uncertain'].includes(round.phase)) {
+      throw new ProtocolError('unexpected-reply', `task ${taskId} is not waiting for a canonical plan`)
+    }
+    let current = snapshot
+    if (round.phase === 'observed-sent') {
+      current = await this.state.commitTask(taskId, current.revision, {
+        ...persisted, round: { ...round, phase: 'awaiting-reply' },
+      } as PlannerTaskAggregate)
+    }
+    const active = current.value as PlannerTaskAggregate
+    const activeRound = active.round!
+    const reply = await this.options.browser.waitForReply(this.replyTimeoutMs, signal, {
+      operationId: activeRound.waitOperationId,
+      replyRecovery: { sendOperationId: activeRound.sendOperationId },
+      correlation: { taskId, iteration: activeRound.iteration, workspaceId: this.options.workspaceId, phase: 'PLAN' },
+    })
+    const envelope = parsePlannerEnvelope(reply.text, { sender: 'planner' })
+    if (envelope.taskId !== taskId || envelope.headers.get('WORKSPACE_ID') !== this.options.workspaceId
+      || envelope.state !== 'PLAN' || envelope.iteration !== 1 || envelope.inReplyTo !== 0) {
+      throw new ProtocolError('unexpected-reply', 'canonical plan reply does not match the active round')
+    }
+    const sections = Object.fromEntries(envelope.sections)
+    const outcome = { digest: plannerEnvelopeDigest(envelope), state: 'PLAN' as const, iteration: 1, inReplyTo: 0, sections }
+    const saved = await this.state.commitTask(taskId, current.revision, {
+      ...active, state: 'planned', iteration: 1, waitingFor: 'dsh-execution', lastReviewedHead: null,
+      round: { ...activeRound, phase: 'accepted', outcome },
+    } as PlannerTaskAggregate)
+    return { taskId, envelope: envelope as unknown as Envelope, record: saved.value }
+  }
+
   /**
    * Mark execution done, advance iteration, send EXECUTED with a machine
    * summary, and wait for ChatGPT's independent review.
@@ -163,6 +268,7 @@ export class ChatGptCoordinator {
   }, signal?: AbortSignal): Promise<RoundResult> {
     throwIfCancelled(signal)
     let snapshot = await this.requireTask(taskId)
+    this.requireLegacyTask(snapshot.value)
     const persisted = snapshot.value
     const machine = this.restoreMachine(persisted)
     if (persisted.iteration > this.maxIterations) {
@@ -297,7 +403,6 @@ export class ChatGptCoordinator {
   private async requireTask(taskId: string) {
     const task = await this.state.loadTaskSnapshot(taskId)
     if (task === undefined) throw new ProtocolError('unknown-task', `task ${taskId} not found in durable state`)
-    this.requireLegacyTask(task.value)
     return task
   }
 

@@ -93,7 +93,17 @@ export function requirePlannerTaskTransition(previous: PersistedTask | undefined
     return
   }
   const identity = ({ phase: _phase, outcome: _outcome, ...intent }: PlannerRound) => intent
-  if (!isDeepStrictEqual(identity(old), identity(round))) fail('REPLAY_CONFLICT')
+  const oldIdentity = identity(old)
+  const nextIdentity = identity(round)
+  // Bootstrap binding records the provider conversation observed by the same
+  // live send operation. The baseline's route field is therefore allowed to
+  // change from null exactly at sending -> observed-sent; all other intent
+  // fields remain immutable.
+  if (old.phase === 'sending' && round.phase === 'observed-sent'
+    && old.baseline.conversationId === null && round.baseline.conversationId !== null) {
+    nextIdentity.baseline = { ...nextIdentity.baseline, conversationId: null }
+  }
+  if (!isDeepStrictEqual(oldIdentity, nextIdentity)) fail('REPLAY_CONFLICT')
   if (!transitions[old.phase].includes(round.phase)) fail('REPLAY_CONFLICT')
   if (old.outcome && !isDeepStrictEqual(old.outcome, round.outcome)) fail('REPLAY_CONFLICT')
   if (old.phase === 'accepted' && !isDeepStrictEqual(previous, next)) {
