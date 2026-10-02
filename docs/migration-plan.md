@@ -166,3 +166,26 @@ It supersedes historical ledger rows only for that named scope. The historical
 inventory remains useful for old documents/evidence; stale line numbers there
 must not be treated as current source proof. Remaining private/DOC rows are
 work still required, not silently reclassified as compatibility or global DONE.
+
+Iteration-57 completes the eight remaining private/current-prose rows in that
+named scan. Internal cancellation now reports `OPERATION_CANCELLED`; the class,
+abort lifetime and released provider-error mapping are unchanged. Fresh bridge
+credentials use `pb_auth_` plus the same 32 random bytes. Authentication remains
+opaque: configured old values work and repeated live status preserves credential
+bytes. No existing state or credential is rewritten. The private browser helper
+variable is neutral; the released profile directory is preserved.
+
+Red-first evidence: two original targeted failures for cancellation/new prefix
+(32 passes), followed by one missing legacy-provider fixture failure (22 filtered
+cases, not suite skips). Final focused coverage is 57 passed. Typecheck, build
+and isolated package verification pass. The fresh audit contains 269 occurrences:
+267 explicit compatibility and two externally owned names; no remaining rename
+rows within its stated scope. Historical documentation is outside that snapshot.
+Scoped independent review remains required. This closes no real product, producer
+support or global acceptance gate.
+
+The first ordinary full-suite run retained four failures in the old App-proof
+integration fixture (1039 passed / three original skips): its helper incorrectly
+required the previous fresh-bearer prefix before any proof reads. The helper
+now asserts the current 32-byte fresh token shape; legacy opaque compatibility
+is tested independently. No production proof/security assertion was removed.

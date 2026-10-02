@@ -3,7 +3,7 @@ import { setTimeout as delay } from 'node:timers/promises'
 /** Cancellation of a caller-owned collaboration operation. */
 export class OperationCancelledError extends Error {
   constructor() {
-    super('D2C_CANCELLED: collaboration operation cancelled')
+    super('OPERATION_CANCELLED: collaboration operation cancelled')
     this.name = 'OperationCancelledError'
   }
 }

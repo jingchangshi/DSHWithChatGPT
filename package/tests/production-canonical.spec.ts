@@ -1,6 +1,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { Context } from '@deepseek-ai/cordis'
 import { randomUUID } from 'node:crypto'
+import { readFile } from 'node:fs/promises'
 import { apply, Config, inject } from '../src/index.ts'
 import { DeploymentSidecarControl } from '../src/deployment/sidecar-control.ts'
 import { TunnelSupervisor } from '../src/tunnel/supervisor.ts'
@@ -70,6 +71,28 @@ async function fixture(fixFirst = false, gitPolicy: 'worktree' | 'commit-push' =
 }
 
 describe('canonical production composition', () => {
+  it('uses a neutral fresh bearer with unchanged authentication and byte-identical live reuse', async () => {
+    const f = await fixture()
+    try {
+      const first = await f.call('chatgpt_status')
+      const config = JSON.parse(await readFile(first.connectorConfigPath, 'utf8'))
+      const header = await readFile(config.authorization.tokenFile, 'utf8')
+      // Boolean assertion keeps the random test credential out of failure output.
+      expect(/^Bearer pb_auth_[a-f0-9]{64}\n$/.test(header)).toBe(true)
+      expect(JSON.stringify(first).includes(header.trim())).toBe(false)
+      const ping = (authorization?: string) => fetch(config.localUrl, {
+        method: 'POST', headers: { 'content-type': 'application/json', ...(authorization ? { authorization } : {}) },
+        body: JSON.stringify({ jsonrpc: '2.0', id: 1, method: 'ping' }),
+      })
+      expect((await ping(header.trim())).status).toBe(200)
+      expect((await ping()).status).toBe(401)
+      expect((await ping('Bearer pb_auth_' + '0'.repeat(64))).status).toBe(401)
+      const second = await f.call('chatgpt_status')
+      expect(second.connectorConfigPath).toBe(first.connectorConfigPath)
+      expect(second.bridgePort).toBe(first.bridgePort)
+      expect((await readFile(config.authorization.tokenFile, 'utf8')) === header).toBe(true)
+    } finally { await f.ctx.fiber.dispose() }
+  })
   it('advertises the mandatory canonical pushed-HEAD policy even with a legacy worktree setting', async () => {
     const f = await fixture(false, 'worktree')
     try {

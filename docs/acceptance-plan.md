@@ -588,3 +588,13 @@ support, not a production-source regression. These checks do not establish
 real ChatGPT ACK or full recovery acceptance. Aggregate bound-baseline
 persistence, canonical coordinator wiring, fresh GitLease acquisition and
 production v2 task creation remain pending.
+
+Iteration-57 naming/authentication regression evidence (2026-10-02): the actual
+registered production status creates a protected fresh credential reference,
+authenticated bridge ping succeeds, missing/wrong values are denied, and live
+reuse retains identical bytes and endpoint. An independently configured legacy
+opaque bearer remains accepted. Separate-process RPC normalizes the old provider
+cancellation error without exposing provider details. Focused suites: 57 passed;
+typecheck/build and isolated package imports/Sidecar process checks passed.
+These are source/package contracts, not real App or stdout-nonce acceptance.
+The current package candidate has been refreshed for the next actual product run.

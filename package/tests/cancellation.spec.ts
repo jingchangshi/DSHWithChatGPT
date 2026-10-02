@@ -28,6 +28,7 @@ describe('caller cancellation', () => {
     expect(providerSignal?.aborted).toBe(false)
     controller.abort()
     await expect(pending).rejects.toBeInstanceOf(OperationCancelledError)
+    await expect(pending).rejects.toHaveProperty('message', 'OPERATION_CANCELLED: collaboration operation cancelled')
     expect(providerSignal?.aborted).toBe(true)
   })
 

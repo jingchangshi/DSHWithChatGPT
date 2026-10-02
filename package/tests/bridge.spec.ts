@@ -47,6 +47,15 @@ afterEach(async () => {
 })
 
 describe('bridge auth', () => {
+  it('continues accepting an explicitly configured legacy opaque bearer without prefix rewriting', async () => {
+    const legacy = 'd2c_existing_fixture_bearer'
+    const compatible = await startBridgeServer({ port: 0, tokens: new Map([[legacy, 'workspace:demo']]) },
+      buildWorkspaceTools(loadWorkspaceSpec(root, new ExecutionRecorder({ stateDir }), localGitExecutor(root))))
+    try {
+      expect((await rpc('ping', undefined, legacy, compatible.port)).status).toBe(200)
+      expect((await rpc('ping', undefined, 'pb_auth_' + '0'.repeat(64), compatible.port)).status).toBe(401)
+    } finally { await compatible.close() }
+  })
   it('rejects missing/invalid tokens', async () => {
     expect((await rpc('ping', undefined, '')).status).toBe(401)
     expect((await rpc('ping', undefined, 'wrong-token-aaaaaaaaaaaaaa')).status).toBe(401)

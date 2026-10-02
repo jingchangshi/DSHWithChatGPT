@@ -70,7 +70,7 @@ export interface Config {
   /** Optional owned Sidecar executable; omitted means externally managed. */
   sidecarProcessCommand?: string
   sidecarProcessArgs?: string[]
-  /** Exact ChatGPT custom-app name activated for every D2C message. */
+  /** Exact ChatGPT custom-app name activated for every control message. */
   chatgptAppName: string
   /** Autonomous review/fix safety bound. */
   maxIterations: number
@@ -238,7 +238,7 @@ export async function apply(ctx: Context, config: Config): Promise<void> {
         }
       }
 
-      const token = 'd2c_' + randomToken(32)
+      const token = 'pb_auth_' + randomToken(32)
       const server = await startBridgeServer(
         { port: config.bridgePort, tokens: new Map([[token, 'workspace:' + workspaceId]]) },
         buildRuntimeWorkspaceTools({ workspaceId, registry: workspaceRuntimes, recorder: recorders.forWorkspaceId(workspaceId) }),
@@ -545,7 +545,7 @@ export async function apply(ctx: Context, config: Config): Promise<void> {
             bridgeRunning: { type: 'boolean', description: 'Whether the read-only MCP bridge is listening.' },
             bridgePort: { description: 'Loopback bridge port.' },
             connectorConfigPath: { type: 'string', description: 'Local runtime metadata path; bearer value stays in a separate 0600 file.' },
-            workspaceId: { type: 'string', description: 'Non-secret workspace identity echoed through D2C.' },
+            workspaceId: { type: 'string', description: 'Non-secret workspace identity echoed through control replies.' },
             chatgptAppName: { type: 'string', description: 'Exact app name auto-activated for every message.' },
             gitPolicy: { type: 'string', description: 'Autonomous git policy.' },
             gitReadPolicy: { type: 'string', description: 'Normalized policy for fixed Git reads.' },

@@ -26,7 +26,7 @@ describe('registered doctor App proof', () => {
     let prompt = ''
     const mcp = async (name: string) => {
       const raw = await readFile(binding!.bearerValueFile, 'utf8')
-      expect(/^Bearer d2c_[A-Za-z0-9_-]+\n$/.test(raw)).toBe(true)
+      expect(/^Bearer pb_auth_[a-f0-9]{64}\n$/.test(raw)).toBe(true)
       expect(raw.endsWith('\\n')).toBe(false)
       expect(raw.includes('\r')).toBe(false)
       const header = raw.slice(0, -1)

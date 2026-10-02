@@ -24,6 +24,13 @@ describe('separate-process semantic RPC security', () => {
     expect(JSON.parse(body)).toMatchObject({ ok: false, error: { code: 'CHATGPT_LOGGED_OUT' } })
     expect(body).not.toContain('private provider detail')
   })
+  it('retains the old provider cancellation mapping without exposing provider text', async () => {
+    const response = await rpc({ ...envelope('sendControlMessage', sidecar.generation), params: { text: 'legacy-cancelled' } })
+    const body = await response.text()
+    expect(JSON.parse(body)).toMatchObject({ ok: false, error: { code: 'OPERATION_CANCELLED' } })
+    expect(body).not.toContain('private provider detail')
+    expect(body).not.toContain('D2C_CANCELLED')
+  })
   it('bounds semantic reply bodies returned by the driver', async () => {
     expect((await rpc({ ...envelope('sendControlMessage', sidecar.generation), params: { text: 'large-reply' } })).status).toBe(200)
     const response = await rpc({ ...envelope('waitForReply', sidecar.generation), params: { timeoutMs: 100 } })

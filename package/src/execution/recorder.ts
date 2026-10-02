@@ -28,7 +28,7 @@ export type ExecutionStatus = 'success' | 'failure' | 'timeout' | 'cancelled'
 export interface ExecutionRecord {
   /** Monotonic id within the recorder (uuid-ish string). */
   id: string
-  /** Task this step belongs to (D2C task id or 'adhoc'). */
+  /** Task this step belongs to (collaboration task id or 'adhoc'). */
   taskId: string
   /** Protocol iteration the step belongs to. */
   iteration: number

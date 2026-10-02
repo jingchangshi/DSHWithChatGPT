@@ -1,5 +1,5 @@
 /**
- * PlannerBridge coordinator using the legacy v1 protocol. Inbound executors
+ * PlannerBridge coordinator with canonical v2 and explicit legacy v1 dispatch. Inbound executors
  * invoke use cases; outbound ports provide chat control and durable state.
  * @module orchestrator
  */
@@ -33,7 +33,7 @@ export interface CoordinatorOptions {
   replyTimeoutMs?: number
   /** Workspace root the coordinator is bound to. */
   workspaceRoot: string
-  /** Non-secret workspace identity echoed through D2C replies. */
+  /** Non-secret workspace identity echoed through control replies. */
   workspaceId: string
   /** Hard safety bound for autonomous review/fix rounds. */
   maxIterations?: number

@@ -18,6 +18,7 @@ const driver = {
     ? recoveryView === 'missing' ? undefined : recoveryView === 'foreign' ? 'foreign' : 'owned' : undefined),
   sendControlMessage: async (text, signal) => {
     signal?.throwIfAborted()
+    if (text === 'legacy-cancelled') throw new Error('D2C_CANCELLED: private provider detail')
     if (text === 'logged-out') throw new Error('ChatGPT_WEB_LOGGED_OUT: private provider detail')
     if (text === 'app-unavailable') throw new Error('CHATGPT_APP_UNAVAILABLE: private provider detail')
     process.send?.({ event: 'send', text })
