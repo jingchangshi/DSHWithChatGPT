@@ -9,7 +9,7 @@ accepted within their stated scope. Full product completion is still unproven.
 | Required category | Current status | Evidence or remaining proof |
 |---|---|---|
 | ARCHITECTURE | PARTIAL | Scoped ports/dependency/topology reviews exist; final global exact-HEAD audit remains |
-| SOURCE | PARTIAL | Paragraph INIT repair independently reviewed at 29929a9; real input acceptance remains |
+| SOURCE | PARTIAL | Paragraph repair reviewed at 29929a9; bootstrap observation guard reviewed at d0e64ee; real input acceptance remains |
 | PROTOCOL | PARTIAL | Canonical v2 identity and same-round oracle tested; real PLAN through DONE absent |
 | CHAT_CONTROL | PARTIAL | Real App selection/proof passed; multiline INIT input failed |
 | DIRECT_CDP | PARTIAL | Real Chrome fixture/input/fence coverage; product multiline rendering gap reproduced |
@@ -18,8 +18,8 @@ accepted within their stated scope. Full product completion is still unproven.
 | WORKSPACE_DATA_PLANE | PARTIAL | Installed authority checks and real App workspace proof passed; independent raw-output nonce review absent |
 | SECURITY | PARTIAL | Containment/credential boundaries verified within scope; producer native Git deadline gate still FAILED |
 | RECOVERY | PARTIAL | Synthetic restart/fix/DONE covered; failed INIT pre-task ownership and real recovery require evidence |
-| PACKAGING | PARTIAL | Fresh xvdFqE isolated package and two native installed-profile processes passed; real workflow remains |
-| TESTS | PARTIAL | Current runtime: 83 files, 1046 passed, three original skips; separate producer timeout remains FAILED |
+| PACKAGING | PARTIAL | Fresh jMPi1Y isolated package and two native installed-profile processes passed at runtime d0e64ee; real workflow remains |
+| TESTS | PARTIAL | Current runtime: 83 files, 1051 passed, three original skips; separate producer timeout remains FAILED |
 | WINDOWS_E2E | FAILED | Real attempt passed local/App proof then INIT failed; no accepted PLAN, nonce or DONE |
 | FUTURE_LINUX | FUTURE | No Linux host execution; it does not block Windows delivery |
 
@@ -85,3 +85,30 @@ ownership intentionally blocks reconnect before browser reconciliation. The
 next investigation must distinguish proven unsent delivery from uncertain send;
 neither clearing the claim nor resending from the draft is authorized by these
 facts alone.
+
+Iteration-60 recovery boundary review read the current runtime, ownership,
+coordinator and journal source and confirmed that the old unknown send must
+remain fail-closed. Existing tests already cover unknown-source refusal and
+matching-source recovery. Additional baseline adversaries demonstrated a missing
+coordinator fence: changed assistant count/text could reach publication, while
+invalid version/empty route reached lower persistence rejection. Runtime
+`d0e64ee` validates version/count/text and a nonempty bound conversation before
+both initial and recovery publication. Route promotion may change the observation
+epoch. Five new scenarios preserve original intent and prove no resend. Focused
+contracts: 80 passed; typecheck/build pass; final full: 83 files, 1051 passed,
+three original skips, exit 0. Independent source review accepted only this scope.
+
+A later read-only product inspection found a different conversation route and
+an empty composer; the page includes the failed task identifier. Exact outgoing
+message reconciliation still returned SEND_UNCERTAIN. These observations do not
+prove delivery or permit automatic recovery. The historical retained draft is
+not assumed to remain present. Task/journal/ownership records remain untouched;
+no accepted real PLAN or full product proof is claimed.
+
+Latest runtime package `jMPi1Y` passed isolated import/separate-process verification;
+profile `CYuCAS` passed with two native DSH processes and the same authority
+boundary assertions. Browser/App proof remains explicitly NOT_RUN in that
+fixture. The next real acceptance launcher references this new installation,
+but has not been executed. User clarification about possible manual sending of
+the old INIT is pending; this does not authorize automatic resend or journal
+promotion.
