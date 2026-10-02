@@ -1,94 +1,112 @@
-# dsh-with-chatgpt
+# PlannerBridge
 
-**ChatGPT 负责思考，DeepSeek Harness 负责执行。**
+**ChatGPT 负责规划与独立评审，DeepSeek Harness 负责执行。**
 
-这是一个 DeepSeek Harness 插件：ChatGPT Web 负责架构、规划和独立评审，DSH / GLM-5.3-Flash 负责修改代码、构建、测试、git commit/push 和故障恢复。
+PlannerBridge 是 Planner/Reviewer 与 Executor 的协作运行时。当前唯一 P0
+部署是 Windows 11、ChatGPT Web 与 DSH + DeepSeek-V4.1-Flash：
+`provider: deepseek-official`、`model: deepseek-flash`，reasoning 使用
+提供方默认值。仓库与已发布插件名 `DSHWithChatGPT`、`dsh-with-chatgpt`
+保留兼容。
 
-## 运行闭环
+已有源码、安装包、安装后权限和模拟组合流程的局部验证证据。
+**真实 Windows 模型/App 闭环和最终全局审查尚未完成。**
+实际状态见[验收矩阵](docs/acceptance-plan.md)，不能将组件或模拟测试算作真实产品通过。
 
-Provider-neutral 接入尚在进行中。生产 bridge 通过执行期 runtime registry 分派内容请求，不再调用 Host 工作区读取函数。每个工作区只允许一次有效获取；租约替换后，即使服务代次相同，未完成读取也不能发布结果。五个协作工具通过公开的 DSH execution-world identity 服务解析 Session cwd；bridge 命名空间与其 recorder 选择使用提供方返回的不透明 ID。缺少根目录安全读取授权时，Git 和原始执行输出也被拒绝；元数据不包含命令标签。PLAN/REVIEW 在读取和 Git 授权不足时拒绝发送消息。MCP 查询在后端分派前被规范化为有界 DTO；静态工具定义共享且不构造 Host handler。固定 Git 命令现使用注入的执行世界 executor；生产 Git helper 不再启动 Host 进程或按 Host 平台推测空设备。Coordinator 必须显式提供工作区 ID，不再回退到路径键。Doctor 将内容、Git 和执行输出授权纳入本地就绪判断，身份匹配本身不能报告 ready。生产 coordinator 绑定与 shell 证据现使用同一提供方 ID；shell workdir 仅为显示元数据，不再经 Host 路径解析来推导身份。生产启动要求持久存储与显式服务注入，不再自动回退到内存。DSH 内容/进程 adapter 仍未完成，因此尚未安装生产内容租约。远端隔离与完整产品闭环尚未验收。
+## Windows 主路径
 
+```text
+独立产品 Chrome 中的 ChatGPT Web
+  ↕ ChatGptWebDriver / DirectCdpPrimitives
+Chat Control Sidecar（本机语义服务）
+  ↕ SidecarChatControlClient
+PlannerBridge 协调器 / DSH adapter
+  ↕ DeepSeek-V4.1-Flash Executor
+Execution World → 工作区 / shell / tests / Git
+
+ChatGPT 产品 App → 安全只读数据通道
+  → 当前 ReadLease / GitLease / 任务执行证据
 ```
-用户目标
-  → DSH 自动启动 bridge + Secure MCP Tunnel
-  → Browser Harness 自动 @mention 指定 ChatGPT App 并发送 INIT
-  → ChatGPT 通过只读 MCP 检查 workspace，返回 PLAN
-  → GLM 实现 / 测试 / commit / push
-  → DSH 发送带精确 HEAD 的 EXECUTED
-  → ChatGPT 通过 MCP 独立核验 diff + test records
-  → DONE，或返回修复 PLAN
-  → GLM 自动继续下一轮，直到 DONE / BLOCKED / maxIterations
-```
 
-默认 profile 使用 `gitPolicy: commit-push`：不允许在 `main/master` 上进行无人值守 review 回合；GLM 应创建任务分支，测试成功后 commit、push 非保护分支，再用精确 HEAD 请求 ChatGPT 评审。插件不执行 force push，也不自动合并 PR。
+对话控制与事实读取分离。Sidecar 不提供工作区、shell、Git 或任意浏览器控制接口。
+工作区 ID 是身份，不是权限；缺少或过期租约时拒绝访问，不能回退到 Host 文件或 shell。
+Browser Harness 仅为明确选择的兼容路径，不是 Windows 主路径前置条件。
+CodexWithChatGPT 只用于开发规划/审阅，产品运行时不依赖它。
+未来 Linux 跨主机部署保持 **FUTURE**，不阻塞当前 Windows 交付。
 
-## 安装
+## 安装与一次性配置
 
-前置：Node.js ≥ 20、pnpm、DSH profile、DSH BrowserUse + Browser Harness MCP provider。
+需要 Node.js ≥ 20、pnpm 和支持插件所需公开服务的 DSH profile，依赖版本以
+[package.json](package/package.json) 为准。完整步骤见
+[安装文档](docs/installation.md)和[Windows 部署](docs/windows-deployment.md)。
 
 ```powershell
-git clone https://github.com/jingchangshi/DSHWithChatGPT.git
 cd DSHWithChatGPT\package
 pnpm install
 pnpm typecheck
 pnpm test
 pnpm build
-
-dsh plugin --profile <你的profile> add D:\workspace\DSHWithChatGPT\package
+dsh plugin --profile <你的profile> add <package目录的绝对路径>
 ```
 
-## 一次性 setup
+插件 patch 使用 `browserMode: sidecar`、`gitPolicy: commit-push` 和 Windows
+`gitReadPolicy: allow-hardened-windows`。安装插件本身不会启动 Chrome/Sidecar、
+选择执行模型或授权产品 App。登录、2FA、CAPTCHA 和连接授权由用户完成。
 
-目标 profile 除了 `tools` 和 `systemPrompt`，还必须挂载兼容 DSH 包提供的 `executionWorldIdentity` 与 `storageDomain`（最低 0.1.6-alpha.2）。安装插件包本身不会配置这些服务。开发依赖使用 producer 正式生成的 tarball，不依赖相邻 checkout；构建后执行 `pnpm test:package`，可验证独立目录中的安装与运行时导入。生产 execution-world adapter 尚未实现，内容访问仍不可用。
+规范产品入口是 `scripts/prepare-plannerbridge.ps1` 与
+`scripts/launch-plannerbridge.ps1`。`DSH_CLI` 指定已构建的 DSH CLI；
+旧产品入口与环境变量仅作明确兼容，见[迁移说明](docs/migration-plan.md)。
+它们保留既有受保护配置位置，不代表完整部署已就绪。
 
-无人值守是指 **setup 完成后的运行时** 无需人工逐轮操作。以下仍属于显式一次性设置：
+## 协作与证据
 
-1. 在 Browser Harness 使用的 Chrome/Edge profile 中登录 ChatGPT；登录、2FA、CAPTCHA 不自动绕过。
-2. 在 ChatGPT 创建/启用一个只读 MCP App，名字默认必须精确为 `DSH with ChatGPT`（也可修改 `chatgptAppName`）。
-3. 在 OpenAI Platform 创建 Secure MCP Tunnel。
-4. 让启动 DSH 的环境包含：
+在目标工作区的 DSH Session 中提出：
 
-```powershell
-$env:CONTROL_PLANE_TUNNEL_ID="<tunnel_id>"
-$env:CONTROL_PLANE_API_KEY="<runtime_api_key>"
+> 使用 ChatGPT 规划并实现任务，测试后在任务分支 commit/push，继续处理评审修正直到 DONE。
+
+新主路径任务使用 v2 `[PLANNER_BRIDGE]` 协议：
+
+```text
+目标 → PLAN → 执行器修改/测试 → commit/push
+     → EXECUTED → 独立 REVIEW → DONE 或下一轮 PLAN
 ```
 
-并确保 `tunnel-client` 在 `PATH`。
-5. 在目标项目中让 DSH 调用一次 `chatgpt_status`。应看到 `tunnel.ready: true`、稳定的 `workspaceId`、正确的 `chatgptAppName` 和 `gitPolicy`。
+回复必须绑定 TASK_ID、ITERATION、WORKSPACE_ID 与精确 HEAD。
+规范评审要求非保护分支、工作区干净、已配置上游、ahead/behind 为零，
+本地 HEAD 等于上游 HEAD。DONE 绑定同一执行轮次；修正 PLAN 才进入下一轮。
+旧 `gitPolicy: worktree` 不会放宽规范流程，旧 v1 任务保留原协议与存储，不隐式升级。
 
-bridge 仍只监听 `127.0.0.1` 并要求 Bearer。Bearer 不进入 ChatGPT prompt，也不放进 repo；插件把它保存到本地 0600 文件，由 `tunnel-client` 只在最后一跳注入。
+五个 DSH 协作工具是 `chatgpt_plan`、`chatgpt_review`、`chatgpt_status`、
+`chatgpt_doctor`、`chatgpt_reconnect`。Doctor 的本地就绪和显式 App proof
+是不同结果；原始执行输出权限在非评审期间可能不可用。两者都不能证明完整产品闭环。
+最终真实验收还要求 Reviewer 自行读取测试 stdout 中随机标记并回显，且完成修正、重启恢复与 DONE。
+执行器不得经参数、文件或摘要转交标记值。
 
-## 使用
+产品 App 只有十个只读工具：`workspace_info`、`list_directory`、`read_file`、
+`search_workspace`、`git_status`、`git_diff`、`git_log`、`test_status`、
+`execution_summary`、`execution_output`，没有 write、shell、commit 或 push。
+根目录安全与租约生命周期由 producer 提供，consumer 保留敏感文件策略和查询/输出限额。
+规范忽略文件为 `.plannerbridgeignore`；旧 `.d2cignore` 为追加兼容，不能撤销默认拒绝项。
 
-在 **Standard Mode + GLM-5.3-Flash** 的 DSH 会话中，进入目标 repo：
+规范任务存入 `plannerbridge_state`，旧 `d2c_state` 明确保留兼容。
+卸载时使用 `dsh plugin --profile <你的profile> remove dsh-with-chatgpt`；
+不要递归删除共享状态或凭据目录，未完成任务和连接配置需要保留。
 
-> 使用 ChatGPT 完全无人值守地完成：<任务>
+## 验证与文档
 
-插件注入的协作规则会要求 GLM 连续完成：
+`pnpm run test:plannerbridge-fake-stack` 组合真实 Git/测试/推送与独立进程恢复，
+但 Planner/浏览器是模拟 fixture。安装后 profile 验证使用真实 DSH 与模拟 Sidecar。
+两者都不能替代实际模型/App 的 `test:planner-executor-e2e`。
+运行导入 `lib` 的子进程 fixture 前先构建，不与清理构建并发。
+独立 producer 原生 Git 支持测试的超时失败仍在验收矩阵中保留。
 
-`chatgpt_plan → 实现 → 测试 → commit/push → chatgpt_review → 修复 PLAN → ... → DONE`
-
-不会在每一轮结束后询问“是否继续”。仅在登录/授权、CAPTCHA、基础设施故障、冲突/安全风险、达到 `maxIterations`，或确实需要用户产品决策时停止。
-
-## 安全边界
-
-工作区身份检查和路径包含检查共享 `WorkspaceError` 构造器及稳定的 `reason` 错误码；错误定义模块不依赖文件系统。
-
-ChatGPT 只有十个只读 MCP 工具：`workspace_info`、`list_directory`、`read_file`、`search_workspace`、`git_status`、`git_diff`、`git_log`、`test_status`、`execution_summary`、`execution_output`。没有 write、shell、commit、push 工具。
-
-每次 D2C 回复还要同时通过：
-- TASK_ID / ITERATION / IN_REPLY_TO
-- `WORKSPACE_ID`
-- review 时的精确 `HEAD`
-
-任一不匹配都会拒绝该回复。
-
-## 状态与限制
-
-已实现：自动 App @mention、旧回复 fencing、当前 DSH session BrowserUse 绑定、managed Secure MCP Tunnel、自恢复 conversation、workspace identity、精确 HEAD 评审、执行证据、有限轮自动循环。
-
-仍需人工的一次性边界：ChatGPT 登录/2FA/CAPTCHA、创建 ChatGPT App、创建 Secure MCP Tunnel。ChatGPT Web DOM 变化时，语义选择器可能需要维护。
+- [目标架构](docs/target-architecture.md)
+- [规范协议](docs/planner-executor-protocol.md)
+- [Windows 部署](docs/windows-deployment.md)
+- [安装](docs/installation.md)与[故障排查](docs/troubleshooting.md)
+- [验收证据](docs/acceptance-plan.md)
+- [迁移与兼容](docs/migration-plan.md)
 
 ## 许可
 
-MIT。部分设计参考 [codex-with-chatgpt](https://github.com/XiaoDuoYa/codex-with-chatgpt)（MIT），见 `THIRD_PARTY_NOTICES.md`。
+MIT。部分设计参考 [codex-with-chatgpt](https://github.com/XiaoDuoYa/codex-with-chatgpt)
+（MIT），见 [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md)。

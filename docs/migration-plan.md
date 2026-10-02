@@ -122,5 +122,16 @@ child, covering canonical-only, legacy-only and conflicting references plus
 forbidden duplicate policy. All four failed against the original entry and
 passed after migration. Removal is deferred to a documented breaking release.
 
-F11 remains PARTIAL: legacy deployment launchers, test filenames and outdated
-product documentation still require migration/parity and independent review.
+F11 remains PARTIAL: development launcher and test filename migration still
+require parity and independent review. Product entries were independently
+accepted at `6532555`: legacy entries are thin aliases, canonical CLI values
+win conflicts with value-free warnings, and released DPAPI state remains at
+its existing protected location. No credential move or re-encryption is implied.
+
+Iteration-54 current-document reconciliation updates both READMEs, installation,
+troubleshooting and Windows deployment to the Sidecar/native DeepSeek/v2 primary
+path. Credential scopes, launcher cwd behavior, exact pushed-HEAD policy and
+local/App/full acceptance boundaries are explicit. Historical stage evidence
+below retains its dated scope; current production wiring is at `f719163` and
+fake-stack scoped acceptance at `189222b`. This docs gate does not close F11,
+the producer support failure or real Windows acceptance.

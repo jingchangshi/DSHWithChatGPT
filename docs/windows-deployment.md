@@ -1,18 +1,18 @@
 # PlannerBridge Windows deployment
 
-Status: PARTIAL — Stage A target; environment snapshot and command results are in `env-win.md`. Product deployment is not yet accepted.
+Status: PARTIAL — current Windows primary implementation has scoped source and installed/synthetic evidence. Real model/App acceptance and final global audit remain incomplete. Historical environment snapshots are in `env-win.md`; current evidence is in `acceptance-plan.md`.
 
 | Component | Current configuration | Evidence/state |
 |---|---|---|
-| Browser A | Codex built-in browser, CodexWithChatGPT development connector | previous environment PLAN/REVIEW VERIFIED; architecture review pending |
+| Browser A | Codex built-in browser, CodexWithChatGPT development connector | current scoped planning/reviews available; development only, not product evidence |
 | Browser B | independent Chrome profile under LocalAppData/DSHWithChatGPT/chrome-product | loopback CDP infrastructure previously VERIFIED; recheck before live acceptance |
 | Product CDP | 127.0.0.1:9222 | never expose or forward this port remotely |
-| Sidecar | 127.0.0.1:18765 default; configurable literal-loopback port | semantic RPC implemented; live Browser B proof NOT_RUN |
+| Sidecar | 127.0.0.1:18765 default; configurable literal-loopback port | semantic RPC and separate-process synthetic recovery verified; full live product loop incomplete |
 | Windows DSH | related feature branch, Corepack pnpm 11.7.0 | previous build/CLI VERIFIED |
-| Executor | deepseek-official / deepseek-flash; provider-default reasoning | authentication VERIFIED; generation NOT_RUN |
-| Plugin | package/, Corepack pnpm 10.34.5 | previous build/typecheck VERIFIED; current suite FAILED baseline |
-| MCP Bridge | loopback, dynamic private port, random bearer | current lease architecture retained; live product proof NOT_RUN |
-| Secure exposure | installed tunnel-client; CONTROL_PLANE variables owned externally | real product credentials/App NOT_RUN |
+| Executor | deepseek-official / deepseek-flash; provider-default reasoning | real runner launched; no accepted model execution/PLAN chain |
+| Plugin | package/, Corepack pnpm 10.34.5 | ordinary Windows suite: 83 files / 1040 pass / 3 original skips at b87c55d; separate producer Git support gate FAILED |
+| MCP Bridge | loopback, dynamic private port, random bearer | installed two-process Read/Git boundaries passed with synthetic Sidecar; real Reviewer evidence pending |
+| Secure exposure | installed tunnel-client; CONTROL_PLANE variables owned externally | real readiness succeeded; App probe BROWSER_STALE before PLAN; no App data-plane acceptance |
 
 ## Composition and startup
 
@@ -54,7 +54,7 @@ Sidecar deployment configuration is `endpoint`, `authentication`, `rpcVersion`, 
 
 ## RPC safety and supervision
 
-Stage F implementation is PARTIAL. The DSH plugin now defaults to `browserMode:
+Product acceptance remains PARTIAL. The DSH plugin now defaults to `browserMode:
 sidecar`; Browser Harness requires the explicit legacy value
 `browser-harness-mcp`. The deployment adapter resolves `sidecarEndpoint`
 (default `http://127.0.0.1:18765`) and `sidecarCredentialFile` before using the
@@ -74,8 +74,9 @@ OS state base is missing. The existing legacy state directory is retained until
 explicit migration. The optional neutral diagnostic port now forwards browser
 readiness facts and exact configured-App selection through authenticated RPC;
 see [chat-control-diagnostics.md](chat-control-diagnostics.md) for its write and
-restart rules. Canonical profile/process bootstrap and real primary readiness
-acceptance remain pending. Diagnostic unit evidence does not prove Browser B,
+restart rules. Real primary readiness and full product acceptance remain pending;
+canonical wiring and installed synthetic profile composition have scoped evidence.
+Diagnostic unit evidence does not prove Browser B,
 native Executor or real App data access.
 
 Sidecar authentication, Workspace Data Plane bearer and external CONTROL_PLANE credentials have independent scopes. Windows credential/state files require a current-user DACL or approved credential protection; POSIX mode 0600 alone proves no Windows isolation. Verify actual ACL protection. Secrets enter task-owned children only through required inherited environment or protected references, never argv/status. Private state paths are deployment-injected outside workspaces with no process.cwd() fallback.

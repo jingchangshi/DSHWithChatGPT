@@ -1,88 +1,110 @@
-# Installation
+# PlannerBridge installation (Windows primary)
+
+The primary deployment is DSH with native DeepSeek, a dedicated product Chrome,
+Chat Control Sidecar / Direct CDP, and the product ChatGPT App. Browser Harness
+is an explicit legacy provider, not a primary prerequisite. Product acceptance
+is still incomplete; see [acceptance-plan.md](acceptance-plan.md).
 
 ## Build and install
 
-The build removes the package's previous lib directory before compilation, so removed source modules do not remain in packed artifacts.
+Use Node.js >= 20 and pnpm (package declares pnpm 10.34.5). The supported DSH
+profile must expose these public peers from `package/package.json`:
+
+| Peer | Minimum version |
+|---|---|
+| @deepseek-ai/cordis | 4.0.0 |
+| @deepseek-ai/dsh-execution-world | 0.1.6-alpha.4 |
+| @deepseek-ai/dsh-fs | 0.1.6-alpha.2 |
+| @deepseek-ai/dsh-sandbox | 0.1.6-alpha.2 |
+| @deepseek-ai/dsh-storage-domain | 0.1.6-alpha.2 |
+| @deepseek-ai/dsh-subprocess | 0.1.6-alpha.2 |
 
 ```powershell
-cd <repo>\package
+cd DSHWithChatGPT\package
 pnpm install
 pnpm typecheck
 pnpm test
 pnpm build
-
-dsh plugin --profile <your-profile> add D:\workspace\DSHWithChatGPT\package
+dsh plugin --profile <your-profile> add <absolute-path-to-package>
 ```
 
-The target profile must also expose DSH BrowserUse + the Browser Harness MCP provider. Matching DSH 0.1.6-alpha.1 provider tarballs are kept under `package/tarballs/`.
+Use the supported DSH profile workflow to mount its native model adapter with
+`provider: deepseek-official` and `model: deepseek-flash`; leave reasoning at
+the provider default. Supply `DEEPSEEK_API_KEY` privately to the DSH environment.
+Installing this plugin does not configure that model, start Chrome/Sidecar, or
+create/authorize the product App. Do not substitute a generic legacy model key.
 
-## Unattended profile defaults
+## Compose the product deployment
 
-The bundled `cordis.patch.yml` enables:
+Follow [windows-deployment.md](windows-deployment.md) for process startup and
+configuration references. Start the dedicated product browser using
+`scripts/start-product-browser.ps1`; complete login/2FA/CAPTCHA manually.
+Explicitly bind its intended product target. Do not adopt another profile/tab.
 
-```yaml
-chatgptAppName: DSH with ChatGPT
-maxIterations: 12
-gitPolicy: commit-push
-protectedBranches: [main, master]
-tunnelMode: managed
-tunnelClientPath: tunnel-client
-tunnelIdEnv: CONTROL_PLANE_TUNNEL_ID
-tunnelRuntimeApiKeyEnv: CONTROL_PLANE_API_KEY
-```
+The package defaults to `browserMode: sidecar`, semantic endpoint
+`http://127.0.0.1:18765`, and exact App name `DSH with ChatGPT`.
+Direct CDP is deployment-owned at `http://127.0.0.1:9222`; never expose it remotely.
+Sidecar must be running and authenticated before DSH collaboration starts.
+The optional managed process is owned by `SidecarSupervisor`; otherwise deployment
+owns the separate process. Neither client configuration nor RPC accepts arbitrary
+browser scripts, shell, navigation or workspace access.
 
-Use `gitPolicy: worktree` if you want ChatGPT review without mandatory commit/push rounds. Use `tunnelMode: external` only when another process already owns a healthy Secure MCP Tunnel lifecycle.
+Keep the three credential scopes separate:
 
-## One-time ChatGPT / Tunnel setup
+| Scope | Protected input |
+|---|---|
+| Semantic Sidecar | `sidecarCredentialFile`, default `%LOCALAPPDATA%\PlannerBridge\credentials\authentication.secret` |
+| Workspace read-only bridge | runtime-managed independent bearer and protected exposure header reference |
+| External secure connection | `CONTROL_PLANE_TUNNEL_ID` and `CONTROL_PLANE_API_KEY` inherited into the owned child |
 
-1. Log into ChatGPT in the Chrome/Edge profile controlled by Browser Harness.
-2. Create/enable a read-only custom MCP app. Its exact name must match `chatgptAppName` (default `DSH with ChatGPT`).
-3. Create an OpenAI Secure MCP Tunnel and make `tunnel-client` available on `PATH`.
-4. Set the tunnel id and runtime API key in the environment that launches DSH:
+The Sidecar credential file contains a bare 43-128-character base64url secret,
+without a prefix or newline. Its file and parent require protected current-user
+Windows DACLs outside every workspace. Workspace paths, reparse points, hard
+links and unprotected permissions are rejected; the reader never repairs an
+existing credential's ACL. Keep credentials out of argv, tool arguments, status,
+source control and chat. The model key is another private Executor input.
 
-```powershell
-$env:CONTROL_PLANE_TUNNEL_ID="<tunnel_id>"
-$env:CONTROL_PLANE_API_KEY="<runtime_api_key>"
-```
+Canonical product connection entries are `scripts/prepare-plannerbridge.ps1`
+(`-Setup`, `-Check`, `-Clear`) and `scripts/launch-plannerbridge.ps1`.
+They retain released DPAPI state at
+`%LOCALAPPDATA%\dsh-with-chatgpt\product-c2c` without moving or rewriting it
+on check/launch. `DSH_CLI` selects the supported built DSH CLI; deprecated
+aliases are described in [migration-plan.md](migration-plan.md).
+These entries only prepare/load connection state. They do not install a profile,
+start Chrome/Sidecar or authorize the App. Launch forwards DSH arguments unchanged
+and starts its child in this repository root. Establish the Session's intended
+project root through the supported DSH workflow; launch is not a workspace selector.
 
-5. Restart/reload DSH, create a new Session in the workspace, and call `chatgpt_doctor` before starting a collaboration round.
+## Verify readiness and collaboration
 
-`chatgpt_doctor {}` uses local mode: it checks Browser Harness login and exact App selection without sending a message, authenticated loopback workspace reads, and tunnel readiness. `ready` equals `localReady`; neither proves remote App access. Explicit `chatgpt_doctor { mode: "app-proof" }` sends one diagnostic message through the configured App and compares a fresh operation-scoped challenge plus workspace/root/Git facts. Only a matching reply sets `appDataPlaneVerified`; `fullC2CVerified` remains false because doctor does not execute a collaboration round. The diagnostic browser operation is bounded by the smaller of replyTimeoutMs and 90 seconds. Use `chatgpt_status` for task and runtime state.
+In a new DSH Session rooted in the intended workspace, call `chatgpt_doctor`.
+Local mode checks authenticated local services, browser/App readiness, workspace
+identity and secure exposure. `localReady` is not remote App verification.
+Explicit `chatgpt_doctor { mode: "app-proof" }` sends a bounded challenge;
+only independently matching App reads establish `appDataPlaneVerified`.
+The retained compatibility field `fullC2CVerified` stays false: doctor does not
+execute a full task. `execution_output_access=false` outside active review is
+expected and does not justify broadening access.
 
-Expected status from `chatgpt_status`:
-- `bridgeRunning: true`
-- a stable `workspaceId`
-- `chatgptAppName` equals the ChatGPT app
-- `gitPolicy: commit-push`
-- `tunnel.configured: true`
-- `tunnel.ready: true`
+New primary tasks use protocol v2 `[PLANNER_BRIDGE]`. Work on a clean,
+non-protected task branch with configured upstream. Test, commit and push before
+review; local HEAD must equal upstream HEAD with zero ahead/behind. Historical
+`gitPolicy: worktree` only applies to explicit v1 compatibility and cannot relax
+primary review. Persisted v1 tasks remain v1.
 
-The local bridge remains Bearer-protected. The complete Authorization header value is written outside the repository to a mode-0600 file with one trailing LF. Connector metadata is a separate, LF-terminated JSON document. Managed `tunnel-client` receives the header through `MCP_EXTRA_HEADERS` / `MCP_DISCOVERY_EXTRA_HEADERS`; the token is not returned in model-facing status output.
-
-## Browser session
-
-Use a persistent, dedicated Chrome/Edge profile. Login/2FA/CAPTCHA is intentionally human-owned setup. Runtime D2C messages do not require manual App selection: the browser adapter enters `@<chatgptAppName>`, selects the exact visible App candidate, verifies the mention, and only then appends/sends the control envelope.
-
-## Verify the full loop
-
-The browser adapter requires exactly one visible composer, supporting both the legacy input ID and the editable textbox. Missing or ambiguous inputs stop browser actions. Probes and sends refuse an existing draft; clear it manually without sending before retrying. App lookup accepts one visible exact title from legacy menus or navigation rows; descriptions and title prefixes do not match. Probes verify a structural App mention, never App-name text alone. Typing uses Browser Harness text insertion with verified composer focus and exact input checks. App-attached sends accept either no separator or one ASCII space immediately after the exact semantic App atom; the adapter adds a space only when absent and verifies one exact final message without whitespace normalization. On Windows, cleanup uses Ctrl+A and Backspace only after verifying that the selection is contained within the composer, the text remains operation-owned, and all recognized atomic elements and non-whitespace text nodes are fully selected; unknown atomic elements and unrecognized App-only separator layouts are preserved; selection or deletion failures stop without retrying deletion. Sending uses the provider's case-sensitive Enter key. Failed operations clear only recognized operation-owned text, preserve foreign drafts, and verify empty cleanup. Cleanup or provider failures report an unavailable Browser Harness rather than an absent App. Cancellation keeps cleanup bounded; a successful send is not undone. Reply discovery recognizes current semantic assistant bodies and legacy assistant-role nodes, deduplicates overlapping representations, and reads the latest logical assistant message in document order; user text and message identifiers alone never establish an assistant role.
-
-In a non-protected task branch, ask:
-
-> Use ChatGPT to implement a trivial change, run tests, commit and push it, and keep applying ChatGPT review fixes until DONE.
-
-A successful unattended run should show:
-1. INIT with `WORKSPACE_ID`
-2. PLAN from ChatGPT with the same `WORKSPACE_ID`
-3. local implementation/tests
-4. commit + push on a non-protected branch
-5. EXECUTED with exact `HEAD`
-6. DONE or fix PLAN echoing both `WORKSPACE_ID` and `HEAD`
-7. automatic continuation on fix PLAN.
+Ask DSH to obtain PLAN, implement/test/commit/push, report EXECUTED and apply
+review fixes until same-round DONE. Replies must bind TASK_ID, ITERATION,
+WORKSPACE_ID and exact HEAD. Real acceptance additionally requires independent
+raw successful-stdout nonce reads, a fix PLAN and restart/reconnect/DONE without
+duplicate sends. Component, installed synthetic profile and fake-stack checks
+prove only their stated scope; the real product gate remains pending.
 
 ## Uninstall
 
 ```powershell
 dsh plugin --profile <your-profile> remove dsh-with-chatgpt
-Remove-Item "$env:LOCALAPPDATA\dsh-with-chatgpt" -Recurse -Force
 ```
+
+Preserve shared state, credentials and pending tasks. Do not recursively delete
+shared user-state directories to uninstall. Explicit connection clear is scoped
+to the product entry's owned directory and should follow task/recovery resolution.

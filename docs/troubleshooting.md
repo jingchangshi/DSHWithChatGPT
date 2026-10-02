@@ -1,29 +1,43 @@
-# Troubleshooting
+# PlannerBridge troubleshooting
 
-| Symptom | Likely cause | Fix |
-|---|---|---|
-| `chatgpt_status` missing | plugin not in active profile | check plugin/profile installation, rebuild, restart DSH |
-| `chatgpt_doctor` reports `BROWSER_HARNESS_UNAVAILABLE` | current Session lacks the provider, its command is unavailable, or startup failed | mount BrowserUse and Browser Harness in the profile, ensure `browser-harness-mcp` is on PATH, then create a new Session |
-| `chatgpt_doctor` reports `CHATGPT_APP_UNAVAILABLE` | exact App mention cannot be selected | check the enabled App name and login in the Browser Harness-controlled profile |
-| `chatgpt_doctor` reports `BRIDGE_PROBE_FAILED` | authenticated loopback MCP request failed | inspect local bridge startup; do not paste the bearer token into logs or chat |
-| `TUNNEL_NOT_CONFIGURED` | managed mode lacks tunnel id or runtime key | set `CONTROL_PLANE_TUNNEL_ID` and `CONTROL_PLANE_API_KEY`, restart/reload |
-| `TUNNEL_START_FAILED` | `tunnel-client` missing or rejected configuration | verify executable on PATH and tunnel/runtime-key validity |
-| `TUNNEL_WORKSPACE_BUSY` | another workspace has an active managed-tunnel C2C task | finish/block that task first; then start the next workspace C2C task |
-| `tunnel.ready: false` | health endpoint not ready | run status again after checking tunnel-client/platform state; plugin will restart stale bindings |
-| `CHATGPT_APP_UNAVAILABLE` | exact configured App did not appear in @mention autocomplete | verify App exists/enabled and `chatgptAppName` matches exactly |
-| `ChatGptLoggedOutError` | ChatGPT browser session expired | log in manually; then call `chatgpt_reconnect` |
-| `workspace-mismatch` | ChatGPT used the wrong App/connector/workspace | verify App points at this tunnel and workspace_info returns the expected `workspaceId` |
-| `review-head-mismatch` | stale/wrong review reply or wrong git state | do not accept review; reconnect and review current exact HEAD |
-| `AUTONOMOUS_GIT_POLICY` protected branch | commit-push mode is on main/master | create/use a task branch, then implement/commit/push |
-| `AUTONOMOUS_GIT_POLICY` dirty worktree | review requested before committing | test, commit intended changes, ensure clean status, pass current HEAD |
-| `iteration-limit` | repeated fix plans exceeded `maxIterations` | inspect remaining review findings and decide whether to raise the bound |
-| reply timeout | no genuinely new settled assistant response | inspect browser/tunnel/App health; old visible replies are intentionally ignored |
-| `PATH_OUTSIDE_WORKSPACE` / sensitive-file denial | read-only boundary blocked access | expected security behavior; do not work around it |
+These remedies apply to the Windows primary Sidecar/Direct CDP deployment.
+Browser Harness setup belongs only to explicit `browser-harness-mcp` compatibility.
+See [windows-deployment.md](windows-deployment.md) for protected configuration.
 
-## Unattended doctor checklist
+| Symptom | Check and recovery |
+|---|---|
+| `chatgpt_status` missing | Check the active profile, supported peers, built plugin and new DSH Session. |
+| `SIDECAR_UNAVAILABLE` / `SIDECAR_AUTH_REQUIRED` | Verify the owned service and protected credential reference. Do not start a second service when port ownership is unclear or disclose its secret. |
+| Credential resolution fails | Verify current-user DACLs, absolute private location, bare token format and absence of links. Preserve the failing credential; do not silently repair ACLs or fall back to workspace files. |
+| `SIDECAR_VERSION_UNSUPPORTED` / `SIDECAR_GENERATION_CHANGED` | Use compatible client/server versions and recover persisted operations against fresh authenticated service health; old handles are invalid. |
+| `BROWSER_STALE` / `BROWSER_TARGET_CHANGED` | Check the explicitly bound dedicated product target and document. Recover using fresh fences; never select a different first tab or trust cached readiness. |
+| Existing draft or App-only text | On the correct product page, manually clear the unowned draft without sending and keep that page visible. Clearing the development review page has no effect on the product page. Runtime cleanup may remove only proven operation-owned input. |
+| `CHATGPT_LOGGED_OUT` | Complete login/2FA/CAPTCHA in the dedicated product browser, then reconnect. |
+| `CHATGPT_APP_UNAVAILABLE` | Confirm the enabled product App and exact configured title. Plain App-name text is not proof of structural App attachment. |
+| `CHAT_CONTROL_DIAGNOSTICS_UNAVAILABLE` | Confirm the configured provider supports authenticated diagnostics. Do not fabricate readiness from health alone. |
+| `SEND_UNCERTAIN` / `CHAT_CONTROL_OBSERVATION_UNAVAILABLE` | Preserve journal and task evidence; reconcile the exact owned operation. Do not resend or invent an observation binding. |
+| `REPLAY_CONFLICT` / `JOURNAL_UNAVAILABLE` | Preserve conflicting/corrupt records and diagnose ownership/digests. Never delete journals to force a green run. |
+| `SIDECAR_BUSY` / `SIDECAR_SHUTTING_DOWN` | Resolve the owned active operation or shutdown; do not terminate unrelated browser/server processes. |
+| `SIDECAR_TIMEOUT` / reply timeout | Inspect fresh service/browser/App facts and latest settled reply. Preserve deadlines; old replies do not establish a new result. |
+| `BRIDGE_PROBE_FAILED` | Inspect authenticated local bridge startup and active workspace lease. Never expose its bearer. |
+| `TUNNEL_NOT_CONFIGURED` / `TUNNEL_START_FAILED` | Check protected connection references and the configured executable. |
+| `TUNNEL_AUTH_FAILED` | Verify both external credentials belong to the same connection; owned exposure fails closed on 401/403. |
+| `TUNNEL_WORKSPACE_BUSY` | Resolve the other owned active task before acquiring exclusive exposure. |
+| Exposure not ready | Startup readiness alone is insufficient: authenticated control-plane polling health must also succeed. Keep loopback traffic direct; use only deployment-owned proxy configuration if required. |
+| Workspace/HEAD/iteration mismatch | Reject the reply. Independently verify the exact active workspace, current pushed HEAD and same execution round before accepting review. |
+| Dirty/protected/unpushed Git rejection | Use a normal task branch, test/commit/push intended changes and require clean upstream equality. Do not switch primary policy to worktree. |
+| Workspace boundary denial / expired lease | Expected fail-closed behavior. Reacquire supported authority where appropriate; never add Host filesystem or shell fallback. |
+| Execution output unavailable outside review | Expected scoped evidence access. Open the legitimate active review scope, not unrestricted historical access. |
 
-1. Run `chatgpt_doctor` in a new DSH Session; require all local checks to pass. It verifies Session-owned browser tools, ChatGPT login, exact App selection without sending, authenticated loopback workspace identity, and local tunnel readiness.
-2. Treat `remote_workspace_access` as unverified until the App calls `workspace_info` through the remote path and the returned `workspaceId` matches this Session.
-3. On a non-protected branch, a real C2C task must reach PLAN, local test, commit/push, exact-HEAD REVIEW, and DONE without manual App selection.
+## Evidence boundaries
 
-Component tests can use a simulated browser and are not proof of a working DSH Session. `chatgpt_doctor` in a real Session proves local prerequisites but not remote App access. Only an actual ChatGPT App call and subsequent PLAN/REVIEW round verify the end-to-end path.
+Local `chatgpt_doctor` readiness, explicit live `appDataPlaneVerified` and full
+Planner-Executor acceptance are distinct. The actual product App must independently
+read workspace/Git/raw output; the development CodexWithChatGPT connector cannot
+substitute for it. The real task must reach PLAN, execution/tests/commit/push,
+review fix, restart/reconnect and exact same-round DONE, including stdout-only
+nonce evidence. Synthetic fixtures do not close this gate.
+
+Keep raw failures and unchanged security/assertion/deadline requirements. Do not
+recreate healthy connections, broaden capabilities or weaken checks merely to
+make an acceptance result green.
