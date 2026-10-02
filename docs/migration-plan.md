@@ -189,3 +189,8 @@ integration fixture (1039 passed / three original skips): its helper incorrectly
 required the previous fresh-bearer prefix before any proof reads. The helper
 now asserts the current 32-byte fresh token shape; legacy opaque compatibility
 is tested independently. No production proof/security assertion was removed.
+
+Final ordinary full rerun: 83 files passed, 1043 tests passed, three original
+skips. The first independent response accepted only scoped execution evidence;
+the requested actual-source supplement reported unavailable connector tools.
+Source supplement acceptance is therefore pending, despite green local checks.

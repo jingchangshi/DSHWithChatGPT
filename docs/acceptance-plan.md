@@ -598,3 +598,10 @@ cancellation error without exposing provider details. Focused suites: 57 passed;
 typecheck/build and isolated package imports/Sidecar process checks passed.
 These are source/package contracts, not real App or stdout-nonce acceptance.
 The current package candidate has been refreshed for the next actual product run.
+
+Final iteration-57 ordinary full rerun: 83 files passed, 1043 tests passed,
+three original skips. The initial 4 failures / 1039 passes / three skips are
+retained as stale fresh-prefix fixture evidence, followed by its four passing
+cases. Actual-source independent supplement is pending: the review page reported
+unavailable connector tools even though local connection diagnostics were green.
+No real Windows acceptance or global completion follows from these results.
