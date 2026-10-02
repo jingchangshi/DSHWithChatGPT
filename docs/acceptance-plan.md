@@ -44,6 +44,15 @@ the denial/no-content/positive-control assertions. This closes that bounded
 installed authority case only; the producer support timeout stays FAILED and
 the real model/App/nonce/recovery gates remain unverified.
 
+Iteration-52 bounded F11 product-entry migration has tests-first evidence:
+the canonical entry was missing in the initial failing behavioral run. The
+canonical prepare/launch entries now own policy and old product entries
+delegate. Real PowerShell children cover canonical-only, legacy-only and
+conflicting CLI references, literal argument boundaries, child exit propagation,
+environment-only secrets, existing DPAPI state, readiness ACL/ciphertext
+preservation, corrupt configuration rejection and owned-clear scope. This is
+launcher evidence only, not real DSH model/App execution or final F11 completion.
+
 Source checkpoint: `f719163`. Independent iteration-48 re-reading returned
 scoped DONE for production canonical wiring, legacy compatibility, Git authority
 composition and observer/oracle alignment. This is not overall acceptance.

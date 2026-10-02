@@ -92,6 +92,19 @@ Avoid starting a second Sidecar when port/health ownership is unclear. Services 
 
 ## Isolated profile composition verification
 
+Canonical product entry scripts are `scripts/prepare-plannerbridge.ps1`
+(`-Setup`, `-Check`, `-Clear`) and `scripts/launch-plannerbridge.ps1` (DSH
+arguments forwarded unchanged). They reuse the released protected own-state
+directory under `LOCALAPPDATA/dsh-with-chatgpt/product-c2c`; readiness and launch
+do not move or rewrite existing DPAPI configuration. `DSH_CLI` selects the
+built DSH CLI. Its deprecated `C2C_DSH_CLI` fallback is confined to the
+deployment entry; canonical values win conflicts with a value-free warning.
+Old product script names are thin compatibility aliases. These entry scripts
+load product connection credentials; they do not create or authorize a ChatGPT
+App, install a DSH profile, start Chrome/Sidecar, or certify their readiness.
+Follow the composition steps above for those prerequisites. No development
+connector is invoked by the product entries.
+
 `package/scripts/verify-profile.mjs` owns a separate semantic Sidecar fixture on
 an ephemeral loopback port. It generates a random credential in a disposable,
 current-user-only directory outside the workspace, passes only the credential

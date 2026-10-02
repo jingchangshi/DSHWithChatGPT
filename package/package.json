@@ -4,7 +4,7 @@
   "private": true,
   "packageManager": "pnpm@10.34.5",
   "type": "module",
-  "description": "DeepSeek Harness plugin: ChatGPT Web plans and reviews over a read-only MCP data plane; DSH/GLM owns execution.",
+  "description": "PlannerBridge for DeepSeek Harness: ChatGPT Web plans and reviews over a read-only workspace data plane; DSH owns execution.",
   "main": "lib/index.js",
   "types": "./lib/index.d.ts",
   "bin": { "chat-control-sidecar": "lib/deployment/sidecar-process-entry.js" },
@@ -58,6 +58,7 @@
     "test:live-c2c-observer": "node --test scripts/c2c-e2e-observer.test.mjs",
     "test:live-c2c": "node scripts/verify-live-c2c.mjs",
     "test:launcher": "node --test scripts/c2c-launcher.test.mjs",
+    "test:plannerbridge-deployment": "node scripts/plannerbridge-deployment.test.mjs",
     "test:product-c2c": "node scripts/dsh-product-c2c.test.mjs"
   },
   "license": "MIT",

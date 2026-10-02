@@ -2,6 +2,32 @@
 
 Status: PARTIAL — Stage A candidate. Inventory is generated from tracked source/config/tests/docs/scripts at baseline; binary tarballs, generated lib and dependency trees are excluded from canonical-name edits. `goal.md` and dated environment snapshots are requirements/evidence, not product API.
 
+Current production checkpoint: `3ee9d0f` uses canonical v2 tools and explicit
+v1 compatibility dispatch. The dated foundation descriptions below record
+earlier implementation states; their "not enabled" statements are historical.
+
+### Product deployment entry migration
+
+`prepare-plannerbridge.ps1` and `launch-plannerbridge.ps1` now own product
+configuration and launch policy. The released `prepare-dsh-c2c.ps1` and
+`launch-dsh-c2c.ps1` are deprecated thin aliases. `DSH_CLI` wins over the
+released `C2C_DSH_CLI` fallback; a conflict or fallback emits a warning without
+values. Canonical readiness uses `allProductPrerequisitesPresent`; the released
+JSON field is emitted only with the explicit compatibility option used by the
+old prepare entry. No credential is supplied in child argv.
+
+The existing `LOCALAPPDATA/dsh-with-chatgpt/product-c2c` directory and version-1
+DPAPI documents remain an explicit released storage boundary. Both entry names
+use the same state, not parallel stores. Checks and launch never migrate,
+rewrite or re-encrypt it. Clear removes only that owned directory. Removal or
+renaming requires a later documented breaking release with explicit state and
+credential recovery, after legacy callers migrate. The deployment behavioral
+suite checks canonical/legacy parity, CLI conflicts, argument and exit-code
+preservation, DPAPI ciphertext, ACL preservation, corruption and clear scope.
+This closes only product-entry migration; development launchers, remaining
+private/test names and current product documentation still require their own
+bounded migration evidence. Real Windows model/App acceptance remains separate.
+
 Reference snapshots under cwc-research/**, historical e2e logs and retained review dumps are non-actionable evidence and excluded from the ledger. Released product protocol/storage/ignore/App-proof identifiers remain owned compatibility boundaries even when historical documentation mentions them. External attribution and external control-plane/header names retain their exact values.
 
 ## Inventory classes and actions
