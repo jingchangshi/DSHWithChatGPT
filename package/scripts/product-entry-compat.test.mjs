@@ -8,7 +8,7 @@ const repoUrl = new URL('../..', import.meta.url).pathname
 const repo = resolve(decodeURIComponent(repoUrl).replace(/^\/([A-Za-z]:)/, '$1').replaceAll('/', '\\'))
 const setupScript = join(repo, 'scripts', 'prepare-dsh-c2c.ps1')
 const launchScript = join(repo, 'scripts', 'launch-dsh-c2c.ps1')
-const temp = await mkdtemp(join(tmpdir(), 'dsh-product-c2c-'))
+const temp = await mkdtemp(join(tmpdir(), 'product-entry-compat-'))
 const localAppData = join(temp, 'local-app-data')
 const fakeRoot = join(temp, 'deepseek-harness', 'apps', 'cli', 'lib')
 const fakeCli = join(fakeRoot, 'bin.js')
@@ -59,4 +59,4 @@ try {
   await rm(temp, { recursive: true, force: true })
 }
 
-console.log('DSH product C2C behavioral tests passed')
+console.log('Product entry compatibility behavioral checks passed')

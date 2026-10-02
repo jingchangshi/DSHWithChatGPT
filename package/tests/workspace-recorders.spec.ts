@@ -13,7 +13,7 @@ afterEach(() => {
 })
 
 function directory(): string {
-  const result = fs.mkdtempSync(path.join(os.tmpdir(), 'd2c-recorder-'))
+  const result = fs.mkdtempSync(path.join(os.tmpdir(), 'workspace-recorder-'))
   temporary.push(result)
   return result
 }

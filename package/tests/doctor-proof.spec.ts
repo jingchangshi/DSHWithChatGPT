@@ -50,7 +50,7 @@ describe('doctor App proof orchestration', () => {
       expect(current.send).toHaveBeenCalledTimes(1)
     } finally { await current.server.close() }
   })
-  it('verifies remote facts without leaking the challenge or claiming full C2C', async () => {
+  it('verifies remote facts without leaking the challenge or claiming full product acceptance', async () => {
     const current = await fixture()
     try {
       const result = await runDoctor(current.inputs)

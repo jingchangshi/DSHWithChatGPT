@@ -7,14 +7,14 @@ describe('Secure MCP Tunnel launch contract', () => {
   afterEach(() => vi.unstubAllEnvs())
 
   it('resolves auto and explicit ownership modes with the same credential policy as startup', () => {
-    const options: TunnelSupervisorOptions = { mode: 'auto', clientPath: 'unused', tunnelIdEnv: 'C2C_TEST_TUNNEL_ID',
-      runtimeApiKeyEnv: 'C2C_TEST_TUNNEL_KEY', startupTimeoutMs: 1, stateDir: 'unused' }
-    vi.stubEnv('C2C_TEST_TUNNEL_ID', '')
-    vi.stubEnv('C2C_TEST_TUNNEL_KEY', '')
+    const options: TunnelSupervisorOptions = { mode: 'auto', clientPath: 'unused', tunnelIdEnv: 'EXPOSURE_TEST_TUNNEL_ID',
+      runtimeApiKeyEnv: 'EXPOSURE_TEST_TUNNEL_KEY', startupTimeoutMs: 1, stateDir: 'unused' }
+    vi.stubEnv('EXPOSURE_TEST_TUNNEL_ID', '')
+    vi.stubEnv('EXPOSURE_TEST_TUNNEL_KEY', '')
     expect(new TunnelSupervisor(options).effectiveMode()).toBe('external')
     expect(new TunnelSupervisor({ ...options, mode: 'managed' }).effectiveMode()).toBe('managed')
-    vi.stubEnv('C2C_TEST_TUNNEL_ID', 'fixture-id')
-    vi.stubEnv('C2C_TEST_TUNNEL_KEY', 'fixture-key')
+    vi.stubEnv('EXPOSURE_TEST_TUNNEL_ID', 'fixture-id')
+    vi.stubEnv('EXPOSURE_TEST_TUNNEL_KEY', 'fixture-key')
     expect(new TunnelSupervisor(options).effectiveMode()).toBe('managed')
     expect(new TunnelSupervisor({ ...options, mode: 'external' }).effectiveMode()).toBe('external')
   })
@@ -26,12 +26,12 @@ describe('Secure MCP Tunnel launch contract', () => {
       tunnelIdEnv: 'CONTROL_PLANE_TUNNEL_ID',
       runtimeApiKeyEnv: 'CONTROL_PLANE_API_KEY',
       startupTimeoutMs: 20_000,
-      stateDir: path.join('tmp', 'd2c-state'),
+      stateDir: path.join('tmp', 'exposure-state'),
     }
     const binding = {
       workspaceId: 'ws_0123456789abcdef',
       localUrl: 'http://127.0.0.1:43127/mcp',
-      bearerValueFile: path.join('tmp', 'd2c-state', 'connectors', 'secret.bearer'),
+      bearerValueFile: path.join('tmp', 'exposure-state', 'connectors', 'secret.bearer'),
     }
     const preview = buildTunnelLaunchPreview(options, binding)
     const argv = preview.args.join(' ')
@@ -53,7 +53,7 @@ describe('Secure MCP Tunnel launch contract', () => {
       tunnelIdEnv: 'CONTROL_PLANE_TUNNEL_ID',
       runtimeApiKeyEnv: 'CONTROL_PLANE_API_KEY',
       startupTimeoutMs: 20_000,
-      stateDir: path.join('tmp', 'd2c-state'),
+      stateDir: path.join('tmp', 'exposure-state'),
     }
     const preview = buildTunnelLaunchPreview(options, {
       workspaceId: 'ws_fedcba9876543210',

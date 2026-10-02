@@ -12,7 +12,7 @@ import {
 let stateDir: string
 
 beforeEach(() => {
-  stateDir = fs.mkdtempSync(path.join(os.tmpdir(), 'd2c-rec-'))
+  stateDir = fs.mkdtempSync(path.join(os.tmpdir(), 'execution-record-'))
 })
 
 afterEach(() => {

@@ -1,5 +1,6 @@
+// Legacy v1 review observation fixture only; canonical real acceptance uses planner-executor-e2e-observer.
 import { appendFileSync, existsSync, readFileSync } from 'node:fs'
-export const name = 'c2c-e2e-observer'
+export const name = 'legacy-review-observer'
 export const inject = ['tools']
 export function apply(ctx, config) {
   const pending = new Map()
@@ -8,10 +9,10 @@ export function apply(ctx, config) {
   if (existsSync(config.report)) {
     for (const line of readFileSync(config.report, 'utf8').split('\n').filter(Boolean)) {
       const record = JSON.parse(line)
-      if (record.runId === process.env.C2C_E2E_RUN_ID && typeof record.nonce === 'string') nonces.add(record.nonce)
+      if (record.runId === process.env.PLANNER_EXECUTOR_RUN_ID && typeof record.nonce === 'string') nonces.add(record.nonce)
     }
   }
-  const emit = record => appendFileSync(config.report, JSON.stringify({ runId: process.env.C2C_E2E_RUN_ID, phase: process.env.C2C_E2E_PHASE, pid: process.pid, at: Date.now(), ...record }) + '\n')
+  const emit = record => appendFileSync(config.report, JSON.stringify({ runId: process.env.PLANNER_EXECUTOR_RUN_ID, phase: process.env.PLANNER_EXECUTOR_PHASE, pid: process.pid, at: Date.now(), ...record }) + '\n')
   emit({ kind: 'boot' })
   ctx.on('tools/execute', async (exec, next) => {
     const encoded = JSON.stringify(exec.arguments)
@@ -29,7 +30,7 @@ export function apply(ctx, config) {
     const record = { kind: 'result', name: exec.name, callId: exec.callId, sessionId: exec.agent?.session.id, isError: result.isError === true, exitCode: value?.exitCode, nonce }
     if (exec.name.startsWith('chatgpt_')) Object.assign(record, { taskId: value?.taskId ?? value?.task?.taskId, state: value?.state ?? value?.task?.state, iteration: value?.iteration ?? value?.task?.iteration, recovered: value?.recovered, localReady: value?.localReady, appDataPlaneVerified: value?.appDataPlaneVerified, checks: value?.checks, reviewNonce: value?.summary?.match(/E2E_EVIDENCE=([a-f0-9]{32})/)?.[1] })
     emit(record)
-    if (config.stopOnFix && process.env.C2C_E2E_PHASE === '1' && exec.name === 'chatgpt_review' && value?.state === 'planned' && exec.agent) pending.set(exec.agent.session.id, { sessionId: exec.agent.session.id, taskId: value.taskId, iteration: value.iteration, callId: exec.callId })
+    if (config.stopOnFix && process.env.PLANNER_EXECUTOR_PHASE === '1' && exec.name === 'chatgpt_review' && value?.state === 'planned' && exec.agent) pending.set(exec.agent.session.id, { sessionId: exec.agent.session.id, taskId: value.taskId, iteration: value.iteration, callId: exec.callId })
   })
   ctx.on('session/event', (session, event) => {
     const checkpoint = pending.get(session.id)

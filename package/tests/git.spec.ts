@@ -19,7 +19,7 @@ function git(args: string[]): string {
 }
 
 beforeEach(() => {
-  root = fs.mkdtempSync(path.join(os.tmpdir(), 'd2c-git-'))
+  root = fs.mkdtempSync(path.join(os.tmpdir(), 'workspace-git-'))
   root = fs.realpathSync(root)
   git(['init', '-b', 'main'])
   git(['config', 'user.email', 'test@example.com'])
@@ -59,7 +59,7 @@ describe('gitStatus', () => {
   })
 
   it('reports whether local HEAD is fully pushed to its upstream', async () => {
-    const remote = fs.mkdtempSync(path.join(os.tmpdir(), 'd2c-git-remote-'))
+    const remote = fs.mkdtempSync(path.join(os.tmpdir(), 'workspace-git-remote-'))
     try {
       execFileSync('git', ['init', '--bare', remote], { stdio: 'pipe' })
       git(['remote', 'add', 'origin', remote])
@@ -102,7 +102,7 @@ describe('gitStatus', () => {
   })
 
   it('degrades to isRepo=false for non-repositories', async () => {
-    const plain = fs.mkdtempSync(path.join(os.tmpdir(), 'd2c-plain-'))
+    const plain = fs.mkdtempSync(path.join(os.tmpdir(), 'workspace-plain-'))
     try {
       const status = await gitStatus(localGitExecutor(plain))
       expect(status.isRepo).toBe(false)

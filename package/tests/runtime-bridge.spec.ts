@@ -14,7 +14,7 @@ afterEach(() => {
 
 function setup() {
   const registry = new WorkspaceRuntimeRegistry()
-  const stateDir = fs.mkdtempSync(path.join(os.tmpdir(), 'd2c-runtime-bridge-'))
+  const stateDir = fs.mkdtempSync(path.join(os.tmpdir(), 'runtime-bridge-'))
   directories.push(stateDir)
   const recorder = new ExecutionRecorder({ stateDir })
   const summary = vi.spyOn(recorder, 'summarize').mockReturnValue({

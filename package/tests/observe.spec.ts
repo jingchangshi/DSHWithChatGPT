@@ -24,7 +24,7 @@ let state: CoordinatorState
 let store: ReturnType<typeof createMemoryStore>
 
 beforeEach(async () => {
-  root = fs.mkdtempSync(path.join(os.tmpdir(), 'd2c-observe-'))
+  root = fs.mkdtempSync(path.join(os.tmpdir(), 'execution-observe-'))
   recorder = new ExecutionRecorder({ stateDir: path.join(root, 'records') })
   store = createMemoryStore()
   state = new CoordinatorState(store)

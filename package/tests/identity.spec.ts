@@ -13,7 +13,7 @@ import { ExecutionRecorder } from '../src/execution/recorder.ts'
 let root: string
 
 beforeEach(() => {
-  root = fs.mkdtempSync(path.join(os.tmpdir(), 'd2c-identity-'))
+  root = fs.mkdtempSync(path.join(os.tmpdir(), 'workspace-identity-'))
 })
 
 afterEach(() => {

@@ -23,8 +23,8 @@ function rpc(method: string, params?: Record<string, unknown>, token: string = T
 }
 
 beforeEach(async () => {
-  root = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'd2c-bridge-ws-')))
-  stateDir = fs.mkdtempSync(path.join(os.tmpdir(), 'd2c-bridge-state-'))
+  root = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'bridge-workspace-')))
+  stateDir = fs.mkdtempSync(path.join(os.tmpdir(), 'bridge-state-'))
   fs.writeFileSync(path.join(root, 'README.md'), '# hello\n')
   fs.mkdirSync(path.join(root, 'src'))
   fs.writeFileSync(path.join(root, 'src', 'app.ts'), 'export const answer = 42\n')

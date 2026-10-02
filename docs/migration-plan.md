@@ -122,8 +122,8 @@ child, covering canonical-only, legacy-only and conflicting references plus
 forbidden duplicate policy. All four failed against the original entry and
 passed after migration. Removal is deferred to a documented breaking release.
 
-F11 remains PARTIAL: remaining test filename migration and final occurrence
-audit still require completion. Product entries were independently
+F11 remains PARTIAL: the current occurrence audit identifies remaining private
+runtime names/prose that still require tests-first migration. Product entries were independently
 accepted at `6532555`: legacy entries are thin aliases, canonical CLI values
 win conflicts with value-free warnings, and released DPAPI state remains at
 its existing protected location. No credential move or re-encryption is implied.
@@ -146,4 +146,23 @@ reaches single-instance protection. Isolated PowerShell tests use synthetic valu
 an explicit process-discovery/launch fixture and a no-real-launch tripwire. Repeated
 setup exposed unrelated SACL writes requiring SeSecurityPrivilege; the canonical
 implementation modifies only the DACL. This is development-entry evidence, not
-real Codex launch or any product model/App proof. Scoped review is pending.
+real Codex launch or any product model/App proof. Scoped source review and its
+wrapper/raw-output supplement were accepted at `8f5839c`.
+
+Iteration-56 private test migration retains the older v1 observation fixture as
+`legacy-review-observer`; the real canonical runner still uses the independently
+implemented `planner-executor-e2e-observer`. Old observer private environment names
+are replaced with `PLANNER_EXECUTOR_RUN_ID` / `PLANNER_EXECUTOR_PHASE`. A red-first
+restart case proves the original fixture read obsolete run identity; its green
+case restores only the canonical run's persisted nonce and rejects cross-run
+attribution. This is fixture evidence, not actual Reviewer/stdout nonce proof.
+Product-entry compatibility tests and disposable test paths now have neutral
+names. The old public npm names delegate to canonical commands; legacy wire,
+storage, App-proof, ignore, auth-header and deployment-state values remain explicit.
+
+`migration-current-audit.tsv` is a fresh line-level snapshot of active runtime,
+tests, entries and current-facing docs, including filename occurrences at line 0.
+It supersedes historical ledger rows only for that named scope. The historical
+inventory remains useful for old documents/evidence; stale line numbers there
+must not be treated as current source proof. Remaining private/DOC rows are
+work still required, not silently reclassified as compatibility or global DONE.

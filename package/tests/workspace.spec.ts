@@ -19,7 +19,7 @@ let root: string
  * @returns true when a probe symlink could be created.
  */
 function canCreateSymlinks(): boolean {
-  const probe = fs.mkdtempSync(path.join(os.tmpdir(), 'd2c-symlink-probe-'))
+  const probe = fs.mkdtempSync(path.join(os.tmpdir(), 'workspace-symlink-probe-'))
   try {
     const target = path.join(probe, 'target.txt')
     fs.writeFileSync(target, 'probe')
@@ -33,7 +33,7 @@ function canCreateSymlinks(): boolean {
 }
 
 beforeEach(() => {
-  root = fs.mkdtempSync(path.join(os.tmpdir(), 'd2c-ws-'))
+  root = fs.mkdtempSync(path.join(os.tmpdir(), 'workspace-root-'))
   root = fs.realpathSync(root)
   fs.writeFileSync(path.join(root, 'README.md'), 'hello')
   fs.mkdirSync(path.join(root, 'src'))
@@ -71,7 +71,7 @@ describe('resolveContained', () => {
   })
 
   it('resolves symlink escape via deepest-existing-ancestor canonicalization', { skip: !canCreateSymlinks() }, () => {
-    const outside = fs.mkdtempSync(path.join(os.tmpdir(), 'd2c-out-'))
+    const outside = fs.mkdtempSync(path.join(os.tmpdir(), 'workspace-outside-'))
     try {
       const secret = path.join(outside, 'secret.txt')
       fs.writeFileSync(secret, 'top secret')
