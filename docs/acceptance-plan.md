@@ -6,19 +6,21 @@ Status: PARTIAL — the full Windows deployment remains unfinished. Stage E is i
 
 ### Current goal audit and delivery priority (2026-10-02)
 
-Source checkpoint: `13987da`. The independent iteration-47 reviewer withdrew
-its stale epoch finding after re-reading the current source and returned scoped
-DONE. This is not overall acceptance. The latest bounded run has 95 passing
-focused/RPC/process tests and a passing build; the latest full-suite evidence
-still contains failures/timeouts. Historical stage counts below are dated
-evidence, not current completion claims.
+Source checkpoint: `f719163`. Independent iteration-48 re-reading returned
+scoped DONE for production canonical wiring, legacy compatibility, Git authority
+composition and observer/oracle alignment. This is not overall acceptance.
+The latest frozen single-worker run has 1040 passing tests and 3 existing skips,
+with build/package/two DSH-profile checks passing. The uncapped default run
+still failed; iteration-49's Windows scheduling candidate passed the ordinary
+default `pnpm test` command with 1040 pass / 3 existing skips.
+Historical stage counts below are dated evidence, not current completion claims.
 
 The remaining critical path is product integration and real acceptance:
 
 | Goal boundary | Current state | Concrete remaining result |
 |---|---|---|
 | Neutral protocol, Chat Control, Direct CDP and Sidecar | PARTIAL: substantial scoped source/contract evidence | exercise these exact implementations in the installed Windows product |
-| DSH production composition | PARTIAL: runtime still calls released v1 start/review; canonical Git authority is unwired | producer-backed canonical plan/review/reconnect through actual registered tools |
+| DSH production composition | PARTIAL: canonical registered tools and Git authority wired; synthetic plan/fix/reconnect/DONE integration accepted at f719163 | installed real-model canonical plan/review/reconnect |
 | Recovery | PARTIAL: accepted-send publication recovery and atomic-result tests pass | required product restart/fix loop, fail-closed uncertain delivery without duplicate input |
 | Workspace Data Plane and security | PARTIAL: capability and scoped-output boundaries exist | real reviewer independently reads workspace/Git/raw output under the active producer lease |
 | Packaging and regression | PARTIAL: builds and prior package proofs exist; full-suite instability unresolved | current installed artifact and explicit full-suite result with no weakened assertions/deadlines |
@@ -28,14 +30,13 @@ The remaining critical path is product integration and real acceptance:
 
 #### Goal refocus after production integration candidate (2026-10-02)
 
-The current uncommitted candidate wires Sidecar production start/review to v2,
+The committed iteration-48 candidate wires Sidecar production start/review to v2,
 borrows the enclosing producer Git authority, and makes execution observation
 and the acceptance oracle use canonical same-round review identity. These are
-source changes with focused synthetic integration evidence, not installed
-product acceptance; the older production-composition row above describes the
-committed checkpoint. The candidate still needs build, regression, commit and
-independent exact-HEAD review. The in-development full run has already reported
-a bootstrap-client test failure and must not be described as passing.
+source changes with focused synthetic integration evidence, not full installed
+product acceptance. Build, regression under one worker, packaging, profile and
+independent exact-HEAD scoped review passed for f719163. The in-development full
+run reported a bootstrap-client test failure and must not be described as passing.
 
 The delivery bottleneck is now proving the installed Windows chain, rather than
 adding more protocol abstractions. The next deliverables remain the four nodes
@@ -87,6 +88,30 @@ Delivery order:
 Local scoped reviews close their stated work only. Further review requests must
 name the next delivery result and the actual blocking gap, rather than reopen
 already accepted foundations or add unrelated abstraction work.
+
+Iteration-49 regression falsification: with frozen `f719163` source and no
+overlapping build, the uncapped default run produced 956 pass / 84 fail / 3 skip
+on a Windows host reporting 22 available processors. Failures cluster around
+real process/ACL fixture startup and teardown deadlines. Iteration-48's same
+suite passed 1040 / 3 skips with one worker. Independent planning read the raw
+failure record and selected a Windows-only worker bound. The candidate changes
+only Vitest file scheduling (`maxWorkers: 1` on Windows), retaining full suite
+membership, isolation, all deadlines, DACL verification, replay/cleanup and
+security assertions. The acceptance check is the ordinary `pnpm test` command
+without a command-line worker override; configuration itself is not pass evidence.
+Non-Windows default scheduling remains unchanged and Linux remains FUTURE.
+The ordinary `pnpm test` candidate run passed all 83 files / 1040 tests, with
+3 original skips, in 438.14 seconds, exit 0. No test deadline or assertion
+changed. Independent exact-HEAD review of the scheduling change is pending.
+
+Two real iteration-49 product attempts remain FAILED before PLAN. The first
+deployment launcher omitted the previously verified task-owned network config;
+it was terminated at that demonstrated readiness failure and its output retained.
+With that reference restored, secure exposure, workspace content and Git reads
+were ready, but exact App probing failed `BROWSER_STALE`. An independent read of
+the dedicated product page confirmed a nonempty composer; the preexisting draft
+is preserved and user assistance to clear it has been requested. No nonce,
+canonical model round or recovery acceptance is claimed for either attempt.
 
 After architecture DONE, isolated F0 repair and exact-HEAD review must pass before Stage B ports extraction or abstraction restructuring. Source baseline and document-review HEAD are separate evidence.
 
