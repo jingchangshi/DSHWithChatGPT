@@ -183,7 +183,7 @@ Stage A records baseline, target/deployment/protocol/migration documents, commit
 | F11 / H | migrate names without hidden compatibility debt | inventory + import/export/script/package checks | scan canonical source/test/docs and invoke explicit old aliases | canonical identifiers neutral; old public edges documented and bounded | blind replace, silently retained private coupling, externally-owned rename | PARTIAL |
 | Package / H | usable installed artifacts | packed tarball + isolated supported DSH profiles | build/typecheck/pack/export/import/profile/sidecar executable checks | all runtime closure included; no development bridge dependency | source-only success, missing files or runtime Codex dependency | PARTIAL |
 | Windows sandbox / G+I | real hardened execution authority | real Windows ACL provider + task workspace | execute root-contained reads and fixed Git queries with hostile escapes | hardened-windows assurance and actual deny evidence | mere mock/metadata, relaxed security for green tests | FAILED |
-| Fake-stack / H | workflow under adversarial boundaries | separate Sidecar + fake driver + real Git fixture + persisted core | full plan/fix/review, faults and restart | deterministic identities and commit/push verified | fake result reported as real Web/model acceptance | NOT_RUN |
+| Fake-stack / H | workflow under adversarial boundaries | separate Sidecar + fake driver + real Git fixture + persisted core | full plan/fix/review, faults and restart | deterministic identities and commit/push verified | fake result reported as real Web/model acceptance | PARTIAL: combined fixture passed; scoped independent review pending |
 | Product App proof / I | live Workspace Data Plane | Browser B, real App/exposure, active task lease | remote memory-only challenge + source/Git/output reads | App independently reads challenge and expected workspace facts | expected values pasted into prompt, development connector substituted | NOT_RUN |
 | Windows primary / I | genuine Planner–Executor task and fix loop | deterministic broken disposable Git repo + local bare remote + real DSH/DeepSeek/ChatGPT | real PLAN/edit/test/commit/push/exact-HEAD REVIEW/fix/DONE with restarts | machine-verifiable full trace and stdout-only random proof nonce | any prohibited shortcut or missing identity/recovery assertion | NOT_RUN |
 | Final review / I | independently audit exact submitted code | all commits/tests/evidence + exact final HEAD | ChatGPT reads source/tests/Git/raw output and full matrix | independent DONE with exact HEAD and scoped remaining FUTURE items | review prose without source/evidence or wrong HEAD | NOT_RUN |
@@ -319,6 +319,31 @@ doctor/App verification and complete Windows E2E still require execution.
 2026-10-01, HEAD `5d303f5d3a17ec66e1250432368c09bf88ec0d63`, command `corepack pnpm test` in package/: 31 files, 403 passed / 3 skipped / 1 failed, exit 1. Failing test: browser cancellation cleanup at `tests/browser.spec.ts:168`. Output retained outside workspace and released to development review via CodexWithChatGPT execution_output. Reproduction is not a repair.
 
 ## Required adversarial cases
+
+Iteration-53 fake-stack composition uses the real Sidecar server/client,
+canonical coordinator, revisioned repository and DshGitAuthorityAdapter in
+separate children. Its file medium, ExecutionWorkspacePort and external browser
+view are explicitly test adapters; the synthetic planner does not read workspace
+or raw outputs and is not an independent product Reviewer. A disposable real
+Git branch and bare remote begin with a failing test, then pass actual executor
+tests/commit/push, receive a synthetic fix PLAN, and repeat with stronger tests.
+Dirty and unpushed review attempts must leave the persisted task unchanged.
+After Sidecar ACK/journal acceptance, injected coordinator publication failure
+leaves the round in sending. Two Sidecar restarts and three executor processes
+recover the same task/workspace/iteration, send/wait IDs, baseline, digest and
+Git proof, reacquiring fresh double-observed Git snapshots before waiting and
+accepting same-round DONE. The external synthetic view contains only three
+sends (INIT plus two EXECUTED); production journal contains no control bodies.
+Actual failing/successful test output is released with the final fixture result.
+This establishes the combined fake-stack case only, not producer sandbox
+authority, actual browser input/Enter behavior, real App reads, DeepSeek,
+stdout-only nonce proof or final Windows E2E. Initial missing-fixture failure
+and a later incorrect verifier command-count assumption remain retained raw
+records. Final counts measure actual semantic snapshots delegated to the real
+GitAuthority adapter, not a fixture-generated HEAD or cached proof.
+
+Run `pnpm run test:plannerbridge-fake-stack` after `pnpm build` from `package`.
+Do not run a clean build concurrently with process fixtures importing `lib`.
 
 Each row expands into executable cases before its implementation. F1 rejects direct and transitive forbidden imports. F2 covers duplicate visible exact App candidates, auto-completed mention decorators, dirty/foreign composer, stale assistant reply, streaming that pauses longer than settling threshold, logout during wait, cancellation during each mutation and navigation recovery. F3 exercises detached targets and navigation epochs, not just successful connection. F4 includes invalid token, wrong HTTP method, excessive/chunked body, unknown methods/fields, reused ID/different payload and restart after irreversible send. F8 tests provider replacement during an in-flight read and Git output overflow/timeout/environment contamination. F10 crashes independently spawned processes at every delivery journal boundary.
 

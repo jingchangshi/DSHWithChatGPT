@@ -59,6 +59,7 @@
     "test:live-c2c": "node scripts/verify-live-c2c.mjs",
     "test:launcher": "node --test scripts/c2c-launcher.test.mjs",
     "test:plannerbridge-deployment": "node scripts/plannerbridge-deployment.test.mjs",
+    "test:plannerbridge-fake-stack": "node scripts/verify-plannerbridge-fake-stack.mjs",
     "test:product-c2c": "node scripts/dsh-product-c2c.test.mjs"
   },
   "license": "MIT",
