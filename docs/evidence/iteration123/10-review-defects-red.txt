@@ -1,0 +1,63 @@
+[WARN] The "pnpm" field in package.json is no longer read by pnpm. The following keys were ignored: "pnpm.overrides". See https://pnpm.io/settings for the new home of each setting.
+
+ RUN  v5.0.1 C:/Users/jingc/workspace/DSHWithChatGPT/package
+
+ ❯ tests/planner-executor-recovery-stage.spec.ts (3 tests | 2 failed) 3576ms
+   ❯ isolated acceptance recovery workload (3)
+     × rejects matching mutations of requirements and the sibling runtime contract 427ms
+     × discovers nested Executor-added tests before activation 409ms
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 2 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  tests/planner-executor-recovery-stage.spec.ts > isolated acceptance recovery workload > rejects matching mutations of requirements and the sibling runtime contract
+AssertionError: ✔ splits blocked interval (1.941ms)
+ℹ tests 1
+ℹ suites 0
+ℹ pass 1
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 148.6298
+E2E_EVIDENCE=e8e250a02cd688b199e6afac25a06858
+RECOVERY_STAGE_ACTIVATED
+: expected +0 not to be +0 // Object.is equality
+ ❯ tests/planner-executor-recovery-stage.spec.ts:20:62
+     18|     await writeFile(contractPath, JSON.stringify(contract))
+     19|     const result = spawnSync(process.execPath, ['run-tests.mjs'], { cw…
+     20|     expect(result.status, result.stdout + result.stderr).not.toBe(0)
+       |                                                              ^
+     21|     expect(result.stdout).not.toContain('E2E_EVIDENCE=')
+     22|   })
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/2]⎯
+
+ FAIL  tests/planner-executor-recovery-stage.spec.ts > isolated acceptance recovery workload > discovers nested Executor-added tests before activation
+AssertionError: ✔ splits blocked interval (1.9477ms)
+ℹ tests 1
+ℹ suites 0
+ℹ pass 1
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 143.4974
+E2E_EVIDENCE=f2b44f8b4bb57e9de3a2ba3c45eed91b
+RECOVERY_STAGE_ACTIVATED
+: expected +0 not to be +0 // Object.is equality
+ ❯ tests/planner-executor-recovery-stage.spec.ts:32:62
+     30|     await writeFile(join(workspace, 'tests', 'nested.test.js'), "impor…
+     31|     const result = spawnSync(process.execPath, ['run-tests.mjs'], { cw…
+     32|     expect(result.status, result.stdout + result.stderr).not.toBe(0)
+       |                                                              ^
+     33|     expect(result.stdout).toContain('nested discovery witness')
+     34|     expect(await readdir(workspace)).not.toContain('RECOVERY_STAGE.md')
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/2]⎯
+
+
+ Test Files  1 failed (1)
+      Tests  2 failed | 1 passed (3)
+   Start at  21:26:50
+   Duration  3.93s (tests 97%, transform 2%, import 1%)
+

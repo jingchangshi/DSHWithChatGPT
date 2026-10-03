@@ -1,0 +1,71 @@
+[WARN] The "pnpm" field in package.json is no longer read by pnpm. The following keys were ignored: "pnpm.overrides". See https://pnpm.io/settings for the new home of each setting.
+
+ RUN  v5.0.1 C:/Users/jingc/workspace/DSHWithChatGPT/package
+
+ ❯ tests/planner-executor-recovery-stage.spec.ts (5 tests | 2 failed) 347ms
+   ❯ isolated acceptance recovery workload (5)
+     × discovers nested Executor-added tests before activation 72ms
+     × activates only after base PASS, fails phase two without implementation, and preserves stdout-only nonce 130ms
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 2 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  tests/planner-executor-recovery-stage.spec.ts > isolated acceptance recovery workload > discovers nested Executor-added tests before activation
+AssertionError: expected '' to contain 'nested discovery witness'
+
+- Expected
++ Received
+
+- nested discovery witness
+
+ ❯ tests/planner-executor-recovery-stage.spec.ts:67:27
+     65|     const result = spawnSync(process.execPath, ['run-tests.mjs'], { cw…
+     66|     expect(result.status, result.stdout + result.stderr).not.toBe(0)
+     67|     expect(result.stdout).toContain('nested discovery witness')
+       |                           ^
+     68|     expect(await readdir(workspace)).not.toContain('RECOVERY_STAGE.md')
+     69|   })
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/2]⎯
+
+ FAIL  tests/planner-executor-recovery-stage.spec.ts > isolated acceptance recovery workload > activates only after base PASS, fails phase two without implementation, and preserves stdout-only nonce
+AssertionError: file:///C:/Users/jingc/AppData/Local/Temp/plannerbridge-recovery-stage-AOQf2Y/workspace/run-tests.mjs:9
+  __vite_ssr_import_0__.default.equal(await (0,__vite_ssr_import_3__.readFile)(__vite_ssr_import_4__.default.join(workspace, 'REQUIREMENTS.md'), 'utf8'), requirements, 'Acceptance requirements changed');
+  ^
+
+ReferenceError: __vite_ssr_import_0__ is not defined
+    at runAcceptanceTests (file:///C:/Users/jingc/AppData/Local/Temp/plannerbridge-recovery-stage-AOQf2Y/workspace/run-tests.mjs:9:3)
+    at file:///C:/Users/jingc/AppData/Local/Temp/plannerbridge-recovery-stage-AOQf2Y/workspace/run-tests.mjs:31:7
+    at ModuleJob.run (node:internal/modules/esm/module_job:439:25)
+    at async node:internal/modules/esm/loader:633:26
+    at async asyncRunEntryPointWithESMLoader (node:internal/modules/run_main:101:5)
+
+Node.js v24.16.0
+: expected 1 to be +0 // Object.is equality
+
+- Expected
++ Received
+
+- 0
++ 1
+
+ ❯ runAcceptanceTests ../../../AppData/Local/Temp/plannerbridge-recovery-stage-AOQf2Y/workspace/run-tests.mjs:9:3
+ ❯ ../../../AppData/Local/Temp/plannerbridge-recovery-stage-AOQf2Y/workspace/run-tests.mjs:31:7
+ ❯ tests/planner-executor-recovery-stage.spec.ts:84:55
+     82|     await writeFile(join(workspace, 'intervals.js'), 'export function …
+     83|     const first = run('1')
+     84|     expect(first.status, first.stdout + first.stderr).toBe(0)
+       |                                                       ^
+     85|     expect(first.stdout).toMatch(/E2E_EVIDENCE=[a-f0-9]{32}/)
+     86|     expect(first.stdout).toContain('RECOVERY_STAGE_ACTIVATED')
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/2]⎯
+
+
+ Test Files  1 failed | 3 passed (4)
+      Tests  2 failed | 37 passed (39)
+   Start at  21:30:39
+   Duration  1.15s (tests 83%, transform 8%, import 7%, worker 2%)
+
+    Isolate  4 workers spawned · ~108ms startup each (spawn + environment, per file)
+             at least ~323ms faster with isolate: false — reuses workers across files instead of one per file
+

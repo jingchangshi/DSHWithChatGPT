@@ -1,0 +1,86 @@
+{
+  "command": "Recheck archived197 SHA256 source/test entries and ten built/installed associations; read actual Git/tool versions",
+  "consumerHead": "d931979050b41871555fd7968897078f742fb12c",
+  "producerHead": "0afd708c288b079096affbfeff4626dcf9a19bf1",
+  "consumerUpstreamDelta": "0\t0",
+  "producerUpstreamDelta": "0\t0",
+  "sourceTestCount": 197,
+  "differences": [],
+  "modules": [
+    {
+      "module": "readiness/doctor.js",
+      "buildHash": "FC091A0E07814FD6D04681162E301E5F645BA2DFE1E8C55C25EC992AC7AC9F67",
+      "installedHash": "FC091A0E07814FD6D04681162E301E5F645BA2DFE1E8C55C25EC992AC7AC9F67",
+      "buildMatchesEvidence": true,
+      "installedMatchesBuild": true
+    },
+    {
+      "module": "deployment/dsh-runtime.js",
+      "buildHash": "826CBBF6D107667A6782242FCF81E0D8C034B6DE4E7BE720C3244543FC9E78B0",
+      "installedHash": "826CBBF6D107667A6782242FCF81E0D8C034B6DE4E7BE720C3244543FC9E78B0",
+      "buildMatchesEvidence": true,
+      "installedMatchesBuild": true
+    },
+    {
+      "module": "browser/adapter.js",
+      "buildHash": "AF1CB8350B95384051B3AB1FD98D0CFB89ECAD5547EB409B3801045CE6291A50",
+      "installedHash": "AF1CB8350B95384051B3AB1FD98D0CFB89ECAD5547EB409B3801045CE6291A50",
+      "buildMatchesEvidence": true,
+      "installedMatchesBuild": true
+    },
+    {
+      "module": "browser/errors.js",
+      "buildHash": "26B5390E7BA62B2B600A878965659F75542007BD47DB7214BF1BD803C7BA3E0D",
+      "installedHash": "26B5390E7BA62B2B600A878965659F75542007BD47DB7214BF1BD803C7BA3E0D",
+      "buildMatchesEvidence": true,
+      "installedMatchesBuild": true
+    },
+    {
+      "module": "browser/direct-cdp.js",
+      "buildHash": "CAD46ACB2E01F5761DC79CE0375486EE41159015B68BE4F65B3BA0F6B0B43D7D",
+      "installedHash": "CAD46ACB2E01F5761DC79CE0375486EE41159015B68BE4F65B3BA0F6B0B43D7D",
+      "buildMatchesEvidence": true,
+      "installedMatchesBuild": true
+    },
+    {
+      "module": "browser/chatgpt-web-driver.js",
+      "buildHash": "0CDD443734E19CBEDAF89299BF484DE75C10871704B80A23166F4C5DF7DBF2E7",
+      "installedHash": "0CDD443734E19CBEDAF89299BF484DE75C10871704B80A23166F4C5DF7DBF2E7",
+      "buildMatchesEvidence": true,
+      "installedMatchesBuild": true
+    },
+    {
+      "module": "sidecar/client.js",
+      "buildHash": "896284144AEE6A1CB4AD241A8293F0351CF22DF52D49FC833D37794EB1A1C3D5",
+      "installedHash": "896284144AEE6A1CB4AD241A8293F0351CF22DF52D49FC833D37794EB1A1C3D5",
+      "buildMatchesEvidence": true,
+      "installedMatchesBuild": true
+    },
+    {
+      "module": "sidecar/rpc-http.js",
+      "buildHash": "A4EEFD27EE1CBEDB6D4ECAED2A4498E448BAF72D8C57C27BADED305549D7D3FD",
+      "installedHash": "A4EEFD27EE1CBEDB6D4ECAED2A4498E448BAF72D8C57C27BADED305549D7D3FD",
+      "buildMatchesEvidence": true,
+      "installedMatchesBuild": true
+    },
+    {
+      "module": "sidecar/server.js",
+      "buildHash": "4B1399366EC96BC3507BBB01D563A1C6AFB94BE27A583963C8F8A834E6855F31",
+      "installedHash": "4B1399366EC96BC3507BBB01D563A1C6AFB94BE27A583963C8F8A834E6855F31",
+      "buildMatchesEvidence": true,
+      "installedMatchesBuild": true
+    },
+    {
+      "module": "deployment/sidecar-target-recovery.js",
+      "buildHash": "9277F691D578E20E285CD582D0A0E0756A7BF5B21495E764A3B451AAE8B1E8BA",
+      "installedHash": "9277F691D578E20E285CD582D0A0E0756A7BF5B21495E764A3B451AAE8B1E8BA",
+      "buildMatchesEvidence": true,
+      "installedMatchesBuild": true
+    }
+  ],
+  "node": "v24.16.0",
+  "pnpm": "11.25.0",
+  "chrome": "154.0.8037.93",
+  "productRun": "NOT_RUN",
+  "scope": "Startup identity check only; no new tests or product acceptance"
+}

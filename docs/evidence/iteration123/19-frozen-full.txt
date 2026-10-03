@@ -1,0 +1,33 @@
+[WARN] The "pnpm" field in package.json is no longer read by pnpm. The following keys were ignored: "pnpm.overrides". See https://pnpm.io/settings for the new home of each setting.
+$ vitest run
+
+ RUN  v5.0.1 C:/Users/jingc/workspace/DSHWithChatGPT/package
+
+ ❯ tests/sidecar-bootstrap-process.spec.ts (6 tests | 1 failed) 33351ms
+   ❯ bootstrap observation across independent Sidecar processes (6)
+     × never resends after a crash at after-bound 9481ms
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  tests/sidecar-bootstrap-process.spec.ts > bootstrap observation across independent Sidecar processes > never resends after a crash at after-bound
+Error: Sidecar child startup deadline exceeded
+ ❯ Timeout.<anonymous> tests/fixtures/sidecar-process.ts:32:59
+     30|   })
+     31|   const ready = await new Promise<{ endpoint: string; generation: stri…
+     32|     const timer = setTimeout(() => { child.kill(); reject(new Error('S…
+       |                                                           ^
+     33|     child.once('exit', () => { clearTimeout(timer); reject(new Error('…
+     34|     child.on('message', value => {
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯
+
+
+ Test Files  1 failed | 90 passed (91)
+      Tests  1 failed | 1245 passed | 3 skipped (1249)
+   Start at  21:41:07
+   Duration  833.66s (tests 96%, import 3%)
+
+    Isolate  91 workers spawned · ~199ms startup each (spawn + environment, per file)
+             at least ~17.93s faster with isolate: false — reuses workers across files instead of one per file
+
+[ELIFECYCLE] Test failed. See above for more details.

@@ -1,0 +1,10 @@
+{
+  "command": "pnpm test",
+  "testExitCode": 1,
+  "started": "2026-10-03T13:41:07.1000532+00:00",
+  "finished": "2026-10-03T13:55:08.2445619+00:00",
+  "frozenFileCount": 225,
+  "hashDifferences": [],
+  "pathDifferences": [],
+  "candidateUnchanged": true
+}

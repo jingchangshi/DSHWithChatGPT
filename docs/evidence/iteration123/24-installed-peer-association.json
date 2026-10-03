@@ -1,0 +1,197 @@
+{
+  "command": "Compare every installed compiled peer JS with producer build and record published file/export manifests",
+  "at": "2026-10-03T13:53:57.1580614Z",
+  "moduleCount": 12,
+  "allMatch": true,
+  "rows": [
+    {
+      "package": "@deepseek-ai/dsh-execution-world",
+      "module": "index.js",
+      "producerHash": "362CE8F8E024C8DDE0643C6490D5927BA99F794E9F8E0B8D13A23CC39F96F2AB",
+      "retainedHash": "362CE8F8E024C8DDE0643C6490D5927BA99F794E9F8E0B8D13A23CC39F96F2AB",
+      "match": true
+    },
+    {
+      "package": "@deepseek-ai/dsh-execution-world",
+      "module": "types/git-argv.js",
+      "producerHash": "93D7D52E30860EC27CDF35D07099EDCA5501249422EA2FB749D5CEC9334AC382",
+      "retainedHash": "93D7D52E30860EC27CDF35D07099EDCA5501249422EA2FB749D5CEC9334AC382",
+      "match": true
+    },
+    {
+      "package": "@deepseek-ai/dsh-execution-world",
+      "module": "types/git-lease.js",
+      "producerHash": "C5FD0756FAE64ABB2268E728601D47310F0B4B97CCD1E2F30E841595AE20C654",
+      "retainedHash": "C5FD0756FAE64ABB2268E728601D47310F0B4B97CCD1E2F30E841595AE20C654",
+      "match": true
+    },
+    {
+      "package": "@deepseek-ai/dsh-execution-world",
+      "module": "types/read-lease.js",
+      "producerHash": "DC110D3736CA4CBE5ABE33B93B6282652B3199FB570805D33DC2AFB09D765E5F",
+      "retainedHash": "DC110D3736CA4CBE5ABE33B93B6282652B3199FB570805D33DC2AFB09D765E5F",
+      "match": true
+    },
+    {
+      "package": "@deepseek-ai/dsh-execution-world",
+      "module": "types/read-only.js",
+      "producerHash": "F873F45CD5E2CE4350EE88D7B2C752C768425C012FE9E66B5E3834D4E545F8D8",
+      "retainedHash": "F873F45CD5E2CE4350EE88D7B2C752C768425C012FE9E66B5E3834D4E545F8D8",
+      "match": true
+    },
+    {
+      "package": "@deepseek-ai/dsh-fs",
+      "module": "index.js",
+      "producerHash": "AA609269CBACE4D852E0D8AD4FEB793F2C2140E28B4626B3E770838554BBE3EE",
+      "retainedHash": "AA609269CBACE4D852E0D8AD4FEB793F2C2140E28B4626B3E770838554BBE3EE",
+      "match": true
+    },
+    {
+      "package": "@deepseek-ai/dsh-fs",
+      "module": "invariant.js",
+      "producerHash": "C3398FF0DA3CF65FACC78C3ED287EE088AFCB0F6179F6B15EB2F618E759AF4BB",
+      "retainedHash": "C3398FF0DA3CF65FACC78C3ED287EE088AFCB0F6179F6B15EB2F618E759AF4BB",
+      "match": true
+    },
+    {
+      "package": "@deepseek-ai/dsh-subprocess",
+      "module": "control.js",
+      "producerHash": "4AFD0F7D7A7054B6FC8D727EA3F76731A78C9A972DDB6D5D2EEF81CAC4FFEE3A",
+      "retainedHash": "4AFD0F7D7A7054B6FC8D727EA3F76731A78C9A972DDB6D5D2EEF81CAC4FFEE3A",
+      "match": true
+    },
+    {
+      "package": "@deepseek-ai/dsh-subprocess",
+      "module": "index.js",
+      "producerHash": "0EA9E95A73639F9E69B48AA48F373F34881ADFFA2EE2AC2ACD4702728DA9592B",
+      "retainedHash": "0EA9E95A73639F9E69B48AA48F373F34881ADFFA2EE2AC2ACD4702728DA9592B",
+      "match": true
+    },
+    {
+      "package": "@deepseek-ai/dsh-sandbox",
+      "module": "index.js",
+      "producerHash": "F1DFE4D0A31D6BA3A5D353235DF1E133FAA35FDEB74E8241C9821154F1A0533D",
+      "retainedHash": "F1DFE4D0A31D6BA3A5D353235DF1E133FAA35FDEB74E8241C9821154F1A0533D",
+      "match": true
+    },
+    {
+      "package": "@deepseek-ai/dsh-storage-domain",
+      "module": "index.js",
+      "producerHash": "E536BA09B7CCC0F10BB54818DFE44454374E5CBF7AEBA140B216BA1CA2E87517",
+      "retainedHash": "E536BA09B7CCC0F10BB54818DFE44454374E5CBF7AEBA140B216BA1CA2E87517",
+      "match": true
+    },
+    {
+      "package": "@deepseek-ai/dsh-storage-domain",
+      "module": "invariant.js",
+      "producerHash": "4B4DF6329EE033C9B73823C14B950E0960E43EED4F416078030279C19DC4703E",
+      "retainedHash": "4B4DF6329EE033C9B73823C14B950E0960E43EED4F416078030279C19DC4703E",
+      "match": true
+    }
+  ],
+  "manifests": [
+    {
+      "name": "@deepseek-ai/dsh-execution-world",
+      "files": [
+        "lib/index.js",
+        "lib/types/read-lease.js",
+        "lib/types/git-lease.js",
+        "lib/types/git-argv.js",
+        "lib/types/read-only.js",
+        "lib/types/**/*.d.ts"
+      ],
+      "exports": {
+        ".": {
+          "types": "./lib/types/index.d.ts",
+          "default": "./lib/index.js"
+        },
+        "./git-lease": {
+          "types": "./lib/types/git-lease.d.ts",
+          "default": "./lib/types/git-lease.js"
+        },
+        "./read-lease": {
+          "types": "./lib/types/read-lease.d.ts",
+          "default": "./lib/types/read-lease.js"
+        },
+        "./src/*": "./src/*",
+        "./package.json": "./package.json"
+      }
+    },
+    {
+      "name": "@deepseek-ai/dsh-fs",
+      "files": [
+        "lib/index.js",
+        "lib/invariant.js",
+        "lib/types/**/*.d.ts"
+      ],
+      "exports": {
+        ".": {
+          "types": "./lib/types/index.d.ts",
+          "default": "./lib/index.js"
+        },
+        "./invariant": {
+          "types": "./lib/types/invariant.d.ts",
+          "default": "./lib/invariant.js"
+        },
+        "./src/*": "./src/*",
+        "./package.json": "./package.json"
+      }
+    },
+    {
+      "name": "@deepseek-ai/dsh-subprocess",
+      "files": [
+        "lib/index.js",
+        "lib/control.js",
+        "lib/types/**/*.d.ts"
+      ],
+      "exports": {
+        ".": {
+          "types": "./lib/types/index.d.ts",
+          "default": "./lib/index.js"
+        },
+        "./src/*": "./src/*",
+        "./package.json": "./package.json",
+        "./control": {
+          "types": "./lib/types/control.d.ts",
+          "default": "./lib/control.js"
+        }
+      }
+    },
+    {
+      "name": "@deepseek-ai/dsh-sandbox",
+      "files": [
+        "lib/index.js",
+        "lib/types/**/*.d.ts"
+      ],
+      "exports": {
+        ".": {
+          "types": "./lib/types/index.d.ts",
+          "default": "./lib/index.js"
+        },
+        "./src/*": "./src/*",
+        "./package.json": "./package.json"
+      }
+    },
+    {
+      "name": "@deepseek-ai/dsh-storage-domain",
+      "files": [
+        "lib/index.js",
+        "lib/invariant.js",
+        "lib/types/**/*.d.ts"
+      ],
+      "exports": {
+        ".": {
+          "types": "./lib/types/index.d.ts",
+          "default": "./lib/index.js"
+        },
+        "./invariant": {
+          "types": "./lib/types/invariant.d.ts",
+          "default": "./lib/invariant.js"
+        },
+        "./src/*": "./src/*",
+        "./package.json": "./package.json"
+      }
+    }
+  ],
+  "qualification": "Evidence23 inventories all producer build output, including types/*.js intentionally not in files lists. This report checks actual installed JS; it does not prove producer deadline gate or real product closure."
+}

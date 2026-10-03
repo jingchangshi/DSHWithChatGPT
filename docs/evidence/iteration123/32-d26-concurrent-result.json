@@ -1,0 +1,24 @@
+{
+  "case": "two-independent-concurrent-startups",
+  "elapsedMs": 1534.4601,
+  "rows": [
+    {
+      "index": 0,
+      "status": "fulfilled",
+      "pid": 18836
+    },
+    {
+      "index": 1,
+      "status": "fulfilled",
+      "pid": 6180
+    }
+  ],
+  "allReady": true,
+  "separateStates": true,
+  "budgets": {
+    "startupMs": 5000,
+    "fixturePhaseMs": 2000,
+    "nativeAclMs": 10000
+  },
+  "scope": "Original synthetic fixture concurrent startup only; no RPC, browser or real product evidence"
+}

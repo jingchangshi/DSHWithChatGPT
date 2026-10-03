@@ -1,0 +1,26 @@
+[WARN] The "pnpm" field in package.json is no longer read by pnpm. The following keys were ignored: "pnpm.overrides". See https://pnpm.io/settings for the new home of each setting.
+
+ RUN  v5.0.1 C:/Users/jingc/workspace/DSHWithChatGPT/package
+
+ ❯ tests/planner-executor-recovery-stage.spec.ts (0 test)
+
+⎯⎯⎯⎯⎯⎯ Failed Suites 1 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  tests/planner-executor-recovery-stage.spec.ts [ tests/planner-executor-recovery-stage.spec.ts ]
+Error: Cannot find module '../scripts/planner-executor-workload.mjs' imported from C:/Users/jingc/workspace/DSHWithChatGPT/package/tests/planner-executor-recovery-stage.spec.ts
+ ❯ tests/planner-executor-recovery-stage.spec.ts:6:1
+      4| import { spawnSync } from 'node:child_process'
+      5| import { describe, expect, it } from 'vitest'
+      6| import { initializeAcceptanceWorkload } from '../scripts/planner-execu…
+       | ^
+      7|
+      8| describe('isolated acceptance recovery workload', () => {
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯
+
+
+ Test Files  1 failed (1)
+      Tests  no tests
+   Start at  21:05:51
+   Duration  159ms (worker 96%, environment 4%)
+

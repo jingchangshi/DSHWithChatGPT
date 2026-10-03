@@ -1,0 +1,23 @@
+{
+  "command": "D26 unchanged-file serial and two-independent-child concurrency diagnostic with external metadata observer",
+  "classification": "STARTUP_BOUNDARY_UNREPRODUCED_IN_D26",
+  "originalFullCause": "UNKNOWN",
+  "serializedTestResult": "1 file6PASS17.40s",
+  "serializedChildCount": 12,
+  "serializedReadyMinMs": 1135.53,
+  "serializedReadyMaxMs": 1720.73,
+  "serializedExits": 12,
+  "parallelChildCount": 2,
+  "parallelReadyMaxMs": 1522.5,
+  "parallelExits": 2,
+  "timeoutEvents": 0,
+  "startupBudgets": [
+    5000
+  ],
+  "sourceDifferences": [],
+  "nativeEntryLoadedTimestamp": "NOT_OBSERVABLE via existing interfaces; preload timing is not native entry timing",
+  "healthProbe": "NOT_REQUESTED; existing test assertions only",
+  "rawBodiesRecorded": false,
+  "observerQualification": "External preload wrappers add synchronous metadata writes. Existing fork/listen/kill/timer call semantics delegated unchanged. Not the historical full resource context.",
+  "scope": "Synthetic native-process fixture only. Not a real product PASS. Metadata observer propagation initially incomplete in28/29;26 is invocation error before tests."
+}

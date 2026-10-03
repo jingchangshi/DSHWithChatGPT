@@ -1,0 +1,14 @@
+[
+  {
+    "command": "node --check package/scripts/planner-executor-workload.mjs",
+    "exitCode": 0,
+    "output": "",
+    "sha256": "0FFE6B4F89E1BBDA13E8CF4ED65A75DDD8277870D2EF0AEAAEC004AB9BE35B2F"
+  },
+  {
+    "command": "node --check package/scripts/verify-planner-executor-e2e.mjs",
+    "exitCode": 0,
+    "output": "",
+    "sha256": "D46A29FB48440A2C05F64C78C14FE3BA9C88CB9074571CA58911BEAE0554DD91"
+  }
+]

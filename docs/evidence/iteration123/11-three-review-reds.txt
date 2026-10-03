@@ -1,0 +1,85 @@
+[WARN] The "pnpm" field in package.json is no longer read by pnpm. The following keys were ignored: "pnpm.overrides". See https://pnpm.io/settings for the new home of each setting.
+
+ RUN  v5.0.1 C:/Users/jingc/workspace/DSHWithChatGPT/package
+
+ ❯ tests/planner-executor-recovery-stage.spec.ts (4 tests | 3 failed) 1713ms
+   ❯ isolated acceptance recovery workload (4)
+     × rejects matching mutations of requirements and the sibling runtime contract 199ms
+     × has no runtime dependency on source or parent paths 10ms
+     × discovers nested Executor-added tests before activation 197ms
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 3 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  tests/planner-executor-recovery-stage.spec.ts > isolated acceptance recovery workload > rejects matching mutations of requirements and the sibling runtime contract
+AssertionError: ✔ splits blocked interval (0.9829ms)
+ℹ tests 1
+ℹ suites 0
+ℹ pass 1
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 68.3636
+E2E_EVIDENCE=393748c17977d28e45a8fa1988b61ffc
+RECOVERY_STAGE_ACTIVATED
+: expected +0 not to be +0 // Object.is equality
+ ❯ tests/planner-executor-recovery-stage.spec.ts:20:62
+     18|     await writeFile(contractPath, JSON.stringify(contract))
+     19|     const result = spawnSync(process.execPath, ['run-tests.mjs'], { cw…
+     20|     expect(result.status, result.stdout + result.stderr).not.toBe(0)
+       |                                                              ^
+     21|     expect(result.stdout).not.toContain('E2E_EVIDENCE=')
+     22|   })
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/3]⎯
+
+ FAIL  tests/planner-executor-recovery-stage.spec.ts > isolated acceptance recovery workload > has no runtime dependency on source or parent paths
+AssertionError: expected 'import { runAcceptanceTests } from "f…' not to contain 'file:'
+
+- Expected
++ Received
+
+- file:
++ import { runAcceptanceTests } from "file:///C:/Users/jingc/workspace/DSHWithChatGPT/package/scripts/planner-executor-workload.mjs"
++ await runAcceptanceTests(process.cwd(), "C:\\Users\\jingc\\AppData\\Local\\Temp\\plannerbridge-external-red-gZUfXT\\workload-contract.json")
++
+
+ ❯ tests/planner-executor-recovery-stage.spec.ts:29:24
+     27|     await initializeAcceptanceWorkload(workspace, root)
+     28|     const runner = await readFile(join(workspace, 'run-tests.mjs'), 'u…
+     29|     expect(runner).not.toContain('file:')
+       |                        ^
+     30|     expect(runner).not.toContain('workload-contract.json')
+     31|     expect(runner).not.toContain(JSON.stringify(root))
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/3]⎯
+
+ FAIL  tests/planner-executor-recovery-stage.spec.ts > isolated acceptance recovery workload > discovers nested Executor-added tests before activation
+AssertionError: ✔ splits blocked interval (1.0259ms)
+ℹ tests 1
+ℹ suites 0
+ℹ pass 1
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 74.4453
+E2E_EVIDENCE=09dc69829fa10a782d3097dd9adaa8da
+RECOVERY_STAGE_ACTIVATED
+: expected +0 not to be +0 // Object.is equality
+ ❯ tests/planner-executor-recovery-stage.spec.ts:42:62
+     40|     await writeFile(join(workspace, 'tests', 'nested.test.js'), "impor…
+     41|     const result = spawnSync(process.execPath, ['run-tests.mjs'], { cw…
+     42|     expect(result.status, result.stdout + result.stderr).not.toBe(0)
+       |                                                              ^
+     43|     expect(result.stdout).toContain('nested discovery witness')
+     44|     expect(await readdir(workspace)).not.toContain('RECOVERY_STAGE.md')
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[3/3]⎯
+
+
+ Test Files  1 failed (1)
+      Tests  3 failed | 1 passed (4)
+   Start at  21:28:12
+   Duration  1.89s (tests 97%, transform 2%, import 1%)
+

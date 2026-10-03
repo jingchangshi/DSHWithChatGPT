@@ -1,3 +1,8 @@
+## 当前执行依据：post-D26 冻结全量 PASS，等待提交与 exact-HEAD 审阅
+
+2026-10-03 22:38（Asia/Shanghai），获独立方案批准的 post-D26 原命令 pnpm test 已终止，exit0：91 files / 1246 PASS / 3 原有 skips / 777.68s。原始输出见 docs/evidence/iteration123/37-frozen-full-after-d26.txt；终态38确认225个冻结文件哈希与路径无变化，39确认两次冻结清单一致。full 未加载 D26 observer，未改变源码、fixture、timeout 或安全检查。
+
+首次失败19/20仍为 FAILED，原启动失败 cause UNKNOWN；D26只证明本次有限诊断未复现。当前候选源码审阅及全量已通过，但提交/推送、exact-HEAD scoped 审阅、真实产品闭环和后续 lock/producer/global gates 尚未完成。下文运行中和待诊断状态均为历史记录，不能作为当前执行依据。
 # Iteration122 verification evidence
 
 These are the retained original command outputs for the cold-handoff candidate,
@@ -38,4 +43,6 @@ is proven; real121 exact SEND_UNCERTAIN subbranch remains unknown. Overall produ
 closure, Windows lock capability, producer gate and global audit remain open.
 
 Review entry: [delivery checkpoint](../../review-checkpoint-2026-10-03.md).
-Future implementation is on user-requested review hold; no fresh real123 run.
+The review hold was lifted by explicit resumption in goal.md. Original webpage
+iteration122 DONE_SCOPED_PAUSED was directly read during startup123; it accepts
+this frozen scoped evidence. No fresh real123 product run has occurred yet.

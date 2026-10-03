@@ -40,6 +40,11 @@ async function runOracle(records: Array<Record<string, any>>, code: number | nul
 }
 
 describe('real Planner-Executor runner acceptance oracle', () => {
+  it('refuses first-round DONE without a real fix PLAN, checkpoint and reconnect', async () => {
+    const records = fixture().filter(record => record.callId !== 'fix' && record.name !== 'chatgpt_reconnect')
+    for (const record of records) record.phase = '1'
+    expect(await runOracle(records)).toMatchObject({ recoveryVerified: false, plannerExecutorAccepted: false, exitCode: 1 })
+  })
   it.each([undefined, 1])('refuses legacy or absent protocol provenance (%s) even with otherwise matching legacy evidence', async version => {
     const records = fixture()
     for (const record of records) record.protocolVersion = version

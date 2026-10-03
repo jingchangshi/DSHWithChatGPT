@@ -1,0 +1,47 @@
+{
+  "command": "Resolve actual retained-plugin peer entries and producer package self-exports; compare loaded compiled JS",
+  "scope": "Package peer entry identity only; CLI does not directly declare these peers. Not a producer deadline or product PASS.",
+  "rows": [
+    {
+      "name": "@deepseek-ai/dsh-execution-world",
+      "producerEntry": "C:\\Users\\jingc\\workspace\\deepseek-harness\\packages\\execution\\execution-world\\lib\\index.js",
+      "retainedEntry": "C:\\Users\\jingc\\AppData\\Local\\Temp\\dsh-chatgpt-package-3ZkHDf\\node_modules\\.pnpm\\@deepseek-ai+dsh-execution-_718ad4b83efc0036fde3acf3d87dea50\\node_modules\\@deepseek-ai\\dsh-execution-world\\lib\\index.js",
+      "producerHash": "362ce8f8e024c8dde0643c6490d5927ba99f794e9f8e0b8d13a23cc39f96f2ab",
+      "retainedHash": "362ce8f8e024c8dde0643c6490d5927ba99f794e9f8e0b8d13a23cc39f96f2ab",
+      "match": true
+    },
+    {
+      "name": "@deepseek-ai/dsh-fs",
+      "producerEntry": "C:\\Users\\jingc\\workspace\\deepseek-harness\\packages\\fs\\fs\\lib\\index.js",
+      "retainedEntry": "C:\\Users\\jingc\\AppData\\Local\\Temp\\dsh-chatgpt-package-3ZkHDf\\node_modules\\.pnpm\\@deepseek-ai+dsh-fs@file+de_409ab3cc50f76ccd9acd91292a9e9645\\node_modules\\@deepseek-ai\\dsh-fs\\lib\\index.js",
+      "producerHash": "aa609269cbace4d852e0d8ad4feb793f2c2140e28b4626b3e770838554bbe3ee",
+      "retainedHash": "aa609269cbace4d852e0d8ad4feb793f2c2140e28b4626b3e770838554bbe3ee",
+      "match": true
+    },
+    {
+      "name": "@deepseek-ai/dsh-subprocess",
+      "producerEntry": "C:\\Users\\jingc\\workspace\\deepseek-harness\\packages\\subprocess\\subprocess\\lib\\index.js",
+      "retainedEntry": "C:\\Users\\jingc\\AppData\\Local\\Temp\\dsh-chatgpt-package-3ZkHDf\\node_modules\\.pnpm\\@deepseek-ai+dsh-subprocess_ecaf1fbf9d8305e3914b5495a555983b\\node_modules\\@deepseek-ai\\dsh-subprocess\\lib\\index.js",
+      "producerHash": "0ea9e95a73639f9e69b48aa48f373f34881adffa2ee2ac2acd4702728da9592b",
+      "retainedHash": "0ea9e95a73639f9e69b48aa48f373f34881adffa2ee2ac2acd4702728da9592b",
+      "match": true
+    },
+    {
+      "name": "@deepseek-ai/dsh-sandbox",
+      "producerEntry": "C:\\Users\\jingc\\workspace\\deepseek-harness\\packages\\sandbox\\sandbox\\lib\\index.js",
+      "retainedEntry": "C:\\Users\\jingc\\AppData\\Local\\Temp\\dsh-chatgpt-package-3ZkHDf\\node_modules\\.pnpm\\@deepseek-ai+dsh-sandbox@0._a0622d166a43bd113ad551f3c1af9b3a\\node_modules\\@deepseek-ai\\dsh-sandbox\\lib\\index.js",
+      "producerHash": "f1dfe4d0a31d6ba3a5d353235df1e133faa35fdeb74e8241c9821154f1a0533d",
+      "retainedHash": "f1dfe4d0a31d6ba3a5d353235df1e133faa35fdeb74e8241c9821154f1a0533d",
+      "match": true
+    },
+    {
+      "name": "@deepseek-ai/dsh-storage-domain",
+      "producerEntry": "C:\\Users\\jingc\\workspace\\deepseek-harness\\packages\\storage\\storage-domain\\lib\\index.js",
+      "retainedEntry": "C:\\Users\\jingc\\AppData\\Local\\Temp\\dsh-chatgpt-package-3ZkHDf\\node_modules\\.pnpm\\@deepseek-ai+dsh-storage-do_7ae8c5ae2fd98a413b7e7cf857fbaf93\\node_modules\\@deepseek-ai\\dsh-storage-domain\\lib\\index.js",
+      "producerHash": "e536ba09b7ccc0f10bb54818dfe44454374e5cbf7aeba140b216ba1ca2e87517",
+      "retainedHash": "e536ba09b7ccc0f10bb54818dfe44454374e5cbf7aeba140b216ba1ca2e87517",
+      "match": true
+    }
+  ],
+  "allMatch": true
+}

@@ -23,6 +23,22 @@ describe('canonical Planner-Executor E2E runner', () => {
     expect(script).not.toContain('plannerExecutorAccepted: false')
   })
 
+  it('verifies the parent-owned workload at initialization, before restart, and before the oracle', () => {
+    expect(script).toContain('initializeAcceptanceWorkload, verifyAcceptanceWorkload')
+    const initial = script.indexOf("verifyAcceptanceWorkload(workspace, workload, 'initial')")
+    const first = script.indexOf("runPhase(1, task, initialTargetId)")
+    const boundary = script.indexOf("verifyAcceptanceWorkload(workspace, workload, 'phase1')")
+    const second = script.indexOf('runPhase(2, reconnectTask, await readTargetPointer(targetPointer))')
+    const final = script.indexOf("verifyAcceptanceWorkload(workspace, workload, 'phase2')")
+    const oracle = script.indexOf('evaluateAcceptance({ records, runId, code, restartPending, git:')
+    expect(initial).toBeGreaterThan(0)
+    expect(first).toBeGreaterThan(initial)
+    expect(boundary).toBeGreaterThan(first)
+    expect(second).toBeGreaterThan(boundary)
+    expect(final).toBeGreaterThan(second)
+    expect(oracle).toBeGreaterThan(final)
+  })
+
   it('supervises the installed native entry and passes the concrete owned target on phase restart', () => {
     expect(script).toContain(".resolve('dsh-with-chatgpt/package.json')")
     expect(script).toContain('...ownedSidecarConfig(sidecarEndpoint,')

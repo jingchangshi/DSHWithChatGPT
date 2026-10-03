@@ -1,0 +1,11 @@
+{
+  "command": "pnpm test",
+  "testExitCode": 0,
+  "started": "2026-10-03T14:25:08.1022894+00:00",
+  "finished": "2026-10-03T14:38:06.7684398+00:00",
+  "frozenFileCount": 225,
+  "hashDifferences": [],
+  "pathDifferences": [],
+  "candidateUnchanged": true,
+  "qualification": "Post-D26 single full; prior failed full19 preserved; original failure cause UNKNOWN"
+}

@@ -1,0 +1,282 @@
+{
+  "command": "Compare producer compiled JS files in five peer packages with retained package copies",
+  "at": "2026-10-03T13:52:50.5626579Z",
+  "producerHead": "0afd708c288b079096affbfeff4626dcf9a19bf1",
+  "moduleCount": 34,
+  "allMatch": false,
+  "rows": [
+    {
+      "package": "@deepseek-ai/dsh-execution-world",
+      "module": "index.js",
+      "producerHash": "362CE8F8E024C8DDE0643C6490D5927BA99F794E9F8E0B8D13A23CC39F96F2AB",
+      "retainedHash": "362CE8F8E024C8DDE0643C6490D5927BA99F794E9F8E0B8D13A23CC39F96F2AB",
+      "installedPresent": true,
+      "match": true
+    },
+    {
+      "package": "@deepseek-ai/dsh-execution-world",
+      "module": "types/allocation-lock.js",
+      "producerHash": "E3E0E02058342142CF63967EE4005A8F205EA7359C5A19B0A472C87E500FF796",
+      "retainedHash": null,
+      "installedPresent": false,
+      "match": false
+    },
+    {
+      "package": "@deepseek-ai/dsh-execution-world",
+      "module": "types/git-argv.js",
+      "producerHash": "93D7D52E30860EC27CDF35D07099EDCA5501249422EA2FB749D5CEC9334AC382",
+      "retainedHash": "93D7D52E30860EC27CDF35D07099EDCA5501249422EA2FB749D5CEC9334AC382",
+      "installedPresent": true,
+      "match": true
+    },
+    {
+      "package": "@deepseek-ai/dsh-execution-world",
+      "module": "types/git-lease.js",
+      "producerHash": "C5FD0756FAE64ABB2268E728601D47310F0B4B97CCD1E2F30E841595AE20C654",
+      "retainedHash": "C5FD0756FAE64ABB2268E728601D47310F0B4B97CCD1E2F30E841595AE20C654",
+      "installedPresent": true,
+      "match": true
+    },
+    {
+      "package": "@deepseek-ai/dsh-execution-world",
+      "module": "types/index.js",
+      "producerHash": "D6A8EA6145BA297AC6E56569B5D70100A1B4AC13A2740DF14156E62F6A0D85D7",
+      "retainedHash": null,
+      "installedPresent": false,
+      "match": false
+    },
+    {
+      "package": "@deepseek-ai/dsh-execution-world",
+      "module": "types/read-lease.js",
+      "producerHash": "DC110D3736CA4CBE5ABE33B93B6282652B3199FB570805D33DC2AFB09D765E5F",
+      "retainedHash": "DC110D3736CA4CBE5ABE33B93B6282652B3199FB570805D33DC2AFB09D765E5F",
+      "installedPresent": true,
+      "match": true
+    },
+    {
+      "package": "@deepseek-ai/dsh-execution-world",
+      "module": "types/read-only-types.js",
+      "producerHash": "B406DC4BB28C81C87DBD3CF26FC9A9F14BC8BBDD2EFBDD726B86B4E718ABA769",
+      "retainedHash": null,
+      "installedPresent": false,
+      "match": false
+    },
+    {
+      "package": "@deepseek-ai/dsh-execution-world",
+      "module": "types/read-only.js",
+      "producerHash": "F873F45CD5E2CE4350EE88D7B2C752C768425C012FE9E66B5E3834D4E545F8D8",
+      "retainedHash": "F873F45CD5E2CE4350EE88D7B2C752C768425C012FE9E66B5E3834D4E545F8D8",
+      "installedPresent": true,
+      "match": true
+    },
+    {
+      "package": "@deepseek-ai/dsh-execution-world",
+      "module": "types/spec.js",
+      "producerHash": "AFDBC55A7C22D8D5BAEC6698B5D211467C1310823E8D8E0EB3407C7BC0DB9451",
+      "retainedHash": null,
+      "installedPresent": false,
+      "match": false
+    },
+    {
+      "package": "@deepseek-ai/dsh-execution-world",
+      "module": "types/types.js",
+      "producerHash": "01AE2A5B120382F9A648CED7EE8507493A134F216D100FC61600C6C9738235D2",
+      "retainedHash": null,
+      "installedPresent": false,
+      "match": false
+    },
+    {
+      "package": "@deepseek-ai/dsh-fs",
+      "module": "index.js",
+      "producerHash": "AA609269CBACE4D852E0D8AD4FEB793F2C2140E28B4626B3E770838554BBE3EE",
+      "retainedHash": "AA609269CBACE4D852E0D8AD4FEB793F2C2140E28B4626B3E770838554BBE3EE",
+      "installedPresent": true,
+      "match": true
+    },
+    {
+      "package": "@deepseek-ai/dsh-fs",
+      "module": "invariant.js",
+      "producerHash": "C3398FF0DA3CF65FACC78C3ED287EE088AFCB0F6179F6B15EB2F618E759AF4BB",
+      "retainedHash": "C3398FF0DA3CF65FACC78C3ED287EE088AFCB0F6179F6B15EB2F618E759AF4BB",
+      "installedPresent": true,
+      "match": true
+    },
+    {
+      "package": "@deepseek-ai/dsh-fs",
+      "module": "types/index.js",
+      "producerHash": "B0FA684CEB410EA29E9747BF08129DA3091ABA2A4C59581EA2587F52EBDD922E",
+      "retainedHash": null,
+      "installedPresent": false,
+      "match": false
+    },
+    {
+      "package": "@deepseek-ai/dsh-fs",
+      "module": "types/invariant.js",
+      "producerHash": "D57C5D7C00253B18E60765B7F77C59761C489A22BAFF802EC6E6C62C6C5143D8",
+      "retainedHash": null,
+      "installedPresent": false,
+      "match": false
+    },
+    {
+      "package": "@deepseek-ai/dsh-fs",
+      "module": "types/root-read.js",
+      "producerHash": "30C22E68A8637E64C040544009F85235B67297A1E7F31F14EE7732FEF2B86E20",
+      "retainedHash": null,
+      "installedPresent": false,
+      "match": false
+    },
+    {
+      "package": "@deepseek-ai/dsh-fs",
+      "module": "types/types.js",
+      "producerHash": "3D507CDD71608B95DD60D686E891751C8964B4A6DD0C67ED2C775BF31B413975",
+      "retainedHash": null,
+      "installedPresent": false,
+      "match": false
+    },
+    {
+      "package": "@deepseek-ai/dsh-subprocess",
+      "module": "control.js",
+      "producerHash": "4AFD0F7D7A7054B6FC8D727EA3F76731A78C9A972DDB6D5D2EEF81CAC4FFEE3A",
+      "retainedHash": "4AFD0F7D7A7054B6FC8D727EA3F76731A78C9A972DDB6D5D2EEF81CAC4FFEE3A",
+      "installedPresent": true,
+      "match": true
+    },
+    {
+      "package": "@deepseek-ai/dsh-subprocess",
+      "module": "index.js",
+      "producerHash": "0EA9E95A73639F9E69B48AA48F373F34881ADFFA2EE2AC2ACD4702728DA9592B",
+      "retainedHash": "0EA9E95A73639F9E69B48AA48F373F34881ADFFA2EE2AC2ACD4702728DA9592B",
+      "installedPresent": true,
+      "match": true
+    },
+    {
+      "package": "@deepseek-ai/dsh-subprocess",
+      "module": "types/control.js",
+      "producerHash": "D1ABDA0E13DA128E58ED23E981093471365D2090D1527C86592E0BDD21125052",
+      "retainedHash": null,
+      "installedPresent": false,
+      "match": false
+    },
+    {
+      "package": "@deepseek-ai/dsh-subprocess",
+      "module": "types/index.js",
+      "producerHash": "2BFEF2F7DBFB41FAFC394F237A2360C79E056DDCB855F5E83535FB9BFB517566",
+      "retainedHash": null,
+      "installedPresent": false,
+      "match": false
+    },
+    {
+      "package": "@deepseek-ai/dsh-subprocess",
+      "module": "types/types.js",
+      "producerHash": "1F5491F007E7FF0E97D055E39542CDD8408656917FEE1C211C775BB46FEF46B2",
+      "retainedHash": null,
+      "installedPresent": false,
+      "match": false
+    },
+    {
+      "package": "@deepseek-ai/dsh-sandbox",
+      "module": "index.js",
+      "producerHash": "F1DFE4D0A31D6BA3A5D353235DF1E133FAA35FDEB74E8241C9821154F1A0533D",
+      "retainedHash": "F1DFE4D0A31D6BA3A5D353235DF1E133FAA35FDEB74E8241C9821154F1A0533D",
+      "installedPresent": true,
+      "match": true
+    },
+    {
+      "package": "@deepseek-ai/dsh-sandbox",
+      "module": "types/diagnostics.js",
+      "producerHash": "7B732ADCD90C5F4386468A17549B8B077F8D757DCE856E049EB98004B97A5AB3",
+      "retainedHash": null,
+      "installedPresent": false,
+      "match": false
+    },
+    {
+      "package": "@deepseek-ai/dsh-sandbox",
+      "module": "types/escalation.js",
+      "producerHash": "F992FE30812F406F8BAACAEE6B26066351F400E5FA4DB64892137988143132EC",
+      "retainedHash": null,
+      "installedPresent": false,
+      "match": false
+    },
+    {
+      "package": "@deepseek-ai/dsh-sandbox",
+      "module": "types/index.js",
+      "producerHash": "89955B866C9BF9736BAA87E2B9B90B7BE967426D49870C1FB91B2467BE0B77B1",
+      "retainedHash": null,
+      "installedPresent": false,
+      "match": false
+    },
+    {
+      "package": "@deepseek-ai/dsh-sandbox",
+      "module": "types/roots.js",
+      "producerHash": "134315A66AA4CCEF4019B53C04B67EA6114650B6C85BA8C97F7B5F49027339BA",
+      "retainedHash": null,
+      "installedPresent": false,
+      "match": false
+    },
+    {
+      "package": "@deepseek-ai/dsh-storage-domain",
+      "module": "index.js",
+      "producerHash": "E536BA09B7CCC0F10BB54818DFE44454374E5CBF7AEBA140B216BA1CA2E87517",
+      "retainedHash": "E536BA09B7CCC0F10BB54818DFE44454374E5CBF7AEBA140B216BA1CA2E87517",
+      "installedPresent": true,
+      "match": true
+    },
+    {
+      "package": "@deepseek-ai/dsh-storage-domain",
+      "module": "invariant.js",
+      "producerHash": "4B4DF6329EE033C9B73823C14B950E0960E43EED4F416078030279C19DC4703E",
+      "retainedHash": "4B4DF6329EE033C9B73823C14B950E0960E43EED4F416078030279C19DC4703E",
+      "installedPresent": true,
+      "match": true
+    },
+    {
+      "package": "@deepseek-ai/dsh-storage-domain",
+      "module": "types/domain.js",
+      "producerHash": "AF99B06CD8A8660E1D21AB4FE796E406EB539F86D92FB9478224A02CF5CF746F",
+      "retainedHash": null,
+      "installedPresent": false,
+      "match": false
+    },
+    {
+      "package": "@deepseek-ai/dsh-storage-domain",
+      "module": "types/error.js",
+      "producerHash": "5D1D23B5FDBF7CE2E36267A6E9B5169B10E8D822229E233859C989E031DCB634",
+      "retainedHash": null,
+      "installedPresent": false,
+      "match": false
+    },
+    {
+      "package": "@deepseek-ai/dsh-storage-domain",
+      "module": "types/events.js",
+      "producerHash": "74F462B80B4BE57908DA1906531DC8F86ADD89B5D84E348D5EDF02EC48E59877",
+      "retainedHash": null,
+      "installedPresent": false,
+      "match": false
+    },
+    {
+      "package": "@deepseek-ai/dsh-storage-domain",
+      "module": "types/index.js",
+      "producerHash": "833B3D7F433825AB96F233ED14EA401BB5EF409C6CC4D9E5243F4328A0F7328C",
+      "retainedHash": null,
+      "installedPresent": false,
+      "match": false
+    },
+    {
+      "package": "@deepseek-ai/dsh-storage-domain",
+      "module": "types/invariant.js",
+      "producerHash": "61969E2884E1B5266F45A0321B30D3E2119A5B80C5053144C33466D1443FC945",
+      "retainedHash": null,
+      "installedPresent": false,
+      "match": false
+    },
+    {
+      "package": "@deepseek-ai/dsh-storage-domain",
+      "module": "types/spec.js",
+      "producerHash": "650A04B58E235CE559F0355E30A4F7C578F443FB06AC8B15D71F50DBAA54D1D0",
+      "retainedHash": null,
+      "installedPresent": false,
+      "match": false
+    }
+  ],
+  "scope": "Compiled package association only; no producer Git deadline or real product claim"
+}

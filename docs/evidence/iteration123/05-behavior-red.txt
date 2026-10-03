@@ -1,0 +1,45 @@
+[WARN] The "pnpm" field in package.json is no longer read by pnpm. The following keys were ignored: "pnpm.overrides". See https://pnpm.io/settings for the new home of each setting.
+
+ RUN  v5.0.1 C:/Users/jingc/workspace/DSHWithChatGPT/package
+
+ ❯ tests/planner-executor-recovery-stage.spec.ts (1 test | 1 failed) 404ms
+   ❯ isolated acceptance recovery workload (1)
+     × activates only after base PASS, fails phase two without implementation, and preserves stdout-only nonce 403ms
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  tests/planner-executor-recovery-stage.spec.ts > isolated acceptance recovery workload > activates only after base PASS, fails phase two without implementation, and preserves stdout-only nonce
+AssertionError: expected '✔ splits blocked interval (1.0007ms)\…' to contain 'RECOVERY_STAGE_ACTIVATED'
+
+- Expected
++ Received
+
+- RECOVERY_STAGE_ACTIVATED
++ ✔ splits blocked interval (1.0007ms)
++ ℹ tests 1
++ ℹ suites 0
++ ℹ pass 1
++ ℹ fail 0
++ ℹ cancelled 0
++ ℹ skipped 0
++ ℹ todo 0
++ ℹ duration_ms 78.0883
++ E2E_EVIDENCE=6d183fbf2dfd09a142928575997f6464
++
+
+ ❯ tests/planner-executor-recovery-stage.spec.ts:24:26
+     22|     expect(first.status, first.stdout + first.stderr).toBe(0)
+     23|     expect(first.stdout).toMatch(/E2E_EVIDENCE=[a-f0-9]{32}/)
+     24|     expect(first.stdout).toContain('RECOVERY_STAGE_ACTIVATED')
+       |                          ^
+     25|     expect(await readFile(join(workspace, 'REQUIREMENTS.md'), 'utf8'))…
+     26|     const second = run('2')
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯
+
+
+ Test Files  1 failed (1)
+      Tests  1 failed (1)
+   Start at  21:06:06
+   Duration  564ms (tests 91%, transform 5%, import 3%, worker 1%)
+
