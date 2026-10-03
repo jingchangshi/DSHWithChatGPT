@@ -1,0 +1,695 @@
+{
+  "at": "2026-10-03T17:35:49.2184265Z",
+  "sourceHead": "a43f4a85b27e71022289f45d106479efd077c51d",
+  "fileCount": 172,
+  "files": [
+    {
+      "path": "lib\\adapters\\cordis\\planner-state-store.d.ts",
+      "sha256": "E596298413728EE0D69BA856BD7120A652C24CB0CD71E595E6A01E3375253F05"
+    },
+    {
+      "path": "lib\\adapters\\cordis\\planner-state-store.js",
+      "sha256": "BD69A0BCA57DA07995D0CD1D6D8E1FE16AA7E15897A958F554F5B38D4A93667D"
+    },
+    {
+      "path": "lib\\adapters\\cordis\\state-store.d.ts",
+      "sha256": "2605F6DF7D7B2784FC2D3B899470931F586076D4F8F52261722E5DBBF8643732"
+    },
+    {
+      "path": "lib\\adapters\\cordis\\state-store.js",
+      "sha256": "30D59F608B4F575A91D4AAE2AE3498E6A49B5EDA0DDDF3BCC70080BC0D4AB091"
+    },
+    {
+      "path": "lib\\adapters\\dsh\\agent.d.ts",
+      "sha256": "ECC117E0102B952DA621C42441F1CEAB249B0BBB6A9C977B93BED520479BEB75"
+    },
+    {
+      "path": "lib\\adapters\\dsh\\agent.js",
+      "sha256": "FEBA180518FBE9B08CDED75F4887E9230810D04EDB136ED93E959BAD78CEBD4A"
+    },
+    {
+      "path": "lib\\adapters\\dsh\\execution-workspace.d.ts",
+      "sha256": "FD666E7697C9962F17394782AE035B6E95A83C78A92E6523C9C21E06E396B364"
+    },
+    {
+      "path": "lib\\adapters\\dsh\\execution-workspace.js",
+      "sha256": "666A55DA21DB51DC8430C8799DF5CA443E1893E5CCF33DFC1D7BC2E1BF3761F1"
+    },
+    {
+      "path": "lib\\adapters\\dsh\\git-authority.d.ts",
+      "sha256": "17E85AF09B6D30511B9AF7D981D8AFC9084034DC61B443555CC15D65D6F2AEFD"
+    },
+    {
+      "path": "lib\\adapters\\dsh\\git-authority.js",
+      "sha256": "690E94A8FE114AF9DF543419AAB54E724F7AA710AA16989A30A35024D3845EB4"
+    },
+    {
+      "path": "lib\\adapters\\dsh\\round-identity.d.ts",
+      "sha256": "B4DCDEC9D13D03668093E197D5FB1343C1319C05DEE28EE7304A8E1629BC143E"
+    },
+    {
+      "path": "lib\\adapters\\dsh\\round-identity.js",
+      "sha256": "7F234687033861AD2D844107007F22A61D923E0F9471BF0B0ED41DBD517DB295"
+    },
+    {
+      "path": "lib\\adapters\\mcp-exposure\\openai-secure-tunnel.d.ts",
+      "sha256": "B21288E30CA82AE3D9065F428B07241A62AD52DA2336495B52C2C8D81334976E"
+    },
+    {
+      "path": "lib\\adapters\\mcp-exposure\\openai-secure-tunnel.js",
+      "sha256": "9347F5900A053053BD864C16535B46ECE36E79593214F63AA6F0B1E71EBC7FC5"
+    },
+    {
+      "path": "lib\\bridge\\index.d.ts",
+      "sha256": "9F9A0901EAAE8CADB19112F2BD2A1634DF57E72060EF9CE8906B07DB0D05EFAA"
+    },
+    {
+      "path": "lib\\bridge\\index.js",
+      "sha256": "2B63E135CD1BFE1BBF107EBA47677F3BFCEB36B212BCBEAE4AC26BCB21B23CA0"
+    },
+    {
+      "path": "lib\\bridge\\server.d.ts",
+      "sha256": "F93995BA8D7FC469A7117B9C62B27D48DA808C685FF602FB0DC3EA0BBDE7383C"
+    },
+    {
+      "path": "lib\\bridge\\server.js",
+      "sha256": "7EBE987EE3FF37009186A5DF5412E4474F274A6C302227BE1E9AD7202285DA54"
+    },
+    {
+      "path": "lib\\bridge\\tool-definitions.d.ts",
+      "sha256": "A083C8ACA286CD2552E1E5C577809A8B9BE72587CFB455FB6E1BF0DADAA33ADD"
+    },
+    {
+      "path": "lib\\bridge\\tool-definitions.js",
+      "sha256": "E8B835DABE98823D10C5B361A9FB6B70D924CC4F13E263DE4548C3D28FF7445C"
+    },
+    {
+      "path": "lib\\bridge\\tools.d.ts",
+      "sha256": "61BABFB7A0317A611E5854AD770B77C1210C0A75A1D1731200A1903779F0D464"
+    },
+    {
+      "path": "lib\\bridge\\tools.js",
+      "sha256": "A14C218B15938FF728B045C2C1AB7036A20561992D46A400007F338DD85303F2"
+    },
+    {
+      "path": "lib\\browser\\adapter.d.ts",
+      "sha256": "BF06E33EAC6322D894375605C675E2979C76920514FE7343A0D0BBE8B05A4B37"
+    },
+    {
+      "path": "lib\\browser\\adapter.js",
+      "sha256": "AF1CB8350B95384051B3AB1FD98D0CFB89ECAD5547EB409B3801045CE6291A50"
+    },
+    {
+      "path": "lib\\browser\\cdp-session.d.ts",
+      "sha256": "8FA3FBF8BA9D477D5025901157FDBE26262E7FCC0DAE675DD8285AF5B286F4B8"
+    },
+    {
+      "path": "lib\\browser\\cdp-session.js",
+      "sha256": "A66A5862D46FEFD8CF6DAEFCFC32E4368D9088448E6C8A5D293D430607625614"
+    },
+    {
+      "path": "lib\\browser\\chatgpt-web-driver.d.ts",
+      "sha256": "21676DBB5DB0CC6CE2FCC79CE4C9103C39182E61408A05EB8DF4C6EA1215C7E7"
+    },
+    {
+      "path": "lib\\browser\\chatgpt-web-driver.js",
+      "sha256": "FA8BD37EF32E60EC1CEBE69F53FCDA94E0F6BD12B83AD06E09E2381130D181DF"
+    },
+    {
+      "path": "lib\\browser\\direct-cdp.d.ts",
+      "sha256": "B39C9A09DCE0391A18931D9BD334890E4B49A4ED808D8F167848CF8A58850D98"
+    },
+    {
+      "path": "lib\\browser\\direct-cdp.js",
+      "sha256": "CAD46ACB2E01F5761DC79CE0375486EE41159015B68BE4F65B3BA0F6B0B43D7D"
+    },
+    {
+      "path": "lib\\browser\\epoch.d.ts",
+      "sha256": "FEA474DA705DF974C6836311D48BA6E7379B1BE06A46469D61CC64209760B6D4"
+    },
+    {
+      "path": "lib\\browser\\epoch.js",
+      "sha256": "7A46FF4930415477911B7DC82DBCCFC32F50A373A7C285C59CD496E0A67CD249"
+    },
+    {
+      "path": "lib\\browser\\errors.d.ts",
+      "sha256": "5029798C4529A335611A157F8FDC7D56C72FCC35A1ECEBAA7215F389192925A1"
+    },
+    {
+      "path": "lib\\browser\\errors.js",
+      "sha256": "9DAE12D47DD378F0E1D88212F1408644A6677FD75EFDC35C866275680314CBC2"
+    },
+    {
+      "path": "lib\\browser\\focus-expression.d.ts",
+      "sha256": "7F464229E0EEDA829AF462F266AAAF35C6DDF6CF5543EBA19105498E05CBB9A8"
+    },
+    {
+      "path": "lib\\browser\\focus-expression.js",
+      "sha256": "9725402D1DE44C0957587386294FD2379C7CF012A94C85846FA510B2D7D3B5A2"
+    },
+    {
+      "path": "lib\\browser\\harness.d.ts",
+      "sha256": "7E70E746DD5BB603B76DF92B0D1C80C23F6BD2A0F8F676252798926D1377B334"
+    },
+    {
+      "path": "lib\\browser\\harness.js",
+      "sha256": "E3EF5240D336F393A4258AB068D2E5936D03AFB777E74B704934AF783AD01684"
+    },
+    {
+      "path": "lib\\browser\\history-observation.d.ts",
+      "sha256": "6128B70E10747CE64268D79B945A5682D812CCB3B62069CD12164357AFAA0CAF"
+    },
+    {
+      "path": "lib\\browser\\history-observation.js",
+      "sha256": "1580391256213E5E2C3362AC6585D60E3C619EE83C06C573E38F7D1D5456F034"
+    },
+    {
+      "path": "lib\\browser\\index.d.ts",
+      "sha256": "E37A67F11864C5770699BD8145CF97744F91B0CB666F79C5A0FBA43CC5270676"
+    },
+    {
+      "path": "lib\\browser\\index.js",
+      "sha256": "43D31E6109BB7E3CC821509659D9DC34A9B0F2EEB5FF5ADB95A548CA6907F1AC"
+    },
+    {
+      "path": "lib\\browser\\message-observation.d.ts",
+      "sha256": "095B96F6C85604E4F231C3F7E236DC46EDC4A37366C64CDFFC4605E3BC993E6A"
+    },
+    {
+      "path": "lib\\browser\\message-observation.js",
+      "sha256": "BD5AE42B1D2CD7D3479D742519EDF85E4154CF63ED5FC5DF450AF2C585273D09"
+    },
+    {
+      "path": "lib\\browser\\ownership.d.ts",
+      "sha256": "8A8FB1572A24574D7BA4EEB770F8F8A77A42E48C6730F07AFE7AD6F1DF8BBABC"
+    },
+    {
+      "path": "lib\\browser\\ownership.js",
+      "sha256": "604564309AB89D3181077886CC1307474B72CDBE863064F66353C1FA19BE13EB"
+    },
+    {
+      "path": "lib\\browser\\primitives.d.ts",
+      "sha256": "A034B41DDA1CF4915DB3C59E5E99D4D14E9FA569E7796F1BC30F5ECDBA76E64C"
+    },
+    {
+      "path": "lib\\browser\\primitives.js",
+      "sha256": "3F3D3937D4484D84DA0D4A19F88EE933DEE9E6841263CBCFCAC0D8ED942A366B"
+    },
+    {
+      "path": "lib\\browser\\transitions.d.ts",
+      "sha256": "508CF349F9893D6E4DCAC1489A60EA6E30F79E7163EEC37286F3137EC63DF251"
+    },
+    {
+      "path": "lib\\browser\\transitions.js",
+      "sha256": "864E4A46F027ACF168B9F66BB4CF8C04EEF875793052D21F47F2544DE726E194"
+    },
+    {
+      "path": "lib\\cancellation.d.ts",
+      "sha256": "B17C1833778740DFD6F6604FB38FC45C0DF71792DADEF802A4F27F2391E03CD6"
+    },
+    {
+      "path": "lib\\cancellation.js",
+      "sha256": "2C7F5A8AAF51E0716985085DABA0B7F84869C438A904609C1F3B7E98DA2D539D"
+    },
+    {
+      "path": "lib\\core\\model.d.ts",
+      "sha256": "5E129D32AFD9985ABA8C5C9374E80D5B809D1D4B2D309E17F9A601523D0FF16A"
+    },
+    {
+      "path": "lib\\core\\model.js",
+      "sha256": "2939283B6F83BFA8CD272843CCA8A5C90F040B954681CDB4A74FAFFDA58AC448"
+    },
+    {
+      "path": "lib\\core\\planner-task.d.ts",
+      "sha256": "CF4873A25C6ECE6D4850D7081A721092E573F002EF516E38C51A2036D99CB105"
+    },
+    {
+      "path": "lib\\core\\planner-task.js",
+      "sha256": "8E609BB71C20B858C77F0E9F90BB1319DB8477B13F9F965F1A1E18524BF50881"
+    },
+    {
+      "path": "lib\\core\\ports\\agent.d.ts",
+      "sha256": "9BC6E74B032DD7AB76BD9A136FB4B27842CCB6F5E6BC4BE95263DB04150122B0"
+    },
+    {
+      "path": "lib\\core\\ports\\agent.js",
+      "sha256": "8E609BB71C20B858C77F0E9F90BB1319DB8477B13F9F965F1A1E18524BF50881"
+    },
+    {
+      "path": "lib\\core\\ports\\chat-control.d.ts",
+      "sha256": "269B751F27761B9EC5FA8AD0C673076143BC5CD0E8568831020F39163E906A6C"
+    },
+    {
+      "path": "lib\\core\\ports\\chat-control.js",
+      "sha256": "8E609BB71C20B858C77F0E9F90BB1319DB8477B13F9F965F1A1E18524BF50881"
+    },
+    {
+      "path": "lib\\core\\ports\\chat-diagnostics.d.ts",
+      "sha256": "96DA2619F8B10E9C4B5C8904EEF7770364C1597BBC79904957E66654D75EB98D"
+    },
+    {
+      "path": "lib\\core\\ports\\chat-diagnostics.js",
+      "sha256": "8E609BB71C20B858C77F0E9F90BB1319DB8477B13F9F965F1A1E18524BF50881"
+    },
+    {
+      "path": "lib\\core\\ports\\execution-workspace.d.ts",
+      "sha256": "3818931725313673C560BBA3B9521A03E8244770C2B4523B6C76E09907332E72"
+    },
+    {
+      "path": "lib\\core\\ports\\execution-workspace.js",
+      "sha256": "8E609BB71C20B858C77F0E9F90BB1319DB8477B13F9F965F1A1E18524BF50881"
+    },
+    {
+      "path": "lib\\core\\ports\\git-authority.d.ts",
+      "sha256": "DE2755D42976C9CB61FF678A4BF1611C4D77D45A954678FA328AA935B31876CD"
+    },
+    {
+      "path": "lib\\core\\ports\\git-authority.js",
+      "sha256": "8E609BB71C20B858C77F0E9F90BB1319DB8477B13F9F965F1A1E18524BF50881"
+    },
+    {
+      "path": "lib\\core\\ports\\index.d.ts",
+      "sha256": "9EEFFC1AE882146E527FA0A42AA1B986BE484DB99B4EDD83A83E46C057247C6F"
+    },
+    {
+      "path": "lib\\core\\ports\\index.js",
+      "sha256": "01BB2E7A7A4D7F0DA3F15A0A6969A24A08E25EE387332ADCAE7838BF9AED5A3D"
+    },
+    {
+      "path": "lib\\core\\ports\\mcp-exposure.d.ts",
+      "sha256": "5C0B5EAD44355048982C51278B1AC4383F39E33433485B93D0D3124C24DB2E19"
+    },
+    {
+      "path": "lib\\core\\ports\\mcp-exposure.js",
+      "sha256": "8E609BB71C20B858C77F0E9F90BB1319DB8477B13F9F965F1A1E18524BF50881"
+    },
+    {
+      "path": "lib\\core\\ports\\state-store.d.ts",
+      "sha256": "2779932C001A5A0A0EF027664C8FC0C8362D63FB2DEF1F1494C0D03B33BF248E"
+    },
+    {
+      "path": "lib\\core\\ports\\state-store.js",
+      "sha256": "468A0605FD5CDC391D26D25A32171FF0279D9431E08BA1E5E79E7AE4ECAA9196"
+    },
+    {
+      "path": "lib\\deployment\\direct-sidecar.d.ts",
+      "sha256": "A4FE767BF7BDC4EB1CBE32E58AC21FBB3F7A3FA5030B6318FC0CAB9971862001"
+    },
+    {
+      "path": "lib\\deployment\\direct-sidecar.js",
+      "sha256": "9D600703E373BF897FB9EC2293F7CCCBCFC2823703AECD1E488CEF51368065E4"
+    },
+    {
+      "path": "lib\\deployment\\dsh-runtime.d.ts",
+      "sha256": "1E9934D70582ED713AE9ADED0AD0B16030DBEB3E49A01EE5A14D9DA1D6254FEF"
+    },
+    {
+      "path": "lib\\deployment\\dsh-runtime.js",
+      "sha256": "826CBBF6D107667A6782242FCF81E0D8C034B6DE4E7BE720C3244543FC9E78B0"
+    },
+    {
+      "path": "lib\\deployment\\private-state.d.ts",
+      "sha256": "5275A0E71EEC06149001D614099AEF4553F57E5DE444F1A5D6C9410716548667"
+    },
+    {
+      "path": "lib\\deployment\\private-state.js",
+      "sha256": "6081C26B9BE29E902466A27B99F039A45D0979F8984D15682F3D07B79A3437B6"
+    },
+    {
+      "path": "lib\\deployment\\sidecar-control.d.ts",
+      "sha256": "FE04D6B81DA29C0604EAA35B3088C8149F75CED20022EC5E4C44BEAB1D333175"
+    },
+    {
+      "path": "lib\\deployment\\sidecar-control.js",
+      "sha256": "6D3C7678C866CFE1940BD51A400400798BA4E0F7C40C059F72C91F0573D81C0C"
+    },
+    {
+      "path": "lib\\deployment\\sidecar-credential.d.ts",
+      "sha256": "9F8F51581D853C2E0600D92262D8324495D431064DD73EB31F984A6C35D603EB"
+    },
+    {
+      "path": "lib\\deployment\\sidecar-credential.js",
+      "sha256": "C16520C91BEAEA2D761EBEB9941D256CEFC4F7E1DCE1836F3580A71D3A52F5E5"
+    },
+    {
+      "path": "lib\\deployment\\sidecar-process-entry.d.ts",
+      "sha256": "43E818ADF60173644896298637F47B01D5819B17EDA46EAA32D0C7D64724D012"
+    },
+    {
+      "path": "lib\\deployment\\sidecar-process-entry.js",
+      "sha256": "F23320C0E2833693CFEF8B5684C2AE4FFB32C1065A7C039585C75F2C4AB41DC5"
+    },
+    {
+      "path": "lib\\deployment\\sidecar-supervisor.d.ts",
+      "sha256": "D977494CA1F2AB353825180735BA7ABE39164F7694C4D67AE963D168AF7D11F9"
+    },
+    {
+      "path": "lib\\deployment\\sidecar-supervisor.js",
+      "sha256": "85CA5F6F495860278AF2222E755737D2496827032E636E6387022111A0A20043"
+    },
+    {
+      "path": "lib\\deployment\\sidecar-target-recovery.d.ts",
+      "sha256": "8AD1C51789CCDD0262A5D0AC4B05C1D779CFF33AE40C9930BDC8FD214E8FDAED"
+    },
+    {
+      "path": "lib\\deployment\\sidecar-target-recovery.js",
+      "sha256": "9277F691D578E20E285CD582D0A0E0756A7BF5B21495E764A3B451AAE8B1E8BA"
+    },
+    {
+      "path": "lib\\execution\\index.d.ts",
+      "sha256": "A639335C01C494D8538D5FC5C6903C7A51ADD981FF264103087169323FD7D674"
+    },
+    {
+      "path": "lib\\execution\\index.js",
+      "sha256": "7DE2CFFC190261BF7AC54BB67D15C7115D86C114A6C84D4E5DFE1186A2281356"
+    },
+    {
+      "path": "lib\\execution\\observe.d.ts",
+      "sha256": "C985BEE9A365C3B8CAA5AB7B8A81A45BFD8735EA4CA257C83DF935C5AE35B14F"
+    },
+    {
+      "path": "lib\\execution\\observe.js",
+      "sha256": "39D202B68E33F161B11EB7EDF1E6F74A0DAAA7CCD8785367854A39E96C8AADEF"
+    },
+    {
+      "path": "lib\\execution\\recorder.d.ts",
+      "sha256": "32320E3B9C8D0370BD876637C130B7070BEE6C469E045C5E2EFCCB892B568283"
+    },
+    {
+      "path": "lib\\execution\\recorder.js",
+      "sha256": "4EDE8AF7BF7FA39185448A53B5E8BE101A8FB329F44C7FF85C55DCEFDF917A20"
+    },
+    {
+      "path": "lib\\execution\\scope.d.ts",
+      "sha256": "A87688BFD4331FACFB618D640711EAB004FE34140F0B958364499101CCB70FF4"
+    },
+    {
+      "path": "lib\\execution\\scope.js",
+      "sha256": "A7DD60D70DC8B670F8B23A809C88827F635EBC48DD2145554241DC6B42BBFD32"
+    },
+    {
+      "path": "lib\\execution\\workspaces.d.ts",
+      "sha256": "2AB021F8522D685A51579989BFB1E652C2C0B398AAA3553F4FDA806B7D83C82A"
+    },
+    {
+      "path": "lib\\execution\\workspaces.js",
+      "sha256": "ADB59F3CD4E450CADF3895C405D9EFB4BCECF37C2D571190302A8ABCBB09FE93"
+    },
+    {
+      "path": "lib\\index.d.ts",
+      "sha256": "36102E80C22CB4F521B5D9C228F5B53A7BBA8CE5C9D422D8A6274BA5C2718C42"
+    },
+    {
+      "path": "lib\\index.js",
+      "sha256": "457D0725E1A1E5A2BD691EB236D51BCC7F6F50BF151B5A87C96879D2FD7B6692"
+    },
+    {
+      "path": "lib\\orchestrator\\coordinator.d.ts",
+      "sha256": "5C13CC294CAAE65136EE3D48B5C6E70A03A1A4B9DDCC17117991131A2CB4D7AC"
+    },
+    {
+      "path": "lib\\orchestrator\\coordinator.js",
+      "sha256": "67C33720210B39D5A616D6FF59506CC6426443F834938DDB037B3B8992D1BD16"
+    },
+    {
+      "path": "lib\\orchestrator\\index.d.ts",
+      "sha256": "B0472BCEE2DAA094478987B3E3599B61E36B138CBCA94AEC81B0E72749F5154F"
+    },
+    {
+      "path": "lib\\orchestrator\\index.js",
+      "sha256": "C63BA4A6138533C3461A96E39D34AED806A7428D2FB5CB53C24F9B200AD72D2B"
+    },
+    {
+      "path": "lib\\orchestrator\\legacy-send-guard.d.ts",
+      "sha256": "C7088A8BC7906FA76DE85121C46ED82DFD3269E1D50821626761FAACA457A2D9"
+    },
+    {
+      "path": "lib\\orchestrator\\legacy-send-guard.js",
+      "sha256": "F772117A33297858AA9DC931AA990E12F627EF5396982D46B29ACFB8FC77BA75"
+    },
+    {
+      "path": "lib\\orchestrator\\ownership.d.ts",
+      "sha256": "B60E121A48BDE4A447F7D86525F58FC8AE29360FFC326C001F5CF31F3E52A022"
+    },
+    {
+      "path": "lib\\orchestrator\\ownership.js",
+      "sha256": "A2863A150E6AC19E275F8CA249A77E0C648AF460B9E3FCCC12D7274756C33533"
+    },
+    {
+      "path": "lib\\orchestrator\\planner-task.d.ts",
+      "sha256": "434AB3B21260BF79DB2B7711EF7CDB0831E5771953F27BE4ADAB3B50632A5290"
+    },
+    {
+      "path": "lib\\orchestrator\\planner-task.js",
+      "sha256": "A2D80D92579CD7D8814B98FF749C6CF3F1E92E09C895C51734691158BF497513"
+    },
+    {
+      "path": "lib\\orchestrator\\protocol-state-backend.d.ts",
+      "sha256": "AC904389164DE6E606FD3F3FA8C702E835E6DF6FB6EA96312C6E2C739E00DD19"
+    },
+    {
+      "path": "lib\\orchestrator\\protocol-state-backend.js",
+      "sha256": "9C07B0747F3CB5EF72F710D60E4CDFD848AA3BED5A4850C14093D6E35C7085AE"
+    },
+    {
+      "path": "lib\\orchestrator\\state.d.ts",
+      "sha256": "932A9D2F7EC843A7FBDF4531A6FF6675E5EA5803B6D5CF131C2148DA9348A87B"
+    },
+    {
+      "path": "lib\\orchestrator\\state.js",
+      "sha256": "4C763E039C4BC930499591256EF11A226F1DEE6F53FCE2FB851A4AEB8F81F95A"
+    },
+    {
+      "path": "lib\\protocol\\envelope.d.ts",
+      "sha256": "9599ADE4E2BC6F8FB7089171634EA7B91D08ED64798106022A0DC519EBB0232F"
+    },
+    {
+      "path": "lib\\protocol\\envelope.js",
+      "sha256": "3973F0C685DE4DDC6F611A69027F224CE000F93DF3CE6AC506032B546FCF697E"
+    },
+    {
+      "path": "lib\\protocol\\index.d.ts",
+      "sha256": "4C872D7E9C51FB95932B3D9D6DEA0DEA0915BB2111DEAE820753CE96895DB601"
+    },
+    {
+      "path": "lib\\protocol\\index.js",
+      "sha256": "890982F3BFB968539A18B55047180DBF84AC53EADC87B2F88F9266D887E9C68D"
+    },
+    {
+      "path": "lib\\protocol\\legacy-planner-policy.d.ts",
+      "sha256": "E3E9D9C5E3347BE5634F0DF561531F17390C10790BB078188DE83263A323C295"
+    },
+    {
+      "path": "lib\\protocol\\legacy-planner-policy.js",
+      "sha256": "3B614EEC0BC3C4F3371BF830B02FBC2A24361686909584D666F7E6787B2109A8"
+    },
+    {
+      "path": "lib\\protocol\\legacy-reply.d.ts",
+      "sha256": "ACB83C0CAA8E98809A27D7213A5FF71B1775C8C663BEA6BF3736643BA62B7BF0"
+    },
+    {
+      "path": "lib\\protocol\\legacy-reply.js",
+      "sha256": "B77295E6F2BBB859D643A260ADF205E2AC6D27C5A7D8F5CBC38E7E6D8E36DC1D"
+    },
+    {
+      "path": "lib\\protocol\\planner-envelope.d.ts",
+      "sha256": "CC83BE1D51F3A724F3964D15BA70634670B732D481AA37921EFB6A5E7600BFFD"
+    },
+    {
+      "path": "lib\\protocol\\planner-envelope.js",
+      "sha256": "B9032F691D546A3729B2343939A29891F24A6542027E152403416127EA603ABF"
+    },
+    {
+      "path": "lib\\protocol\\planner-instructions.d.ts",
+      "sha256": "075FC11308A854BF788CAB5E3C1158860E41E2D77AEABCFEE73A9561D76D5036"
+    },
+    {
+      "path": "lib\\protocol\\planner-instructions.js",
+      "sha256": "1DC620BF848282BCB3D41862326FACA5F68568890C8344D89B9248DBB17C49B7"
+    },
+    {
+      "path": "lib\\protocol\\state-machine.d.ts",
+      "sha256": "1D06105168013618CF663E76A00ED2ABD2C99E3B91A5D27BF31A48EB8E57FC5E"
+    },
+    {
+      "path": "lib\\protocol\\state-machine.js",
+      "sha256": "053C41D0EDFB98936B8D025A5D1DFBEF2BF76809A87D1484BBC27D01D32B36CD"
+    },
+    {
+      "path": "lib\\readiness\\app-proof.d.ts",
+      "sha256": "97FAC7F9B0E8CC03222EC5C9124A8001BBFCF1CE97780EDBEB867CB555594C53"
+    },
+    {
+      "path": "lib\\readiness\\app-proof.js",
+      "sha256": "D797153529D1DB9E065E4D9370E7D8B76633C6C156FF186A1B448F7397471CFB"
+    },
+    {
+      "path": "lib\\readiness\\doctor.d.ts",
+      "sha256": "BAC708A8EF5974513D1ED657083B81347A84F9907B969D4A1C768E8205526553"
+    },
+    {
+      "path": "lib\\readiness\\doctor.js",
+      "sha256": "FC091A0E07814FD6D04681162E301E5F645BA2DFE1E8C55C25EC992AC7AC9F67"
+    },
+    {
+      "path": "lib\\sidecar\\client.d.ts",
+      "sha256": "7C665457481B687ACBD320F7FD54573CD2600762275E9669CD912457A8E5C574"
+    },
+    {
+      "path": "lib\\sidecar\\client.js",
+      "sha256": "896284144AEE6A1CB4AD241A8293F0351CF22DF52D49FC833D37794EB1A1C3D5"
+    },
+    {
+      "path": "lib\\sidecar\\errors.d.ts",
+      "sha256": "DDFE7AA2A18CEB62122F8300084CC6FE9550FEC7CE1FD6AD836B926A3B49AB65"
+    },
+    {
+      "path": "lib\\sidecar\\errors.js",
+      "sha256": "33D7346B0DF739814FF4FA1FCDD6CF1C1EA927497C662657F225BF09965270C9"
+    },
+    {
+      "path": "lib\\sidecar\\index.d.ts",
+      "sha256": "E25A39E16447BEE39A0243616BDE796F7162F6B343E799976E0A8E5D6D61DE49"
+    },
+    {
+      "path": "lib\\sidecar\\index.js",
+      "sha256": "6E3651F632058FD6D10929C3259BAB19C21DDB94CE2B6361B725493603BAD67B"
+    },
+    {
+      "path": "lib\\sidecar\\journal.d.ts",
+      "sha256": "D595921C65772922F5B9B27602895828364371080CB583421C51662C42273B6F"
+    },
+    {
+      "path": "lib\\sidecar\\journal.js",
+      "sha256": "D60322C6B72CC456F98C4EDD577C60589C7D02FE04F056A273FF868888641440"
+    },
+    {
+      "path": "lib\\sidecar\\protocol.d.ts",
+      "sha256": "17A381AEAEFA535A2387C602B7D05C7BC9B49B02091FE0EDA0BFA6C5B491C720"
+    },
+    {
+      "path": "lib\\sidecar\\protocol.js",
+      "sha256": "8C3A5B16C0E12BBC032F717AD669F434655872C5E58D5F626161FA6D1B386F78"
+    },
+    {
+      "path": "lib\\sidecar\\rpc-http.d.ts",
+      "sha256": "1B93A1FB4BD70348B38091901CB80BB4D0584006D26686E3E6D1F3DD4510E787"
+    },
+    {
+      "path": "lib\\sidecar\\rpc-http.js",
+      "sha256": "A4EEFD27EE1CBEDB6D4ECAED2A4498E448BAF72D8C57C27BADED305549D7D3FD"
+    },
+    {
+      "path": "lib\\sidecar\\server.d.ts",
+      "sha256": "645B9E127D52B4B31966E675BE86BF8C00296060CFAF5C222C7E9B1D3F784E76"
+    },
+    {
+      "path": "lib\\sidecar\\server.js",
+      "sha256": "4B1399366EC96BC3507BBB01D563A1C6AFB94BE27A583963C8F8A834E6855F31"
+    },
+    {
+      "path": "lib\\tunnel\\index.d.ts",
+      "sha256": "F7139990969187C883FBEA37B9A043000DC91A1E33171681949BBAC8CEE8FA30"
+    },
+    {
+      "path": "lib\\tunnel\\index.js",
+      "sha256": "F13598E217032F9AE5DD2F2B04BBD6DA8FCD2987954638D9A508C778EBB1977D"
+    },
+    {
+      "path": "lib\\tunnel\\supervisor.d.ts",
+      "sha256": "DA70BF14007A2F6C918746E6DEBC5CCAF83F39C80676965923B4841178A684B5"
+    },
+    {
+      "path": "lib\\tunnel\\supervisor.js",
+      "sha256": "F53820ECE4E2CFCC1B09140E5D9A88E5D1E2D7FB57A8F32A59327E721FD875EA"
+    },
+    {
+      "path": "lib\\workspace\\boundary.d.ts",
+      "sha256": "AEAF149DCA757083C9B92959D1218FA5EDB55C7FD911C6FCF98DCC88A27ACD32"
+    },
+    {
+      "path": "lib\\workspace\\boundary.js",
+      "sha256": "CD11F9908A57D29795840E171B0E0BE28ECD1C240E52030394FC0665B9FE614A"
+    },
+    {
+      "path": "lib\\workspace\\directory-order.d.ts",
+      "sha256": "D7FDAEF8B2AC533856BF5E7F8E5DF1F74D837E0E45B9E40A85B0AD2467B6BDDD"
+    },
+    {
+      "path": "lib\\workspace\\directory-order.js",
+      "sha256": "8E0563B0DF992ED5FBF353DE8644A5D1666AA70DCBB82C806B5E58F2B20A4BF5"
+    },
+    {
+      "path": "lib\\workspace\\errors.d.ts",
+      "sha256": "94BAF08644DC051C9CC0414125FF690F69EBDDB3244E005DF6650EFBA8121DE2"
+    },
+    {
+      "path": "lib\\workspace\\errors.js",
+      "sha256": "A90D79509DC0AA67FD634865614807F0C6AC9A83875661ABC2E2F98F7FED4D87"
+    },
+    {
+      "path": "lib\\workspace\\execution-identity.d.ts",
+      "sha256": "722AFB2CC0365444795A8B963CBBDC1ABCB31B6D2C3FDDAC5D2F7335DED5E4B0"
+    },
+    {
+      "path": "lib\\workspace\\execution-identity.js",
+      "sha256": "7C120146FFC2CD420C96337546BF94E9329F0EF2A8FD8619429F6F5128CF7A3F"
+    },
+    {
+      "path": "lib\\workspace\\git.d.ts",
+      "sha256": "D4F1F4076ACF2697C01003CA1FE0712D0D8BB44B8D60C6F609A7EF16B9D03229"
+    },
+    {
+      "path": "lib\\workspace\\git.js",
+      "sha256": "EA40A0C3776B1801B8FF2F3C692E152956F8044837E7EA4A6DDE8CE676D0CEFB"
+    },
+    {
+      "path": "lib\\workspace\\identity.d.ts",
+      "sha256": "650616D4E48DAF12FEE265002428878D13463F26F02FA56FB45234721B6BF25A"
+    },
+    {
+      "path": "lib\\workspace\\identity.js",
+      "sha256": "2208CE5B876F4801485E4D650E0D4512ABD35D5FDC14331FA83A26863D9D971B"
+    },
+    {
+      "path": "lib\\workspace\\index.d.ts",
+      "sha256": "ADCCBBFB58CC491BC85F46054A115082BA7D1FCCD725E5F709B65F75A2AFB5B6"
+    },
+    {
+      "path": "lib\\workspace\\index.js",
+      "sha256": "1948F4AD0CEE69FB19C14E5F65F077E1C58C92DFD408BD93360151F23BCA5ABA"
+    },
+    {
+      "path": "lib\\workspace\\query.d.ts",
+      "sha256": "AD16F677C01C59ECEB88645B3DCDC712B54AE436240F4E9F0288B18ABD312021"
+    },
+    {
+      "path": "lib\\workspace\\query.js",
+      "sha256": "5B59FEADF33C2CDBBA03F7A385B58174E7372F6DA6F5ADFBEDBB665D24D6CBB8"
+    },
+    {
+      "path": "lib\\workspace\\read-lease.d.ts",
+      "sha256": "B3ED3A6C03B316FD3997D366643A7146AD1C028ACDE51C4B9B1493860106B045"
+    },
+    {
+      "path": "lib\\workspace\\read-lease.js",
+      "sha256": "F48BDF93BD85F92A8F47BE0E64A30402C1E422814E98C3C5D6F77178DF8CC169"
+    },
+    {
+      "path": "lib\\workspace\\runtime.d.ts",
+      "sha256": "098A9153750F3FB8F7D1E370F6811D644017B90687143E5C7316B75E51464A93"
+    },
+    {
+      "path": "lib\\workspace\\runtime.js",
+      "sha256": "E23ABEA04EC6CA2FFB8215104C19621C8B5F57B7D3569047D50B62610AF583A7"
+    },
+    {
+      "path": "lib\\workspace\\with-read-lease.d.ts",
+      "sha256": "63BEC05F2CB7A7C749A41261244A34D636DB52E1CB4FA48499BC7B9823225201"
+    },
+    {
+      "path": "lib\\workspace\\with-read-lease.js",
+      "sha256": "48D1F1D00EBD877F70EF8C9898EAB2CE5BB46591484C1F37A5F3A043FB77C191"
+    }
+  ]
+}

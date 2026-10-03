@@ -1,3 +1,11 @@
+## 当前执行依据：用户终止目标，已停止执行并归档当前证据
+
+2026-10-04 用户明确要求结束任务、终止目标并提交推送。目标状态已置 paused，不宣称完成。92 为实际 SOURCE_REVIEW_PASS_PENDING_GATES；最终定向94 为5 files /98 PASS，含最终编译产物13个native场景。95/96保存源码227文件和编译产物哈希。全量97按用户要求终止进程树，98标记 INTERRUPTED_BY_USER、无PASS，源码哈希不变。package/profile/installed association、exact-HEAD后续审阅、新真实曝光和整体 staged/lock/producer/global gates均未完成。未经用户恢复不继续执行目标。下文为历史。
+
+## HISTORY / SUPERSEDED：a43f4a8 独立源码审阅通过，执行冻结验证
+
+原 ChatGPT 会话已实际读取 workspace/source/evidence/execution_output126，92 保存 SOURCE REVIEW PASS 及具体 gates。当前执行最终 candidate focused/native；其后一次 frozen full 和 package/profile/installed association。真实曝光仍未获批准，real123 根因 UNKNOWN，整体 staged closure、lock、producer/global gates 仍 OPEN。交接范围见 [../../review-handoff-2026-10-04.md](../../review-handoff-2026-10-04.md)。下文均为历史，不作为重复运行依据。
+
 ## D28 当前：本地native方法阶段诊断通过，真实拒绝子分支仍UNKNOWN
 
 53为3PASS43.01s，54保留逐场景原方法调用阶段。仅修改既有native fixture的显式opt-in observer，委托原captureReplyBaseline/currentConversation/reconcileReplyBaseline调用；无新增浏览器请求，无生产源码变更，不输出正文/digest值/App identity hash/document ID/epoch。
@@ -12,7 +20,7 @@ D27隔离native实验使用编译Sidecar、实际Direct CDP和doctor原90000mspr
 合法延迟250ms：7386ms内成功，一次send/Enter，一次wait，无recovery。永久缺失：10819ms SEND_UNCERTAIN，无bound/wait/recovery；错误digest：891ms SEND_UNCERTAIN，无bound/wait/recovery。两者也只发送/Enter一次。51的materialized是fixture window.materialized标记与user存在的合取，不是生产messageObservation状态（wrong-digest在初始文档手动挂载时该标记仍false）。本实验没有记录prompt/reply/digest值。
 
 结论：D27反驳“250ms合法延迟需要新增grace”的假设，未建立生产缺陷RED；不能给real123未知子分支归因，不能据此重复真实曝光。只有diagnostic tests/fixture/doc变更，生产未改。原对话已达到明确长度上限；续接需先真实workspace_info核实，未完成身份核实前保留旧session URL。
-## 当前执行依据：real123 在 app-proof 绑定前失败，停止该次曝光
+## HISTORY / SUPERSEDED：real123 在 app-proof 绑定前失败，停止该次曝光
 
 冻结提交 b6a9061cc7d13c70d3f1d35c49537008424c2845 在原 ChatGPT 对话取得实际工具读取后的 EXACT_HEAD_SCOPED_REVIEW_PASS，获准一次 fresh real123。此前未读取源码的摘要批准及 REVIEW_BLOCKED 均不能作为通过依据。
 
@@ -21,7 +29,7 @@ real123（run39158fe5-bf88-4a21-972b-9d806ce32fb0）已终止：local doctor loc
 控制器停止该次执行并冻结证据40–47。20个WTS样本可用；停机前仅root/health/journal观察，独立page命令0。停机后单次page probe成功只证明该时点可执行。DSH与两个观察器已确认退出，Sidecar监听0。原oracle五项false、exitCode1。首次观察文件未创建的guard-read-unavailable记录完整保留。
 
 下一行动：将本次accepted但未绑定的失败边界提交原ChatGPT独立复核，先获得唯一可证伪的本地/native实验和停止条件；无普通重试、新target或放宽timeout/身份检查。真实闭环及lock/producer/global gates仍未完成。下文旧状态为历史。
-## 当前执行依据：post-D26 冻结全量 PASS，等待提交与 exact-HEAD 审阅
+## HISTORY / SUPERSEDED：post-D26 冻结全量 PASS，等待提交与 exact-HEAD 审阅
 
 2026-10-03 22:38（Asia/Shanghai），获独立方案批准的 post-D26 原命令 pnpm test 已终止，exit0：91 files / 1246 PASS / 3 原有 skips / 777.68s。原始输出见 docs/evidence/iteration123/37-frozen-full-after-d26.txt；终态38确认225个冻结文件哈希与路径无变化，39确认两次冻结清单一致。full 未加载 D26 observer，未改变源码、fixture、timeout 或安全检查。
 

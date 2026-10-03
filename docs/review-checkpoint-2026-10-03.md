@@ -1,4 +1,12 @@
-## 当前执行依据：D28c 窄修复已实现，交接审阅，整体目标未完成
+## 当前执行依据：用户终止目标，已停止执行并归档当前证据
+
+2026-10-04 用户明确要求结束任务、终止目标并提交推送。目标状态已置 paused，不宣称完成。92 为实际 SOURCE_REVIEW_PASS_PENDING_GATES；最终定向94 为5 files /98 PASS，含最终编译产物13个native场景。95/96保存源码227文件和编译产物哈希。全量97按用户要求终止进程树，98标记 INTERRUPTED_BY_USER、无PASS，源码哈希不变。package/profile/installed association、exact-HEAD后续审阅、新真实曝光和整体 staged/lock/producer/global gates均未完成。未经用户恢复不继续执行目标。下文为历史。
+
+## HISTORY / SUPERSEDED：a43f4a8 独立源码审阅通过，执行冻结验证
+
+原 ChatGPT 会话已实际读取 workspace/source/evidence/execution_output126，92 保存 SOURCE REVIEW PASS 及具体 gates。当前执行最终 candidate focused/native；其后一次 frozen full 和 package/profile/installed association。真实曝光仍未获批准，real123 根因 UNKNOWN，整体 staged closure、lock、producer/global gates 仍 OPEN。交接范围见 [review-handoff-2026-10-04.md](review-handoff-2026-10-04.md)。下文均为历史，不作为重复运行依据。
+
+## HISTORY / SUPERSEDED：D28c 窄修复已实现，交接审阅，整体目标未完成
 
 当前候选、双仓库状态、证据适用范围和未完成门槛见 [2026-10-04 交接说明](review-handoff-2026-10-04.md)。下文待实现状态为历史；本候选尚无最终独立源码审阅、冻结全量或真实曝光通过。
 

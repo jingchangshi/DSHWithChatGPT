@@ -1,0 +1,589 @@
+ode:
+    - generic: duplicate -> fail
+  - paragraph: "C:"
+  - generic: 代码
+  - button "启用自动换行":
+  - button "复制":
+  - code:
+    - generic: conflicting role -> fail
+  - paragraph: "D:"
+  - generic: 代码
+  - button "启用自动换行":
+  - button "复制":
+  - code:
+    - generic: multiple body -> fail
+  - paragraph: 预期：
+  - paragraph: 如果 A 失败且 B/C/D 保持失败，才形成最小 availability RED。
+  - paragraph: 之后才讨论：
+  - list:
+    - listitem: bounded observe
+    - listitem: progress budget
+    - listitem: explicit absolute deadline
+  - paragraph: 当前结论：
+  - generic: 纯文本
+  - button "启用自动换行":
+  - button "复制":
+  - code:
+    - text: "D28b: reason classification PASS"
+    - text: "Transient repair: NOT YET AUTHORIZED"
+    - text: "Next: prove real EMPTY_PENDING transient exists"
+  - button "复制":
+  - button "评价回复":
+  - button "分享":
+  - button "朗读":
+  - button "重新生成回复":
+  - button "更多操作":
+  - heading "你说：" [level=4]
+  - paragraph:
+    - link "Codex with ChatGPT · DSHWithChatGPT":
+      - /url: /plugins/plugin_asdk_app_6abe7de62de0819187075f584ebfde42
+      - generic: Codex with ChatGPT · DSHWithChatGPT
+    - text: "[C2C] STATE:EXECUTED TASK_ID:c2c_c035 ITERATION:125. Following69, no production behavior fix. Read actual workspace/source diff, evidence123/70-75, execution_output125. D28c current-role single-ID missing-body shell: initial zeroheight71 excluded and bound (fixture assertion failure retained); visible20px73/74 rejected749ms OBSERVATION_MISSING3ms, then exact same document/route at2s, one accepted send/Enter no wait/recovery. Message tests72 all22PASS retain duplicate/conflict/multiplebody negatives. Unknown-role case is NOT productionRED. Independently decide whether visible current-role missing-body RED authorizes narrow local fix. Specify exact classification returned by same observation, hostile cases must immediatefail, one absolute10s window no-refresh/original outer signal, original reload maximum1. Read actual method branches before prescribing patch/tests. No full or real exposure."
+  - generic: …
+  - button "显示更多":
+    - generic: 显示更多
+  - button "复制消息":
+  - button "共享提示":
+  - button "编辑消息":
+  - button "思考了 11s"
+  - generic: 思考了 11s
+  - heading "ChatGPT 说：" [level=4]
+  - paragraph: "[C2C REVIEW]"
+  - heading "D28c independent classification" [level=2]
+  - paragraph: 已读取：
+  - list:
+    - listitem: "workspace: DSHWithChatGPT"
+    - listitem: current source reconcileReplyBaseline
+    - listitem: messageObservation.ts
+    - listitem: message-observation.spec.ts
+    - listitem: evidence 70-75
+    - listitem: execution output 674
+  - paragraph: 结论：
+  - paragraph:
+    - strong: D28c 形成了一个新的、有限范围 availability RED。
+  - paragraph: 不是 unknown-role。
+  - paragraph: 不是 11s deadline。
+  - paragraph: 而是：
+  - generic: 纯文本
+  - button "启用自动换行":
+  - button "复制":
+  - code:
+    - text: current-role marker exists + single identity exists + no conflicting role + no duplicate + no multiple body + same target/document/route + body hydration eventually becomes exact
+    - text: but current reconcile immediately returns OBSERVATION_MISSING
+  - paragraph: 该状态满足：
+  - list:
+    - listitem: identity 未不确定；
+    - listitem: proof 未错误；
+    - listitem: 只是 proof materialization 尚未完成。
+  - paragraph: 因此可以考虑窄修复。
+  - separator
+  - heading "当前不能接受的修复方式" [level=1]
+  - paragraph: 禁止：
+  - generic: 纯文本
+  - button "启用自动换行":
+  - button "复制":
+  - code: all OBSERVATION_MISSING => poll
+  - paragraph: 原因：
+  - paragraph: messageObservationScript 的 null 仍包含：
+  - list:
+    - listitem: duplicate identity
+    - listitem: conflicting roles
+    - listitem: multiple bodies
+    - listitem: candidate/root limits
+    - listitem: body size limit
+    - listitem: structural ambiguity
+  - paragraph: 这些必须保持立即失败。
+  - separator
+  - heading "推荐最小 FIX_PLAN" [level=1]
+  - heading "修改位置" [level=2]
+  - paragraph: 仅：
+  - generic: 代码
+  - button "启用自动换行":
+  - button "复制":
+  - code:
+    - generic: package/src/browser/chatgpt-web-driver.ts
+  - paragraph: 核心：
+  - paragraph: reconcileReplyBaseline()
+  - paragraph: 不要修改：
+  - list:
+    - listitem: messageObservationScript 的安全规则
+    - listitem: public error contract
+    - listitem: Sidecar protocol
+  - separator
+  - heading "第一步：给 observation 增加内部分类" [level=1]
+  - paragraph: 不是扩大 telemetry。
+  - paragraph: 仅内部返回。
+  - paragraph: 建议：
+  - generic: TypeScript
+  - button "启用自动换行":
+  - button "复制":
+  - code: type MessageObservationState = | "READY" | "MISSING_BODY" | "STRUCTURAL_AMBIGUITY"
+  - button:
+  - paragraph: 语义：
+  - heading "MISSING_BODY" [level=2]
+  - paragraph: 允许 bounded observe：
+  - paragraph: 条件：
+  - paragraph: 当前一次 observation 已证明：
+  - list:
+    - listitem: user role marker 存在
+    - listitem: identity 数量 == 1
+    - listitem: role 不冲突
+    - listitem: target/document/route 未变化
+  - paragraph: 但：
+  - list:
+    - listitem: body selector 尚未出现
+  - paragraph: 即 D28c。
+  - separator
+  - heading "STRUCTURAL_AMBIGUITY" [level=2]
+  - paragraph: 立即失败：
+  - paragraph: 包括：
+  - list:
+    - listitem: duplicate IDs
+    - listitem: conflicting roles
+    - listitem: multiple bodies
+    - listitem: limits exceeded
+  - separator
+  - heading "reconcile 改动范围" [level=1]
+  - paragraph: 当前：
+  - generic: TypeScript
+  - button "启用自动换行":
+  - button "复制":
+  - code: let messages = await evaluate(messageObservationScript) if (!messages) throw SendUncertainError("OBSERVATION_MISSING")
+  - paragraph: 不要直接替换成 polling。
+  - paragraph: 改为：
+  - generic: 纯文本
+  - button "启用自动换行":
+  - button "复制":
+  - code: evaluate | +-- READY | | | existing proof path | +-- MISSING_BODY | | | bounded polling | +-- STRUCTURAL_AMBIGUITY | fail closed
+  - separator
+  - heading "Deadline策略" [level=1]
+  - paragraph: 采用：
+  - heading "单一 absolute deadline" [level=2]
+  - paragraph: 不是刷新10s。
+  - paragraph: 模型：
+  - generic: 代码
+  - button "启用自动换行":
+  - button "复制":
+  - code:
+    - generic: outer app proof signal
+    - generic: "|"
+    - generic: +-- reconcile absolute deadline
+    - generic: "|"
+    - generic: +-- current 10s bound
+  - paragraph: 要求：
+  - list:
+    - listitem: 10s 是一次窗口；
+    - listitem: 不 restart；
+    - listitem: 不重新计算；
+    - listitem: 不创建第二个等待周期。
+  - separator
+  - heading "polling规则" [level=1]
+  - paragraph: 仅：
+  - generic: 代码
+  - button "启用自动换行":
+  - button "复制":
+  - code:
+    - generic: MISSING_BODY
+  - paragraph: 允许。
+  - paragraph: 每次：
+  - list:
+    - listitem: 同一次 observation 逻辑；
+    - listitem: 同 target；
+    - listitem: 同 document；
+    - listitem: 同 route。
+  - paragraph: 停止条件：
+  - paragraph: 成功：
+  - button "启用自动换行":
+  - button "复制":
+  - code: MISSING_BODY -> READY exact proof
+  - paragraph: 失败：
+  - button "启用自动换行":
+  - button "复制":
+  - code: deadline reached -> SEND_UNCERTAIN
+  - separator
+  - heading "reload限制" [level=1]
+  - paragraph: 保持现有：
+  - button "启用自动换行":
+  - button "复制":
+  - code: maximum 1 existing fenced reload
+  - paragraph: 不增加。
+  - paragraph: 并且：
+  - paragraph: 如果进入 reload：
+  - paragraph: 以下任何变化立即失败：
+  - generic: 代码
+  - button "启用自动换行":
+  - button "复制":
+  - code:
+    - text: target changed
+    - generic: document changed
+    - text: route changed conversation changed
+  - separator
+  - heading "必须新增测试" [level=1]
+  - heading "1. D28c positive" [level=2]
+  - paragraph: 已有：
+  - generic: 代码
+  - button "启用自动换行":
+  - button "复制":
+  - code:
+    - generic: visible current-role missing-body
+  - paragraph: 升级为：
+  - paragraph: 期望：
+  - generic: 代码
+  - button "启用自动换行":
+  - button "复制":
+  - code:
+    - generic: sendCount=1
+    - generic: Enter=1
+    - generic: bound=true
+    - generic: wait=1
+    - generic: recovery=0
+  - separator
+  - heading "2. permanent missing" [level=2]
+  - paragraph: 保持：
+  - generic: 代码
+  - button "启用自动换行":
+  - button "复制":
+  - code:
+    - generic: SEND_UNCERTAIN
+  - paragraph: 且有限时间结束。
+  - separator
+  - heading "3. duplicate" [level=2]
+  - paragraph: 保持：
+  - generic: 代码
+  - button "启用自动换行":
+  - button "复制":
+  - code:
+    - generic: PROOF_AMBIGUOUS
+  - paragraph: 立即失败。
+  - separator
+  - heading "4. conflicting role" [level=2]
+  - paragraph: 保持：
+  - generic: 代码
+  - button "启用自动换行":
+  - button "复制":
+  - code:
+    - generic: OBSERVATION_STRUCTURAL_AMBIGUITY
+  - paragraph: 立即失败。
+  - separator
+  - heading "5. multiple body" [level=2]
+  - paragraph: 保持：
+  - paragraph: 立即失败。
+  - separator
+  - heading "6. route/document change during missing body" [level=2]
+  - paragraph: 保持：
+  - generic: 代码
+  - button "启用自动换行":
+  - button "复制":
+  - code:
+    - generic: BrowserTargetChangedError
+  - paragraph: 立即失败。
+  - separator
+  - heading "是否授权" [level=1]
+  - paragraph: 授权范围：
+  - paragraph:
+    - text: ✅ 可以实现上述窄分类 + bounded observation
+    - text: ✅ 可以增加 D28c native tests
+    - text: ✅ 可以保持 outer absolute deadline
+  - paragraph: 不授权：
+  - paragraph:
+    - text: ❌ timeout 增大
+    - text: ❌ retry
+    - text: ❌ resend
+    - text: ❌ App reactivation
+    - text: ❌ real exposure
+    - text: ❌ full regression
+  - separator
+  - paragraph: 当前状态：
+  - generic: 代码
+  - button "启用自动换行":
+  - button "复制":
+  - code:
+    - generic: "D28c:"
+    - generic: UNKNOWN_ROLE -> rejected as synthetic
+    - generic: "VISIBLE_CURRENT_ROLE_MISSING_BODY:"
+    - text: local availability RED confirmed
+    - generic: "Security:"
+    - generic: strict negatives preserved
+    - generic: "Next:"
+    - text: implement narrow MISSING_BODY-only bounded observation
+  - button "复制":
+  - button "评价回复":
+  - button "分享":
+  - button "朗读":
+  - button "重新生成回复":
+  - button "更多操作":
+  - button "来源":
+  - heading "你说：" [level=4]
+  - paragraph:
+    - link "Codex with ChatGPT · DSHWithChatGPT":
+      - /url: /plugins/plugin_asdk_app_6abe7de62de0819187075f584ebfde42
+      - generic: Codex with ChatGPT · DSHWithChatGPT
+    - text: "[C2C] STATE:EXECUTED TASK_ID:c2c_c035 ITERATION:126. Candidate a43f4a8 pushed. Actually read workspace_info, goal docs/plannerbridge_codex_goal_web_research_bf5a0bec.md, docs/review-handoff-2026-10-04.md, source/tests changes against bf5a0be, evidence123/76-91 and execution_output126. Narrow MISSING_BODY fix; single absolute10s including reload; caller cancellation; conversation check before wait. Focused56/browser110 PASS; native13 pre-last-edit build; latest build/typecheck and body native4 PASS. Historical real123 cause UNKNOWN. Independently inspect source/negative coverage/deadline/no-resend. Give FIX_PLAN or SOURCE_REVIEW_PASS_PENDING_GATES with precise frozen full/package/profile/association commands. No real exposure assumed; full staged goal remains open."
+  - button "复制消息":
+  - button "共享提示":
+  - button "编辑消息":
+  - button "思考了 12s"
+  - generic: 思考了 12s
+  - heading "ChatGPT 说：" [level=4]
+  - paragraph: "[C2C SOURCE REVIEW]"
+  - heading "Workspace verification" [level=2]
+  - paragraph: 已实际读取：
+  - list:
+    - listitem: "workspace: DSHWithChatGPT"
+    - listitem: "HEAD: a43f4a8"
+    - listitem: "branch: feat/complete-c2c-runtime"
+    - listitem: "dirty: false"
+  - paragraph: 已读取：
+  - list:
+    - listitem: docs/plannerbridge_codex_goal_web_research_bf5a0bec.md
+    - listitem: docs/review-handoff-2026-10-04.md
+    - listitem: D28c evidence summary
+    - listitem: 当前 chatgpt-web-driver.ts
+    - listitem: execution output 675
+  - paragraph: 当前判断：
+  - paragraph:
+    - strong: SOURCE_REVIEW_PASS_PENDING_GATES
+  - paragraph: 候选修复方向符合 D28c 授权范围，但尚未达到最终交付条件。
+  - separator
+  - heading "Source review" [level=1]
+  - heading "MISSING_BODY 修复范围" [level=2]
+  - paragraph: 当前设计符合要求：
+  - paragraph: 允许：
+  - button "启用自动换行":
+  - button "复制":
+  - code: single user role marker + single identity + no body yet + same target/document/route
+  - paragraph: 进入 bounded observation。
+  - paragraph: 不允许：
+  - button "启用自动换行":
+  - button "复制":
+  - code: duplicate identity conflicting roles multiple bodies limits exceeded wrong app wrong digest route/document change
+  - paragraph: 继续等待。
+  - separator
+  - heading "安全边界检查" [level=1]
+  - heading "no resend" [level=2]
+  - paragraph: 确认：
+  - paragraph: 测试证据：
+  - list:
+    - listitem: sendCount = 1
+    - listitem: pageEnterCount = 1
+    - listitem: no recovery
+  - paragraph: 符合要求。
+  - separator
+  - heading "reload" [level=2]
+  - paragraph: 要求：
+  - blockquote:
+    - paragraph: original reload maximum 1
+  - paragraph: 当前设计符合：
+  - list:
+    - listitem: 保留原 fenced reload。
+    - listitem: 不增加 retry。
+    - listitem: 不刷新 deadline。
+  - separator
+  - heading "deadline" [level=2]
+  - paragraph: 符合：
+  - button "启用自动换行":
+  - button "复制":
+  - code: single absolute 10s + caller cancellation + outer proof signal
+  - paragraph: 不是：
+  - button "启用自动换行":
+  - button "复制":
+  - code: each retry gets new 10s
+  - paragraph: 因此没有 timeout amplification。
+  - separator
+  - heading "Negative coverage review" [level=1]
+  - paragraph: 当前必须保持：
+  - heading "duplicate" [level=2]
+  - paragraph: 立即失败。
+  - paragraph: 原因：
+  - paragraph: 不是 transient。
+  - separator
+  - heading "conflict role" [level=2]
+  - paragraph: 立即失败。
+  - paragraph: 原因：
+  - paragraph: identity 不确定。
+  - separator
+  - heading "multiple body" [level=2]
+  - paragraph: 立即失败。
+  - paragraph: 原因：
+  - paragraph: proof 不唯一。
+  - separator
+  - heading "route/document change" [level=2]
+  - paragraph: 立即失败。
+  - paragraph: execution 675：
+  - list:
+    - listitem: body-route-change → BrowserTargetChangedError
+    - listitem: body-document-change → BrowserTargetChangedError
+  - paragraph: 符合预期。
+  - separator
+  - heading "D28c RED 判断" [level=1]
+  - paragraph: D28c 已经形成有效 availability RED：
+  - paragraph: 不是：
+  - button "启用自动换行":
+  - button "复制":
+  - code: unknown role pending
+  - paragraph: 而是：
+  - button "启用自动换行":
+  - button "复制":
+  - code: visible current-role single identity missing body eventual exact same document/route
+  - paragraph: 当前修复：
+  - paragraph: 将：
+  - button "启用自动换行":
+  - button "复制":
+  - code: OBSERVATION_MISSING
+  - paragraph: 细分为：
+  - button "启用自动换行":
+  - button "复制":
+  - code: MISSING_BODY STRUCTURAL_AMBIGUITY
+  - paragraph: 方向正确。
+  - separator
+  - heading "当前剩余风险" [level=1]
+  - heading "1. 最终 native 验证时间点" [level=2]
+  - paragraph: handoff 已说明：
+  - list:
+    - listitem: 87 focused 56 PASS
+    - listitem: 84 browser regression 110 PASS
+    - listitem: 85/86 native 13 PASS
+  - paragraph: 但：
+  - blockquote:
+    - paragraph: 85/86 使用的是 conversation check 前移之前的 build。
+  - paragraph: 因此不能作为最终源码证明。
+  - paragraph: 需要重新跑最终 build 后的完整 targeted native。
+  - separator
+  - heading "2. 需要确认 reason enum 不泄漏" [level=2]
+  - paragraph: 要求：
+  - paragraph: 保持：
+  - button "启用自动换行":
+  - button "复制":
+  - code: public SEND_UNCERTAIN
+  - paragraph: 不变。
+  - paragraph: "reason:"
+  - list:
+    - listitem: local diagnostic only
+    - listitem: 不进入 Sidecar RPC
+    - listitem: 不成为外部 contract
+  - separator
+  - heading "下一阶段 Gates" [level=1]
+  - paragraph: 允许进入冻结验证。
+  - paragraph: 不允许：
+  - list:
+    - listitem: real exposure
+    - listitem: full goal DONE
+    - listitem: product PASS
+  - separator
+  - 'heading "Gate 1: final build + typecheck" [level=2]'
+  - paragraph: 命令：
+  - generic: Bash
+  - button "启用自动换行":
+  - button "复制":
+  - code: cd package pnpm build pnpm typecheck
+  - paragraph: 记录：
+  - list:
+    - listitem: exit code
+    - listitem: generated artifact identity
+  - separator
+  - 'heading "Gate 2: browser regression" [level=2]'
+  - paragraph: 重新执行：
+  - generic: Bash
+  - button "启用自动换行":
+  - button "复制":
+  - code: cd package pnpm exec vitest run \ tests/message-observation.spec.ts \ tests/reply-reconciliation.spec.ts
+  - paragraph: 要求：
+  - paragraph: 保持：
+  - list:
+    - listitem: duplicate fail
+    - listitem: conflict fail
+    - listitem: multiple body fail
+    - listitem: missing body pass
+  - separator
+  - 'heading "Gate 3: native final candidate" [level=2]'
+  - paragraph: 重新执行最终源码：
+  - generic: Bash
+  - button "启用自动换行":
+  - button "复制":
+  - code: cd package pnpm exec vitest run \ tests/doctor-bind-boundary-native.spec.ts \ tests/bind-diagnostics-equivalence.spec.ts \ tests/sidecar-bootstrap-observation.spec.ts
+  - paragraph: 检查：
+  - heading "Positive" [level=3]
+  - button "启用自动换行":
+  - button "复制":
+  - code: body-hydration
+  - paragraph: 必须：
+  - button "启用自动换行":
+  - button "复制":
+  - code: bound=true waitCount=1 recovery=0 send=1
+  - heading "Negative" [level=3]
+  - button "启用自动换行":
+  - button "复制":
+  - code: body-permanent body-route-change body-document-change duplicate wrong digest wrong app
+  - paragraph: 必须 fail closed。
+  - separator
+  - 'heading "Gate 4: frozen full" [level=2]'
+  - paragraph: 冻结：
+  - list:
+    - listitem: source
+    - listitem: tests
+    - listitem: scripts
+    - listitem: config
+  - paragraph: 执行：
+  - generic: Bash
+  - button "启用自动换行":
+  - button "复制":
+  - code: git status git rev-parse HEAD git diff HEAD
+  - paragraph: 保存 manifest。
+  - paragraph: 然后：
+  - generic: Bash
+  - button "启用自动换行":
+  - button "复制":
+  - code: pnpm test
+  - paragraph: 要求：
+  - list:
+    - listitem: 不改变 frozen hash
+    - listitem: 不修改 timeout/security gate
+  - separator
+  - 'heading "Gate 5: package/profile/association" [level=2]'
+  - paragraph: 按照 iteration122/123 已有流程：
+  - paragraph: 重新生成：
+  - list:
+    - listitem: package
+    - listitem: profile
+    - listitem: installed association
+  - paragraph: 验证：
+  - list:
+    - listitem: source build
+    - listitem: packed artifact
+    - listitem: installed compiled modules
+  - paragraph: byte identity。
+  - separator
+  - heading "最终判断" [level=1]
+  - paragraph: 当前：
+  - button "启用自动换行":
+  - button "复制":
+  - code: "D28c narrow fix: SOURCE REVIEW PASS Security: unchanged Availability: narrow RED addressed Real123: UNKNOWN Next: frozen verification gates"
+  - paragraph: 通过上述 gates 后，才进入：
+  - list:
+    - listitem: exact-HEAD ChatGPT review
+    - listitem: phase1 acceptance workload
+    - listitem: DSH restart/reconnect
+    - listitem: phase2 implementation
+    - listitem: real product closure
+  - paragraph: 当前不批准真实曝光。
+  - button "复制":
+  - button "评价回复":
+  - button "分享":
+  - button "朗读":
+  - button "重新生成回复":
+  - button "更多操作":
+  - generic: ChatGPT 可能会出错。工作空间数据不会用于训练模型。
+  - button "滚动到底部":
+  - heading "最新一条回复" [level=4]
+  - status
+  - button "添加文件等内容":
+  - textbox "询问 ChatGPT":
+    - paragraph: 询问 ChatGPT
+  - button "选择 ChatGPT 模型":
+    - generic: 极高
+  - button "听写":
+  - button "开始语音":
+- status
+- status: 回答已完成
+- status
+- status

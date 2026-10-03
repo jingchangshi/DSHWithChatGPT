@@ -1,0 +1,11 @@
+{
+  "command": "pnpm test",
+  "status": "INTERRUPTED_BY_USER",
+  "finished": "2026-10-03T17:38:26.0612989Z",
+  "testExitCode": null,
+  "passClaimed": false,
+  "frozenFileCount": 227,
+  "hashDifferences": [],
+  "candidateUnchanged": true,
+  "reason": "User explicitly requested ending current task and terminating goal; full test process tree terminated before completion"
+}
