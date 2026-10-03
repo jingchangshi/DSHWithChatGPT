@@ -12,13 +12,17 @@ import { CoordinatorState, createMemoryStore } from '../src/orchestrator/state.t
 import { freezeShellExecution } from '../src/execution/observe.ts'
 import { reviewOutputScope } from '../src/execution/scope.ts'
 import type { ReplyObservationBaseline } from '../src/core/ports/chat-control.ts'
+import { SidecarSupervisor } from '../src/deployment/sidecar-supervisor.ts'
+import * as credentials from '../src/deployment/sidecar-credential.ts'
+import * as recovery from '../src/deployment/sidecar-target-recovery.ts'
+import { BrowserMutationUncertainError } from '../src/browser/epoch.ts'
 
 vi.mock('@deepseek-ai/dsh-execution-world/read-lease', { spy: true })
 vi.mock('@deepseek-ai/dsh-execution-world/git-lease', { spy: true })
-afterEach(() => vi.restoreAllMocks())
+afterEach(() => { vi.restoreAllMocks(); vi.unstubAllEnvs() })
 
 // Real registered tools/domain adapters; synthetic producer and browser only.
-async function fixture(fixFirst = false, gitPolicy: 'worktree' | 'commit-push' = 'commit-push') {
+async function fixture(fixFirst = false, gitPolicy: 'worktree' | 'commit-push' = 'commit-push', ownedSidecar = false) {
   const ctx = new Context(), records = new Map<string, any>(), tools = new Map<string, any>()
   const workspaceId = 'fixture-' + randomUUID(), head = 'a'.repeat(40)
   const baseline = { version: 1 as const, conversationId: null as string | null, assistantCount: 0, textDigest: 'a'.repeat(64), observationEpoch: 'b'.repeat(64) }
@@ -64,13 +68,194 @@ async function fixture(fixFirst = false, gitPolicy: 'worktree' | 'commit-push' =
   for (const service of ['fs', 'subprocess', 'sandbox']) ctx.provide(service, {})
   ctx.provide('tools', { register: (tool: any) => { tools.set(tool.name, tool) } })
   ctx.provide('systemPrompt', { section: (value: { text: string }) => { prompt = value.text }, getSectionOrder: () => 0 })
-  await ctx.plugin({ apply, Config, inject }, { browserMode: 'sidecar', tunnelMode: 'managed', gitRead: true, gitPolicy })
-  const call = (name: string, args: Record<string, unknown> = {}) => tools.get(name).execute(args,
-    { agent: { session: { header: { cwd: 'C:\\fixture' } } }, signal: new AbortController().signal })
+  await ctx.plugin({ apply, Config, inject }, { browserMode: 'sidecar', tunnelMode: 'managed', gitRead: true, gitPolicy,
+    ...(ownedSidecar ? { sidecarProcessCommand: process.execPath, sidecarCredentialFile: 'C:\\private\\test.secret' } : {}) })
+  const call = (name: string, args: Record<string, unknown> = {}, signal = new AbortController().signal) => tools.get(name).execute(args,
+    { agent: { session: { header: { cwd: 'C:\\fixture' } } }, signal })
   return { ctx, records, workspaceId, head, sent, acquired, call, get prompt() { return prompt }, bind: () => { captured = { ...baseline, conversationId: 'owned' } } }
 }
 
 describe('canonical production composition', () => {
+  it('stops unknown creation without retry, send, ownership mutation or invented disposal cleanup', async () => {
+    vi.stubEnv('PLANNERBRIDGE_SIDECAR_TARGET_ID', 'old')
+    vi.stubEnv('PLANNERBRIDGE_SIDECAR_CDP_ENDPOINT', 'http://127.0.0.1:9222')
+    vi.spyOn(credentials, 'readSidecarCredential').mockResolvedValue('test-only')
+    const start = vi.spyOn(SidecarSupervisor.prototype, 'start').mockResolvedValue()
+    const close = vi.spyOn(SidecarSupervisor.prototype, 'close').mockResolvedValue()
+    const replace = vi.spyOn(recovery, 'createOwnedSidecarReplacement').mockRejectedValue(new BrowserMutationUncertainError())
+    const f = await fixture(false, 'commit-push', true)
+    const observe = vi.mocked(DeploymentSidecarControl.prototype.captureSendObservation)
+    const failure = Object.assign(new Error('BROWSER_TARGET_CHANGED'), { code: 'BROWSER_TARGET_CHANGED' })
+    observe.mockRejectedValueOnce(failure)
+    try {
+      await expect(f.call('chatgpt_plan', { goal: 'uncertain page creation' })).rejects.toThrow()
+      const before = structuredClone([...f.records.entries()])
+      observe.mockRejectedValueOnce(failure)
+      await expect(f.call('chatgpt_reconnect')).rejects.toBeInstanceOf(BrowserMutationUncertainError)
+      expect(close).not.toHaveBeenCalled()
+      expect(start).toHaveBeenCalledTimes(1)
+      expect([...f.records.entries()]).toEqual(before)
+      observe.mockRejectedValueOnce(failure)
+      await expect(f.call('chatgpt_reconnect')).rejects.toMatchObject({ code: failure.code })
+      expect(replace).toHaveBeenCalledTimes(1)
+      expect(f.sent).toHaveLength(1)
+      expect([...f.records.entries()]).toEqual(before)
+    } finally { await f.ctx.fiber.dispose() }
+    // No handle for an unknown page was acquired. Disposal closes only the
+    // original concrete supervisor, never inventing target cleanup authority.
+    expect(close).toHaveBeenCalledTimes(1)
+    expect(replace).toHaveBeenCalledTimes(1)
+  })
+  it('never replaces an externally managed Sidecar despite a transport failure', async () => {
+    const replace = vi.spyOn(recovery, 'createOwnedSidecarReplacement')
+    const f = await fixture()
+    const observe = vi.mocked(DeploymentSidecarControl.prototype.captureSendObservation)
+    const failure = Object.assign(new Error('BROWSER_TARGET_CHANGED'), { code: 'BROWSER_TARGET_CHANGED' })
+    observe.mockRejectedValueOnce(failure)
+    try {
+      await expect(f.call('chatgpt_plan', { goal: 'external owner' })).rejects.toThrow()
+      const before = structuredClone([...f.records.entries()])
+      observe.mockRejectedValueOnce(failure)
+      await expect(f.call('chatgpt_reconnect')).rejects.toMatchObject({ code: failure.code })
+      expect(replace).not.toHaveBeenCalled()
+      expect([...f.records.entries()]).toEqual(before)
+      expect(f.sent).toHaveLength(1)
+    } finally { await f.ctx.fiber.dispose() }
+  })
+  it('cleans a replacement whose new native process cannot start without changing the task', async () => {
+    vi.stubEnv('PLANNERBRIDGE_SIDECAR_TARGET_ID', 'old')
+    vi.stubEnv('PLANNERBRIDGE_SIDECAR_CDP_ENDPOINT', 'http://127.0.0.1:9222')
+    vi.spyOn(credentials, 'readSidecarCredential').mockResolvedValue('test-only')
+    const start = vi.spyOn(SidecarSupervisor.prototype, 'start').mockResolvedValue()
+    vi.spyOn(SidecarSupervisor.prototype, 'close').mockResolvedValue()
+    const closeReplacement = vi.fn(async () => {}), retireSource = vi.fn(async () => {})
+    vi.spyOn(recovery, 'createOwnedSidecarReplacement').mockResolvedValue({ sourceTargetId: 'old', replacementTargetId: 'new', closeReplacement, retireSource })
+    const f = await fixture(false, 'commit-push', true)
+    const observe = vi.mocked(DeploymentSidecarControl.prototype.captureSendObservation)
+    const failure = Object.assign(new Error('BROWSER_TARGET_CHANGED'), { code: 'BROWSER_TARGET_CHANGED' })
+    observe.mockRejectedValueOnce(failure)
+    try {
+      await expect(f.call('chatgpt_plan', { goal: 'native startup failure' })).rejects.toThrow()
+      const before = structuredClone([...f.records.entries()])
+      observe.mockRejectedValueOnce(failure)
+      start.mockRejectedValueOnce(Object.assign(new Error('SIDECAR_UNAVAILABLE'), { code: 'SIDECAR_UNAVAILABLE' }))
+      await expect(f.call('chatgpt_reconnect')).rejects.toMatchObject({ code: 'SIDECAR_UNAVAILABLE' })
+      expect(closeReplacement).toHaveBeenCalledTimes(1)
+      expect(retireSource).not.toHaveBeenCalled()
+      expect([...f.records.entries()]).toEqual(before)
+      expect(f.sent).toHaveLength(1)
+    } finally { await f.ctx.fiber.dispose() }
+  })
+  it('keeps the existing browser ownership gate for concurrent reconnects without an extra send', async () => {
+    vi.stubEnv('PLANNERBRIDGE_SIDECAR_TARGET_ID', 'old')
+    vi.stubEnv('PLANNERBRIDGE_SIDECAR_CDP_ENDPOINT', 'http://127.0.0.1:9222')
+    vi.spyOn(credentials, 'readSidecarCredential').mockResolvedValue('test-only')
+    vi.spyOn(SidecarSupervisor.prototype, 'start').mockResolvedValue()
+    vi.spyOn(SidecarSupervisor.prototype, 'close').mockResolvedValue()
+    let release!: () => void
+    const gate = new Promise<void>(resolve => { release = resolve })
+    const replace = vi.spyOn(recovery, 'createOwnedSidecarReplacement').mockImplementation(async () => {
+      await gate
+      return { sourceTargetId: 'old', replacementTargetId: 'new', closeReplacement: async () => {}, retireSource: async () => {} }
+    })
+    const f = await fixture(false, 'commit-push', true)
+    const observe = vi.mocked(DeploymentSidecarControl.prototype.captureSendObservation)
+    const failure = Object.assign(new Error('BROWSER_TARGET_CHANGED'), { code: 'BROWSER_TARGET_CHANGED' })
+    observe.mockRejectedValueOnce(failure)
+    let settled: Promise<PromiseSettledResult<any>[]> | undefined
+    try {
+      await expect(f.call('chatgpt_plan', { goal: 'concurrent recovery' })).rejects.toThrow()
+      observe.mockRejectedValueOnce(failure)
+      const first = f.call('chatgpt_reconnect'), second = f.call('chatgpt_reconnect')
+      settled = Promise.allSettled([first, second])
+      await expect.poll(() => replace.mock.calls.length).toBe(1)
+      release()
+      const outcomes = await settled
+      expect(outcomes[0]).toMatchObject({ status: 'fulfilled', value: { recovered: true } })
+      expect(outcomes[1]).toMatchObject({ status: 'rejected', reason: { message: 'CONTROL_BROWSER_BUSY' } })
+      expect(replace).toHaveBeenCalledTimes(1)
+      expect(f.sent).toHaveLength(1)
+    } finally { release(); await settled; await f.ctx.fiber.dispose() }
+  })
+  it.each(['BROWSER_TARGET_CHANGED', 'SIDECAR_UNAVAILABLE'])('replaces an internally owned target once for pending bootstrap: %s', async code => {
+    vi.stubEnv('PLANNERBRIDGE_SIDECAR_TARGET_ID', 'owned-old-target')
+    vi.stubEnv('PLANNERBRIDGE_SIDECAR_CDP_ENDPOINT', 'http://127.0.0.1:9222')
+    vi.spyOn(credentials, 'readSidecarCredential').mockResolvedValue('test-only-private-credential')
+    const starts: any[] = []
+    vi.spyOn(SidecarSupervisor.prototype, 'start').mockImplementation(async function () { starts.push((this as any).options) })
+    const close = vi.spyOn(SidecarSupervisor.prototype, 'close').mockResolvedValue()
+    const closeReplacement = vi.fn(async () => {}), retireSource = vi.fn(async () => {})
+    const replace = vi.spyOn(recovery, 'createOwnedSidecarReplacement').mockResolvedValue({ sourceTargetId: 'owned-old-target', replacementTargetId: 'owned-new-target', closeReplacement, retireSource })
+    const f = await fixture(false, 'commit-push', true)
+    const observe = vi.mocked(DeploymentSidecarControl.prototype.captureSendObservation)
+    observe.mockRejectedValueOnce(Object.assign(new Error(code), { code }))
+    try {
+      await expect(f.call('chatgpt_plan', { goal: 'single send pending bootstrap' })).rejects.toMatchObject({ code })
+      const owner = structuredClone(f.records.get('d2c_control/managed_tunnel/owner'))
+      const before = structuredClone(f.records.get('plannerbridge_state/tasks/' + owner.taskId))
+      observe.mockRejectedValueOnce(Object.assign(new Error(code), { code }))
+      const result = await f.call('chatgpt_reconnect')
+      expect(result).toMatchObject({ recovered: true, task: { taskId: owner.taskId, conversationId: 'owned' } })
+      expect(result.task.round.sendOperationId).toBe(before.round.sendOperationId)
+      expect(result.task.round.waitOperationId).toBe(before.round.waitOperationId)
+      expect(result.task.round.controlDigest).toBe(before.round.controlDigest)
+      expect(f.sent).toHaveLength(1)
+      expect(replace).toHaveBeenCalledTimes(1)
+      expect(starts).toHaveLength(2)
+      expect(starts[1].env).toEqual({ PLANNERBRIDGE_SIDECAR_TARGET_ID: 'owned-new-target' })
+      expect(close).toHaveBeenCalledTimes(1)
+      expect(retireSource).toHaveBeenCalledTimes(1)
+      expect(closeReplacement).not.toHaveBeenCalled()
+      expect(f.records.get('d2c_control/managed_tunnel/owner')).toMatchObject({ claimId: owner.claimId, phase: 'task', taskId: owner.taskId })
+    } finally { await f.ctx.fiber.dispose() }
+  })
+  it.each(['SEND_UNCERTAIN', 'CHATGPT_LOGGED_OUT', 'REPLAY_CONFLICT', 'SIDECAR_BUSY', 'OPERATION_CANCELLED', 'SIDECAR_TIMEOUT'])('does not replace on semantic or unclassified failure: %s', async code => {
+    vi.stubEnv('PLANNERBRIDGE_SIDECAR_TARGET_ID', 'owned-old-target')
+    vi.stubEnv('PLANNERBRIDGE_SIDECAR_CDP_ENDPOINT', 'http://127.0.0.1:9222')
+    vi.spyOn(credentials, 'readSidecarCredential').mockResolvedValue('test-only')
+    vi.spyOn(SidecarSupervisor.prototype, 'start').mockResolvedValue()
+    vi.spyOn(SidecarSupervisor.prototype, 'close').mockResolvedValue()
+    const replace = vi.spyOn(recovery, 'createOwnedSidecarReplacement')
+    const f = await fixture(false, 'commit-push', true)
+    const observe = vi.mocked(DeploymentSidecarControl.prototype.captureSendObservation)
+    observe.mockRejectedValueOnce(Object.assign(new Error('SEND_UNCERTAIN'), { code: 'SEND_UNCERTAIN' }))
+    try {
+      await expect(f.call('chatgpt_plan', { goal: 'do not retry semantic failure' })).rejects.toThrow()
+      const owner = structuredClone(f.records.get('d2c_control/managed_tunnel/owner'))
+      observe.mockRejectedValueOnce(Object.assign(new Error(code), { code }))
+      await expect(f.call('chatgpt_reconnect')).rejects.toMatchObject({ code })
+      expect(replace).not.toHaveBeenCalled()
+      expect(f.records.get('d2c_control/managed_tunnel/owner')).toEqual(owner)
+      expect(f.sent).toHaveLength(1)
+    } finally { await f.ctx.fiber.dispose() }
+  })
+  it.each(['SEND_UNCERTAIN', 'BROWSER_TARGET_CHANGED', 'SIDECAR_UNAVAILABLE'])('closes failed replacement and refuses another target for the same pending task: %s', async failure => {
+    vi.stubEnv('PLANNERBRIDGE_SIDECAR_TARGET_ID', 'owned-old-target')
+    vi.stubEnv('PLANNERBRIDGE_SIDECAR_CDP_ENDPOINT', 'http://127.0.0.1:9222')
+    vi.spyOn(credentials, 'readSidecarCredential').mockResolvedValue('test-only')
+    vi.spyOn(SidecarSupervisor.prototype, 'start').mockResolvedValue()
+    const close = vi.spyOn(SidecarSupervisor.prototype, 'close').mockResolvedValue()
+    const closeReplacement = vi.fn(async () => {}), retireSource = vi.fn(async () => {})
+    const replace = vi.spyOn(recovery, 'createOwnedSidecarReplacement').mockResolvedValue({ sourceTargetId: 'owned-old-target', replacementTargetId: 'owned-new-target', closeReplacement, retireSource })
+    const f = await fixture(false, 'commit-push', true)
+    const observe = vi.mocked(DeploymentSidecarControl.prototype.captureSendObservation)
+    observe.mockRejectedValueOnce(Object.assign(new Error('BROWSER_TARGET_CHANGED'), { code: 'BROWSER_TARGET_CHANGED' }))
+    try {
+      await expect(f.call('chatgpt_plan', { goal: 'preserve pending task on wrong proof' })).rejects.toThrow()
+      const before = structuredClone([...f.records.entries()])
+      observe.mockRejectedValueOnce(Object.assign(new Error('BROWSER_TARGET_CHANGED'), { code: 'BROWSER_TARGET_CHANGED' }))
+      observe.mockRejectedValueOnce(Object.assign(new Error(failure), { code: failure }))
+      await expect(f.call('chatgpt_reconnect')).rejects.toMatchObject({ code: failure })
+      expect([...f.records.entries()]).toEqual(before)
+      expect(closeReplacement).toHaveBeenCalledTimes(1)
+      expect(retireSource).not.toHaveBeenCalled()
+      expect(close).toHaveBeenCalledTimes(2)
+      observe.mockRejectedValueOnce(Object.assign(new Error('BROWSER_TARGET_CHANGED'), { code: 'BROWSER_TARGET_CHANGED' }))
+      await expect(f.call('chatgpt_reconnect')).rejects.toMatchObject({ code: 'BROWSER_TARGET_CHANGED' })
+      expect(replace).toHaveBeenCalledTimes(1)
+      expect(f.sent).toHaveLength(1)
+    } finally { await f.ctx.fiber.dispose() }
+  })
   it.each(['matching', 'unknown'] as const)('registered reconnect preserves the pre-task claim until bootstrap proof: %s', async scenario => {
     const f = await fixture()
     const observation = vi.mocked(DeploymentSidecarControl.prototype.captureSendObservation)

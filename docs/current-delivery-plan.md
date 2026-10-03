@@ -518,3 +518,145 @@ single-line example and actual outer INIT/decoded PLAN parser alignment tests.
 Corrected DOM466 corroborates absence of generated colons; empty-selector465 is
 inconclusive. No parser/extraction/browser change or further scoped source fix
 was requested. Frozen full/package/profile/pushed exact-HEAD supplement remain.
+
+Iteration99 exact pushed9b1d25f received DONE_SCOPED for section guidance.
+Independent review verified raw472–475 full/package/profile and frozen/installed
+instruction+driver SHA256 equality. Fresh canonicalhtOGTD/o03d6u/newtargetBD240/
+journal20/native23412 passed local and real App proof. INIT send was accepted,
+but bootstrap baseline remained absent and no PLAN wait occurred. First plan
+call failed BROWSER_TARGET_CHANGED after17s; repeated reconnects failed likewise.
+642CDPcommands had no errors/timeouts/crashes. Three Page.navigate commands were
+acknowledged; method-only telemetry cannot identify the first violated identity/
+proof boundary. Owned executor34612 was stopped after repeated recovery failures;
+original4294967295/all-false oracle remain. Authenticated shutdown passed and
+passive observers closed on canonical exit. Syntax fix was not reached; no new
+source change is justified. Iteration100 independent bounded stage-diagnostic
+PLAN pending. Do not replay/adopt this task or journal; entire goal stays open.
+
+Iteration100 independent review limited the next experiment to fresh INIT-only
+diagnostics at unchanged9b1d25f/o03d6u, metadata stage tracing, and no replay,
+production edits, deadline changes or proof relaxation. Iteration101 I1u1BS used
+fresh target6996/journal21. Local readiness passed; App proof failed before INIT.
+This diagnostic is INVALID: the temporary waitForLoad wrapper called snapshot()
+after reloadCurrent cleared its context, throwing before the original load wait;
+its error logging repeated the same unsafe read. A healthy Page.navigate ACK
+preceded the instrumentation failure. This does not establish a product defect,
+an iteration100 cause or an OpenAI restriction. No second attempt was run.
+Owned authenticated shutdown passed; original journal/output are preserved.
+The corrected temporary helper uses a nonthrowing metadata snapshot and has
+passed syntax checking. Raw101 observer/stages/original/corrected helper were
+published for independent ChatGPT review; fresh journal22 awaits that review.
+Full execution/nonce/REVIEW/fix/restart/DONE/oracle, producer gate and global
+exact-HEAD audit remain open. User docs/goal.md hash is unchanged and excluded.
+
+Iteration101 independent review confirmed instrumentation invalidation and
+required fail-open logging/proof summaries before one fresh journal22. Temporary
+wrappers were hardened; fault injection verifies unavailable snapshot, diagnostic
+disk failure and malformed summary preserve original wait/result/error and call
+it exactly once. Iteration102 fresh Hd7D37/default Chrome/targetE82EE/journal22
+passed local readiness but never reached INIT. App-proof promotion reload/load
+passed: waitForLoad2527ms, reload2931ms, new context/loader observed, no foreign
+route. Subsequent inspect Runtime.evaluate timed out at its existing5s deadline.
+At first timeout browser-root getVersion/getTargets passed6ms and target remained
+listed; a fresh connection to the same target timed out on Page.enable,
+Runtime.enable, getFrameTree and evaluate, all at existing5s bounds. No crash was
+observed. This establishes target DevTools-agent/renderer nonresponsiveness,
+not iteration100's original bootstrap cause or an OpenAI general restriction.
+Owned executor35040 was stopped after bounded probes; original4294967295 is
+preserved. Authenticated shutdown and passive observer cleanup passed. No replay,
+extra attempt or product change. GitHub puppeteer15500 concerns a Worker library
+regression and14933 a generic operation timeout; neither establishes an applicable
+fix in this direct-CDP implementation. Raw102 metadata/observer/fault-check and
+short critical stage subset were published for independent next-plan review.
+
+Iteration102 independent review classified page-target DevTools-agent
+nonresponsiveness and requested zero-send replacement viability using the
+preserved browser, before any product edit. Iteration103 confirmed old target
+E82EE still exists with its durable route. Newly owned root and durable-clone
+targets passed fresh Page.enable/Runtime.enable/getFrameTree/evaluate probes.
+The durable clone materialized one user with one exact App and one exact installed
+appProofPrompt digest match, uniquely latest. Both diagnostic targets were closed;
+old target/journal were untouched. Qualification: journal22 App-proof send has no
+bootstrap/observation controlDigest, so comparison uses the unchanged installed
+App proof prompt, not persisted canonical task authority. Canonical task/journal
+recovery is NOT tested. This supports replacement-target viability for this
+failure, not full acceptance or a proven production recovery. Raw103 was published
+for independent minimum recovery-plan review. All overall delivery gates stay open.
+
+Iteration103 independent ChatGPT FIX_PLAN accepted a deployment-only, once-per-
+pending-canonical-task replacement at unchanged protocol/journal/driver boundaries.
+Iteration104 native RED used disposable real Chrome, actual compiled native Sidecar,
+authenticated RPC and a private journal: one accepted INIT, no bootstrap baseline,
+old renderer unresponsive, same-target observation failed with unchanged journal.
+Before implementation, manual target-B + native process restart on that SAME journal
+passed exact persisted canonical proof with zero second send (native-oracle-4).
+The first three native attempts were fixture failures, not product RED evidence.
+
+Current scoped patch adds sidecar-target-recovery.ts and managed pending-bootstrap
+reconnect integration only. External Sidecars are excluded; only the two accepted
+binding-error codes trigger one replacement. Successful exact coordinator/journal
+proof precedes map publication and best-effort old target retirement. Failure closes
+only the replacement process/page and preserves pending task ownership. Existing
+CONTROL_BROWSER_BUSY admission remains unchanged; no redundant reconnect queue.
+Prior runtime9b1d25f with current regression tests is RED: 7failed/14passed, no
+unhandled errors (runtime-red-2); original working bytes restored in finally.
+Initial concurrent test incorrectly expected sharing rather than the existing busy
+gate and has been corrected; failed outputs remain published and qualified.
+
+Fresh typecheck/build PASS. Rebuilt production-helper/native-child/journal plus
+adversarial target/runtime tests: 3files/42passed,26.27s (focused-5). This is synthetic
+page evidence, NOT real ChatGPT acceptance. All raw iteration104 failures/successes
+are published. Frozen full runs exclusively; independent scoped review is pending.
+No new commit, package/profile or real acceptance claim yet. Overall Windows goal,
+producer Git gate and final audit remain open. User goal.md unchanged SHA256:
+03A2E80647D6F5893B497D40BF8EE2E8BDF51378C7DFF979CD297A28CA20468A.
+
+Iteration104 frozen full PASS:85files/1167passed/3originalskip,589.89s. Isolated
+package Jz2bTD PASS imports/native Sidecar/private journal/replay/shutdown. Installed
+DSH profile sRs77y PASS both attempts/schema/Git/containment/restart composition;
+real Browser/App remains NOT_RUN. Raw outputs published. Initial independent audit
+accepted the source except uncertain /json/new cleanup. Its proposed difference-set
+cleanup has a verified counterexample: own-created and foreign-concurrently-created
+exact-URL singleton targets expose identical discovery inputs. Closing that unknown
+ID could close a foreign target. Raw uncertain-cleanup uses actual compiled helper;
+no product/source behavior was changed. Independent revised plan requested, retain
+known-ID-only cleanup and fail closed on unknown creation provenance. No speculative
+browser root rewrite. Scope is not DONE and candidate has not been committed yet.
+
+Iteration104 independent review withdrew difference-set cleanup after accepting
+raw503 ownership counterexample, independently verified raw504 frozen full, and
+issued a narrow revised FIX_PLAN: no trusted creation-response ID => existing
+BrowserMutationUncertainError, with zero inferred cleanup even on cancellation;
+known-ID cleanup remains unchanged. One-attempt marker stays conservative and
+runtime-local. An unknown creation is a stop/fresh-run boundary, NOT permission
+to restart/reconnect the same task after plugin/process reload. Possible orphan
+page retention is acknowledged; closing a foreign page by guessing is forbidden.
+
+Iteration105 RED-3 has8failed/17passed on the unchanged helper, proving missing
+explicit mutation-uncertainty classification. RED-1 included cancellation error-
+type fixture mistakes; RED-2 isolates one lost-response classification failure.
+Small helper-only fix reuses BrowserMutationUncertainError after issuance and
+before a trusted returned ID. Unknown outcomes never authorize target discovery
+cleanup. Runtime trigger/protocol/journal/driver/ownership are unchanged.
+Fresh typecheck/build PASS; helper/runtime/native suite3files/48passed,13.33s.
+Unknown own/foreign/ambiguous/zero-target cases and runtime no-retry/disposal
+coverage preserve task/claim/one-send and only the concrete original supervisor.
+Previous104 full/package/profile stay historical evidence; final105 full and
+fresh package/profile/exact-HEAD review are required for the changed candidate.
+
+Iteration105 independent SOURCE_REVIEW_PASS_PENDING_FULL read current helper,
+runtime, regressions and raw507–512 after a transient connector timeout recovered.
+It confirms creation-issued uncertainty precedence, zero guessed target cleanup,
+known-ID cleanup, original once-per-task gate, no-retry/disposal and exact task/claim/
+one-send evidence. No further source fix requested. Marker remains runtime-local;
+unknown creation is an explicit stop/fresh-canonical boundary. Native evidence stays
+synthetic-page mechanism proof. Final105 full/package/profile/pushed exact-HEAD
+supplement remains required; overall Windows and producer/global gates stay open.
+
+Final iteration105 frozen full PASS:85files/1173passed/3originalskip,592.15s.
+Fresh isolated package XQYnAK PASS imports/native Sidecar/private journal/replay/
+shutdown. Fresh real installed DSH composition profile fJGZBF PASS both attempts,
+schema/Git/containment/restart identity; real Browser/App NOT_RUN. SHA256 of packed
+runtime/helper/driver/journal/native entry matches current built candidate exactly.
+No code/test changes after frozen full. Ready for commit/push and exact-HEAD scoped
+supplement; complete real acceptance and producer/global audit remain open.

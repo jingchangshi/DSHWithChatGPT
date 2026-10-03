@@ -54,6 +54,7 @@ import { validateSidecarEndpoint } from '../sidecar/protocol.ts'
 import type { BrowserControl } from '../browser/adapter.ts'
 import { SidecarRpcError } from '../sidecar/errors.ts'
 import { SidecarSupervisor } from './sidecar-supervisor.ts'
+import { createOwnedSidecarReplacement } from './sidecar-target-recovery.ts'
 import { readSidecarCredential } from './sidecar-credential.ts'
 
 // ---------------------------------------------------------------- config
@@ -192,7 +193,8 @@ export async function apply(ctx: Context, config: Config): Promise<void> {
     // Browser Harness tools are session-gated, so every model-facing tool call
     // gets a coordinator bound to the CURRENT DSH agent/session.
     const sidecarControls = new Map<string, DeploymentSidecarControl>()
-    const sidecarSupervisors = new Map<string, SidecarSupervisor>()
+    const sidecarSupervisors = new Map<string, { supervisor: SidecarSupervisor; targetId?: string; cdpEndpoint?: string }>()
+    const replacementAttempts = new Map<string, string>()
     const makeBrowser = (agent: unknown, workspace: WorkspaceRuntimeIdentity): BrowserControl => {
       if (config.browserMode === 'browser-harness-mcp') return new BrowserHarnessAdapter(ctx, agent as never, config.chatgptAppName)
       const key = workspace.workspaceId + '\0' + workspace.displayRoot
@@ -290,7 +292,7 @@ export async function apply(ctx: Context, config: Config): Promise<void> {
             const authentication = await readSidecarCredential(credentialFile, [workspace.displayRoot])
             const supervisor = new SidecarSupervisor({ command: config.sidecarProcessCommand, args: config.sidecarProcessArgs, endpoint: config.sidecarEndpoint, authentication, startupTimeoutMs: config.tunnelStartupTimeoutMs })
             await supervisor.start(signal)
-            sidecarSupervisors.set(key, supervisor)
+            sidecarSupervisors.set(key, { supervisor, targetId: process.env.PLANNERBRIDGE_SIDECAR_TARGET_ID, cdpEndpoint: process.env.PLANNERBRIDGE_SIDECAR_CDP_ENDPOINT })
           }
         }
         const health = await makeBrowser(undefined, workspace).health()
@@ -610,9 +612,51 @@ export async function apply(ctx: Context, config: Config): Promise<void> {
           // Runtime setup is workspace-fenced before entering the serialized
           // recovery callback; it must not recursively acquire ownership.
           if (await ownership.hasPendingBootstrap(workspaceRoot.workspaceId)) {
-            await ensureRuntime(workspaceRoot, exec?.signal)
-            const bootstrap = await ownership.recoverPendingBootstrap(workspaceRoot.workspaceId,
-              () => coordinator.recover(exec?.signal), exec?.signal)
+            const key = workspaceRoot.workspaceId + '\0' + workspaceRoot.displayRoot
+            const bootstrap = await (async () => {
+                const recover = () => ownership.recoverPendingBootstrap(workspaceRoot.workspaceId,
+                  () => coordinator.recover(exec?.signal), exec?.signal)
+                try {
+                  await ensureRuntime(workspaceRoot, exec?.signal)
+                  return await recover()
+                } catch (error) {
+                  throwIfCancelled(exec?.signal)
+                  const code = error && typeof error === 'object' && 'code' in error ? error.code : undefined
+                  const owned = sidecarSupervisors.get(key)
+                  const taskId = await coordinator.latestTaskId()
+                  if (!['BROWSER_TARGET_CHANGED', 'SIDECAR_UNAVAILABLE'].includes(String(code))
+                    || config.browserMode !== 'sidecar' || !config.sidecarProcessCommand || !owned?.targetId || !owned.cdpEndpoint
+                    || !taskId || replacementAttempts.get(key) === taskId
+                    || !await ownership.hasPendingBootstrap(workspaceRoot.workspaceId)) throw error
+                  // One deployment replacement per pending task. This is never a
+                  // send retry: the unchanged coordinator proves the journal digest.
+                  replacementAttempts.set(key, taskId)
+                  const replacement = await createOwnedSidecarReplacement(owned.cdpEndpoint, owned.targetId, exec?.signal)
+                  let supervisor: SidecarSupervisor | undefined
+                  try {
+                    await owned.supervisor.close()
+                    throwIfCancelled(exec?.signal)
+                    const authentication = await readSidecarCredential(config.sidecarCredentialFile
+                      ?? joinPath(privateStateBase(), 'PlannerBridge', 'credentials', 'authentication.secret'), [workspaceRoot.displayRoot])
+                    supervisor = new SidecarSupervisor({ command: config.sidecarProcessCommand, args: config.sidecarProcessArgs,
+                      endpoint: config.sidecarEndpoint, authentication, startupTimeoutMs: config.tunnelStartupTimeoutMs,
+                      env: { PLANNERBRIDGE_SIDECAR_TARGET_ID: replacement.replacementTargetId } })
+                    await supervisor.start(exec?.signal)
+                    const health = await makeBrowser(undefined, workspaceRoot).health()
+                    throwIfCancelled(exec?.signal)
+                    if (!health.ok) throw new SidecarRpcError('SIDECAR_UNAVAILABLE')
+                    const recovered = await recover()
+                    if (!recovered) throw new SidecarRpcError('SEND_UNCERTAIN')
+                    sidecarSupervisors.set(key, { supervisor, targetId: replacement.replacementTargetId, cdpEndpoint: owned.cdpEndpoint })
+                    await replacement.retireSource().catch(() => {})
+                    return recovered
+                  } catch (recoveryError) {
+                    await supervisor?.close().catch(() => {})
+                    await replacement.closeReplacement().catch(() => {})
+                    throw recoveryError
+                  }
+                }
+            })()
             if (bootstrap !== undefined) {
               return { recovered: true, task: bootstrap, workspaceId: workspaceRoot.workspaceId, detail: 'bootstrap rebound from exact outgoing-message proof; task ownership restored' }
             }
@@ -704,7 +748,7 @@ export async function apply(ctx: Context, config: Config): Promise<void> {
     ctx.effect(() => async () => {
       await exposure.close()
       await Promise.allSettled([...bridges.values()].map(bridge => bridge.close()))
-      await Promise.allSettled([...sidecarSupervisors.values()].map(supervisor => supervisor.close()))
+      await Promise.allSettled([...sidecarSupervisors.values()].map(owned => owned.supervisor.close()))
       bridges.clear()
       sidecarSupervisors.clear()
       sidecarControls.clear()
