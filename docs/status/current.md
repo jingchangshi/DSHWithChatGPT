@@ -1,6 +1,6 @@
 # Current Delivery Status
 
-- DSHWithChatGPT HEAD: `15b43259308f8b2bff95f89b1bb460f414e01ea2`
+- DSHWithChatGPT HEAD: `02add8be66b2ccb405447f113ea2efa38147bcae`
 - Branch: `feat/complete-c2c-runtime`
 - Upstream: `origin/feat/complete-c2c-runtime`
 - Producer (`deepseek-harness`) HEAD: `0afd708c288b079096affbfeff4626dcf9a19bf1`
@@ -26,7 +26,7 @@
 ## Next action
 
 - Keep ChatGptWebDriver frozen while validating the Sidecar extraction.
-- Run the remaining candidate/package/association gates, then obtain a fresh independent exact-HEAD review before any real exposure.
+- Frozen full regression and real exposure remain gated; obtain a fresh independent exact-HEAD review after the candidate artifacts are frozen.
 
 ## Evidence pointers
 
@@ -50,4 +50,8 @@
 - Broader deployment/Sidecar/coordinator suites: 131 passed.
 - `pnpm build`: passed.
 - `pnpm typecheck`: passed.
+- `pnpm run test:package`: passed; isolated packed plugin imports and Sidecar probe passed.
+- `pnpm run test:profile C:/Users/jingc/workspace/deepseek-harness C:/Users/jingc/AppData/Local/Temp/dsh-chatgpt-package-qZdn0E`: passed twice; composition fixture and hardened-Windows Git acceptance passed.
+- Exact HEAD equals upstream after push.
+- Frozen full at this new HEAD: NOT RUN.
 - Real exposure and full product-loop acceptance: NOT RUN.
