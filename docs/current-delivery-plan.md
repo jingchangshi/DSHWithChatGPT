@@ -18,25 +18,25 @@ the draft. This authorization is for the dedicated acceptance window.
 | ARCHITECTURE | PARTIAL | Scoped ports/dependency/topology reviews exist; final global exact-HEAD audit remains |
 | SOURCE | PARTIAL | Paragraph repair, observation guard, BR extraction and proof-first recovery implemented; recovery source reviewed at d81193e; global audit remains |
 | PROTOCOL | PARTIAL | Canonical v2 identity and same-round oracle tested; real PLAN through DONE absent |
-| CHAT_CONTROL | PARTIAL | Fresh canonical r8kDd5 passed real App proof, then INIT SEND_UNCERTAIN; no valid product PLAN accepted |
-| DIRECT_CDP | PARTIAL | Exact658bdfe bootstrap ordering scoped accepted; iteration92 second reconciliation materialization repair under validation |
+| CHAT_CONTROL | PARTIAL | Fresh canonicalVCYpBf passed real App proof and INIT bound/wait accepted, but generated PLAN bare section headings were rejected |
+| DIRECT_CDP | PARTIAL | Exact08cdc41 second reconciliation scoped accepted; VCYPBf548commands noerror/timeout/crash and INIT baseline bound |
 | SIDECAR | PARTIAL | Auth/replay/uncertainty contracts covered; real recovery loop remains |
 | DSH_ADAPTER | PARTIAL | Installed native DSH readiness/identity verified; full real executor workflow absent |
 | WORKSPACE_DATA_PLANE | PARTIAL | Installed authority checks and real App workspace proof passed; independent raw-output nonce review absent |
 | SECURITY | PARTIAL | Containment/credential boundaries verified within scope; producer native Git deadline gate still FAILED |
 | RECOVERY | PARTIAL | Actual failed INIT journal/task/claim recovered without resend and confirmed across native restart; real fix/restart/DONE loop remains |
-| PACKAGING | PARTIAL | Second reconciliation candidate matched UWZG9s package/native Sidecar andWrw7hm installed composition passed; real recovery remains |
-| TESTS | PARTIAL | Second reconciliation candidate:83 files/1130 passed/3 original skips,597.97s;108 focused PASS; producer gate remains FAILED |
+| PACKAGING | PARTIAL | Section guidance candidate matched o03d6u package/native Sidecar andSMbmNX installed composition passed; real recovery remains |
+| TESTS | PARTIAL | Section guidance candidate:83 files/1132 passed/3 original skips,616.61s;144 focused PASS; producer gate remains FAILED |
 | WINDOWS_E2E | FAILED | Fresh r8kDd5 passed local/App readiness, then INIT uncertain; no PLAN, nonce or DONE |
 | FUTURE_LINUX | FUTURE | No Linux host execution; it does not block Windows delivery |
 
 Implementation order:
 
-1. Complete iteration92 independently planned second reconciliation materialization
-   repair: exact persisted proof, one fenced load only for absent users and empty
-   composer, unchanged deadlines and no resend. Validate focused/full/package/profile
-   and obtain independent exact pushed HEAD review. Scheduling A/B is closed;
-   default product launch is retained.
+1. Complete iteration98 independently planned production section-syntax guidance
+   repair: explicit NAME: delimiter, blank separator and unchanged byte limits;
+   strict parser remains intact. Validate focused/full/package/profile and exact
+   pushed HEAD review. Second reconciliation fix08cdc41 is scoped accepted;
+   scheduling A/B is closed and default product launch is retained.
 2. Use the repaired candidate's matching verified package/profile and native Sidecar with its
    independent product journal. Preserve old task/journal/failure evidence; the
    new run creates fresh home/state/workspace/task/remote. Do not reopen accepted
@@ -459,3 +459,62 @@ was found. It confirmed provisional adoption only after exact proof, no load for
 mismatch, signal propagation/quarantine, foreign draft preservation, unchanged
 journal boundary and explicit rendering digest. Frozen full/package/profile,
 commit/push and bounded exact-HEAD review remain required before deployment.
+
+Iteration94 exact pushed08cdc41 received DONE_SCOPED for the second reconciliation
+repair. Independent reviewer read raw449–451 full/package/profile and confirmed
+the preserved goal.md is the only dirty file. Package raw output was truncated;
+short byte-match raw452 separately records local frozen/installed hash equality.
+Fresh canonicalK8NLG9 uses matchedUWZG9s, newtargetDADBC8, journal17 and native
+Sidecar34668. Local readiness passed. Real App proof timed out at the original90s
+deadline before any INIT/second-reconciliation path. Executor17004 exited0 naturally;
+oracle exit1 and all flags false remain. Journal App send is accepted and wait is
+uncertain. Authenticated generation-fenced shutdown passed. A later fresh readonly
+binding also failed its5s renderer command deadline; it is not historical proof.
+No resend, scheduler experiment or new source change follows from this failure.
+Iteration95 independent raw/source diagnosis is pending; full goal remains open.
+
+Iteration95 independent diagnosis confirmed the scoped fix was not reached and
+the reply loop masks ordinary CDP errors until the App deadline; no retry-policy
+change was authorized. One finite App-only diagnostic uses default fresh browser
+process/newtarget50BB/journal18/UWZG9s with passive root Target and page Inspector
+observers plus parameter-free command timing. Run4q5QeI passed local and real App
+proof in22s;306commands had no errors/first-timeouts and no crash/detach events.
+Failure was not reproduced; no historical root cause is claimed. No INIT was
+sent. Diagnostic executor exited0 naturally. Service shutdown was authenticated;
+owned passive-observer process was stopped afterwards because its diagnostic
+sockets retained the process. Raw96 evidence/short summary are published.
+Next: independently assess this result and return to one fresh canonical full
+acceptance if justified. No source/flag/deadline/proof changes are indicated.
+
+Iteration97 independent ACCEPTANCE_PLAN authorized one fresh canonical full run
+with passive observers. FreshVCYpBf/newtarget92EE/journal19/native35656 passed local
+and real App readiness. INIT was accepted, bootstrap baseline bound and reply wait
+accepted; returned PLAN failed strict bad-section parsing.548commands had no error,
+timeout or crash. Later readonly owned reply preserved headers' colons but had
+bare ACTIONS/RATIONALE/TESTS/SUCCESS_CRITERIA; corrected DOM metadata likewise
+shows colon absent (the first narrow selector returned empty, inconclusive).
+Executor retries were rejected as workspace busy; reconnect preserved same task
+and returned recovered=true. After repeated retries/investigation, owned executor
+26252 was stopped; original4294967295 and all-false oracle retained. Authenticated
+shutdown passed and passive observers closed automatically on canonical exit.
+No actual implementation/test/nonce/review/DONE or recovery acceptance is claimed.
+
+Independent iteration97 FIX_PLAN diagnoses production instructions' omitted
+literal NAME: section grammar; no parser/browser/proof change. Candidate98 adds
+exact colon/separator rules, PLAN vocabulary, byte limits and compact example.
+RED old08cdc41 fails the new instruction regression. An intermediate multiline
+example injected section delimiters into outer INIT and failed production tests;
+corrected single-line escaped-newline example preserves outer INIT and is decoded
+only by the regression test into a valid PLAN body. Final focused7files144tests,
+typecheck and build passed; frozen full83files1132tests3original skips passed in
+616.61s. Packageo03d6u passed imports/native Sidecar and matches frozen production
+instruction/browser bytes. Installed profileSMbmNX passed schema/identity/Git/
+containment checks twice, composition-only with real Browser/App NOT_RUN.
+No new pushed HEAD or real acceptance yet.
+
+Iteration98 independent SOURCE_REVIEW_PASS_PENDING_FULL read actual source/test
+diff and raw467–471. It accepted the exact delimiter guidance, byte limits, safe
+single-line example and actual outer INIT/decoded PLAN parser alignment tests.
+Corrected DOM466 corroborates absence of generated colons; empty-selector465 is
+inconclusive. No parser/extraction/browser change or further scoped source fix
+was requested. Frozen full/package/profile/pushed exact-HEAD supplement remain.
