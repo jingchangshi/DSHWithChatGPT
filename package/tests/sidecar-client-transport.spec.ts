@@ -1,8 +1,8 @@
 import { createServer, type Server } from 'node:http'
-import { afterEach, describe, expect, it } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 
 const servers: Server[] = []
-afterEach(async () => { for (const server of servers.splice(0)) { server.closeAllConnections(); await new Promise<void>(resolve => server.close(() => resolve())) } })
+afterEach(async () => { vi.unstubAllGlobals(); for (const server of servers.splice(0)) { server.closeAllConnections(); await new Promise<void>(resolve => server.close(() => resolve())) } })
 async function fixture(handler: (body: any, response: import('node:http').ServerResponse) => void) {
   const server = createServer(async (request, response) => {
     const chunks: Buffer[] = []
@@ -17,6 +17,45 @@ async function fixture(handler: (body: any, response: import('node:http').Server
 }
 function success(body: any, result: unknown) { return JSON.stringify({ version: 1, requestId: body.requestId, generation: 'test-generation', ok: true, result }) }
 describe('bounded neutral client transport', () => {
+  it('keeps a delayed-header reply within its explicit budget despite an ambient fetch cutoff', async () => {
+    const client = await fixture((body, response) => {
+      if (body.method === 'waitForReply') { setTimeout(() => response.end(success(body, { text: 'settled', complete: true })), 80); return }
+      response.end(success(body, body.method === 'health' ? { ok: true, detail: 'ready' } : null))
+    })
+    const originalFetch = globalThis.fetch
+    vi.stubGlobal('fetch', (input: Parameters<typeof fetch>[0], init: RequestInit) => originalFetch(input, {
+      ...init, signal: JSON.parse(String(init.body)).method === 'waitForReply'
+        ? AbortSignal.any([init.signal!, AbortSignal.timeout(20)]) : init.signal,
+    }))
+    expect(await client.waitForReply(300)).toEqual({ text: 'settled', complete: true })
+  })
+  it.each(['headers', 'body'])('independently cancels the admitted wait after interrupted %s without another wait', async phase => {
+    const received: any[] = []
+    const client = await fixture((body, response) => {
+      received.push(body)
+      if (body.method === 'waitForReply') {
+        if (phase === 'body') { response.writeHead(200, { 'content-length': '1000' }); response.write('{'); setTimeout(() => response.destroy(), 10) }
+        else response.destroy()
+        return
+      }
+      response.end(success(body, body.method === 'health' ? { ok: true, detail: 'ready' } : null))
+    })
+    await expect(client.waitForReply(300, undefined, { operationId: 'owned-wait' })).rejects.toMatchObject({ code: 'SIDECAR_UNAVAILABLE' })
+    expect(received.filter(body => body.method === 'waitForReply')).toHaveLength(1)
+    const cancel = received.filter(body => body.method === 'cancel')
+    expect(cancel).toHaveLength(1)
+    expect(cancel[0].params).toEqual({ operationId: 'owned-wait' })
+  })
+  it('does not cancel a valid server refusal classified as unavailable', async () => {
+    const received: any[] = []
+    const client = await fixture((body, response) => {
+      received.push(body)
+      if (body.method === 'health') response.end(success(body, { ok: true, detail: 'ready' }))
+      else response.end(JSON.stringify({ version: 1, requestId: body.requestId, generation: 'test-generation', ok: false, error: { code: 'SIDECAR_UNAVAILABLE' } }))
+    })
+    await expect(client.waitForReply(300)).rejects.toMatchObject({ code: 'SIDECAR_UNAVAILABLE' })
+    expect(received.map(body => body.method)).toEqual(['health', 'waitForReply'])
+  })
   it('preserves caller operation identity and correlation across fresh transport attempts', async () => {
     const received: any[] = []
     const client = await fixture((body, response) => { received.push(body); response.end(success(body, body.method === 'health' ? { ok: true, detail: 'ready' } : null)) })
@@ -38,8 +77,33 @@ describe('bounded neutral client transport', () => {
     expect(received[1].requestId).not.toBe(received[1].operationId)
   })
   it('rejects oversized streamed responses', async () => {
-    const client = await fixture((_body, response) => response.end('x'.repeat(65_537)))
+    const client = await fixture((_body, response) => { response.write('x'.repeat(40_000)); response.end('x'.repeat(40_000)) })
     await expect(client.health()).rejects.toMatchObject({ code: 'SIDECAR_RESPONSE_TOO_LARGE' })
+  })
+  it('rejects an oversized declared response before waiting for its body', async () => {
+    const client = await fixture((_body, response) => { response.writeHead(200, { 'content-length': '65537' }); response.flushHeaders() })
+    await expect(client.health()).rejects.toMatchObject({ code: 'SIDECAR_RESPONSE_TOO_LARGE' })
+  })
+  it('applies the same absolute deadline to a response that stalls after headers', async () => {
+    const client = await fixture((_body, response) => { response.writeHead(200); response.write('{') })
+    await expect(client.health()).rejects.toMatchObject({ code: 'SIDECAR_TIMEOUT' })
+  })
+  it('never follows a redirect or forwards authentication to its destination', async () => {
+    let destinationRequests = 0
+    const destination = createServer((_request, response) => { destinationRequests++; response.end() })
+    servers.push(destination)
+    await new Promise<void>(resolve => destination.listen(0, '127.0.0.1', resolve))
+    const port = (destination.address() as import('node:net').AddressInfo).port
+    const client = await fixture((_body, response) => { response.writeHead(307, { location: `http://127.0.0.1:${port}/` }); response.end() })
+    await expect(client.health()).rejects.toMatchObject({ code: 'SIDECAR_UNAVAILABLE' })
+    expect(destinationRequests).toBe(0)
+  })
+  it('rejects invalid UTF-8 rather than repairing protocol data', async () => {
+    const client = await fixture((body, response) => {
+      const valid = success(body, { ok: true, detail: 'ready' })
+      response.end(Buffer.concat([Buffer.from(valid.slice(0, -1)), Buffer.from([0xff]), Buffer.from('}')]))
+    })
+    await expect(client.health()).rejects.toMatchObject({ code: 'SIDECAR_INVALID_REQUEST' })
   })
   it('bounds a provider that never returns headers', async () => {
     const client = await fixture(() => {})

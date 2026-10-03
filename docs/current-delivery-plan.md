@@ -705,3 +705,144 @@ restart identity; real Browser/App NOT_RUN. Packed runtime/recovery helper/nativ
 entry/driver/journal SHA256 matches built candidate. No source/test changes after
 full. Ready for commit/push/exact-HEAD supplement, then one fresh internally owned
 real canonical. Overall Windows acceptance and producer/global gates remain open.
+
+Iteration109 exact pushed6b92ead1d82341578ae23015cde15d52068ed9db received
+DONE_SCOPED for acceptance deployment only. Fresh real iteration110 canonical
+73nmpo used RiYgOh, default Chrome32560/new6BEF, fresh protected credential/journal24,
+internally supervised native30724 and executor29660. Local readiness PASS; first
+real App proof hit APP_PROOF_TIMEOUT after90s. Executor repeated App checks,
+then SIDECAR_UNAVAILABLE/BROWSER_STALE; reconnect recovered=false with no task.
+Owned29660 was stopped to end retries. Original4294967295/all-false oracle is
+preserved. Zero PLAN dispatches/bootstrap entries; target pointer unchanged.
+Native listener/process absent after DSH stop. All original observer/summary/raw
+oracle and journal metadata published; no adoption/replay of failed run.
+Read-only OS sample at2026-10-03T04:41Z confirms foreground LockApp. This proves
+that sampled locked environment only, NOT historical cause/first-failure stage.
+User unlock requested once. Independent next-step review pending; no production
+source change, deadline weakening or ordinary retry follows from these facts.
+
+Independent iteration110 DIAGNOSTIC_PLAN preserves scopedDONE109: no new product
+defect is proven. It requests explicit unlock, then one fresh default-browser/
+explicit-target/credential/journal25 internally supervised120s no-send lifecycle
+soak: initial/final probeApp+cleanup, health/readiness/visible complete document/
+same target every10s, with OS foreground witnesses. Stop on first failed sample;
+locking => ENVIRONMENT_INVALID, never product evidence. Zero message sends.
+Only after PASS may one fresh canonical/journal26 run. Failure while unlocked
+requires exact no-send boundary investigation; no speculative source changes.
+Temporary diagnostic script prepared and syntax checked, not run while locked.
+Overall real Windows acceptance, producer Git gate and global audit remain open.
+
+After explicit user unlock, iteration111 fresh default Chrome23624/targetD075,
+RiYgOh native8660/fresh credential/diagnostic-journal25 completed the full120s
+NO_SEND_LIFECYCLE_PASS. Same explicit target stayed visible/complete/responsive,
+composer present, loggedOut=false; initial/final exact App probe cleaned successfully,
+zero sendControlMessage/waitForReply journal entries. OS foreground witnesses were
+Chrome throughout. The LockApp process itself may persist after unlock; its mere
+presence is NOT a lock verdict (foreground evidence + explicit user state used).
+Native supervisor closed after the diagnostic. Evidence retained in no-send-JmdSNw.
+Per independent110PLAN, fresh112 canonical xYcfBE/defaultChrome16244/target61EC/
+new credential/journal26/internal native has localPASS and actual AppPASS(~21s).
+Canonical INIT accepted with durable bootstrapBaseline bound; waiting real PLAN.
+No replacement or resend so far; ongoing run is not an acceptance PASS. Read-only
+5s OS foreground time-series accompanies the first real operations.
+User requests subsequent Windows locked-session feasibility analysis. Puppeteer's
+actual ChromeLauncher defaultArgs has background timer/occlusion/render scheduling
+switches and headless support; these are public implementation leads, not evidence
+for this ChatGPT workflow. Prior89–90 local scheduling-switch variants failed, so
+default headed launch stays unchanged. Background timer throttling is documented by
+Chrome (developer.chrome.com/blog/timer-throttling-in-chrome-88/). Current product
+mutation checks still demand document.visibilityState=visible; no fake visibility
+or weaker proof permitted. Controlled lock/unlock diagnostics remain a separate
+future evidence step after the present real-delivery path, not a current PASS claim.
+
+Iteration112 final real result FAILED, original oracle4294967295/allfalse retained.
+App proof PASS20.6s and accepted INIT durable baseline are not full acceptance.
+First real PLAN wait returned SIDECAR_UNAVAILABLE after304.142s while native health
+still passed and journal wait remained awaiting-reply; reconnect returned BUSY.
+Fresh same-target CDP probe then exceeded5s. Owned executor16176 stopped to end
+retries; native13548 exited with it. No resend, replay or journal alteration.
+Early180s OS witnesses and post-failure Chrome foreground do not prove continuous
+unlocked state over the late failure. Plain Node fetch300s headers timeout versus
+existing600s semantic wait is a supported hypothesis, not yet proven cause.
+Independent112 requests finite browser-free transport reproducers before any
+new real retry; renderer degradation remains an independent diagnostic axis.
+
+Iteration113 user explicitly requests comprehensive lifecycle replan. Consolidated
+failure catalogue, evidence/uncertainty, source boundaries, public research and
+whole-goal questions published in docs/browser-platform-investigation.md/record113.
+Development doctor green; same saved ChatGPT conversation received architecture
+replan and is reading actual docs/source/raw110–112. No production changes or
+ordinary retry while that review is pending. Accepted scoped foundations remain
+closed; Windows complete real closure, producer Git gate and final audit stay open.
+
+Independent113 ARCHITECTURE_PLAN received after reading actual docs/source/raw.
+Unified order: transport causality A1/A2 → conditional minimal transport repair →
+one whole-wait renderer/environment timeline → conditional renderer classification/
+bound-conversation recovery → final frozen candidate → full canonical closure →
+producer gate → final global exact-HEAD review. Windows pause/resume qualification
+is separate from true unattended Headless/browser-host capability; no locked-mode
+support claim. One first failure stops real exposure; BUSY is never replacement
+authority, and no resend recovers a reply wait. Full suites only for source changes.
+Transport A1 using current compiled client and disposable loopback fixture matches:
+SIDECAR_UNAVAILABLE, zero cancel RPCs, fixture logical wait remains active (73ms).
+This proves client policy, not production-server activity by itself;112 provides
+the separate actual awaiting-reply observation. Exact Node24.16.0/Undici7.25.0
+A2 no-header diagnostic started with a320s outer bound; result pending.
+
+A2 completed: exact Node24.16.0/Undici7.25.0 global fetch rejected at304236ms with
+cause UND_ERR_HEADERS_TIMEOUT; explicit340s abort still false, fixture server
+listening, client socket closed.320s watchdog unused. Threshold A met: hidden
+transport cutoff conflicts with600s semantic wait, and A1 shows no-cancel policy.
+This confirms an actual runtime transport defect mechanism, not historical112
+cause code nor renderer/lock root cause. Raw A1/A2 retained and published113.
+Next: adversarial transport RED → explicit existing-budget transport/cancellation
+repair → focused validation/independent review, then single whole-wait timeline.
+No production source changes or real messages in this diagnostic campaign.
+
+Iteration114 M1 source candidate: client now uses private node:http rpc-http helper,
+agent:false, explicit existing AbortSignal across headers/body, bounded reply bytes
+and no redirects. Internal interrupted-RPC distinction triggers independent cancel;
+valid server-declared UNAVAILABLE does not. No new public error code, semantic
+deadline change, browser/recovery change or semantic request retry.
+RED3failed/9passed. Initial transport GREEN19PASS; extended transport/boundary
+GREEN23PASS. Actual separate compiled Sidecar2PASS proves cancelled wait uncertain,
+owner eventually released, same wait identity exact restart recovery/zero sends;
+send already invoked remains uncertain and refuses duplicate after restart.
+Observation recovery17PASS in initial focused run. Initial two lifecycle assertions
+failed because cancelACK was incorrectly treated as settled cleanup and an extra
+durable ensureReady test operation exceeded its1s fixture deadline; corrected
+bounded read-only owner-release observation2PASS10.42s. Original failures retained.
+Typecheck/buildPASS. Same Node compiled-client310s headerless wait PASS310066ms,
+one wait, zero cancels, caller un-aborted; no browser or ChatGPT involved.
+Earlier113/114 c2c records omitted --command, so --output-file saved no raw body;
+discovered through independent review and corrected with eight raw supplements.
+Independent114 source/lifecycle review running in same saved ChatGPT conversation.
+Full/package/profile/exact-pushed review and actual M2 timeline remain pending.
+
+Independent114 FIX_PLAN identified cancel/original HTTP ordering counterexample:
+cancel may reach native service before original admission; previous ACK did not
+fence that late request.115 native proxy RED2fail (late send executes, late wait
+enters). Added bounded generation-local pre-admission cancellation set in server;
+unknown or previously BUSY-refused identities fenced before ownership/journal/
+provider admission. Already-known journal/accepted dispositions preserved, no
+protocol/journal-schema changes. Late old-generation request remains rejected.
+Related6files90PASS214.53s before final BUSY supplement; final compiled native
+8PASS29.47s includes both orderings, accepted replay before/after restart,
+unaffected other ID, BUSY-refused cancellation and old-generation rejection.
+Final typecheck/buildPASS. Frozen full115 running, source/tests hashes retained;
+no production edits during it. The310s client probe remains associated with the
+unchanged client/helper build, not proof of server ordering. M2 fail-open standalone
+browser/root/page/journal/health and full WTS-series observers prepared; syntax
+checkPASS, authoritative WTS precheck session1/active/unlocked. No real exposure.
+
+Independent115 SOURCE_REVIEW_PASS_PENDING_FULL: actual source/tests and raw545–555
+read; transport/cancel ordering/zero resend/replay PASS, no concrete fix. Final
+typecheck/build raw supplements published. Frozen full completed87files1192PASS/
+3originalskip738.48s with source/test hashes unchanged. Fresh package nWOq2g PASS
+isolated imports/compiled separate process/private state/replay/shutdown; packed
+client/server/rpc-http JS byte-identical to build. Installed profile KtDOnj PASS
+twice for actual DSH schemas, Git, containment and restart identity; real Browser/
+App NOT_RUN. Ready for transport commit/push/exact-HEAD supplement; user dirty
+goal.md excluded from staging. M2 is finite PLAN-only diagnosis, explicitly not
+canonical acceptance; prepared independent whole-wait observers and first-failure
+stop controller are temporary artifacts, not part of transport commit.

@@ -49,6 +49,9 @@ export async function startSidecar(config: SidecarServerConfig) {
   const authenticationDigest = createHash('sha256').update('Bearer ' + config.authentication).digest()
   const attempts = new Map<string, { digest: string; outcome: Promise<Outcome> }>()
   const operations = new Map<string, { digest: string; outcome: Promise<Outcome>; retryable: boolean }>()
+  // A cancellation connection may arrive before the original request. Fence
+  // that exact identity within this generation without rewriting durable history.
+  const cancelledBeforeAdmission = new Set<string>()
   // Only an actual provider ACK in this live service may bind an unbound new chat.
   // A replayed accepted record or service restart cannot populate this witness.
   const acknowledgedSends = new Set<string>()
@@ -60,6 +63,10 @@ export async function startSidecar(config: SidecarServerConfig) {
     if (request.method === 'health') return { ok: true, result: { ok: !shuttingDown, detail: shuttingDown ? 'shutting down' : 'semantic service available' } }
     if (request.method === 'cancel') {
       if (active?.operationId === request.params.operationId) active.controller.abort(new SidecarRpcError('OPERATION_CANCELLED'))
+      else if ((!operations.has(request.params.operationId) || operations.get(request.params.operationId)!.retryable) && !journal.lookup(request.params.operationId)) {
+        if (!cancelledBeforeAdmission.has(request.params.operationId) && cancelledBeforeAdmission.size >= 1_024) return failure('JOURNAL_CAPACITY')
+        cancelledBeforeAdmission.add(request.params.operationId)
+      }
       return { ok: true, result: null }
     }
     if (request.method === 'shutdown') {
@@ -70,6 +77,7 @@ export async function startSidecar(config: SidecarServerConfig) {
       return { ok: true, result: null }
     }
     if (shuttingDown) return failure('SIDECAR_SHUTTING_DOWN')
+    if (cancelledBeforeAdmission.has(request.operationId)) return failure('OPERATION_CANCELLED')
     if (request.method === 'captureReplyBaseline' && !config.driver.captureReplyBaseline) return failure('CHAT_CONTROL_OBSERVATION_UNAVAILABLE')
     if (request.method === 'readiness' && !config.driver.readiness) return failure('CHAT_CONTROL_DIAGNOSTICS_UNAVAILABLE')
     if (request.method === 'probeApp') {
