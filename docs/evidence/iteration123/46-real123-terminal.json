@@ -1,0 +1,38 @@
+{
+  "root": "C:\\Users\\jingc\\AppData\\Local\\Temp\\planner-executor-live-wHYkUQ",
+  "processes": {
+    "remaining": [],
+    "sidecarListeners": 0
+  },
+  "wtsSamples": 20,
+  "allWtsUsable": true,
+  "allWtsChromeForeground": true,
+  "independentPageCommands": 0,
+  "journalRevision": 13,
+  "entries": [
+    {
+      "operationId": "fc416195-8aa5-4623-9ddc-21f025ffca2b",
+      "method": "probeApp",
+      "phase": "accepted",
+      "createdAt": 1791039911142,
+      "updatedAt": 1791039911639,
+      "baselineBound": false
+    },
+    {
+      "operationId": "562ddf48-10e3-4821-940d-7e6f453fb83c",
+      "method": "probeApp",
+      "phase": "accepted",
+      "createdAt": 1791039913840,
+      "updatedAt": 1791039914275,
+      "baselineBound": false
+    },
+    {
+      "operationId": "13002f96-7678-4938-b9da-fedd8cff4b4b",
+      "method": "sendControlMessage",
+      "phase": "accepted",
+      "createdAt": 1791039914306,
+      "updatedAt": 1791039915431,
+      "baselineBound": false
+    }
+  ]
+}

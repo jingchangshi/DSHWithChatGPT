@@ -25,7 +25,7 @@ export async function syntheticCdpDocument(endpoint: string, targetId: string) {
   })
   await session.command('Fetch.enable', { patterns: [{ urlPattern: 'https://chatgpt.com/*', requestStage: 'Request' }] })
   return {
-    serve(options: { apps?: string[]; draft?: string; logout?: boolean; foreignOnInput?: boolean; replaceOnInput?: boolean; baseline?: boolean; paragraphComposer?: boolean; alterParagraph?: boolean; hiddenParagraph?: boolean; persistedControl?: string; persistedApp?: string; persistedReply?: string; duplicatePersistedUser?: boolean; redirectOnLoad?: string; returnFromRedirect?: boolean; persistedMountDelayMs?: number; pendingAppRendering?: boolean; pendingAppLabel?: string; keepPendingAppRendering?: boolean; coldConversation?: boolean } = {}) {
+    serve(options: { apps?: string[]; draft?: string; logout?: boolean; foreignOnInput?: boolean; replaceOnInput?: boolean; baseline?: boolean; paragraphComposer?: boolean; alterParagraph?: boolean; hiddenParagraph?: boolean; persistedControl?: string; persistedApp?: string; persistedReply?: string; duplicatePersistedUser?: boolean; redirectOnLoad?: string; returnFromRedirect?: boolean; persistedMountDelayMs?: number; pendingAppRendering?: boolean; pendingAppLabel?: string; keepPendingAppRendering?: boolean; coldConversation?: boolean; d27PersistOnDurableRoute?: boolean; d27RetainEnterCount?: boolean } = {}) {
       html = `<!doctype html><meta charset="utf-8"><title>Synthetic semantic fixture</title>
 <style>[role=textbox]{width:450px;min-height:80px;border:1px solid black} button{min-width:180px;min-height:40px}</style>
 ${options.logout ? '<button>Log in</button>' : '<div role="textbox" contenteditable="true"></div>'}
@@ -33,6 +33,7 @@ ${options.logout ? '<button>Log in</button>' : '<div role="textbox" contentedita
 <script>
 const options = ${JSON.stringify(options)};
 window.enterCount = 0; window.sent = []; window.keys = []; window.materialized = false;
+if (options.d27RetainEnterCount) Object.defineProperty(window, 'enterCount', { get: () => Number(sessionStorage.getItem('d27-enter-count') || 0), set: value => sessionStorage.setItem('d27-enter-count', String(value)) });
 const composer = document.querySelector('[role=textbox]');
 if (composer) {
   composer.textContent = options.draft || (location.pathname === '/c/replacement' ? 'replacement draft' : '');
@@ -98,7 +99,7 @@ const mountPersisted = () => { if (options.keepPendingAppRendering) return; docu
 if (options.persistedReply) window.addReply(options.persistedReply); window.materialized = true;
 };
 window.materialize = mountPersisted;
-if (!options.coldConversation) { if (options.persistedMountDelayMs) setTimeout(mountPersisted, options.persistedMountDelayMs); else mountPersisted(); }
+if (!options.coldConversation && (!options.d27PersistOnDurableRoute || location.pathname.startsWith('/c/'))) { if (options.persistedMountDelayMs) setTimeout(mountPersisted, options.persistedMountDelayMs); else mountPersisted(); }
 if (options.redirectOnLoad) { const original = location.href; history.replaceState(null, '', options.redirectOnLoad); if (options.returnFromRedirect) history.replaceState(null, '', original); }
 </script>`
       if (failure) throw failure

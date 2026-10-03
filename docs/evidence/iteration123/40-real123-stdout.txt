@@ -1,0 +1,4 @@
+{"kind":"OBSERVER_ABLATION_CANONICAL_ACCEPTANCE","observers":{"wts":35104,"root":28952},"noPreFailureIndependentPageCommands":true}
+VERIFIED: all five packed collaboration tools satisfy the real DSH schema subset; nullable HEAD enforces string/null
+{"root":"C:\\Users\\jingc\\AppData\\Local\\Temp\\planner-executor-live-wHYkUQ","pid":20036,"workspace":"C:\\Users\\jingc\\AppData\\Local\\Temp\\planner-executor-live-wHYkUQ\\workspace","phase":1}
+{"code":1,"root":"C:\\Users\\jingc\\AppData\\Local\\Temp\\planner-executor-live-wHYkUQ","plannerExecutorAccepted":false,"identityVerified":false,"nonceVerified":false,"recoveryVerified":false,"readinessVerified":false,"exitCode":1}

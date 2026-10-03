@@ -1,0 +1,43 @@
+{
+  "consumerHead": "b6a9061cc7d13c70d3f1d35c49537008424c2845",
+  "producerHead": "0afd708c288b079096affbfeff4626dcf9a19bf1",
+  "artifact": "dsh-chatgpt-package-3ZkHDf",
+  "runId": "39158fe5-bf88-4a21-972b-9d806ce32fb0",
+  "phase": 1,
+  "targetId": "4479B1448B1CF5872D0E645C9C075E6D",
+  "executorPid": 20036,
+  "lastSuccess": "local doctor localReady=true",
+  "firstFailure": "app-proof remote_workspace_access SEND_UNCERTAIN",
+  "appProofElapsedMs": 12936,
+  "appProofBudgetMs": 90000,
+  "sendOperation": "13002f96-7678-4938-b9da-fedd8cff4b4b",
+  "journalPhase": "accepted",
+  "bootstrapPresent": true,
+  "bootstrapBaselinePresent": false,
+  "classification": "accepted bootstrap send; no bound observation; pre-wait failure; exact rejection subbranch UNKNOWN",
+  "newBusinessSendsAfterFailure": 0,
+  "replacementCount": 0,
+  "postFailurePageProbe": true,
+  "postFailureProbeProvesHistoricalCause": false,
+  "allWtsUsable": true,
+  "wtsSamples": 20,
+  "independentPreFailurePageCommands": 0,
+  "processesReleased": true,
+  "sidecarListeners": 0,
+  "oracle": {
+    "readinessVerified": false,
+    "plannerExecutorAccepted": false,
+    "nonceVerified": false,
+    "exitCode": 1,
+    "recoveryVerified": false,
+    "identityVerified": false
+  },
+  "excludedClaims": [
+    "renderer crash",
+    "lock cause",
+    "real121 same cause",
+    "package defect",
+    "product PASS"
+  ],
+  "next": "Independent bounded boundary review before any new exposure. No ordinary retry."
+}

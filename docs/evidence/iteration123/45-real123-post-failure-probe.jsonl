@@ -1,0 +1,8 @@
+{"at":1791039926125,"targetId":"4479B1448B1CF5872D0E645C9C075E6D","kind":"command","method":"Browser.getVersion","begin":1791039926123,"latencyMs":2,"ok":true}
+{"at":1791039926126,"targetId":"4479B1448B1CF5872D0E645C9C075E6D","kind":"command","method":"Target.getTargets","begin":1791039926125,"latencyMs":1,"ok":true}
+{"at":1791039926126,"targetId":"4479B1448B1CF5872D0E645C9C075E6D","kind":"root","listed":true}
+{"at":1791039926143,"targetId":"4479B1448B1CF5872D0E645C9C075E6D","kind":"command","method":"Page.enable","begin":1791039926129,"latencyMs":14,"ok":true}
+{"at":1791039926145,"targetId":"4479B1448B1CF5872D0E645C9C075E6D","kind":"command","method":"Runtime.enable","begin":1791039926143,"latencyMs":2,"ok":true}
+{"at":1791039926146,"targetId":"4479B1448B1CF5872D0E645C9C075E6D","kind":"command","method":"Page.getFrameTree","begin":1791039926145,"latencyMs":1,"ok":true}
+{"at":1791039926147,"targetId":"4479B1448B1CF5872D0E645C9C075E6D","kind":"command","method":"Runtime.evaluate","begin":1791039926146,"latencyMs":1,"ok":true}
+{"at":1791039926147,"targetId":"4479B1448B1CF5872D0E645C9C075E6D","kind":"post-failure-page-probe","ok":true,"pageCommands":4}

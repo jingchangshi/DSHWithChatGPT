@@ -1,3 +1,12 @@
+## 当前执行依据：real123 在 app-proof 绑定前失败，停止该次曝光
+
+冻结提交 b6a9061cc7d13c70d3f1d35c49537008424c2845 在原 ChatGPT 对话取得实际工具读取后的 EXACT_HEAD_SCOPED_REVIEW_PASS，获准一次 fresh real123。此前未读取源码的摘要批准及 REVIEW_BLOCKED 均不能作为通过依据。
+
+real123（run39158fe5-bf88-4a21-972b-9d806ce32fb0）已终止：local doctor localReady=true；app-proof 的 remote_workspace_access 返回 SEND_UNCERTAIN，appDataPlaneVerified=false。耗时12936ms，原proof预算90000ms。journal只有一次 accepted bootstrap send，无 bootstrapBaseline，无 wait、replacement、PLAN、实现或review。具体拒绝子分支 UNKNOWN，不能推定renderer/锁屏/历史Real121根因。
+
+控制器停止该次执行并冻结证据40–47。20个WTS样本可用；停机前仅root/health/journal观察，独立page命令0。停机后单次page probe成功只证明该时点可执行。DSH与两个观察器已确认退出，Sidecar监听0。原oracle五项false、exitCode1。首次观察文件未创建的guard-read-unavailable记录完整保留。
+
+下一行动：将本次accepted但未绑定的失败边界提交原ChatGPT独立复核，先获得唯一可证伪的本地/native实验和停止条件；无普通重试、新target或放宽timeout/身份检查。真实闭环及lock/producer/global gates仍未完成。下文旧状态为历史。
 ## 当前执行依据：post-D26 冻结全量 PASS，等待提交与 exact-HEAD 审阅
 
 2026-10-03 22:38（Asia/Shanghai），获独立方案批准的 post-D26 原命令 pnpm test 已终止，exit0：91 files / 1246 PASS / 3 原有 skips / 777.68s。原始输出见 docs/evidence/iteration123/37-frozen-full-after-d26.txt；终态38确认225个冻结文件哈希与路径无变化，39确认两次冻结清单一致。full 未加载 D26 observer，未改变源码、fixture、timeout 或安全检查。

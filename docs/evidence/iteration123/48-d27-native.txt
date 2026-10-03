@@ -1,0 +1,42 @@
+[WARN] The "pnpm" field in package.json is no longer read by pnpm. The following keys were ignored: "pnpm.overrides". See https://pnpm.io/settings for the new home of each setting.
+
+ RUN  v5.0.1 C:/Users/jingc/workspace/DSHWithChatGPT/package
+
+stdout | tests/doctor-bind-boundary-native.spec.ts > D27 native bind boundary (delayed-valid)
+D27 metadata: {"scenario":"delayed-valid","elapsedMs":10648,"proofBudgetMs":90000,"code":"SEND_UNCERTAIN","localReady":true,"appVerified":false,"sendCount":1,"accepted":true,"bound":false,"waitCount":0,"recoveryCount":0,"driverSendCount":1,"pageEnterCount":0,"materialized":true}
+
+stdout | tests/doctor-bind-boundary-native.spec.ts > D27 native bind boundary (permanent-missing)
+D27 metadata: {"scenario":"permanent-missing","elapsedMs":10617,"proofBudgetMs":90000,"code":"SEND_UNCERTAIN","localReady":true,"appVerified":false,"sendCount":1,"accepted":true,"bound":false,"waitCount":0,"recoveryCount":0,"driverSendCount":1,"pageEnterCount":0,"materialized":true}
+
+ ❯ tests/doctor-bind-boundary-native.spec.ts (3 tests | 2 failed) 32195ms
+   × D27 native bind boundary (delayed-valid) 14181ms
+   × D27 native bind boundary (permanent-missing) 14101ms
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 2 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  tests/doctor-bind-boundary-native.spec.ts > D27 native bind boundary (delayed-valid)
+ FAIL  tests/doctor-bind-boundary-native.spec.ts > D27 native bind boundary (permanent-missing)
+AssertionError: expected +0 to be 1 // Object.is equality
+
+- Expected
++ Received
+
+- 1
++ 0
+
+ ❯ tests/doctor-bind-boundary-native.spec.ts:87:56
+     85|     expect(result.localReady).toBe(true)
+     86|     expect(sends).toHaveLength(1); expect(sends[0].phase).toBe('accept…
+     87|     expect(await direct.evaluate('window.enterCount')).toBe(1)
+       |                                                        ^
+     88|     expect(recover).not.toHaveBeenCalled()
+     89|     expect(result.appDataPlaneVerified).toBe(scenario === 'delayed-val…
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/2]⎯
+
+
+ Test Files  1 failed (1)
+      Tests  2 failed | 1 passed (3)
+   Start at  23:14:32
+   Duration  32.66s (tests 99%, transform 1%)
+
