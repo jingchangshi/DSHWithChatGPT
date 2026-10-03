@@ -53,5 +53,5 @@
 - `pnpm run test:package`: passed; isolated packed plugin imports and Sidecar probe passed.
 - `pnpm run test:profile C:/Users/jingc/workspace/deepseek-harness C:/Users/jingc/AppData/Local/Temp/dsh-chatgpt-package-qZdn0E`: passed twice; composition fixture and hardened-Windows Git acceptance passed.
 - Exact HEAD equals upstream after push.
-- Frozen full at this new HEAD: NOT RUN.
+- Frozen full at HEAD `0eec461d415e1c27cf9bf37d06897c09a2c6810e`: passed, 93 files / 1285 passed / 3 original skips; output `C:/Users/jingc/AppData/Local/Temp/dsh-frozen-full-0eec461.txt`.
 - Real exposure and full product-loop acceptance: NOT RUN.
