@@ -22,4 +22,14 @@ describe('canonical Planner-Executor E2E runner', () => {
     expect(script).toContain('process.exitCode = acceptance.exitCode')
     expect(script).not.toContain('plannerExecutorAccepted: false')
   })
+
+  it('supervises the installed native entry and passes the concrete owned target on phase restart', () => {
+    expect(script).toContain(".resolve('dsh-with-chatgpt/package.json')")
+    expect(script).toContain('...ownedSidecarConfig(sidecarEndpoint,')
+    expect(script).toContain('await assertSidecarEndpointUnused(sidecarEndpoint)')
+    expect(script).toContain('...phaseEnvironment(process.env, targetId)')
+    expect(script).toContain('runPhase(2, reconnectTask, await readTargetPointer(targetPointer))')
+    expect(script).not.toContain('/json/list')
+    expect(script).not.toContain('/json/new')
+  })
 })

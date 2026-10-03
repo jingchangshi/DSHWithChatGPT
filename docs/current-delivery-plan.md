@@ -660,3 +660,48 @@ schema/Git/containment/restart identity; real Browser/App NOT_RUN. SHA256 of pac
 runtime/helper/driver/journal/native entry matches current built candidate exactly.
 No code/test changes after frozen full. Ready for commit/push and exact-HEAD scoped
 supplement; complete real acceptance and producer/global audit remain open.
+
+Iteration106 exact pushed d8958073efcb03a6dbd329c0d521e2cf1742f0b7 received
+DONE_SCOPED for owned-target recovery/unknown-create mutation uncertainty. Fresh
+iteration107 canonical wGWGJH used XQYnAK, new default Chrome process/targetA9C1,
+journal23/native23784/executor34748. Local and REAL App proof passed. INIT accepted
+with persisted bootstrap but no bootstrapBaseline and no PLAN wait; firstplan
+BROWSER_TARGET_CHANGED after13s. Executor repeatedly reconnected and attempted
+extra App proof; owned34748 was stopped to end looping. Original4294967295 and
+all-false final oracle preserved. Authenticated native shutdown passed. Post-run
+fresh same-target connection hit existing5s timeout; this cannot identify the
+first failure stage. Initial no-send preflight failed while document loaded;
+same-target later preflight PASS ready/login/exactApp. All raw107 evidence published.
+No replay/adoption of old task/journal. No evidence of a general OpenAI restriction.
+
+Canonical runner currently omits sidecarProcessCommand, so its externally managed
+Sidecar deliberately excludes the accepted automatic replacement branch. Independent
+next-plan review is evaluating minimal acceptance-deployment internal supervision,
+without another ordinary retry, protocol/fence weakening or speculative driver edit.
+Overall realPLAN/execution/nonce/REVIEW/fixrestartDONE/oracle, producer gate and final
+global audit remain open. No new source modification following scoped DONE yet.
+
+Iteration107 independent PLAN identifies the external acceptance topology as the
+next deployment gap; no new production/browser/protocol instrumentation requested.
+Iteration108 changes only canonical acceptance deployment: actual installed native
+entry under runtime supervision, private explicit target pointer updated atomically
+by a same-process launcher, and exact pointer handoff across mandatory DSH restart.
+Every phase refuses an occupied Sidecar endpoint; initial delivery journal must be
+fresh. State/credential/CDP/App/port references and acceptance oracle stay unchanged.
+No target discovery, guessed ownership or resend. Production src/** is unchanged.
+RED missing deployment helper:2failed. Exploratory native assertion1failed/32passed
+was invalid whole-file journal equality: startup advances revision while all entries
+and retired evidence remain identical. Corrected oracle checks those invariants and
+zero sends. Final focused4files/33passed23.55s includes actual compiled native
+launcher, replacement and third-child restart; synthetic page is NOT real acceptance.
+Typecheck/build PASS with raw output published. Independent iteration108
+SOURCE_REVIEW_PASS_PENDING_FULL found no concrete fix. Frozen full is running;
+fresh package/profile, pushed exact-HEAD supplement and real canonical remain open.
+
+Final iteration108 frozen full PASS:86files/1176passed/3originalskip699.43s.
+Fresh isolated package RiYgOh PASS imports/separate packaged Sidecar/private journal/
+replay/shutdown. Installed DSH profile yRX0QD PASS twice, schema/Git/containment/
+restart identity; real Browser/App NOT_RUN. Packed runtime/recovery helper/native
+entry/driver/journal SHA256 matches built candidate. No source/test changes after
+full. Ready for commit/push/exact-HEAD supplement, then one fresh internally owned
+real canonical. Overall Windows acceptance and producer/global gates remain open.

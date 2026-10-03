@@ -12,6 +12,7 @@ import { SidecarSupervisor } from '../src/deployment/sidecar-supervisor.ts'
 import { SidecarChatControlClient } from '../src/sidecar/client.ts'
 import { createOwnedSidecarReplacement } from '../src/deployment/sidecar-target-recovery.ts'
 import { listCdpTargets } from '../src/browser/direct-cdp.ts'
+import { ownedSidecarConfig, readTargetPointer, phaseEnvironment, assertSidecarEndpointUnused } from '../scripts/planner-executor-owned-sidecar.mjs'
 
 const conversation = '6abfada1-f690-83ee-aedf-762de215604f'
 const control = '[PLANNER_BRIDGE]\nVERSION: 2\nSTATE: INIT\nTASK_ID: pb_' + 'a'.repeat(32) + '\nITERATION: 0\nWORKSPACE_ID: owned-world\n\nGOAL:\nNative persisted bootstrap recovery'
@@ -54,13 +55,17 @@ it('proves native old-target recovery failure and same-journal replacement oracl
     const authentication = randomBytes(32).toString('base64url'), credentialFile = join(credentials, 'authentication.secret')
     await writeFile(credentialFile, authentication, { flag: 'wx', mode: 0o600 })
     const endpoint = 'http://127.0.0.1:' + await port() + '/'
+    const pointer = join(root, 'acceptance-owned-target.json')
+    const deployment = ownedSidecarConfig(endpoint, credentialFile, resolve('lib/deployment/sidecar-process-entry.js'), pointer)
     const env = { PLANNERBRIDGE_SIDECAR_CREDENTIAL_FILE: credentialFile, PLANNERBRIDGE_SIDECAR_STATE_DIRECTORY: journal,
       PLANNERBRIDGE_SIDECAR_EXCLUDED_ROOTS: '[]', PLANNERBRIDGE_SIDECAR_CDP_ENDPOINT: browser.endpoint,
       PLANNERBRIDGE_SIDECAR_PORT: new URL(endpoint).port, PLANNERBRIDGE_SIDECAR_APP_NAME: 'DSH with ChatGPT' }
     const start = async (targetId: string) => {
-      const child = new SidecarSupervisor({ command: process.execPath, args: [resolve('lib/deployment/sidecar-process-entry.js')],
-        endpoint, authentication, env: { ...env, PLANNERBRIDGE_SIDECAR_TARGET_ID: targetId } })
+      await assertSidecarEndpointUnused(endpoint)
+      const child = new SidecarSupervisor({ command: deployment.sidecarProcessCommand, args: deployment.sidecarProcessArgs,
+        endpoint, authentication, env: phaseEnvironment(env, targetId) })
       children.push(child); await child.start(); expect(child.pid).not.toBe(process.pid)
+      expect(await readTargetPointer(pointer)).toBe(targetId)
       return { child, client: new SidecarChatControlClient({ endpoint, authentication, requestTimeoutMs: 10000 }) }
     }
     const first = await start(browser.targetId)
@@ -95,6 +100,17 @@ it('proves native old-target recovery failure and same-journal replacement oracl
     expect(saved).toMatchObject({ phase: 'accepted', bootstrap: entry.bootstrap, bootstrapBaseline: bound })
     expect(await replacementPrimitives.evaluate('window.enterCount')).toBe(0)
     expect(await replacementPrimitives.evaluate('window.sent.length')).toBe(0)
+    // Acceptance's mandatory DSH phase restart carries the recorded concrete ID,
+    // without discovering a tab or changing the persisted delivery journal.
+    const beforePhaseRestart = await readFile(file, 'utf8')
+    await second.child.close()
+    const third = await start(await readTargetPointer(pointer))
+    expect(await third.client.captureSendObservation(operation.operationId)).toEqual(bound)
+    // Startup persists its journal revision; operation evidence stays identical.
+    const afterPhaseRestart = JSON.parse(await readFile(file, 'utf8'))
+    expect(afterPhaseRestart.entries).toEqual(JSON.parse(beforePhaseRestart).entries)
+    expect(afterPhaseRestart.retired).toBe(JSON.parse(beforePhaseRestart).retired)
+    expect(await replacementPrimitives.evaluate('window.enterCount')).toBe(0)
     await replacement.retireSource()
     await expect.poll(async () => (await listCdpTargets(browser.endpoint)).some(target => target.id === browser.targetId), { timeout: 2000 }).toBe(false)
     console.log('Native architecture oracle PASS: same journal/task/send/digest and assistant baseline bound through fresh target and fresh Sidecar; zero second send')

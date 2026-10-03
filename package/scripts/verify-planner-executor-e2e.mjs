@@ -5,7 +5,9 @@ import { mkdtemp, mkdir, readFile, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { fileURLToPath, pathToFileURL } from 'node:url'
+import { createRequire } from 'node:module'
 import { evaluateAcceptance } from './planner-executor-acceptance.mjs'
+import { assertSidecarEndpointUnused, ownedSidecarConfig, phaseEnvironment, readTargetPointer, validateTargetId } from './planner-executor-owned-sidecar.mjs'
 const [source, installation] = process.argv.slice(2)
 const runId = randomUUID()
 const cli = process.env.DSH_CLI
@@ -51,6 +53,17 @@ await writeFile(path.join(profile, 'pnpm-workspace.yaml'), JSON.stringify({ over
 const install = spawnSync(process.execPath, [cli, 'plugin', '--profile', 'planner-executor-e2e', 'add', path.join(path.resolve(installation), 'dsh-with-chatgpt-0.1.0.tgz')], { cwd: workspace, env: { ...process.env, DSH_HOME: home }, encoding: 'utf8', windowsHide: true })
 await writeFile(path.join(root, 'install.log'), install.stdout + install.stderr)
 assert.equal(install.status, 0, 'Profile installation failed: ' + path.join(root, 'install.log'))
+const installedManifestPath = createRequire(path.join(profile, 'package.json')).resolve('dsh-with-chatgpt/package.json')
+const installedManifest = JSON.parse(await readFile(installedManifestPath, 'utf8'))
+const nativeEntry = path.resolve(path.dirname(installedManifestPath), installedManifest.bin['chat-control-sidecar'])
+assert.equal(nativeEntry, path.join(path.dirname(installedManifestPath), 'lib', 'deployment', 'sidecar-process-entry.js'))
+await readFile(nativeEntry)
+for (const key of ['PLANNERBRIDGE_SIDECAR_CREDENTIAL_FILE', 'PLANNERBRIDGE_SIDECAR_STATE_DIRECTORY', 'PLANNERBRIDGE_SIDECAR_EXCLUDED_ROOTS', 'PLANNERBRIDGE_SIDECAR_CDP_ENDPOINT', 'PLANNERBRIDGE_SIDECAR_TARGET_ID', 'PLANNERBRIDGE_SIDECAR_PORT', 'PLANNERBRIDGE_SIDECAR_APP_NAME']) assert.ok(process.env[key], key + ' required for owned native acceptance')
+const initialTargetId = validateTargetId(process.env.PLANNERBRIDGE_SIDECAR_TARGET_ID)
+const sidecarEndpoint = 'http://127.0.0.1:' + process.env.PLANNERBRIDGE_SIDECAR_PORT + '/'
+const targetPointer = path.join(root, 'owned-target.json')
+assert.equal(process.env.PLANNERBRIDGE_SIDECAR_APP_NAME, 'DSH with ChatGPT')
+assert.equal(await readFile(path.join(process.env.PLANNERBRIDGE_SIDECAR_STATE_DIRECTORY, 'delivery.json')).then(() => true, error => { if (error.code === 'ENOENT') return false; throw error }), false, 'Acceptance requires a fresh delivery journal')
 await writeFile(path.join(profile, 'cordis.patch.yml'), JSON.stringify([
   { id: 'agent-default-model', config: { provider: 'deepseek-official', model: 'deepseek-flash' } },
   { id: 'llm-deepseek', config: { apiKeyEnv: 'DEEPSEEK_API_KEY' } },
@@ -58,13 +71,14 @@ await writeFile(path.join(profile, 'cordis.patch.yml'), JSON.stringify([
   { insert: [
     { id: 'acceptance-observer', name: new URL('../tests/fixtures/planner-executor-e2e-observer.mjs', import.meta.url).href, config: { report, stopOnFix: true } }
   ] },
-  { id: 'dsh-with-chatgpt', config: { tunnelMode: 'managed', tunnelClientPath: process.env.MCP_EXPOSURE_CLIENT, tunnelStartupTimeoutMs: 40000, replyTimeoutMs: 600000, gitPolicy: 'commit-push', gitReadPolicy: 'allow-hardened-windows', chatgptAppName: 'DSH with ChatGPT' } }
+  { id: 'dsh-with-chatgpt', config: { ...ownedSidecarConfig(sidecarEndpoint, process.env.PLANNERBRIDGE_SIDECAR_CREDENTIAL_FILE, nativeEntry, targetPointer), tunnelMode: 'managed', tunnelClientPath: process.env.MCP_EXPOSURE_CLIENT, tunnelStartupTimeoutMs: 40000, replyTimeoutMs: 600000, gitPolicy: 'commit-push', gitReadPolicy: 'allow-hardened-windows', chatgptAppName: 'DSH with ChatGPT' } }
 ], null, 2))
 const args = [cli, '--profile', 'planner-executor-e2e', '--json']
 const task = 'Use PlannerBridge to implement REQUIREMENTS.md. First call chatgpt_doctor with mode=local and require localReady=true. Then separately call chatgpt_doctor with mode=app-proof and require appDataPlaneVerified=true. execution_output_access=false is EXPECTED outside an active review and is NOT a local/App readiness failure. An unrequested app-proof has not failed. Stop only if the respective readiness field fails after its explicit mode call. Then call chatgpt_plan with the requirements goal. Include this review requirement in the goal: reviewer must independently read raw execution_output and echo the latest successful npm test E2E_EVIDENCE marker in SUMMARY, never receive that value via executor prose. Follow the real PLAN, edit and test with npm test, commit and push planner-executor/e2e, then chatgpt_review with exact HEAD and testsRecorded true. Never put the random marker in review arguments, files or messages. Do not modify REQUIREMENTS.md or weaken tests. If REVIEW gives a fix PLAN continue it; if DONE finish. Never fabricate protocol or evidence. Use pwsh for shell commands.'
 const reconnectTask = 'Call chatgpt_reconnect and preserve the same task, iteration and workspace identity. Re-read the current plan and execution records, implement the requested fix, run npm test, commit and push planner-executor/e2e, then call chatgpt_review with the exact current HEAD and testsRecorded true. The reviewer must independently read raw execution_output and echo the latest successful E2E_EVIDENCE marker. Never put that marker in arguments, files or messages. Use pwsh for shell commands.'
-async function runPhase(phase, prompt) {
-  const child = spawn(process.execPath, [...args, prompt], { cwd: workspace, env: { ...process.env, DSH_HOME: home, PLANNER_EXECUTOR_RUN_ID: runId, PLANNER_EXECUTOR_PHASE: String(phase) }, windowsHide: true })
+async function runPhase(phase, prompt, targetId) {
+  await assertSidecarEndpointUnused(sidecarEndpoint)
+  const child = spawn(process.execPath, [...args, prompt], { cwd: workspace, env: { ...phaseEnvironment(process.env, targetId), DSH_HOME: home, PLANNER_EXECUTOR_RUN_ID: runId, PLANNER_EXECUTOR_PHASE: String(phase) }, windowsHide: true })
   console.log(JSON.stringify({ root, pid: child.pid, workspace, phase }))
   const chunks = []
   child.stdout.on('data', data => chunks.push(data))
@@ -74,10 +88,10 @@ async function runPhase(phase, prompt) {
   return code
 }
 
-const firstCode = await runPhase(1, task)
+const firstCode = await runPhase(1, task, initialTargetId)
 const firstRecords = (await readFile(report, 'utf8').catch(() => '')).split('\n').filter(Boolean).map(line => JSON.parse(line))
 const restartPending = firstRecords.some(record => record.kind === 'restart-checkpoint')
-const code = restartPending ? await runPhase(2, reconnectTask) : firstCode
+const code = restartPending ? await runPhase(2, reconnectTask, await readTargetPointer(targetPointer)) : firstCode
 {
   const observations = await readFile(report, 'utf8').catch(() => '')
   const records = observations.split('\n').filter(Boolean).map(line => JSON.parse(line))
