@@ -1,7 +1,10 @@
 /** Read-only browser expression shared by reply waiting and explicit reconciliation.
  * Unknown or ambiguous message structure returns null; it never guesses a body.
+ * The same scan reports MISSING_BODY only for one empty, identified current
+ * user shell with no body marker and no other user or structural contradiction.
  */
 export const messageObservationScript = String.raw`
+let messageObservationState = 'STRUCTURAL_AMBIGUITY';
 const messageObservations = (() => {
   const visible = element => {
     if (!element.isConnected) return false;
@@ -22,6 +25,7 @@ const messageObservations = (() => {
   if (roots.length > 512) return null;
   const identities = new Set();
   const messages = [];
+  let missingBodies = 0;
   const excluded = 'button, [role="button"], [role="toolbar"], [data-conversation-role], .sr-only, script, style';
   const readBody = element => {
     let visited = 0;
@@ -79,11 +83,23 @@ const messageObservations = (() => {
       bodies = bodies.filter(node => !bodies.some(parent => parent !== node && parent.contains(node)));
       if (!bodies.length && root.hasAttribute('data-message-author-role')) bodies = [root];
       if (!bodies.length && role === 'assistant') bodies = all.filter(node => node.hasAttribute('data-chatgpt-selection-message-id') && visible(node));
+      if (bodies.length === 0 && role === 'user' && localIds.size === 1
+        && !all.some(node => node.matches(selector)) && readBody(root).trim() === '') {
+        missingBodies++;
+        continue;
+      }
       if (bodies.length !== 1) return null;
       const body = bodies[0];
       const appNames = Array.from(body.querySelectorAll('a[href^="/plugins/"]')).filter(visible).map(node => readBody(node).trim());
       messages.push({ role, text: readBody(body), appNames, animated: body.hasAttribute('data-markdown-animated') });
     }
+    // Finish scanning before classifying absence: later identity conflicts,
+    // role conflicts or multiple bodies must never be hidden by hydration.
+    if (missingBodies) {
+      if (missingBodies === 1 && !messages.some(message => message.role === 'user')) messageObservationState = 'MISSING_BODY';
+      return null;
+    }
+    messageObservationState = 'READY';
     return messages;
   } catch { return null; }
 })();

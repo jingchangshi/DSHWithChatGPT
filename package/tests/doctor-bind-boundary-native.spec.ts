@@ -14,11 +14,15 @@ import { startBridgeServer } from '../src/bridge/server.ts'
 import { runDoctor } from '../src/readiness/doctor.ts'
 import { appProofPrompt } from '../src/readiness/app-proof.ts'
 import { ownedSidecarConfig } from '../scripts/planner-executor-owned-sidecar.mjs'
+import { messageObservationScript } from '../src/browser/message-observation.ts'
+import { sameBrowserTarget } from '../src/browser/epoch.ts'
 
 // D27: isolated native composition, not a real ChatGPT exposure or historical
 // diagnosis. The production driver/server/doctor are unmodified. Only the
 // disposable page schedules its outgoing-message materialization.
-it.each(['delayed-valid', 'permanent-missing', 'wrong-digest'] as const)('D27 native bind boundary (%s)', async scenario => {
+it.each(['delayed-valid', 'near-deadline', 'after-deadline', 'transient-ambiguous', 'permanent-missing', 'wrong-digest', 'duplicate-user', 'wrong-app', 'route-changed', 'body-hydration', 'body-permanent', 'body-route-change', 'body-document-change'] as const)('D27 native bind boundary (%s)', async scenario => {
+  const delayMs = scenario === 'near-deadline' ? 9000 : scenario === 'after-deadline' ? 11000 : scenario.startsWith('body-') ? 2000 : 250
+  const expectedPass = ['delayed-valid', 'near-deadline', 'body-hydration'].includes(scenario)
   const directory = await mkdtemp(join(tmpdir(), 'plannerbridge-d27-'))
   const browser = await localCdpBrowser()
   const document = await syntheticCdpDocument(browser.endpoint, browser.targetId)
@@ -30,7 +34,9 @@ it.each(['delayed-valid', 'permanent-missing', 'wrong-digest'] as const)('D27 na
     const proof = { challenge: 'd27-test-only', workspaceId: 'd27-world', root: { path: '', visibleEntryCount: 0, truncated: false, firstVisibleEntry: null }, git: { isRepo: false, head: null, branch: null } }
     document.serve({ apps: ['DSH with ChatGPT'], paragraphComposer: true, d27RetainEnterCount: true, d27PersistOnDurableRoute: true,
       persistedControl: scenario === 'permanent-missing' ? undefined : scenario === 'wrong-digest' ? 'foreign control' : appProofPrompt,
-      persistedReply: scenario === 'permanent-missing' ? undefined : '[D2C_APP_PROOF_V1]' + JSON.stringify(proof), persistedMountDelayMs: scenario === 'delayed-valid' ? 250 : undefined })
+      persistedReply: scenario === 'permanent-missing' ? undefined : '[D2C_APP_PROOF_V1]' + JSON.stringify(proof), persistedMountDelayMs: ['delayed-valid', 'near-deadline', 'after-deadline', 'transient-ambiguous', 'route-changed', 'body-hydration'].includes(scenario) ? delayMs : undefined,
+      duplicatePersistedUser: scenario === 'duplicate-user', persistedApp: scenario === 'wrong-app' ? 'Other App' : undefined,
+      keepPendingAppRendering: scenario === 'body-permanent', d28BodyHydrationUntilMount: scenario.startsWith('body-'), d28AmbiguousUntilMount: scenario === 'transient-ambiguous', d28ChangeRoute: scenario === 'route-changed' })
     await direct.navigate('https://chatgpt.com/'); await direct.waitForLoad(5000)
     await direct.evaluate(`(() => {
       const push = history.pushState.bind(history);
@@ -38,15 +44,29 @@ it.each(['delayed-valid', 'permanent-missing', 'wrong-digest'] as const)('D27 na
       document.querySelector('[role=textbox]').addEventListener('input', () => { document.querySelector('[role=listbox]').hidden=false; });
       window.bindMaterializedAt = null;
       document.querySelector('[role=textbox]').addEventListener('keydown', event => {
-        if (event.key !== 'Enter' || ${JSON.stringify(scenario)} === 'permanent-missing') return;
+        if (event.key !== 'Enter' || ['permanent-missing', 'route-changed'].includes(${JSON.stringify(scenario)})) return;
         const mount = () => {
           const user = document.createElement('article'); user.dataset.messageAuthorRole='user';
-          const app = document.createElement('a'); app.href='/plugins/owned'; app.textContent='DSH with ChatGPT';
+          const app = document.createElement('a'); app.href='/plugins/owned'; app.textContent=${JSON.stringify(scenario === 'wrong-app' ? 'Other App' : 'DSH with ChatGPT')};
           user.append(app,document.createTextNode(' ' + ${JSON.stringify(scenario === 'wrong-digest' ? 'foreign control' : appProofPrompt)}));
-          document.body.append(user); window.bindMaterializedAt=performance.now();
+          document.body.append(user); if (${JSON.stringify(scenario)} === 'duplicate-user') document.body.append(user.cloneNode(true)); window.bindMaterializedAt=performance.now();
           window.addReply(${JSON.stringify('[D2C_APP_PROOF_V1]' + JSON.stringify(proof))});
         };
-        setTimeout(mount, ${scenario === 'delayed-valid' ? 250 : 0});
+        if (${JSON.stringify(scenario)}.startsWith('body-')) {
+          const shell = document.createElement('div'); shell.id='d28-shell';
+          shell.style.minHeight='20px'; shell.setAttribute('data-chatgpt-search-unit-key', 'd28:user');
+          shell.setAttribute('data-chatgpt-search-message-ids', 'd28-user');
+          document.body.append(shell);
+          if (${JSON.stringify(scenario)} === 'body-permanent') return;
+          if (${JSON.stringify(scenario)} === 'body-route-change') { setTimeout(() => history.pushState(null, '', '/c/foreign'), 500); return; }
+          if (${JSON.stringify(scenario)} === 'body-document-change') { setTimeout(() => location.reload(), 500); return; }
+          setTimeout(() => shell.remove(), ${delayMs});
+        }
+        if (${JSON.stringify(scenario)} === 'transient-ambiguous') {
+          const shell = document.createElement('article'); shell.id='d28-shell'; shell.dataset.messageAuthorRole='pending'; shell.textContent='hydrating'; document.body.append(shell);
+          setTimeout(() => shell.remove(), ${delayMs});
+        }
+        setTimeout(mount, ${['delayed-valid', 'near-deadline', 'after-deadline', 'transient-ambiguous', 'body-hydration'].includes(scenario) ? delayMs : 0});
       }); return true;
     })()`)
     const credentials = join(directory, 'credentials'), credentialFile = join(credentials, 'authentication.secret')
@@ -76,11 +96,29 @@ it.each(['delayed-valid', 'permanent-missing', 'wrong-digest'] as const)('D27 na
       bridgeHttp: { port: bridge.port, token: 'd27-test-token' }, runtime: { bridge: { workspaceId: proof.workspaceId }, tunnel: { mode: 'managed', configured: true, ready: true, detail: 'synthetic diagnostic' } },
       probeApp: signal => client.probeApp('DSH with ChatGPT', signal), recoverAppProof: recover })
     const code = result.checks.find(c => c.id === 'remote_workspace_access')?.code
+    const elapsedAtFailureMs = Math.round(performance.now() - started)
+    let laterExactSameDocument: boolean | undefined
+    if (scenario === 'after-deadline' || scenario === 'transient-ambiguous' || scenario === 'body-hydration') {
+      // Post-terminal local fixture probe, never another product bind/send.
+      // Verify the delayed page really becomes exact rather than inferring it
+      // from its timer configuration. No raw proof or identity is logged.
+      const before = await direct.currentTarget()
+      await new Promise<void>(resolve => setTimeout(resolve, 2500))
+      const exact = await direct.evaluate<boolean>(`(() => { ${messageObservationScript};
+        if (!messageObservations) return false;
+        const users = messageObservations.filter(message => message.role === 'user');
+        return users.length === 1 && users[0].appNames.length === 1 && users[0].appNames[0] === 'DSH with ChatGPT'
+          && users[0].text === ${JSON.stringify('DSH with ChatGPT ' + appProofPrompt)};
+      })()`)
+      const after = await direct.currentTarget()
+      laterExactSameDocument = exact && sameBrowserTarget(before, after) && before.url === after.url
+      expect(laterExactSameDocument).toBe(true)
+    }
     const disk = JSON.parse(await readFile(join(journal, 'delivery.json'), 'utf8'))
     const phases = (await readFile(telemetry, 'utf8')).trim().split('\n').map(line => JSON.parse(line))
     const sends = disk.entries.filter((e: any) => e.method === 'sendControlMessage')
     const bound = !!sends[0]?.bootstrapBaseline
-    const metadata = { scenario, elapsedMs: Math.round(performance.now()-started), proofBudgetMs: 90000, code: code ?? null,
+    const metadata = { scenario, elapsedMs: elapsedAtFailureMs, laterExactSameDocument, proofBudgetMs: 90000, code: code ?? null,
       localReady: result.localReady, appVerified: result.appDataPlaneVerified, sendCount: sends.length, accepted: sends[0]?.phase === 'accepted', bound,
       waitCount: disk.entries.filter((e: any) => e.method === 'waitForReply').length, recoveryCount: recover.mock.calls.length,
       driverSendCount: phases.filter((e: any) => e.kind === 'invoke' && e.method === 'sendControlMessage').length, pageEnterCount: await direct.evaluate('window.enterCount'),
@@ -92,13 +130,15 @@ it.each(['delayed-valid', 'permanent-missing', 'wrong-digest'] as const)('D27 na
     expect(sends).toHaveLength(1); expect(sends[0].phase).toBe('accepted')
     expect(await direct.evaluate('window.enterCount')).toBe(1)
     expect(recover).not.toHaveBeenCalled()
-    expect(result.appDataPlaneVerified).toBe(scenario === 'delayed-valid')
-    expect(bound).toBe(scenario === 'delayed-valid')
-    if (scenario !== 'delayed-valid') { expect(code).toBe('SEND_UNCERTAIN'); expect(disk.entries.filter((e: any) => e.method === 'waitForReply')).toHaveLength(0) }
+    expect(result.appDataPlaneVerified).toBe(expectedPass)
+    expect(bound).toBe(expectedPass)
+    if (!expectedPass) { expect(code).toMatch(/SEND_UNCERTAIN|BROWSER_TARGET_CHANGED/); expect(disk.entries.filter((e: any) => e.method === 'waitForReply')).toHaveLength(0) }
+    if (scenario === 'body-route-change' || scenario === 'body-document-change') expect(code).toBe('BROWSER_TARGET_CHANGED')
+    if (scenario === 'body-permanent') expect(elapsedAtFailureMs).toBeLessThan(12_000)
   } finally {
     await supervisor?.close(); await bridge?.close(); vi.unstubAllEnvs()
     direct.close(); document.close(); await browser.close()
     if (!resolve(directory).startsWith(resolve(tmpdir()) + sep) || !basename(directory).startsWith('plannerbridge-d27-')) throw new Error('Unexpected D27 cleanup target')
     await rm(directory, { recursive: true, force: true })
   }
-}, 30000)
+}, 45000)

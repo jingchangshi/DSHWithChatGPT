@@ -1,3 +1,4 @@
+import { installBindDiagnostics } from './bind-diagnostics.mjs'
 import { appendFile } from 'node:fs/promises'
 import { DirectCdpPrimitives } from '../../lib/browser/direct-cdp.js'
 import { ChatGptWebDriver } from '../../lib/browser/chatgpt-web-driver.js'
@@ -11,30 +12,8 @@ await protectPrivateStateDirectory(env.PLANNERBRIDGE_SIDECAR_STATE_DIRECTORY, ex
 const primitives = await DirectCdpPrimitives.connect({ endpoint: env.PLANNERBRIDGE_SIDECAR_CDP_ENDPOINT, targetId: env.PLANNERBRIDGE_SIDECAR_TARGET_ID })
 const driver = new ChatGptWebDriver(primitives, env.PLANNERBRIDGE_SIDECAR_APP_NAME)
 const emit = value => appendFile(env.PLANNERBRIDGE_TEST_PHASE_TELEMETRY, JSON.stringify({ pid: process.pid, ...value }) + '\n')
-// D27/D28 diagnostic only: delegate the original calls, record no body, digest,
-// credential, document ID, epoch or App identity. Never adds a browser request.
-if (env.PLANNERBRIDGE_TEST_BIND_PROVENANCE === '1') {
-  let baseline
-  for (const method of ['captureReplyBaseline', 'currentConversation', 'reconcileReplyBaseline']) {
-    const original = driver[method].bind(driver)
-    driver[method] = async (...args) => {
-      const began = Date.now()
-      await emit({ kind: 'bind-provenance', method, stage: 'enter', at: began })
-      try {
-        const value = await original(...args)
-        if (method === 'captureReplyBaseline') baseline = value
-        await emit({ kind: 'bind-provenance', method, stage: 'return', at: Date.now(), elapsedMs: Date.now() - began,
-          conversationPresent: method === 'currentConversation' ? !!value : !!value?.conversationId,
-          baselineCountMatches: method === 'reconcileReplyBaseline' ? value.assistantCount === baseline?.assistantCount : undefined,
-          baselineDigestMatches: method === 'reconcileReplyBaseline' ? value.textDigest === baseline?.textDigest : undefined })
-        return value
-      } catch (error) {
-        await emit({ kind: 'bind-provenance', method, stage: 'throw', at: Date.now(), elapsedMs: Date.now() - began, errorType: error.name })
-        throw error
-      }
-    }
-  }
-}
+// Explicit local observer; it never adds a browser request.
+if (env.PLANNERBRIDGE_TEST_BIND_PROVENANCE === '1') installBindDiagnostics(driver, emit)
 for (const method of ['sendControlMessage', 'waitForReply']) {
   const original = driver[method].bind(driver)
   driver[method] = async (...args) => { await emit({ kind: 'invoke', method, operationId: args[2]?.operationId }); return original(...args) }

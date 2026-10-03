@@ -1,0 +1,323 @@
+ITERATION:125. Following69, no production behavior fix. Read actual workspace/source diff, evidence123/70-75, execution_output125. D28c current-role single-ID missing-body shell: initial zeroheight71 excluded and bound (fixture assertion failure retained); visible20px73/74 rejected749ms OBSERVATION_MISSING3ms, then exact same document/route at2s, one accepted send/Enter no wait/recovery. Message tests72 all22PASS retain duplicate/conflict/multiplebody negatives. Unknown-role case is NOT productionRED. Independently decide whether visible current-role missing-body RED authorizes narrow local fix. Specify exact classification returned by same observation, hostile cases must immediatefail, one absolute10s window no-refresh/original outer signal, original reload maximum1. Read actual method branches before prescribing patch/tests. No full or real exposure.
+
+…
+显示更多
+思考了 11s
+ChatGPT 说：
+
+[C2C REVIEW]
+
+D28c independent classification
+
+已读取：
+
+workspace: DSHWithChatGPT
+current source reconcileReplyBaseline
+messageObservation.ts
+message-observation.spec.ts
+evidence 70-75
+execution output 674
+
+结论：
+
+D28c 形成了一个新的、有限范围 availability RED。
+
+不是 unknown-role。
+
+不是 11s deadline。
+
+而是：
+
+纯文本
+current-role marker exists
++
+single identity exists
++
+no conflicting role
++
+no duplicate
++
+no multiple body
++
+same target/document/route
++
+body hydration eventually becomes exact
+
+but current reconcile immediately returns OBSERVATION_MISSING
+
+该状态满足：
+
+identity 未不确定；
+proof 未错误；
+只是 proof materialization 尚未完成。
+
+因此可以考虑窄修复。
+
+当前不能接受的修复方式
+
+禁止：
+
+纯文本
+all OBSERVATION_MISSING => poll
+
+原因：
+
+messageObservationScript 的 null 仍包含：
+
+duplicate identity
+conflicting roles
+multiple bodies
+candidate/root limits
+body size limit
+structural ambiguity
+
+这些必须保持立即失败。
+
+推荐最小 FIX_PLAN
+修改位置
+
+仅：
+
+package/src/browser/chatgpt-web-driver.ts
+
+核心：
+
+reconcileReplyBaseline()
+
+不要修改：
+
+messageObservationScript 的安全规则
+public error contract
+Sidecar protocol
+第一步：给 observation 增加内部分类
+
+不是扩大 telemetry。
+
+仅内部返回。
+
+建议：
+
+TypeScript
+type MessageObservationState =
+  | "READY"
+  | "MISSING_BODY"
+  | "STRUCTURAL_AMBIGUITY"
+
+语义：
+
+MISSING_BODY
+
+允许 bounded observe：
+
+条件：
+
+当前一次 observation 已证明：
+
+user role marker 存在
+identity 数量 == 1
+role 不冲突
+target/document/route 未变化
+
+但：
+
+body selector 尚未出现
+
+即 D28c。
+
+STRUCTURAL_AMBIGUITY
+
+立即失败：
+
+包括：
+
+duplicate IDs
+conflicting roles
+multiple bodies
+limits exceeded
+reconcile 改动范围
+
+当前：
+
+TypeScript
+let messages = await evaluate(messageObservationScript)
+
+if (!messages)
+    throw SendUncertainError("OBSERVATION_MISSING")
+
+不要直接替换成 polling。
+
+改为：
+
+纯文本
+evaluate
+ |
+ +-- READY
+ |      |
+ |      existing proof path
+ |
+ +-- MISSING_BODY
+ |      |
+ |      bounded polling
+ |
+ +-- STRUCTURAL_AMBIGUITY
+        |
+        fail closed
+Deadline策略
+
+采用：
+
+单一 absolute deadline
+
+不是刷新10s。
+
+模型：
+
+outer app proof signal
+        |
+        +-- reconcile absolute deadline
+                |
+                +-- current 10s bound
+
+要求：
+
+10s 是一次窗口；
+不 restart；
+不重新计算；
+不创建第二个等待周期。
+polling规则
+
+仅：
+
+MISSING_BODY
+
+允许。
+
+每次：
+
+同一次 observation 逻辑；
+同 target；
+同 document；
+同 route。
+
+停止条件：
+
+成功：
+
+MISSING_BODY
+ ->
+READY exact proof
+
+失败：
+
+deadline reached
+ ->
+SEND_UNCERTAIN
+reload限制
+
+保持现有：
+
+maximum 1 existing fenced reload
+
+不增加。
+
+并且：
+
+如果进入 reload：
+
+以下任何变化立即失败：
+
+target changed
+document changed
+route changed
+conversation changed
+必须新增测试
+1. D28c positive
+
+已有：
+
+visible current-role missing-body
+
+升级为：
+
+期望：
+
+sendCount=1
+Enter=1
+bound=true
+wait=1
+recovery=0
+2. permanent missing
+
+保持：
+
+SEND_UNCERTAIN
+
+且有限时间结束。
+
+3. duplicate
+
+保持：
+
+PROOF_AMBIGUOUS
+
+立即失败。
+
+4. conflicting role
+
+保持：
+
+OBSERVATION_STRUCTURAL_AMBIGUITY
+
+立即失败。
+
+5. multiple body
+
+保持：
+
+立即失败。
+
+6. route/document change during missing body
+
+保持：
+
+BrowserTargetChangedError
+
+立即失败。
+
+是否授权
+
+授权范围：
+
+✅ 可以实现上述窄分类 + bounded observation
+✅ 可以增加 D28c native tests
+✅ 可以保持 outer absolute deadline
+
+不授权：
+
+❌ timeout 增大
+❌ retry
+❌ resend
+❌ App reactivation
+❌ real exposure
+❌ full regression
+
+当前状态：
+
+D28c:
+  UNKNOWN_ROLE  -> rejected as synthetic
+
+VISIBLE_CURRENT_ROLE_MISSING_BODY:
+  local availability RED confirmed
+
+Security:
+  strict negatives preserved
+
+Next:
+  implement narrow MISSING_BODY-only bounded observation
+ChatGPT 可能会出错。工作空间数据不会用于训练模型。
+最新一条回复
+
+
+
+
+极高

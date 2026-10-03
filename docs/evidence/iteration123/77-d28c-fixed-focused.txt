@@ -1,0 +1,10 @@
+
+ RUN  v5.0.1 C:/Users/jingc/workspace/DSHWithChatGPT/package
+
+························································
+
+ Test Files  3 passed (3)
+      Tests  56 passed (56)
+   Start at  01:15:49
+   Duration  2.35s (import 55%, tests 38%, transform 7%, worker 1%)
+

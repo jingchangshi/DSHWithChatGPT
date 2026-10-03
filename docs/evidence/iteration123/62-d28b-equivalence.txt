@@ -1,0 +1,11 @@
+[WARN] The "pnpm" field in package.json is no longer read by pnpm. The following keys were ignored: "pnpm.overrides". See https://pnpm.io/settings for the new home of each setting.
+
+ RUN  v5.0.1 C:/Users/jingc/workspace/DSHWithChatGPT/package
+
+································
+
+ Test Files  2 passed (2)
+      Tests  32 passed (32)
+   Start at  00:43:04
+   Duration  73.58s (tests 86%, import 14%)
+

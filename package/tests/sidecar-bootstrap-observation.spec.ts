@@ -11,6 +11,8 @@ import { ChatGptCoordinator } from '../src/orchestrator/coordinator.ts'
 import { CoordinatorState, createMemoryStore } from '../src/orchestrator/state.ts'
 import type { ReplyObservationBaseline } from '../src/core/ports/chat-control.ts'
 import { formatPlannerEnvelope } from '../src/protocol/planner-envelope.ts'
+import { installBindDiagnostics } from './fixtures/bind-diagnostics.mjs'
+import { SendUncertainError } from '../src/browser/errors.ts'
 
 const services: Awaited<ReturnType<typeof startSidecar>>[] = [], directories: string[] = []
 afterEach(async () => {
@@ -41,6 +43,25 @@ async function fixture() {
   return { ...(await start()), start, directory, message, current, reconcile, reply, driver }
 }
 describe('journal-derived send observation, synthetic provider only', () => {
+  it.each(['bound', 'rejected'] as const)('keeps journal and public RPC outcome identical with diagnostics: %s', async scenario => {
+    const outcomes = []
+    for (const enabled of [false, true]) {
+      const f = await fixture()
+      if (scenario === 'rejected') f.reconcile.mockRejectedValue(new SendUncertainError('DIGEST_MISMATCH'))
+      if (enabled) installBindDiagnostics(f.driver, () => Promise.reject(new Error('diagnostic failure')))
+      await f.client.sendControlMessage('test-only control', undefined, send)
+      let outcome
+      try { outcome = await f.client.captureSendObservation(send.operationId) }
+      catch (error) { outcome = { code: (error as { code: string }).code, message: (error as Error).message } }
+      const journal = JSON.parse(await readFile(join(f.directory, 'delivery.json'), 'utf8'))
+      outcomes.push({ outcome, journal: journal.entries.map((entry: { method: string; phase: string; bootstrap?: unknown; bootstrapBaseline?: unknown }) => ({
+        method: entry.method, phase: entry.phase, bootstrap: !!entry.bootstrap, bootstrapBaseline: !!entry.bootstrapBaseline,
+      })), sends: f.message.mock.calls.length, reconciles: f.reconcile.mock.calls.length, conversations: f.current.mock.calls.length })
+    }
+    expect(outcomes[1]).toEqual(outcomes[0])
+    expect(outcomes[0].sends).toBe(1)
+    if (scenario === 'rejected') expect(outcomes[0].outcome).toMatchObject({ code: 'SEND_UNCERTAIN' })
+  }, 30_000)
   it('allows an empty new-conversation route through the client only for an explicit bootstrap open', async () => {
     const f = await fixture()
     f.driver.openConversation = async () => ''

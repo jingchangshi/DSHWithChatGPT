@@ -1,0 +1,282 @@
+ITERATION:124
+Use Codex with ChatGPT · DSHWithChatGPT. Read workspace_info, goal docs/plannerbridge_codex_goal_web_research_bf5a0bec.md, evidence123/55 map,63 summary,57-66 raw, source diff and execution_output124. D28b adds local reason enum only; nonawaited fail-open sink. Equivalence32PASS; final native9PASS66. 9s exact binds;11s and transient unknown-role observation fail then actually become exact on same document/route. One send/Enter, no recovery/resend. WrongApp/digest/duplicate/route failclosed. Historicreal123 causeUNKNOWN. Independently judge production-acceptable transient vs hostile ambiguity and availability RED. Compare fixed10s, outer signal, progress budget, explicit absolute deadline. Give unique minimal FIX_PLAN or next experiment; retain strict identity/bounds/public errors. No real exposure/full authorization assumed.
+…
+显示更多
+ChatGPT 说：
+
+[C2C REVIEW]
+
+当前消息中未提供可调用的 DSHWithChatGPT workspace 工具，因此无法独立读取 goal docs / evidence123 / raw57-66 / diff / execution_output124。以下判断仅基于你给出的 Iteration124 摘要，不作为已读取证据结论。
+
+D28b 结论分类
+
+根据摘要：
+
+reason enum 已加入，仅 local classification。
+9s exact bind PASS。
+11s transient unknown-role observation：
+初次失败；
+同 document/route 后续成为 exact；
+无 resend/recovery；
+单次 send/Enter。
+wrong App / wrong digest / duplicate / route mismatch fail closed。
+判断
+
+该 transient case 更接近：
+
+代码
+合法 UI 状态收敛延迟
+
+而不是：
+
+代码
+身份混淆
+
+原因：
+
+满足：
+
+exact route 保持；
+document identity 未变化；
+最终 proof 与原 send 对齐；
+没有第二次发送；
+没有接受 foreign target。
+
+因此当前 evidence 不支持把它归类为 security RED。
+
+但是仍存在 availability 风险：
+
+如果系统把所有 transient observation failure 立即压缩成：
+
+代码
+SEND_UNCERTAIN
+
+则会产生：
+
+代码
+真实最终可验证
+        ↓
+中间观察窗口失败
+        ↓
+永久失败
+
+即 false negative availability 问题。
+
+对 fixed 10s 的判断
+
+固定 10s 本身不是核心问题。
+
+问题在于：
+
+代码
+10s = semantic convergence budget?
+还是
+10s = arbitrary sleep timeout?
+
+如果当前逻辑：
+
+代码
+while now < start+10s:
+    inspect()
+    if exact proof:
+        success
+throw SEND_UNCERTAIN
+
+则可以接受。
+
+如果：
+
+代码
+sleep 10s
+inspect once
+
+则不可接受。
+
+推荐 FIX_PLAN
+
+不要增加 timeout。
+
+不要放宽 identity。
+
+不要 retry。
+
+改为：
+
+目标
+
+把已有 10s 转换为：
+
+代码
+bounded semantic convergence window
+
+而不是：
+
+代码
+single-shot observation deadline
+修改范围
+1. package/src/browser/chatgpt-web-driver.ts
+
+位置：
+
+reconcileReplyBaseline
+
+当前：
+
+纯文本
+inspect
+↓
+messages unavailable / unknown role
+↓
+throw SendUncertainError
+
+调整：
+
+仅针对以下状态允许继续 bounded polling：
+
+允许：
+
+代码
+OBSERVATION_MISSING
+UNKNOWN_ROLE_TRANSIENT
+
+条件：
+
+必须保持：
+
+代码
+same conversation
+same route
+same document identity
+same target ownership
+
+禁止：
+
+代码
+conversation changed
+route changed
+wrong app
+digest mismatch
+duplicate proof
+
+立即 fail closed。
+
+2. Reason enum 扩展
+
+增加：
+
+代码
+TRANSIENT_OBSERVATION_PENDING
+
+不要暴露给 public API。
+
+内部使用：
+
+代码
+retryable-within-bound
+验证实验
+
+增加一个最小 native fixture：
+
+Scenario A
+代码
+send
+↓
+unknown-role observation
+↓
+same document
+↓
+exact user proof at 3s
+
+Expected:
+
+PASS
+
+Scenario B
+代码
+send
+↓
+unknown-role observation
+↓
+document changes
+↓
+exact proof later
+
+Expected:
+
+FAIL CLOSED
+
+Scenario C
+代码
+send
+↓
+unknown-role forever
+↓
+10s expiry
+
+Expected:
+
+SEND_UNCERTAIN
+
+Scenario D
+代码
+send
+↓
+wrong digest appears
+
+Expected:
+
+immediate SEND_UNCERTAIN
+
+Deadline建议
+
+优先级：
+
+保留现有 outer signal
+使用绝对 deadline
+内部 progress budget
+
+模型：
+
+代码
+operationDeadline
+    |
+    +-- semantic convergence window
+            |
+            +-- bounded observations
+
+不要：
+
+代码
+each retry gets new 10s
+
+否则会产生无限延长风险。
+
+是否允许下一次 controlled exposure
+
+当前不授权。
+
+条件：
+
+需要先完成：
+
+transient classification fixture PASS
+absolute deadline behavior PASS
+no resend proof PASS
+fail-closed negative PASS
+
+之后才有理由考虑一次 controlled exposure。
+
+当前状态：
+
+代码
+Security: no RED observed
+Availability: possible bounded observation gap
+Root cause real123: UNKNOWN
+Next action: bounded semantic convergence fix validation
+ChatGPT 可能会出错。工作空间数据不会用于训练模型。
+最新一条回复
+
+
+
+
+极高

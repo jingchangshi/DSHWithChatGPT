@@ -1,0 +1,354 @@
+SOURCE_CLARIFICATION.68 read scoped candidate but goal file exists untracked; read via read_file exact docs/plannerbridge_codex_goal_web_research_bf5a0bec.md. Before implementing: actual message-observation.ts null also means duplicate IDs, conflicting roles, oversized tree and multiple bodies; inspectChatPage rejects before reconcile gets messages. Polling all OBSERVATION_MISSING would conflate hostile ambiguity, contradict goal strict immediate negatives. Our unknown-role pending article is synthetic, not proven production-acceptable. Read actual script and tests/message-observation.spec.ts. Specify narrow transient predicate and a real current-role missing-body hydration fixture; decide if missing-body can be polled but duplicate/conflicting/limits must still reject immediately, using same observation only. Authorize precise minimal edits + absolute10s no-refresh tests, or prescribe unique local falsification; no timeout enlargement/real exposure.
+
+…
+显示更多
+思考了 6s
+ChatGPT 说：
+
+[C2C REVIEW]
+
+Source review completed
+
+已实际读取：
+
+docs/plannerbridge_codex_goal_web_research_bf5a0bec.md
+package/src/browser/message-observation.ts
+package/tests/message-observation.spec.ts
+当前 D28b diff / evidence
+
+关键修正：
+
+之前“OBSERVATION_MISSING 都可 bounded polling”的方向过宽，不符合当前目标约束。
+
+原因：
+
+messageObservationScript 的 null 不是单一语义。
+
+它同时表示：
+
+合法 transient hydration：
+纯文本
+message tree 暂未形成可读 body
+hostile ambiguity：
+纯文本
+duplicate identity
+conflicting roles
+multiple bodies
+oversized tree
+body limit
+unknown structure
+
+因此：
+
+纯文本
+null
+→ polling
+
+会错误放宽 strict negative。
+
+当前正确分类
+可以考虑 bounded polling
+
+必须满足：
+
+Narrow transient predicate
+
+不是依赖 messageObservationScript == null。
+
+需要新的更窄判断：
+
+纯文本
+same target
+same document
+same route
+same conversation
+AND
+observation unavailable because required user proof has not materialized yet
+AND
+no contradictory evidence exists
+
+也就是：
+
+允许：
+
+纯文本
+absence
+
+不允许：
+
+纯文本
+ambiguity
+不允许 polling
+
+以下保持立即失败：
+
+duplicate identities
+
+来源：
+
+TypeScript
+if (identities.has(id)) return null
+
+原因：
+
+可能多个消息争夺 ownership。
+
+conflicting roles
+
+来源：
+
+TypeScript
+if (roles.size !== 1) return null
+
+原因：
+
+身份无法确定。
+
+multiple bodies
+
+来源：
+
+TypeScript
+if (bodies.length !== 1) return null
+
+原因：
+
+proof 不唯一。
+
+limits
+
+来源：
+
+TypeScript
+candidates.length > 2048
+roots.length > 512
+visited > 8192
+text.length > 65536
+
+原因：
+
+防止 DOM churn / adversarial tree。
+
+当前缺失
+
+需要增加一个真实 transient fixture。
+
+现有：
+
+纯文本
+transient-ambiguous
+
+不满足目标。
+
+因为它人为制造：
+
+XML
+data-message-author-role=pending
+
+这是 synthetic state，不是 messageObservationScript 真实可接受路径。
+
+不能作为 availability RED。
+
+推荐下一步：唯一 falsification experiment
+
+不修改生产行为。
+
+新增 native fixture：
+
+Case: user message body hydration pending
+
+目标：
+
+模拟真实页面：
+
+纯文本
+user message root exists
++
+correct role marker exists
++
+no contradictory role
++
+no duplicate id
++
+body node temporarily absent
+
+例如：
+
+初始：
+
+XML
+<div data-message-author-role="user">
+   <div class="text-size-chat whitespace-pre-wrap">
+   </div>
+</div>
+
+或者：
+
+body marker 尚未挂载。
+
+然后：
+
+t=0
+observation returns null
+
+t=100ms
+body appears
+
+same target/document/route
+
+exact proof succeeds
+
+验证：
+
+当前 messageObservationScript 是否会把这个状态误杀。
+
+需要新增的判断信息
+
+不是扩大 telemetry。
+
+只需要 local test classification：
+
+TypeScript
+enum ObservationState {
+  READY,
+  EMPTY_PENDING,
+  STRUCTURAL_AMBIGUITY,
+  IDENTITY_CONFLICT,
+  BODY_AMBIGUITY,
+  LIMIT_EXCEEDED
+}
+
+但是：
+
+不要让 production reconciliation 直接消费所有 null。
+
+正确结构：
+
+纯文本
+messageObservation()
+        |
+        +-- explicit classification
+                |
+                +-- EMPTY_PENDING
+                |       |
+                |       bounded observe
+                |
+                +-- everything else
+                        fail closed
+Deadline设计
+
+保持：
+
+纯文本
+absolute outer deadline
+
+不刷新。
+
+不要：
+
+纯文本
+retry + new 10s
+
+推荐模型：
+
+appProofDeadline(90s)
+ |
+ +-- reconcile phase
+       |
+       +-- transient observation budget <= remaining deadline
+
+但第一步不要直接改 10s。
+
+先验证：
+
+是否存在真实：
+
+EMPTY_PENDING
+ -> exact proof
+
+且：
+
+same document/route
+是否授权 FIX
+
+当前：
+
+不授权直接实现 bounded polling。
+
+理由：
+
+还没有 causal RED。
+
+已有证据：
+
+11s exact：
+证明 hidden 10s window 存在 availability tradeoff；
+但不是 production transient。
+transient-ambiguous：
+synthetic；
+不代表真实页面状态。
+精确下一任务
+
+执行：
+
+修改 synthetic fixture，使其模拟真实 messageObservation 可见结构：
+
+不使用 unknown role。
+不触发 duplicate/conflict/limit。
+仅 body hydration delay。
+
+运行：
+
+已有：
+
+message-observation.spec.ts
+doctor-bind-boundary-native.spec.ts
+
+新增验证：
+
+A:
+
+EMPTY_PENDING -> exact
+
+观察当前行为。
+
+B:
+
+duplicate -> fail
+
+C:
+
+conflicting role -> fail
+
+D:
+
+multiple body -> fail
+
+预期：
+
+如果 A 失败且 B/C/D 保持失败，才形成最小 availability RED。
+
+之后才讨论：
+
+bounded observe
+progress budget
+explicit absolute deadline
+
+当前结论：
+
+纯文本
+D28b:
+  reason classification PASS
+
+Transient repair:
+  NOT YET AUTHORIZED
+
+Next:
+  prove real EMPTY_PENDING transient exists
+ChatGPT 可能会出错。工作空间数据不会用于训练模型。
+最新一条回复
+
+
+
+
+极高

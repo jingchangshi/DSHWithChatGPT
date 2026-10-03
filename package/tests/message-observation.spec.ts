@@ -8,6 +8,29 @@ const user = (text: string) => `<div data-chatgpt-search-unit-key="turn:user" da
 const observe = (html: string) => domFixture(html).window.eval(`(() => { ${messageObservationScript}; return messageObservations; })()`)
 
 describe('shared semantic message observations', () => {
+  it('refuses a current user role shell until its unique body mounts', () => {
+    const f = domFixture('<div data-chatgpt-search-unit-key="d28:user" data-chatgpt-search-message-ids="d28-user"></div>')
+    const read = () => f.window.eval(`(() => { ${messageObservationScript}; return messageObservations; })()`)
+    expect(read()).toBeNull()
+    f.window.document.querySelector('[data-chatgpt-search-unit-key]')!.innerHTML = '<div class="text-size-chat whitespace-pre-wrap"><a href="/plugins/owned">DSH with ChatGPT</a> exact control</div>'
+    expect(read()).toEqual([{ role: 'user', text: 'DSH with ChatGPT exact control', appNames: ['DSH with ChatGPT'], animated: false }])
+  })
+  it.each([
+    ['duplicate identity', '<div data-chatgpt-search-unit-key="d28:user" data-chatgpt-search-message-ids="d28-user"></div>'],
+    ['conflicting role', '<div data-chatgpt-search-unit-key="other:user" data-content-search-unit-key="other:assistant"></div>'],
+    ['multiple bodies', '<div data-chatgpt-search-unit-key="other:user"><div class="text-size-chat whitespace-pre-wrap">one</div><div class="text-size-chat whitespace-pre-wrap">two</div></div>'],
+    ['explicit user', user('foreign')],
+  ])('missing body never hides later %s', (_label, hostile) => {
+    const pending = '<div data-chatgpt-search-unit-key="d28:user" data-chatgpt-search-message-ids="d28-user"></div>'
+    const f = domFixture(pending + hostile)
+    expect(f.window.eval(`(() => { ${messageObservationScript}; return { state: messageObservationState, messages: messageObservations }; })()`)).toEqual({ state: 'STRUCTURAL_AMBIGUITY', messages: null })
+  })
+  it('distinguishes absent body from an explicitly hidden body', () => {
+    const shell = '<div data-chatgpt-search-unit-key="d28:user" data-chatgpt-search-message-ids="d28-user">'
+    const classify = (html: string) => domFixture(html).window.eval(`(() => { ${messageObservationScript}; return messageObservationState; })()`)
+    expect(classify(shell + '</div>')).toBe('MISSING_BODY')
+    expect(classify(shell + '<div class="text-size-chat whitespace-pre-wrap" hidden>foreign</div></div>')).toBe('STRUCTURAL_AMBIGUITY')
+  })
   it('deduplicates nested current markers and excludes heading and actions', () => {
     expect(observe(user('question') + assistant('answer'))).toEqual([
       { role: 'user', text: 'question', appNames: [], animated: false },

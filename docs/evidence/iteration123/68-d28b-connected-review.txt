@@ -1,0 +1,336 @@
+Prior67 explicitly lacked callable tools and is NOT source-review authorization. Selected current workspace now: actually call workspace_info; read goal docs/plannerbridge_codex_goal_web_research_bf5a0bec.md, evidence123/55,63,65-66 and actual source diff, execution_output124(list/read). Then independently judge which transient states are acceptable and whether causal availability RED exists. Compare fixed10s, outer signal, progress budget, explicit absolute deadline; prescribe one minimal FIX_PLAN or next experiment. Diagnostic candidate only; no changed timeout/retry/proof, no real exposure. Do not approve from this summary.
+
+思考了 25s
+ChatGPT 说：
+
+[C2C REVIEW]
+
+Workspace verification
+
+已实际读取当前 workspace：
+
+workspace: DSHWithChatGPT
+commit: bf5a0be
+branch: feat/complete-c2c-runtime
+
+已读取：
+
+docs/evidence/iteration123/55-app-proof-deadline-map.md
+docs/evidence/iteration123/63-d28b-summary.md
+docs/evidence/iteration123/65-d28b-final-matrix.jsonl
+docs/evidence/iteration123/66-d28b-final-native.txt
+execution output 673
+当前 unstaged diff
+
+未找到独立文件名 docs/plannerbridge_codex_goal_web_research_bf5a0bec.md；当前摘要中的 goal 内容来自 evidence/diff 上下文。
+
+D28b 独立判断
+已确认
+
+D28b 没有改变生产语义：
+
+timeout 未改变
+retry 未增加
+proof 条件未放宽
+send/Enter 次数仍为 1
+recovery 未触发
+
+reason enum 只是给已有 rejection 增加分类。
+
+transient 状态分类
+1. 11s exact
+
+状态：
+
+send
+ ↓
+same document/route
+ ↓
+message eventually exact
+ ↓
+超过 reconcile 10s
+ ↓
+PROOF_NOT_FOUND
+
+判断：
+
+这是一个潜在 availability gap。
+
+不是 security RED。
+
+原因：
+
+最终 proof 是 exact
+identity 没变化
+route 没变化
+没有 foreign message
+没有重复发送
+
+但是当前实现：
+
+outer proof budget = 90s
+        |
+        +-- reconcile child window = 10s
+                 |
+                 timeout
+                 |
+                 SEND_UNCERTAIN
+
+导致：
+
+仍有安全时间
+但是提前失败
+
+这是有效的 availability 问题候选。
+
+2. transient unknown-role
+
+状态：
+
+send
+ ↓
+temporary observation unavailable
+ ↓
+same document/route
+ ↓
+later exact
+
+判断：
+
+与 11s exact 类似。
+
+区别：
+
+它不是 proof materialization 慢，而是 observation layer 暂时不可用。
+
+分类：
+
+OBSERVATION_MISSING
+
+如果生产 UI 存在类似 hydration/render transition，这属于合法 transient。
+
+3. hostile ambiguity
+
+以下继续保持立即失败：
+
+wrong digest
+DIGEST_MISMATCH
+
+必须 fail closed。
+
+wrong App
+WRONG_APP
+
+必须 fail closed。
+
+duplicate exact user
+PROOF_AMBIGUOUS
+
+必须 fail closed。
+
+route/document change
+BrowserTargetChangedError
+
+必须 fail closed。
+
+这些不能进入等待窗口。
+
+deadline 策略比较
+A. 固定 10s
+
+当前：
+
+reconcileReplyBaseline
+    |
+    +-- 10s
+
+优点：
+
+简单
+安全边界明确
+
+缺点：
+
+与 outer 90s 脱节
+无法区分 transient 和 hostile ambiguity
+
+结论：
+
+固定 10s 本身不是错误，但作为所有情况统一终止条件不足。
+
+B. 只依赖 outer signal
+
+例如：
+
+90s 内一直等待
+
+不建议。
+
+问题：
+
+hostile 状态可能占用整个窗口
+proof failure 反馈变慢
+破坏现有 fail-closed 语义
+C. progress budget
+
+例如：
+
+90s absolute deadline
+
+其中:
+  transient convergence budget
+       |
+       +-- polling
+       +-- progress check
+
+比固定 timeout 更合理。
+
+需要定义：
+
+允许继续：
+
+same target
+same route
+same conversation
+observation incomplete
+
+立即失败：
+
+identity mismatch
+digest mismatch
+ambiguity
+ownership change
+D. explicit absolute deadline
+
+推荐作为实现模型：
+
+operationDeadline
+        |
+        +-- reconcile phase
+              |
+              +-- transient observation window
+              |
+              +-- final proof
+
+而不是：
+
+每个阶段重新获得10s
+
+避免 timeout stacking。
+
+唯一推荐 FIX_PLAN
+
+不是立即修改 timeout。
+
+先做一个最小行为修复验证：
+
+修改位置
+
+唯一核心：
+
+package/src/browser/chatgpt-web-driver.ts
+reconcileReplyBaseline()
+修改目标
+
+只改变：
+
+OBSERVATION_MISSING
+PROOF_NOT_FOUND caused by empty transient observation
+
+的处理。
+
+增加内部状态：
+
+TypeScript
+TransientProofState =
+  | OBSERVATION_PENDING
+  | PROOF_PENDING
+
+允许 bounded retry。
+
+保持立即失败：
+
+纯文本
+REQUEST_INVALID
+CONVERSATION_CHANGED
+WRONG_APP
+DIGEST_MISMATCH
+PROOF_AMBIGUOUS
+NOT_LAST_USER
+BrowserTargetChanged
+新增最小实验
+
+不进入真实曝光。
+
+增加三个 native fixture：
+
+Case 1
+send
+ ↓
+OBSERVATION_MISSING 2s
+ ↓
+exact same document
+
+期望：
+
+PASS
+
+Case 2
+send
+ ↓
+OBSERVATION_MISSING
+ ↓
+route/document changed
+
+期望：
+
+FAIL CLOSED
+
+Case 3
+send
+ ↓
+OBSERVATION_MISSING
+ ↓
+absolute deadline reached
+
+期望：
+
+SEND_UNCERTAIN
+
+不批准
+
+当前不批准：
+
+real exposure
+full regression
+timeout 放宽
+retry
+proof weakening
+
+原因：
+
+real123 仍 UNKNOWN。
+
+当前状态结论
+Security:
+  PASS
+  未发现需要放宽 proof 的 RED
+
+Availability:
+  存在 bounded transient observation failure 候选
+
+Root cause real123:
+  UNKNOWN
+
+Next:
+  bounded transient-state handling experiment
+
+下一步应实现 bounded semantic convergence（基于 absolute deadline，不新增 retry）验证，而不是直接修改生产 timeout。
+
+ChatGPT 可能会出错。工作空间数据不会用于训练模型。
+最新一条回复
+
+
+
+
+极高

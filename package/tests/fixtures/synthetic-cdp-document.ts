@@ -25,7 +25,7 @@ export async function syntheticCdpDocument(endpoint: string, targetId: string) {
   })
   await session.command('Fetch.enable', { patterns: [{ urlPattern: 'https://chatgpt.com/*', requestStage: 'Request' }] })
   return {
-    serve(options: { apps?: string[]; draft?: string; logout?: boolean; foreignOnInput?: boolean; replaceOnInput?: boolean; baseline?: boolean; paragraphComposer?: boolean; alterParagraph?: boolean; hiddenParagraph?: boolean; persistedControl?: string; persistedApp?: string; persistedReply?: string; duplicatePersistedUser?: boolean; redirectOnLoad?: string; returnFromRedirect?: boolean; persistedMountDelayMs?: number; pendingAppRendering?: boolean; pendingAppLabel?: string; keepPendingAppRendering?: boolean; coldConversation?: boolean; d27PersistOnDurableRoute?: boolean; d27RetainEnterCount?: boolean } = {}) {
+    serve(options: { apps?: string[]; draft?: string; logout?: boolean; foreignOnInput?: boolean; replaceOnInput?: boolean; baseline?: boolean; paragraphComposer?: boolean; alterParagraph?: boolean; hiddenParagraph?: boolean; persistedControl?: string; persistedApp?: string; persistedReply?: string; duplicatePersistedUser?: boolean; redirectOnLoad?: string; returnFromRedirect?: boolean; persistedMountDelayMs?: number; pendingAppRendering?: boolean; pendingAppLabel?: string; keepPendingAppRendering?: boolean; coldConversation?: boolean; d27PersistOnDurableRoute?: boolean; d27RetainEnterCount?: boolean; d28AmbiguousUntilMount?: boolean; d28ChangeRoute?: boolean; d28BodyHydrationUntilMount?: boolean } = {}) {
       html = `<!doctype html><meta charset="utf-8"><title>Synthetic semantic fixture</title>
 <style>[role=textbox]{width:450px;min-height:80px;border:1px solid black} button{min-width:180px;min-height:40px}</style>
 ${options.logout ? '<button>Log in</button>' : '<div role="textbox" contenteditable="true"></div>'}
@@ -90,7 +90,7 @@ if (options.pendingAppRendering) {
   if (options.duplicatePersistedUser) { const duplicate = pending.cloneNode(true); duplicate.id = 'duplicate-pending-user'; document.body.append(duplicate); }
 }
 if (options.coldConversation) { const shell = document.createElement('article'); shell.id='cold-shell'; shell.dataset.messageAuthorRole='pending'; shell.textContent='hydrating'; document.body.append(shell); }
-const mountPersisted = () => { if (options.keepPendingAppRendering) return; document.querySelector('#cold-shell')?.remove(); document.querySelector('#pending-user')?.remove(); if (options.persistedControl !== undefined) {
+const mountPersisted = () => { if (options.keepPendingAppRendering) return; document.querySelector('#d28-shell')?.remove(); document.querySelector('#cold-shell')?.remove(); document.querySelector('#pending-user')?.remove(); if (options.persistedControl !== undefined) {
   const user = document.createElement('article'); user.setAttribute('data-message-author-role', 'user');
   const app = document.createElement('a'); app.href = '/plugins/owned-app'; app.textContent = options.persistedApp || 'DSH with ChatGPT';
   user.append(app, document.createTextNode(' ' + options.persistedControl)); document.body.append(user);
@@ -99,6 +99,13 @@ const mountPersisted = () => { if (options.keepPendingAppRendering) return; docu
 if (options.persistedReply) window.addReply(options.persistedReply); window.materialized = true;
 };
 window.materialize = mountPersisted;
+if (location.pathname.startsWith('/c/') && options.d28AmbiguousUntilMount) {
+  const shell = document.createElement('article'); shell.id='d28-shell'; shell.dataset.messageAuthorRole='pending'; shell.textContent='hydrating'; document.body.append(shell);
+}
+if (location.pathname.startsWith('/c/') && options.d28BodyHydrationUntilMount) {
+  const shell = document.createElement('div'); shell.id='d28-shell'; shell.style.minHeight='20px'; shell.setAttribute('data-chatgpt-search-unit-key', 'd28:user'); shell.setAttribute('data-chatgpt-search-message-ids', 'd28-user'); document.body.append(shell);
+}
+if (location.pathname.startsWith('/c/') && options.d28ChangeRoute) setTimeout(() => history.pushState(null, '', '/c/foreign'), 50);
 if (!options.coldConversation && (!options.d27PersistOnDurableRoute || location.pathname.startsWith('/c/'))) { if (options.persistedMountDelayMs) setTimeout(mountPersisted, options.persistedMountDelayMs); else mountPersisted(); }
 if (options.redirectOnLoad) { const original = location.href; history.replaceState(null, '', options.redirectOnLoad); if (options.returnFromRedirect) history.replaceState(null, '', original); }
 </script>`

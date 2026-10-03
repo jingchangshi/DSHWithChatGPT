@@ -156,34 +156,65 @@ export class ChatGptWebDriver implements ChatRecoveryControl {
     return { version: 1, conversationId: conversationId ?? null, assistantCount: state.assistantCount, textDigest: replyTextDigest(state.text), observationEpoch: observationEpoch(target) }
   }
 
-  /** Explicit outgoing-message proof before adopting a new observation epoch. */
+  /** Explicit outgoing-message proof before adopting a new observation epoch.
+   * One absolute ten-second window covers missing-body hydration and the
+   * existing fenced materialization load; caller cancellation never renews it. */
   async reconcileReplyBaseline(request: ReplyReconciliationRequest, signal?: AbortSignal): Promise<ReplyObservationBaseline> {
-    if (!/^[A-Za-z0-9_-]{1,128}$/.test(request.conversationId) || !/^[a-f0-9]{64}$/.test(request.controlDigest)) throw new SendUncertainError()
+    const until = Date.now() + POST_NAVIGATION_SEMANTIC_TIMEOUT_MS
+    const deadline = new AbortController()
+    const timer = setTimeout(() => deadline.abort(), POST_NAVIGATION_SEMANTIC_TIMEOUT_MS)
+    const active = signal ? AbortSignal.any([signal, deadline.signal]) : deadline.signal
+    try { return await this.reconcileWithinDeadline(request, until, active) }
+    catch (error) {
+      throwIfCancelled(signal)
+      if (deadline.signal.aborted) throw new SendUncertainError('PROOF_NOT_FOUND')
+      throw error
+    } finally { clearTimeout(timer) }
+  }
+
+  private async reconcileWithinDeadline(request: ReplyReconciliationRequest, until: number, signal: AbortSignal): Promise<ReplyObservationBaseline> {
+    if (!/^[A-Za-z0-9_-]{1,128}$/.test(request.conversationId) || !/^[a-f0-9]{64}$/.test(request.controlDigest)) throw new SendUncertainError('REQUEST_INVALID')
     this.resetTarget()
     this.fenced = true
-    const state = await this.inspectChatPage(signal, true)
+    if ((await this.currentConversation(signal)) !== request.conversationId || this.appName.trim() === '') throw new SendUncertainError('CONVERSATION_CHANGED')
+    let state: ChatPageState
+    while (true) {
+      try { state = await this.inspectChatPage(signal, true); break }
+      catch (error) {
+        if (!(error instanceof SendUncertainError) || error.diagnosticReason !== 'MISSING_BODY') throw error
+        if (!(await this.resolveComposer(signal)).empty) throw new SendUncertainError('DRAFT_PRESENT')
+        if (Date.now() >= until) throw new SendUncertainError('PROOF_NOT_FOUND')
+        await abortableDelay(Math.min(200, until - Date.now()), signal)
+      }
+    }
     if (state.loggedOut) throw new ChatGptLoggedOutError()
-    if ((await this.currentConversation(signal)) !== request.conversationId || this.appName.trim() === '') throw new SendUncertainError()
-    let messages = await this.evaluate<{ role: string; text: string; appNames: string[] }[] | null>(`(() => { ${messageObservationScript}; return messageObservations; })()`, signal)
+    let observation = await this.reconciliationMessages(undefined, signal)
+    let messages = observation.messages
+    while (observation.state === 'MISSING_BODY' && Date.now() < until) {
+      await abortableDelay(Math.min(200, until - Date.now()), signal)
+      observation = await this.reconciliationMessages(undefined, signal)
+      messages = observation.messages
+    }
     let replacement: BrowserTargetIdentity | undefined
     // The live durable UI can unmount the user after promotion. Only absence,
     // never a mismatched user, permits one existing fenced materialization load.
     if (messages && !messages.some(message => message.role === 'user')) {
-      if (!(await this.resolveComposer(signal)).empty) throw new SendUncertainError()
+      if (!(await this.resolveComposer(signal)).empty) throw new SendUncertainError('DRAFT_PRESENT')
       const expected = this.target!
-      if (!isDurableChatRoute(classifyChatRoute(expected.url)) || !this.browser.reloadCurrent) throw new SendUncertainError()
+      if (!isDurableChatRoute(classifyChatRoute(expected.url)) || !this.browser.reloadCurrent) throw new SendUncertainError('MATERIALIZATION_UNAVAILABLE')
       try { replacement = await this.browser.reloadCurrent(expected, signal) }
       catch (error) { throwIfCancelled(signal); throw new BrowserTargetChangedError() }
       if (replacement.targetId !== expected.targetId || replacement.url !== expected.url
         || replacement.documentId === expected.documentId || replacement.epoch <= expected.epoch) throw new BrowserTargetChangedError()
-      messages = await this.promotionMessages(replacement, signal)
-      const until = Date.now() + POST_NAVIGATION_SEMANTIC_TIMEOUT_MS
-      while ((!messages || !messages.some(message => message.role === 'user') || this.pendingAppRendering(messages, request.controlDigest)) && Date.now() < until) {
+      observation = await this.reconciliationMessages(replacement, signal)
+      messages = observation.messages
+      while ((observation.state === 'MISSING_BODY' || (messages && (!messages.some(message => message.role === 'user') || this.pendingAppRendering(messages, request.controlDigest)))) && Date.now() < until) {
         await abortableDelay(200, signal)
-        messages = await this.promotionMessages(replacement, signal)
+        observation = await this.reconciliationMessages(replacement, signal)
+        messages = observation.messages
       }
     }
-    if (!messages) throw new SendUncertainError()
+    if (!messages) throw new SendUncertainError('OBSERVATION_MISSING')
     const matches = messages.map((message, index) => ({ message, index })).filter(({ message }) => {
       const appName = this.appName.trim()
       return message.role === 'user' && message.appNames.length === 1 && message.appNames[0] === appName
@@ -192,7 +223,18 @@ export class ChatGptWebDriver implements ChatRecoveryControl {
     })
     let lastUser = -1
     for (let index = 0; index < messages.length; index++) if (messages[index]!.role === 'user') lastUser = index
-    if (matches.length !== 1 || matches[0]!.index !== lastUser) throw new SendUncertainError()
+    if (matches.length !== 1 || matches[0]!.index !== lastUser) {
+      // Classify the existing rejection using only the already-read proof.
+      // No classification changes its decision, public code or browser calls.
+      if (matches.length > 1) throw new SendUncertainError('PROOF_AMBIGUOUS')
+      if (matches.length === 1) throw new SendUncertainError('NOT_LAST_USER')
+      const users = messages.filter(message => message.role === 'user')
+      if (!users.length) throw new SendUncertainError('PROOF_NOT_FOUND')
+      const app = this.appName.trim()
+      const exactApp = users.filter(message => message.appNames.length === 1 && message.appNames[0] === app
+        && message.text.startsWith(app) && /\s/.test(message.text.slice(app.length, app.length + 1)))
+      throw new SendUncertainError(exactApp.length ? 'DIGEST_MISMATCH' : 'WRONG_APP')
+    }
     const preceding = messages.slice(0, lastUser).filter(message => message.role === 'assistant')
     // Replacement remains provisional until the unchanged exact proof succeeds.
     if (replacement) this.target = replacement
@@ -207,6 +249,15 @@ export class ChatGptWebDriver implements ChatRecoveryControl {
       || (baseline.conversationId !== null && (typeof baseline.conversationId !== 'string' || !/^[A-Za-z0-9_-]{1,128}$/.test(baseline.conversationId)))) throw new BrowserTargetChangedError()
     if ((await this.currentConversation(signal) ?? null) !== baseline.conversationId
       || observationEpoch(await this.browser.currentTarget(signal)) !== baseline.observationEpoch) throw new BrowserTargetChangedError()
+  }
+
+  private async reconciliationMessages(target: BrowserTargetIdentity | undefined, signal: AbortSignal) {
+    type Observation = { state: 'READY' | 'MISSING_BODY' | 'STRUCTURAL_AMBIGUITY'; messages: { role: string; text: string; appNames: string[] }[] | null }
+    const expression = `(() => { ${messageObservationScript}; return { state: messageObservationState, messages: messageObservations }; })()`
+    if (!target) return this.evaluate<Observation>(expression, signal)
+    const proof = await this.browser.observe<Observation>(expression, target, signal)
+    if (!sameBrowserTarget(target, proof.target) || proof.target.url !== target.url || proof.target.transitionSequence !== target.transitionSequence) throw new BrowserTargetChangedError()
+    return proof.value
   }
 
   async sendControlMessage(text: string, signal?: AbortSignal, operation?: ControlOperation): Promise<void> {
@@ -664,7 +715,7 @@ export class ChatGptWebDriver implements ChatRecoveryControl {
       '(() => {',
       composerScript,
       messageObservationScript,
-      'if (messageObservations === null) return { messageAmbiguous: true };',
+      'if (messageObservations === null) return { messageAmbiguous: true, observationState: messageObservationState };',
       'const messages = messageObservations.filter(message => message.role === "assistant");',
       'const latest = messages.at(-1);',
       'const animated = latest?.animated === true;',
@@ -684,7 +735,7 @@ export class ChatGptWebDriver implements ChatRecoveryControl {
       }
     }
     if (value && typeof value === 'object' && 'messageAmbiguous' in value) {
-      if (reconciliation) throw new SendUncertainError()
+      if (reconciliation) throw new SendUncertainError('observationState' in value && value.observationState === 'MISSING_BODY' ? 'MISSING_BODY' : 'OBSERVATION_MISSING')
       throw new BrowserStaleError('ChatGPT message structure is ambiguous')
     }
     if (typeof value === 'object' && value !== null) return normalizePageState(value)

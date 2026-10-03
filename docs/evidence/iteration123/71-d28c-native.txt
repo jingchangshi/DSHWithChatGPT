@@ -1,0 +1,35 @@
+
+ RUN  v5.0.1 C:/Users/jingc/workspace/DSHWithChatGPT/package
+
+---------stdout | tests/doctor-bind-boundary-native.spec.ts > D27 native bind boundary (body-hydration)
+D27 metadata: {"scenario":"body-hydration","elapsedMs":8727,"laterExactSameDocument":true,"proofBudgetMs":90000,"code":null,"localReady":true,"appVerified":true,"sendCount":1,"accepted":true,"bound":true,"waitCount":1,"recoveryCount":0,"driverSendCount":1,"pageEnterCount":1,"materialized":true,"provenance":[{"pid":28736,"kind":"bind-provenance","method":"captureReplyBaseline","stage":"enter","at":1791047125128},{"pid":28736,"kind":"bind-provenance","method":"currentConversation","stage":"enter","at":1791047125129},{"pid":28736,"kind":"bind-provenance","method":"currentConversation","stage":"return","at":1791047125129,"elapsedMs":0,"conversationPresent":false},{"pid":28736,"kind":"bind-provenance","method":"captureReplyBaseline","stage":"return","at":1791047125130,"elapsedMs":2,"conversationPresent":false},{"pid":28736,"kind":"bind-provenance","method":"currentConversation","stage":"enter","at":1791047125145},{"pid":28736,"kind":"bind-provenance","method":"currentConversation","stage":"return","at":1791047125146,"elapsedMs":1,"conversationPresent":false},{"pid":28736,"kind":"bind-provenance","method":"currentConversation","stage":"enter","at":1791047125355},{"pid":28736,"kind":"bind-provenance","method":"currentConversation","stage":"return","at":1791047125356,"elapsedMs":1,"conversationPresent":true},{"pid":28736,"kind":"bind-provenance","method":"reconcileReplyBaseline","stage":"enter","at":1791047125356},{"pid":28736,"kind":"bind-provenance","method":"currentConversation","stage":"enter","at":1791047125357},{"pid":28736,"kind":"bind-provenance","method":"currentConversation","stage":"return","at":1791047125358,"elapsedMs":1,"conversationPresent":true},{"pid":28736,"kind":"bind-provenance","method":"reconcileReplyBaseline","stage":"return","at":1791047127486,"elapsedMs":2130,"conversationPresent":true,"baselineCountMatches":true,"baselineDigestMatches":true},{"pid":28736,"kind":"bind-provenance","method":"currentConversation","stage":"enter","at":1791047127502},{"pid":28736,"kind":"bind-provenance","method":"currentConversation","stage":"return","at":1791047127503,"elapsedMs":1,"conversationPresent":true}]}
+
+x
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  tests/doctor-bind-boundary-native.spec.ts > D27 native bind boundary (body-hydration)
+AssertionError: expected true to be false // Object.is equality
+
+- Expected
++ Received
+
+- false
++ true
+
+ ❯ tests/doctor-bind-boundary-native.spec.ts:129:41
+    127|     expect(await direct.evaluate('window.enterCount')).toBe(1)
+    128|     expect(recover).not.toHaveBeenCalled()
+    129|     expect(result.appDataPlaneVerified).toBe(expectedPass)
+       |                                         ^
+    130|     expect(bound).toBe(expectedPass)
+    131|     if (!expectedPass) { expect(code).toMatch(/SEND_UNCERTAIN|BROWSER_…
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯
+
+
+ Test Files  1 failed (1)
+      Tests  1 failed | 9 skipped (10)
+   Start at  01:05:21
+   Duration  15.08s (tests 98%, transform 1%, import 1%)
+

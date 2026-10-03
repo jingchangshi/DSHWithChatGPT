@@ -1,18 +1,40 @@
-## D28 当前：本地native方法阶段诊断通过，真实拒绝子分支仍UNKNOWN
+## 当前执行依据：D28c 窄修复已实现，交接审阅，整体目标未完成
+
+当前候选、双仓库状态、证据适用范围和未完成门槛见 [2026-10-04 交接说明](review-handoff-2026-10-04.md)。下文待实现状态为历史；本候选尚无最终独立源码审阅、冻结全量或真实曝光通过。
+
+## HISTORY / SUPERSEDED：D28c 窄可用性 RED 已获实际源码审阅，待实现缺失正文专用收敛
+
+已在原会话实际选择DSHWithChatGPT工具，68/69/76保留独立源码审阅。76明确读取workspace/source/message-observation/tests/70–75和execution_output674，确认visible current-role single-ID missing-body可用性RED，并授权仅MISSING_BODY bounded observation。69已明确unknown-role pending不是生产RED；11s只证明deadline tradeoff。禁止把所有null或OBSERVATION_MISSING转为等待。
+
+D28c原始70/71为零高度shell被visibility排除，existing机制绑定成功但预期拒绝断言失败；非生产RED。73/74使用可见20px、正确current user marker、唯一ID、无正文/冲突/重复/multiple body：749ms拒绝，reconcile3ms OBSERVATION_MISSING；2s后在same target/document/route实际exact，一次accepted send/Enter、无bind/wait/recovery。72为22PASS，保留所有歧义负例。
+
+唯一下一实现：同一次message observation返回窄missing-body分类，扫描完整树确保其他矛盾不能被pending掩盖；reconcile只对该状态进行同target/document/route/conversation的只读观察，一次absolute10s不刷新、原outer signal、maximum1既有fenced reload。duplicate/roles/bodies/limits/explicit App/digest及route/document变化仍立即失败。正例、永久pending时间上界、caller取消、期限不刷新、混合hostile+pending、reload次数与native负例需验证后再独立source review。尚未修改生产等待行为；full/real exposure均未授权，real123原因及lock/producer/global gates仍OPEN。
+## HISTORY / SUPERSEDED：D28b 分类及等价性通过，等待独立可用性判断
+
+D28 Web 既有审阅已真实读取并保存56，未重发原请求。D28b摘要63及原始57–64保留：9s exact绑定；11s exact约10.7s拒绝PROOF_NOT_FOUND；瞬时真实messageObservationScript不可判定结构约0.63s拒绝OBSERVATION_MISSING。后两者在终止后本地只读验证中实际成为same document/route exact proof，均one send/Enter、no bind/wait/recovery。此为mechanism evidence，生产可接受性及real123历史cause仍UNKNOWN，不能据此自行修复或真实曝光。
+
+首次native58是8PASS/1夹具route场景FAIL，未触发预期route变化；修正后61三项PASS，其余六项为过滤排除。60是Windows命令引用失败、无实验。等价性62两文件32PASS覆盖原方法/browser调用序列、返回/错误及实际RPC/journal outcomes；64 typecheck PASS。诊断写入非等待、sync/async失败忽略，永久pending sink不阻塞；异步metadata可能缺失或乱序，不作为journal权威。
+
+下一步独立读取目标文档、55deadline map、63和实际candidate源码，判断合法transient及deadline策略后给唯一FIX_PLAN。九项最终统一native65/66已9PASS113.61s。新EXECUTED124已确认发送并取得完成回复67，但Reviewer明确未提供可调用workspace工具，判断仅基于摘要；此回复不是独立source审阅或修复授权。须先选择已连接的workspace工具再要求实际读取。未创建新对话、未重复请求或改变安全连接。当前正在恢复composer工作区工具选择，@草稿操作观察超时，需先读同一标签页，不得盲目重复发送。生产行为修复、freeze/exact-HEAD、真实闭环及lock/producer/global gates仍OPEN。
+## HISTORY / SUPERSEDED：当前执行依据：App-proof 嵌套期限图已建立，等待同一 ChatGPT 审阅回复
+
+已按当前 `bf5a0bec` 源码建立 `docs/evidence/iteration123/55-app-proof-deadline-map.md`：记录 outer 90s、Sidecar 生命周期、Direct CDP 单命令期限、post-navigation 10s、reconcile materialization 10s、promotion 2s+10s 以及一次 recovery 的实际调用关系。此项仅为架构诊断，没有修改 timeout 或生产行为。保存的 D28 审阅会话目前浏览器读取连续超时，页面是否生成尚未确认，未读取到真实回复，未重发请求；因此 reason enum/boolean 方案和下一次矩阵仍待该回复或同等独立审阅证据。不得进行 real124 或把 D27/D28 合成历史根因。
+
+## HISTORY / SUPERSEDED：D28 当前：本地native方法阶段诊断通过，真实拒绝子分支仍UNKNOWN
 
 53为3PASS43.01s，54保留逐场景原方法调用阶段。仅修改既有native fixture的显式opt-in observer，委托原captureReplyBaseline/currentConversation/reconcileReplyBaseline调用；无新增浏览器请求，无生产源码变更，不输出正文/digest值/App identity hash/document ID/epoch。
 
 合法250ms延迟成功绑定且baseline count/digest两项匹配；永久缺失在reconcileReplyBaseline约10127ms后抛SendUncertainError；错误digest在同方法17ms拒绝。此为synthetic mechanism诊断，不能确定real123同一子分支，不能据此普通重试。
 
 原ChatGPT长度上限后，同IAB标签页续接至6ac11d08-2104-83ee-925d-32b3455370d0，经实际workspace_info确认DSHWithChatGPT0bc289c1cb51/b6a9061后保存会话，旧对话保留历史。D28已提交该独立审阅，请求基于实际server/driver源码的最小reason enum/boolean分类方案和唯一下一实验。生产修复、后续真实曝光及所有整体gates未通过。
-## D27 当前结论：250ms合法延迟已被现有机制覆盖
+## HISTORY / SUPERSEDED：D27 当前结论：250ms合法延迟已被现有机制覆盖
 
 D27隔离native实验使用编译Sidecar、实际Direct CDP和doctor原90000msproof预算。首次48是夹具错误：受限reload后合成历史及Enter计数未保留，不是生产RED。修正只在synthetic fixture增加显式D27 opt-in历史物化/跨reload计数。50为3PASS35.34s；51保留逐场景元数据；52 typecheck exit0。
 
 合法延迟250ms：7386ms内成功，一次send/Enter，一次wait，无recovery。永久缺失：10819ms SEND_UNCERTAIN，无bound/wait/recovery；错误digest：891ms SEND_UNCERTAIN，无bound/wait/recovery。两者也只发送/Enter一次。51的materialized是fixture window.materialized标记与user存在的合取，不是生产messageObservation状态（wrong-digest在初始文档手动挂载时该标记仍false）。本实验没有记录prompt/reply/digest值。
 
 结论：D27反驳“250ms合法延迟需要新增grace”的假设，未建立生产缺陷RED；不能给real123未知子分支归因，不能据此重复真实曝光。只有diagnostic tests/fixture/doc变更，生产未改。原对话已达到明确长度上限；续接需先真实workspace_info核实，未完成身份核实前保留旧session URL。
-## 当前执行依据：real123 在 app-proof 绑定前失败，停止该次曝光
+## HISTORY / SUPERSEDED：当前执行依据：real123 在 app-proof 绑定前失败，停止该次曝光
 
 冻结提交 b6a9061cc7d13c70d3f1d35c49537008424c2845 在原 ChatGPT 对话取得实际工具读取后的 EXACT_HEAD_SCOPED_REVIEW_PASS，获准一次 fresh real123。此前未读取源码的摘要批准及 REVIEW_BLOCKED 均不能作为通过依据。
 
@@ -21,12 +43,12 @@ real123（run39158fe5-bf88-4a21-972b-9d806ce32fb0）已终止：local doctor loc
 控制器停止该次执行并冻结证据40–47。20个WTS样本可用；停机前仅root/health/journal观察，独立page命令0。停机后单次page probe成功只证明该时点可执行。DSH与两个观察器已确认退出，Sidecar监听0。原oracle五项false、exitCode1。首次观察文件未创建的guard-read-unavailable记录完整保留。
 
 下一行动：将本次accepted但未绑定的失败边界提交原ChatGPT独立复核，先获得唯一可证伪的本地/native实验和停止条件；无普通重试、新target或放宽timeout/身份检查。真实闭环及lock/producer/global gates仍未完成。下文旧状态为历史。
-## 当前执行依据：post-D26 冻结全量 PASS，等待提交与 exact-HEAD 审阅
+## HISTORY / SUPERSEDED：当前执行依据：post-D26 冻结全量 PASS，等待提交与 exact-HEAD 审阅
 
 2026-10-03 22:38（Asia/Shanghai），获独立方案批准的 post-D26 原命令 pnpm test 已终止，exit0：91 files / 1246 PASS / 3 原有 skips / 777.68s。原始输出见 docs/evidence/iteration123/37-frozen-full-after-d26.txt；终态38确认225个冻结文件哈希与路径无变化，39确认两次冻结清单一致。full 未加载 D26 observer，未改变源码、fixture、timeout 或安全检查。
 
 首次失败19/20仍为 FAILED，原启动失败 cause UNKNOWN；D26只证明本次有限诊断未复现。当前候选源码审阅及全量已通过，但提交/推送、exact-HEAD scoped 审阅、真实产品闭环和后续 lock/producer/global gates 尚未完成。下文运行中和待诊断状态均为历史记录，不能作为当前执行依据。
-## 当前：D26 完成，按独立方案进行一次 post-D26 冻结全量
+## HISTORY / SUPERSEDED：当前：D26 完成，按独立方案进行一次 post-D26 冻结全量
 
 原 ChatGPT Web 已给出 FIX_PLAN_PRE_FULL：分类为独立测试启动生命周期失败，保持 staged harness 的源码审阅通过；先做 D26，未复现源码缺陷时允许一次冻结全量复核。未修改任何生产、测试、fixture、timeout 或 ACL 检查。
 
