@@ -15,3 +15,8 @@ export class ChatGptAppUnavailableError extends Error {
 export class BrowserStaleError extends Error {
   constructor(detail: string) { super('BROWSER_STALE: ' + detail); this.name = 'BrowserStaleError' }
 }
+
+/** Definite page-command availability failure, distinct from transient DOM state. */
+export class BrowserPageUnavailableError extends BrowserStaleError {
+  constructor() { super('page command unavailable'); this.name = 'BrowserPageUnavailableError' }
+}

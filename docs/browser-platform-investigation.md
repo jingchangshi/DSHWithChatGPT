@@ -379,3 +379,52 @@ raw441/source and prescribed extending the existing fenced one-load recovery to
 that boundary. Later readonly442 was classified as present UI evidence only,
 never authority for the historical send. No general OpenAI platform prohibition
 is demonstrated by these observations.
+
+## 2026-10-03 M2 whole-wait diagnostic and independent classification
+
+Iteration116 ran once against the matching M1 package nWOq2g, with fresh default
+Chrome, explicit target EB104C353444BFB29024939F6E9179EC, private journal and
+independent metadata observers. Local readiness passed. App proof dispatched;
+its send was accepted and wait durably awaiting-reply. No canonical INIT/PLAN.
+All16 authoritative WTS samples were active/unlocked, Chrome foreground. Page
+samples0–12 were responsive; sample12 was complete/visible/focused. Sample13
+browser-root commands succeeded and listed the same target, but fresh Page.enable
+was written then timed out5005ms. Immediate subsequent Browser.getVersion
+succeeded1ms; authenticated Sidecar health remained PASS. First-failure control
+stopped Executor8036. No target change/reconnect/resend; oracle remained allfalse.
+Post-stop Executor and observers are absent, no Sidecar listener, durable wait
+still awaiting-reply. That retained journal state is uncertainty, not permission
+to resend. Raw563–566 expose original run, full timeline, WTS and post-stop state.
+
+Independent ChatGPT iteration116 read raw evidence and actual source, classified
+threshold B as met narrowly: PAGE_COMMAND_UNRESPONSIVE, not a proven renderer
+crash, Windows lock cause, service prohibition, or product-returned browser error.
+The first failure belongs to the observer; product had not yet returned an error.
+Source independently demonstrates that DirectCdp read timeout/session loss leaks
+as CdpCommandError and reply polling suppresses it. Generic semantic stale errors
+are intentionally tolerated, so broadly propagating all BrowserStale is rejected.
+
+Iteration117 prescribed internal BrowserPageUnavailableError (public BROWSER_STALE),
+mapping definite non-mutating page-command availability failures and propagating
+that subtype immediately in reply polling. Keep mutation gate uncertainty,
+provider rejection/target changes, polling cadence, semantic deadlines and
+transient DOM tolerance. Existing Sidecar error handling saves admitted waits as
+uncertain and releases ownership after settlement; no server source change or
+extra cancel is required. No recovery or target replacement change is justified.
+Initial RED7fail/31pass proves classification and suppression; focused initial
+GREEN38pass. Separate compiled Sidecar with real Chrome/CDP/synthetic page GREEN
+8pass proves wait uncertain, healthy root/same target, owner release, one send/
+wait/Enter and zero cancel/resend. These fixtures are not real ChatGPT acceptance.
+Typecheck initially found an internal parameter type mismatch; corrected build
+and final typecheck PASS. Related regression and independent source review remain
+pending at this checkpoint; no new real exposure during implementation.
+
+Final117 related regression10files177PASS264.84s. First broad run's two old raw
+error assertions caused three shared-fixture cascade failures; only those two
+type expectations updated, preserving deadline/reconnect/old-fence/no-replay.
+Independent117 SOURCE_REVIEW_PASS_PENDING_FULL accepted actual source/tests/raw
+with no concrete fix. Frozen full88files1202PASS/3original skips645.00s;194 source/
+test hashes unchanged. Fresh package qLepRq and installed profile eQFPvt (two
+native attempts) PASS; packed browser/M1 modules match build. Actual App/PLAN/
+recovery acceptance still absent. Next exact pushed review, then one bounded
+first-failure real diagnostic with the independently prescribed observer planes.

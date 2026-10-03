@@ -846,3 +846,78 @@ App NOT_RUN. Ready for transport commit/push/exact-HEAD supplement; user dirty
 goal.md excluded from staging. M2 is finite PLAN-only diagnosis, explicitly not
 canonical acceptance; prepared independent whole-wait observers and first-failure
 stop controller are temporary artifacts, not part of transport commit.
+
+Iteration115 exact pushed HEAD fb0384a49f1d143067780c98c0aed5dfb3201cfa:
+independent M1_DONE_SCOPED, no concrete transport fix remains. Overall product,
+producer gate and global audit remain open. This checkpoint supersedes earlier
+pending M1/full/package statements above; it does not establish real acceptance.
+
+Iteration116 finite M2 exposure used matching nWOq2g and a fresh default Chrome,
+explicit target, private credential and journal. Local readiness passed; real App
+proof dispatched, send accepted and reply wait awaiting-reply. No canonical INIT
+or PLAN was dispatched. Independent sample13 first failed Page.enable after5005ms
+(written=true); browser root listed the same target just before failure and
+Browser.getVersion succeeded1ms just after it. Service health remained PASS.
+Previous page sample was complete/visible/focused. All16 WTS samples were known,
+active/unlocked and Chrome foreground. First-failure controller stopped exact
+Executor8036; result exit1 with acceptance/identity/nonce/recovery/readiness false.
+No resend, reconnect or target replacement occurred. This supports page-command
+unresponsiveness, not a crash attribution, OpenAI prohibition, or proof that the
+product driver itself swallowed that command error.
+
+Post-stop inspection confirms Executor8036 and observers21904/32324 absent and
+no Sidecar listener18765. Durable revision15 still retains the same accepted
+send and awaiting-reply wait; terminal processes do not erase that uncertainty.
+Raw real output, complete observer timeline, WTS series and metadata-only
+post-stop inspection published as iteration116 execution outputs with --command.
+Original artifacts remain under %TEMP%/plannerbridge-iteration116-* and
+%TEMP%/planner-executor-live-gjodzZ. Independent diagnosis requested in the saved
+development ChatGPT conversation. Next: classify observation/product boundaries,
+native adversarial RED, then minimal lifecycle fix only if independently supported.
+No ordinary real retry or full product acceptance is authorized by this failure.
+
+Independent116 FIX_PLAN narrowly accepts threshold B as PAGE_COMMAND_UNRESPONSIVE,
+distinguishes observer failure from the still-pending product wait, and prescribes
+typed internal page-unavailable propagation. Iteration117 adds only that subtype,
+DirectCdp read/setup mapping and immediate reply-loop propagation. Existing generic
+semantic stale tolerance, mutation uncertainty and public BROWSER_STALE remain.
+RED7fail/31pass; initial focused GREEN38pass; compiled native Sidecar/real CDP/
+synthetic-page lifecycle GREEN8pass (same wait uncertain, owner released, root/
+target healthy, one send/wait/Enter, zero cancel/resend). Build/final typecheck
+PASS after correcting an internal parameter type mismatch. Broader focused
+regression running; source review/full/package/profile/push remain pending.
+
+First117 related regression:172PASS/5FAIL in279.22s. Two existing DirectCdp local
+read-timeout/socket-loss assertions expected raw CdpCommandError, conflicting
+with the independently requested semantic subtype. The socket-loss assertion
+failed before its reconnect, leaving the shared fixture closed and causing the
+next three tests to fail in beforeEach. Only those two type assertions updated
+to BrowserPageUnavailableError; original deadline, reconnect/old-fence, mutation
+uncertainty, zero Input replay and explicit-target constraints retained.
+Corrected local/page-failure pair20PASS15.21s. Original failed raw published;
+10-file focused final rerun in progress on the corrected frozen source candidate.
+
+Final117 focused:10files177PASS264.84s, no additional skips. Candidate unchanged
+during this final run. Bounded independent source review in progress; full frozen
+regression/package/profile/exact pushed review remain pending.
+
+Independent117 SOURCE_REVIEW_PASS_PENDING_FULL: actual source/test diffs and
+raw567–575 reviewed; no concrete source/security/lifecycle fix in this scope.
+Subtype-only propagation, limited read/setup mapping, transient semantic
+tolerance and unchanged post-write mutation uncertainty accepted. Full ordinary
+pnpm test running exclusively with194 source/test file hashes frozen. No product
+exposure while validating. Temporary118 diagnostic controller prepared separately
+with fresh journal28/metadata paths and unchanged first-failure/no-resend rules;
+syntax PASS. It will not run until package/profile/push/exact-HEAD gates finish.
+
+Frozen117 ordinary full completed88files1202PASS/3original skips645.00s, exit0.
+All194 source/test hashes unchanged. Fresh package/profile validation next;
+no real App/PLAN/recovery/acceptance inference from this full-suite result.
+
+Fresh117 package qLepRq PASS: isolated imports, compiled native separate-process
+Sidecar/private journal/replay/clean shutdown. Six built/packed module hashes
+match (browser errors/direct-cdp/driver and M1 client/rpc-http/server); frozen
+source/test hashes unchanged. Installed profile eQFPvt passed two independent
+native DSH attempts: actual tool schemas, authenticated Git, containment and
+restart/alias/plugin identity. Real Browser/App NOT_RUN in this profile fixture.
+Ready for commit/push and exact-HEAD review; user-owned goal.md remains excluded.

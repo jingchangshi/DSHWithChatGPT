@@ -2,12 +2,53 @@ import './fixtures/browser-clock.ts'
 import { afterEach, expect, it, vi } from 'vitest'
 import { BrowserTargetChangedError } from '../src/browser/epoch.ts'
 import { BrowserStaleError } from '../src/browser/adapter.ts'
+import { BrowserPageUnavailableError } from '../src/browser/errors.ts'
 import { OperationCancelledError } from '../src/cancellation.ts'
 import { closeDomFixtures } from './fixtures/dom-browser.ts'
 import { fakeBrowserFixture } from './fixtures/fake-browser-primitives.ts'
 import { webSemanticContract } from './fixtures/web-semantic-contract.ts'
 
 afterEach(async () => { vi.useRealTimers(); await closeDomFixtures() })
+
+it('stops reply polling at the first definite page-unavailable observation', async () => {
+  vi.useFakeTimers()
+  const { ChatGptWebDriver } = await import('../src/browser/chatgpt-web-driver.ts')
+  const fixture = fakeBrowserFixture('<div role="textbox" contenteditable="true"></div>', { appName: '' })
+  fixture.window.history.replaceState(null, '', '/c/owned')
+  const driver = new ChatGptWebDriver(fixture.primitives, '')
+  await driver.sendControlMessage('owned request')
+  const failure = new BrowserPageUnavailableError()
+  const observe = vi.fn(async () => { throw failure })
+  fixture.primitives.observe = observe
+  let outcome: unknown
+  const pending = driver.waitForReply(12_000).catch(error => { outcome = error })
+  try {
+    await vi.advanceTimersByTimeAsync(1500)
+    expect(outcome).toBe(failure)
+    expect(observe).toHaveBeenCalledTimes(1)
+    expect(fixture.keys.filter(key => key === 'Enter')).toHaveLength(1)
+  } finally { await vi.runAllTimersAsync(); await pending }
+})
+
+it('continues waiting through a transient semantic stale state and accepts a settled reply', async () => {
+  vi.useFakeTimers()
+  const { ChatGptWebDriver } = await import('../src/browser/chatgpt-web-driver.ts')
+  const fixture = fakeBrowserFixture('<div role="textbox" contenteditable="true"></div>', { appName: '' })
+  fixture.window.history.replaceState(null, '', '/c/owned')
+  const driver = new ChatGptWebDriver(fixture.primitives, '')
+  await driver.sendControlMessage('owned request')
+  fixture.window.document.body.insertAdjacentHTML('beforeend', '<article data-message-author-role="assistant">settled reply</article>')
+  const observe = fixture.primitives.observe
+  let first = true
+  fixture.primitives.observe = async (...args) => {
+    if (first) { first = false; throw new BrowserStaleError('temporary DOM ambiguity') }
+    return observe(...args)
+  }
+  const pending = driver.waitForReply(12_000).catch(error => error)
+  await vi.runAllTimersAsync()
+  expect(await pending).toEqual({ text: 'settled reply', complete: true })
+  expect(fixture.keys.filter(key => key === 'Enter')).toHaveLength(1)
+})
 
 it('accepts query and fragment changes within the pinned conversation', async () => {
   vi.useFakeTimers()

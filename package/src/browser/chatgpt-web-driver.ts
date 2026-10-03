@@ -7,6 +7,7 @@ import type { BrowserTransition } from './transitions.ts'
 import { abortableDelay, OperationCancelledError, throwIfCancelled } from '../cancellation.ts'
 import {
   BrowserStaleError,
+  BrowserPageUnavailableError,
   ChatGptAppUnavailableError,
   ChatGptLoggedOutError,
   SendUncertainError,
@@ -315,7 +316,7 @@ export class ChatGptWebDriver implements ChatRecoveryControl {
           return { text: state.text, complete: true }
         }
       } catch (error) {
-        if (error instanceof ChatGptLoggedOutError || error instanceof OperationCancelledError || error instanceof BrowserTargetChangedError) throw error
+        if (error instanceof ChatGptLoggedOutError || error instanceof OperationCancelledError || error instanceof BrowserTargetChangedError || error instanceof BrowserPageUnavailableError) throw error
       }
     }
 

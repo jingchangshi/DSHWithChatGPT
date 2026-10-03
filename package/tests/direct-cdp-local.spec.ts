@@ -2,6 +2,7 @@ import { beforeAll, beforeEach, afterAll, expect, it } from 'vitest'
 import { localCdpBrowser } from './fixtures/local-cdp-browser.ts'
 import { DirectCdpPrimitives, listCdpTargets } from '../src/browser/direct-cdp.ts'
 import { cdpInputAckProxy } from './fixtures/cdp-input-ack-proxy.ts'
+import { BrowserPageUnavailableError } from '../src/browser/errors.ts'
 
 let fixture: Awaited<ReturnType<typeof localCdpBrowser>>
 let browser: DirectCdpPrimitives
@@ -117,7 +118,7 @@ it('rejects pre-dispatch cancellation without page input', async () => {
 it('bounds a never-settling Runtime promise and reconnect invalidates every old fence', async () => {
   const expected = await browser.currentTarget()
   const started = Date.now()
-  await expect(browser.evaluate('new Promise(() => {})')).rejects.toMatchObject({ name: 'CdpCommandError' })
+  await expect(browser.evaluate('new Promise(() => {})')).rejects.toBeInstanceOf(BrowserPageUnavailableError)
   expect(Date.now() - started).toBeLessThan(3000)
   await browser.reconnect()
   const reconnected = await browser.currentTarget()
@@ -131,7 +132,7 @@ it('rejects an in-flight read on socket loss without replay and reconnects only 
   const pending = browser.evaluate('new Promise(() => {})').catch(error => error)
   await browser.pageInfo()
   browser.close()
-  expect(await pending).toMatchObject({ name: 'CdpCommandError' })
+  expect(await pending).toBeInstanceOf(BrowserPageUnavailableError)
   await browser.reconnect()
   expect((await browser.currentTarget()).targetId).toBe(fixture.targetId)
 })

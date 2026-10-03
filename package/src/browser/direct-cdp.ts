@@ -1,7 +1,7 @@
 import { get } from 'node:http'
 import WebSocket from 'ws'
 import { abortableDelay, throwIfCancelled } from '../cancellation.ts'
-import { BrowserStaleError } from './errors.ts'
+import { BrowserStaleError, BrowserPageUnavailableError } from './errors.ts'
 import { BrowserTargetChangedError, BrowserMutationUncertainError, sameBrowserTarget, type BrowserTargetIdentity } from './epoch.ts'
 import { CdpSession, CdpMutationGate, CdpCommandError } from './cdp-session.ts'
 import { typingFocusExpression } from './focus-expression.ts'
@@ -168,14 +168,14 @@ export class DirectCdpPrimitives implements BrowserPrimitives {
     this.session.subscribe(this.lifecycle)
     this.state = 'BOUND'
     this.gate = new CdpMutationGate(this.session, () => this.snapshot(), async (expected, signal, timeoutMs) => (await this.observe('true', expected, signal, timeoutMs)).target)
-    await this.session.command('Page.enable', {}, { signal })
-    await this.session.command('Runtime.enable', {}, { signal })
-    const result = await this.session.command<any>('Page.getFrameTree', {}, { signal })
+    await this.pageCommand('Page.enable', {}, signal)
+    await this.pageCommand('Runtime.enable', {}, signal)
+    const result = await this.pageCommand<any>('Page.getFrameTree', {}, signal)
     const frame = result.frameTree?.frame
     if (!frame || typeof frame.id !== 'string' || typeof frame.url !== 'string' || typeof frame.loaderId !== 'string') throw new Error('CDP top frame unavailable')
     this.frameId = frame.id; this.loaderId = frame.loaderId; this.url = frame.url
     for (const context of this.contexts.values()) this.establish(context)
-    await this.session.command('DOM.enable', {}, { signal })
+    await this.pageCommand('DOM.enable', {}, signal)
     await this.waitForDocument(deadline(this.options.commandTimeoutMs), signal)
   }
   private async waitForDocument(timeoutMs: number, signal?: AbortSignal): Promise<void> {
@@ -191,14 +191,24 @@ export class DirectCdpPrimitives implements BrowserPrimitives {
     try { await this.attach(signal) } catch (error) { this.close(); throw error }
   }
   close(): void { this.state = 'CLOSED'; this.context = undefined; this.session?.close() }
+  /** Read-only page operations only; mutation outcomes remain owned by the gate. */
+  private async pageCommand<T = unknown>(method: string, params: Record<string, unknown>, signal?: AbortSignal, timeoutMs?: number): Promise<T> {
+    try { return await this.session.command<T>(method, params, { signal, timeoutMs }) }
+    catch (error) {
+      if (error instanceof CdpCommandError && ['deadline exceeded', 'connection lost', 'connection closed', 'write failed'].includes(error.reason)) {
+        throw new BrowserPageUnavailableError()
+      }
+      throw error
+    }
+  }
   async observe<T>(expression: string, expected?: BrowserTargetIdentity, signal?: AbortSignal, timeoutMs?: number) {
     const target = this.snapshot()
     if (expected && !sameBrowserTarget(expected, target)) throw new BrowserTargetChangedError()
     const context = this.context!
-    const result = await this.session.command<any>('Runtime.evaluate', {
+    const result = await this.pageCommand<any>('Runtime.evaluate', {
       expression: `(async () => ({ value: await (${expression}), url: location.href }))()`,
       uniqueContextId: context.uniqueId, returnByValue: true, awaitPromise: true,
-    }, { signal, timeoutMs }).catch(error => {
+    }, signal, timeoutMs).catch(error => {
       if (error instanceof CdpCommandError && error.reason === 'provider rejected command') throw new BrowserTargetChangedError()
       throw error
     })
