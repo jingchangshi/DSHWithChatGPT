@@ -921,3 +921,147 @@ source/test hashes unchanged. Installed profile eQFPvt passed two independent
 native DSH attempts: actual tool schemas, authenticated Git, containment and
 restart/alias/plugin identity. Real Browser/App NOT_RUN in this profile fixture.
 Ready for commit/push and exact-HEAD review; user-owned goal.md remains excluded.
+
+Independent117 exact pushed9bc3b375296c36a610d49754dd2d38d5533ab642 DONE_SCOPED:
+threshold-B page classification and safe wait termination accepted, no concrete
+fix. Overall Windows closure/producer/global audit open. One finite118 diagnostic
+then ran with matching qLepRq, fresh default Chrome10876, explicit target
+1EDC81A5D727DE0A7C6FEF003230A438 and fresh private journal28. Previous owned browser
+close ACK preceded actual process/listener exit; authoritative second observation
+confirmed terminal before new launch (no close resend). Previous target metadata
+preserved. No new browser flags.
+
+Real118 root wYk0mN/run c4fd58bc-40a5-4e2f-8659-7ca41a3382cd: localReady PASS;
+App proof returned BROWSER_STALE at1791016061153. Its accepted send operation
+77d60ede-210a-48b2-8538-9f52ca0a1573 preceded wait8f8222d7-55d4-480b-b63e-21c7ea11915b,
+awaiting-reply at1791016042142 → uncertain at1791016061142. Product result therefore
+preceded observer Page.enable written/timeout5007ms at1791016064890. Same target
+listed by root at1791016059881; root-after-failure1ms PASS. Last healthy page sample
+was complete/visible/focused; all15 WTS samples usable/unlocked, Chrome foreground.
+First-product-failure control stopped Executor13492, no canonical INIT/PLAN or
+resend/reconnect/replacement. Oracle remains allfalse, exit1. Subsequent health
+UNAVAILABLE is after controlled teardown, not initial-cause evidence.
+
+Post-stop Executor13492/observers7308/30588 absent; no Sidecar listener; journal
+revision16 retains accepted send and uncertain wait. Raw original run, product
+events, full timeline, WTS and post-stop metadata published118. This validates
+real product detection/classification; original page unresponsiveness remains
+unresolved. Independent whole-goal next-step/root-cause/recovery-evidence analysis
+requested. Do not ordinary-retry, expand recovery speculatively or reopen scoped
+M1/classification absent a new counterexample.
+
+Independent118 REAL_DETECTION_CONFIRMED: product BROWSER_STALE/uncertain wait
+preceded observer timeout, but the independent page command was already in-flight;
+observer contribution remains unresolved. Next119 is one observer-ablation run
+capable of completing original canonical acceptance, not another PLAN-only run.
+Use exact9bc3b37/matching qLepRq and fresh target/journal29/workspace/task.
+Continuous observers only WTS/browser ROOT/health/journal metadata; no independent
+page connection or page command before first product failure. If App proof passes,
+continue same run through actual execution/tests/nonce/push/REVIEW/fix/restart/
+second round/DONE/oracle. On first failure freeze dispatch/evidence, perform one
+post-failure same-target page probe under existing bounds, then stop. A failing
+post-probe supports target-wide failure; a healthy post-probe favors same-target
+session recovery. App proof currently lacks retained stable IDs/exact baseline/
+replyRecovery, so recovery source work requires this evidence plus native RED;
+zero resend and mismatch uncertainty remain mandatory. goal.md refreshed to this
+plan; no production source change or new full-suite requirement. Overall goal,
+producer gate, lock capability proof and final global review remain open.
+
+Real119 completed on unchanged9bc3b37/matching qLepRq using ORIGINAL canonical
+runner, fresh default Chrome28660/explicit target915C17E2E754E91348E64A2706EAE78F,
+private journal29/root M3sARo/run3c7f5779-6776-4bde-bc59-355f4ae6994b.
+LocalReady PASS; App proof BROWSER_STALE at1791017303983; accepted send
+40806718-86eb-468d-9455-42669099ff5f at1791017287526; wait
+69c1fdac-c06f-40f0-82be-52e3593c057c awaiting1791017287546→uncertain1791017303980.
+Continuous independent observer made ZERO page commands/connections; root-only
+commands/health/journal and all15 WTS samples remained usable/unlocked/Chrome.
+First-product-failure boundary stopped exact Executor11820 at1791017304450;
+single post-failure fresh SAME-target probe began after stop. Page.enable written
+at1791017304620 timed out5003ms, while root lists same target and after-probe
+Browser.getVersion PASS2ms. This supports outcome A: page control failure occurs
+without the prior continuous page observer; it does not prove crash/OpenAI
+restriction or exclude every possible product/browser contribution. Post-stop
+health loss is teardown. Executor/observers33952/35788 terminal, no service listener,
+journal revision16 retained accepted send/uncertain wait, baselineBound=false.
+No INIT/PLAN/resend/reconnect/replacement; exit1/allfalse oracle preserved.
+Seven original outputs published119 with --command; independent bounded recovery
+RED/design/GREEN plan requested in saved ChatGPT conversation. No production source
+edit yet; no ordinary retry. Current blocker: App-proof invocation lacks retained
+stable operation IDs/exact baseline/recovery binding needed for safe zero-resend
+recovery. Existing transport/classification stay scoped closed.
+
+Independent119 APP_PROOF_RECOVERY_FIX_PLAN / APP_PROOF_RECOVERY_AUTHORIZED
+received: pre-send baseline, stable send/wait IDs, exact-send durable binding
+before wait, and one internally owned replacement on initial bound BROWSER_STALE.
+Resume the same wait without send or deadline renewal; proof gates commit/source
+retirement, otherwise roll back exact known replacement. Unknown creation never
+permits guessed cleanup or another attempt. Legacy/Harness stays nonrecovering;
+external ownership does not authorize replacement. Canonical recovery unchanged.
+
+Iteration120 local UNFROZEN candidate modifies doctor/adapter/dsh-runtime with
+focused tests. Doctor RED7fail20pass -> GREEN27pass; controlled transaction pair
+39PASS; typecheck/build PASS. Latest native Chrome/compiled Sidecar composition
+with SYNTHETIC documents:2PASS1FAIL (session77433 terminal exit1). Valid branch
+reached proof/commit/retireSource assertions but old source target was still
+listed at the immediate final assertion. Cause remains unresolved; investigate
+retirement semantics and terminal evidence before classifying as fixture timing
+or production defect. No native GREEN or real ChatGPT acceptance claim.
+Earlier fixture picker failure corrected; earlier JOURNAL_UNAVAILABLE cause
+unconfirmed. Preserve all original failed outputs and do not change journal
+contract on that hypothesis. Latest raw: %TEMP%\plannerbridge-iteration120-native-telemetry.txt.
+
+User-requested goal refresh now records this checkpoint and authorized recovery
+in docs/goal.md. Next: resolve native terminal failure -> focused/compatibility
+GREEN -> publish raw failures/successes -> independent bounded source review ->
+full/package/profile/association/push/exact-HEAD freeze -> one fresh ORIGINAL
+canonical closure run with no continuous independent page observer. goal.md is
+user-owned and excluded from automatic commits. Overall goal remains active;
+unlocked closure, Windows lock qualification, producer gate and final global
+exact-HEAD audit are still open.
+
+Iteration120 continued: original native valid failure retained. The production
+retirement helper awaits Chrome /json/close ACK, which is not target disappearance
+evidence. Test now observes root target lists within existing5s boundary after
+that sole close, with no extra mutation. Filtered valid diagnosis1PASS (two
+filtered cases, no persisted skip); all3 native scenarios subsequently PASS.
+No retirement production change or proof-deadline change. Malformed observation
+provider omission exposed another doctor RED2fail27pass: missing baseline could
+send before TypeError, missing binding could fall back to unbound wait/success.
+Doctor now fails closed SEND_UNCERTAIN before send/wait respectively.
+Final doctor/compatibility5files67PASS33.07s; typecheck/build final2 PASS.
+Rebuilt candidate focused6files60PASS101.66s includes actual native recovery,
+owned-target native/adversarial checks, M1 transport/boundary and page failure.
+Native recovery3 scenarios are valid/foreign-message/wrong-proof; startup/health,
+cancellation/external ownership transactions are controlled tests, not claimed
+as separate native recovery scenarios. All original120 failures and successes
+published through execution_output; final focused supplement next. Independent
+bounded candidate source review requested next. Full/package/profile/exact-HEAD
+freeze and real App acceptance remain NOT_RUN for this candidate.
+
+Independent120 SOURCE_REVIEW_PASS_PENDING_FULL received: actual doctor/runtime/
+adapter diff and raw595–611 inspected; no concrete production source fix remains.
+Stable binding, same wait, one attempt, absolute budget and proof-gated transaction
+accepted. Controlled startup/health/external negatives explicitly adequate for
+scoped freeze given independently native-tested mechanics, not native App-proof
+claims. Failed rollback is deliberately fail-closed, not healthy source restoration;
+do not add an old-source restart/ordinary retry. Proceed unchanged candidate to
+frozen full -> fresh package/profile -> relevant built-packed association -> push
+and exact-HEAD supplement. No real exposure until exact-HEAD freeze.
+
+Frozen120 full:90files1231PASS/3original skips773.15s, exit0. All197 source/test
+SHA256 entries identical before/after. Source stayed unchanged after independent
+source PASS. Fresh package verification in progress; no real product exposure.
+Next121 temporary root-only canonical controller/browser/probe scripts prepared
+and syntax-checked only, journal30/new artifact references, never executed yet.
+Owned-target pointer already supports approved App-proof replacement/phase
+handoff; observer health/target transitions do not abort legitimate restart.
+
+Fresh120 package qhd1m2 PASS: isolated import/type exports, packaged native
+separate-process Sidecar, neutral client/private state/stable replay/clean shutdown.
+Ten relevant compiled modules byte-identical to installed packed candidate,
+including doctor/dsh-runtime/adapter plus preserved transport/classification/
+target-recovery. Installed DSH profile CrfKSV two independent native attempts
+PASS: five schema subset, authenticated hardened Windows Git, containment, alias/
+restart/plugin identity. Profile is composition fixture; real Browser/App NOT_RUN.
+All197 frozen source/test hashes retained; commit/push and exact-HEAD scoped
+supplement next. User-owned docs/goal.md excluded from automatic commit.

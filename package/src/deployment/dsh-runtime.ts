@@ -48,7 +48,7 @@ import { freezeShellExecution, observeShellResult, type FrozenExecutionContext, 
 import { WorkspaceRecorders } from '../execution/workspaces.ts'
 import { OpenAiSecureTunnelAdapter } from '../adapters/mcp-exposure/openai-secure-tunnel.ts'
 import { throwIfCancelled } from '../cancellation.ts'
-import { runDoctor } from '../readiness/doctor.ts'
+import { runDoctor, type AppProofWaitRecovery } from '../readiness/doctor.ts'
 import { DeploymentSidecarControl } from './sidecar-control.ts'
 import { validateSidecarEndpoint } from '../sidecar/protocol.ts'
 import type { BrowserControl } from '../browser/adapter.ts'
@@ -696,6 +696,8 @@ export async function apply(ctx: Context, config: Config): Promise<void> {
       },
       async execute(_args: Record<string, unknown>, exec: ToolExec | undefined, workspaceRoot: WorkspaceRuntimeIdentity) {
         const runtime = await ensureRuntime(workspaceRoot, exec?.signal)
+        const key = workspaceRoot.workspaceId + '\0' + workspaceRoot.displayRoot
+        const attempts = new Set<string>() // Invocation-local: never survives as resend authority.
         return runDoctor({
           mode: _args.mode === 'app-proof' ? 'app-proof' : 'local',
           appProofTimeoutMs: Math.min(config.replyTimeoutMs, 90_000),
@@ -706,6 +708,16 @@ export async function apply(ctx: Context, config: Config): Promise<void> {
           runtime: { bridge: runtime.bridge, tunnel: runtime.tunnelStatus },
           bridgeHttp: { port: runtime.bridge.port, token: runtime.bridge.token },
           probeApp: signal => makeBrowser(exec?.agent, workspaceRoot).probeApp?.(config.chatgptAppName, signal) ?? Promise.reject(new Error('browser app probe unavailable')),
+          ...(config.browserMode === 'sidecar' && config.sidecarProcessCommand ? {
+            recoverAppProof: (operation: AppProofWaitRecovery, resume: () => Promise<string | undefined>, signal?: AbortSignal) => recoverOwnedAppProof({
+              workspaceKey: key, attempts, owned: sidecarSupervisors.get(key),
+              command: config.sidecarProcessCommand!, args: config.sidecarProcessArgs, endpoint: config.sidecarEndpoint,
+              credentialFile: config.sidecarCredentialFile ?? joinPath(privateStateBase(), 'PlannerBridge', 'credentials', 'authentication.secret'),
+              excludedRoots: [workspaceRoot.displayRoot], startupTimeoutMs: config.tunnelStartupTimeoutMs,
+              health: () => makeBrowser(exec?.agent, workspaceRoot).health(),
+              commit: owned => { sidecarSupervisors.set(key, owned) },
+            }, operation, resume, signal),
+          } : {}),
           signal: exec?.signal,
         })
       },
@@ -756,6 +768,58 @@ export async function apply(ctx: Context, config: Config): Promise<void> {
   }
 
   return activate()
+}
+
+/** @internal Deployment transaction used by the registered doctor. The supplied
+ * closure resumes only the original wait and returns the unchanged proof check.
+ * Exported from this module for native composition tests, not the package API. */
+export async function recoverOwnedAppProof(options: {
+  workspaceKey: string
+  attempts: Set<string>
+  owned?: { supervisor: SidecarSupervisor; targetId?: string; cdpEndpoint?: string }
+  command: string
+  args?: string[]
+  endpoint: string
+  credentialFile: string
+  excludedRoots: string[]
+  startupTimeoutMs: number
+  health(): Promise<{ ok: boolean }>
+  commit(owned: { supervisor: SidecarSupervisor; targetId: string; cdpEndpoint: string }): void
+}, operation: AppProofWaitRecovery, resume: () => Promise<string | undefined>, signal?: AbortSignal): Promise<string | undefined> {
+  throwIfCancelled(signal)
+  const owned = options.owned
+  const attempt = options.workspaceKey + '\0' + operation.sendOperationId
+  const wait = operation.waitOperation
+  if (!owned?.targetId || !owned.cdpEndpoint || !options.command || !wait.replyBaseline?.conversationId
+    || wait.replyRecovery?.sendOperationId !== operation.sendOperationId || options.attempts.has(attempt)) throw new SidecarRpcError('BROWSER_STALE')
+  options.attempts.add(attempt) // Before target creation, including uncertain creation outcomes.
+  const replacement = await createOwnedSidecarReplacement(owned.cdpEndpoint, owned.targetId, signal)
+  let supervisor: SidecarSupervisor | undefined
+  let committed = false
+  try {
+    await owned.supervisor.close()
+    throwIfCancelled(signal)
+    const authentication = await readSidecarCredential(options.credentialFile, options.excludedRoots)
+    supervisor = new SidecarSupervisor({ command: options.command, args: options.args,
+      endpoint: options.endpoint, authentication, startupTimeoutMs: options.startupTimeoutMs,
+      env: { PLANNERBRIDGE_SIDECAR_TARGET_ID: replacement.replacementTargetId } })
+    await supervisor.start(signal)
+    // Refresh the existing client's generation; never send on this transaction.
+    if (!(await options.health()).ok) throw new SidecarRpcError('SIDECAR_UNAVAILABLE')
+    throwIfCancelled(signal)
+    const proofFailure = await resume()
+    throwIfCancelled(signal)
+    if (proofFailure !== undefined) return proofFailure
+    options.commit({ supervisor, targetId: replacement.replacementTargetId, cdpEndpoint: owned.cdpEndpoint })
+    committed = true
+    await replacement.retireSource().catch(() => {})
+    return undefined
+  } finally {
+    if (!committed) {
+      await supervisor?.close().catch(() => {})
+      await replacement.closeReplacement().catch(() => {})
+    }
+  }
 }
 
 /** Minimal tool execution context shape used by this plugin. */

@@ -1,7 +1,7 @@
-import type { ChatControl, ChatReply } from '../core/ports/chat-control.ts'
+import type { ChatControl, ChatReply, ChatSendObservationControl } from '../core/ports/chat-control.ts'
 /** Legacy browser names retained for compatibility. */
 export type BrowserReply = ChatReply
-export interface BrowserControl extends ChatControl {
+export interface BrowserControl extends ChatControl, Partial<Pick<ChatSendObservationControl, 'captureReplyBaseline' | 'captureSendObservation'>> {
   conversationId(signal?: AbortSignal): Promise<string | undefined>
   readiness?(signal?: AbortSignal): Promise<{ url: string; composer: boolean; loggedOut: boolean }>
   probeApp?(appName: string, signal?: AbortSignal): Promise<void>

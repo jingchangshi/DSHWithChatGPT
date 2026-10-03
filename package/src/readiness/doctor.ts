@@ -1,4 +1,5 @@
-import type { ChatControl } from '../core/ports/chat-control.ts'
+import { randomUUID } from 'node:crypto'
+import type { ChatControl, ChatSendObservationControl, ControlOperation } from '../core/ports/chat-control.ts'
 import type { ChatControlDiagnostics } from '../core/ports/chat-diagnostics.ts'
 import { BrowserStaleError, ChatGptLoggedOutError, ChatGptAppUnavailableError } from '../browser/adapter.ts'
 import { BrowserTargetChangedError } from '../browser/epoch.ts'
@@ -27,11 +28,19 @@ export interface DoctorInputs {
   workspaceRoot: string
   workspaceId: string
   appName: string
-  browser: ChatControl & Partial<ChatControlDiagnostics>
+  browser: ChatControl & Partial<ChatControlDiagnostics & Pick<ChatSendObservationControl, 'captureReplyBaseline' | 'captureSendObservation'>>
   runtime: { tunnel: TunnelStatus; bridge: { workspaceId: string } }
   bridgeHttp: { port: number; token: string }
   probeApp?: (signal?: AbortSignal) => Promise<void>
   signal?: AbortSignal
+  /** Deployment transaction; the only supplied semantic action resumes a wait
+   * and verifies its proof. There is deliberately no send or doctor closure. */
+  recoverAppProof?: (operation: AppProofWaitRecovery, resume: () => Promise<string | undefined>, signal?: AbortSignal) => Promise<string | undefined>
+}
+
+export interface AppProofWaitRecovery {
+  sendOperationId: string
+  waitOperation: ControlOperation
 }
 
 const BRIDGE_PROBE_TIMEOUT_MS = 5_000
@@ -206,12 +215,35 @@ async function proveApp(inputs: DoctorInputs, expected: AppProof): Promise<strin
   const timer = setTimeout(() => timeout.abort(), timeoutMs)
   let sent = false
   try {
-    await withCancellation(() => inputs.browser.sendControlMessage(appProofPrompt, signal), signal)
+    const observed = inputs.browser.captureReplyBaseline !== undefined && inputs.browser.captureSendObservation !== undefined
+    const sendId = randomUUID()
+    const waitId = randomUUID()
+    const baseline = observed ? await withCancellation(() => inputs.browser.captureReplyBaseline!(signal), signal) : undefined
+    if (observed && !baseline) return 'SEND_UNCERTAIN'
+    await withCancellation(() => inputs.browser.sendControlMessage(appProofPrompt, signal,
+      baseline === undefined ? undefined : { operationId: sendId, replyBaseline: baseline }), signal)
     sent = true
-    const reply = await withCancellation(() => inputs.browser.waitForReply(timeoutMs, signal), signal)
-    throwIfCancelled(inputs.signal)
-    if (!reply.complete) return 'APP_PROOF_TIMEOUT'
-    return verifyAppProof(reply.text, expected)
+    const bound = observed ? await withCancellation(() => inputs.browser.captureSendObservation!(sendId, signal), signal) : undefined
+    if (observed && !bound) return 'SEND_UNCERTAIN'
+    if (bound && (!bound.conversationId || bound.assistantCount !== baseline!.assistantCount || bound.textDigest !== baseline!.textDigest
+      || baseline!.conversationId !== null && bound.conversationId !== baseline!.conversationId)) return 'SEND_UNCERTAIN'
+    const operation: ControlOperation | undefined = bound === undefined ? undefined : Object.freeze({
+      operationId: waitId, replyBaseline: Object.freeze({ ...bound }), replyRecovery: Object.freeze({ sendOperationId: sendId }),
+    })
+    const resume = async () => {
+      const reply = await withCancellation(() => inputs.browser.waitForReply(timeoutMs, signal, operation), signal)
+      throwIfCancelled(signal)
+      if (!reply.complete) return 'APP_PROOF_TIMEOUT'
+      return verifyAppProof(reply.text, expected)
+    }
+    try { return await resume() }
+    catch (error) {
+      throwIfCancelled(signal)
+      if (controlFailureCode(error) !== 'BROWSER_STALE' || !operation || !inputs.recoverAppProof) throw error
+      // One transaction only. A failure from its resumed wait escapes to the
+      // outer catch; it cannot re-enter this branch or renew the proof clock.
+      return await withCancellation(() => inputs.recoverAppProof!({ sendOperationId: sendId, waitOperation: operation }, resume, signal), signal)
+    }
   } catch (error) {
     if (inputs.signal?.aborted) throw new OperationCancelledError()
     if (timeout.signal.aborted) return 'APP_PROOF_TIMEOUT'
