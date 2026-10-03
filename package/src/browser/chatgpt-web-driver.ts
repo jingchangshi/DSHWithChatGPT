@@ -155,7 +155,7 @@ export class ChatGptWebDriver implements ChatRecoveryControl {
     return { version: 1, conversationId: conversationId ?? null, assistantCount: state.assistantCount, textDigest: replyTextDigest(state.text), observationEpoch: observationEpoch(target) }
   }
 
-  /** Explicit read-only proof before adopting a new observation epoch. */
+  /** Explicit outgoing-message proof before adopting a new observation epoch. */
   async reconcileReplyBaseline(request: ReplyReconciliationRequest, signal?: AbortSignal): Promise<ReplyObservationBaseline> {
     if (!/^[A-Za-z0-9_-]{1,128}$/.test(request.conversationId) || !/^[a-f0-9]{64}$/.test(request.controlDigest)) throw new SendUncertainError()
     this.resetTarget()
@@ -163,7 +163,25 @@ export class ChatGptWebDriver implements ChatRecoveryControl {
     const state = await this.inspectChatPage(signal, true)
     if (state.loggedOut) throw new ChatGptLoggedOutError()
     if ((await this.currentConversation(signal)) !== request.conversationId || this.appName.trim() === '') throw new SendUncertainError()
-    const messages = await this.evaluate<{ role: string; text: string; appNames: string[] }[] | null>(`(() => { ${messageObservationScript}; return messageObservations; })()`, signal)
+    let messages = await this.evaluate<{ role: string; text: string; appNames: string[] }[] | null>(`(() => { ${messageObservationScript}; return messageObservations; })()`, signal)
+    let replacement: BrowserTargetIdentity | undefined
+    // The live durable UI can unmount the user after promotion. Only absence,
+    // never a mismatched user, permits one existing fenced materialization load.
+    if (messages && !messages.some(message => message.role === 'user')) {
+      if (!(await this.resolveComposer(signal)).empty) throw new SendUncertainError()
+      const expected = this.target!
+      if (!isDurableChatRoute(classifyChatRoute(expected.url)) || !this.browser.reloadCurrent) throw new SendUncertainError()
+      try { replacement = await this.browser.reloadCurrent(expected, signal) }
+      catch (error) { throwIfCancelled(signal); throw new BrowserTargetChangedError() }
+      if (replacement.targetId !== expected.targetId || replacement.url !== expected.url
+        || replacement.documentId === expected.documentId || replacement.epoch <= expected.epoch) throw new BrowserTargetChangedError()
+      messages = await this.promotionMessages(replacement, signal)
+      const until = Date.now() + POST_NAVIGATION_SEMANTIC_TIMEOUT_MS
+      while ((!messages || !messages.some(message => message.role === 'user') || this.pendingAppRendering(messages, request.controlDigest)) && Date.now() < until) {
+        await abortableDelay(200, signal)
+        messages = await this.promotionMessages(replacement, signal)
+      }
+    }
     if (!messages) throw new SendUncertainError()
     const matches = messages.map((message, index) => ({ message, index })).filter(({ message }) => {
       const appName = this.appName.trim()
@@ -175,6 +193,8 @@ export class ChatGptWebDriver implements ChatRecoveryControl {
     for (let index = 0; index < messages.length; index++) if (messages[index]!.role === 'user') lastUser = index
     if (matches.length !== 1 || matches[0]!.index !== lastUser) throw new SendUncertainError()
     const preceding = messages.slice(0, lastUser).filter(message => message.role === 'assistant')
+    // Replacement remains provisional until the unchanged exact proof succeeds.
+    if (replacement) this.target = replacement
     const target = await this.browser.currentTarget(signal)
     await this.checkTarget(signal)
     return { version: 1, conversationId: request.conversationId, assistantCount: preceding.length, textDigest: replyTextDigest(preceding.at(-1)?.text ?? ''), observationEpoch: observationEpoch(target) }
@@ -497,7 +517,7 @@ export class ChatGptWebDriver implements ChatRecoveryControl {
       // Load completion precedes ChatGPT's semantic message mount. Keep the
       // replacement cursor fenced while observing its materialized proof.
       const materializeUntil = Date.now() + POST_NAVIGATION_SEMANTIC_TIMEOUT_MS
-      while ((!messages || !messages.some(message => message.role === 'user') || this.pendingAppRendering(messages)) && Date.now() < materializeUntil) {
+      while ((!messages || !messages.some(message => message.role === 'user') || this.pendingAppRendering(messages, this.sentControlDigest)) && Date.now() < materializeUntil) {
         await abortableDelay(200, signal)
         messages = await this.promotionMessages(replacement, signal)
       }
@@ -523,18 +543,18 @@ export class ChatGptWebDriver implements ChatRecoveryControl {
   /** Hydration can expose the exact control body with an unresolved App label,
    * either a raw slug or one leading renderer character. This is never proof:
    * only the later exact App link/prefix/digest checks authorize adoption. */
-  private pendingAppRendering(messages: { role: string; text: string; appNames: string[] }[]): boolean {
+  private pendingAppRendering(messages: { role: string; text: string; appNames: string[] }[], expectedDigest: string | undefined): boolean {
     const users = messages.filter(message => message.role === 'user')
     const app = this.appName.trim()
     if (users.length !== 1 || users[0]!.appNames.length !== 0) return false
     const text = users[0]!.text
     if (text.slice(1, app.length + 1) === app
       && /\s/.test(text.slice(app.length + 1, app.length + 2))
-      && replyTextDigest(text.slice(app.length + 2)) === this.sentControlDigest) return true
+      && replyTextDigest(text.slice(app.length + 2)) === expectedDigest) return true
     const slug = '$' + app.toLowerCase().replace(/\s+/g, '-')
     return slug.length <= 257 && /^\$[a-z0-9]+(?:-[a-z0-9]+)*$/.test(slug)
       && text.startsWith(slug) && /\s/.test(text.slice(slug.length, slug.length + 1))
-      && replyTextDigest(text.slice(slug.length + 1)) === this.sentControlDigest
+      && replyTextDigest(text.slice(slug.length + 1)) === expectedDigest
   }
 
   private async checkTarget(signal?: AbortSignal): Promise<void> {

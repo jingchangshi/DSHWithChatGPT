@@ -18,24 +18,26 @@ the draft. This authorization is for the dedicated acceptance window.
 | ARCHITECTURE | PARTIAL | Scoped ports/dependency/topology reviews exist; final global exact-HEAD audit remains |
 | SOURCE | PARTIAL | Paragraph repair, observation guard, BR extraction and proof-first recovery implemented; recovery source reviewed at d81193e; global audit remains |
 | PROTOCOL | PARTIAL | Canonical v2 identity and same-round oracle tested; real PLAN through DONE absent |
-| CHAT_CONTROL | PARTIAL | Real App proof passed in diagnostic iBfXrV; fresh canonical mKVL1f failed proof; no valid product PLAN accepted |
-| DIRECT_CDP | PARTIAL | Pushed23ae394 promotion/reload repair scoped accepted; observed raw App slug hydration extension under frozen full regression |
+| CHAT_CONTROL | PARTIAL | Fresh canonical r8kDd5 passed real App proof, then INIT SEND_UNCERTAIN; no valid product PLAN accepted |
+| DIRECT_CDP | PARTIAL | Exact658bdfe bootstrap ordering scoped accepted; iteration92 second reconciliation materialization repair under validation |
 | SIDECAR | PARTIAL | Auth/replay/uncertainty contracts covered; real recovery loop remains |
 | DSH_ADAPTER | PARTIAL | Installed native DSH readiness/identity verified; full real executor workflow absent |
 | WORKSPACE_DATA_PLANE | PARTIAL | Installed authority checks and real App workspace proof passed; independent raw-output nonce review absent |
 | SECURITY | PARTIAL | Containment/credential boundaries verified within scope; producer native Git deadline gate still FAILED |
 | RECOVERY | PARTIAL | Actual failed INIT journal/task/claim recovered without resend and confirmed across native restart; real fix/restart/DONE loop remains |
-| PACKAGING | PARTIAL | KMPR5Q package/native Sidecar and rdCHcq installed profile passed for23ae394; rawslug candidate needs fresh artifact/profile |
-| TESTS | PARTIAL | Rawslug frozen candidate:83 files/1112 passed/3 original skips,584.52s;94 focused PASS; producer gate remains FAILED |
-| WINDOWS_E2E | FAILED | Fresh mKVL1f passed local readiness and accepted App-proof send, then uncertain reply; no PLAN, nonce or DONE |
+| PACKAGING | PARTIAL | Second reconciliation candidate matched UWZG9s package/native Sidecar andWrw7hm installed composition passed; real recovery remains |
+| TESTS | PARTIAL | Second reconciliation candidate:83 files/1130 passed/3 original skips,597.97s;108 focused PASS; producer gate remains FAILED |
+| WINDOWS_E2E | FAILED | Fresh r8kDd5 passed local/App readiness, then INIT uncertain; no PLAN, nonce or DONE |
 | FUTURE_LINUX | FUTURE | No Linux host execution; it does not block Windows delivery |
 
 Implementation order:
 
-1. Close only the observed raw App slug hydration blocker with the reproduced
-   RED, bounded wait-only correction, focused/full regression and independent
-   source review. Final exact App/control/history proof remains authoritative.
-2. Generate the current candidate's fresh package/profile and native Sidecar with its
+1. Complete iteration92 independently planned second reconciliation materialization
+   repair: exact persisted proof, one fenced load only for absent users and empty
+   composer, unchanged deadlines and no resend. Validate focused/full/package/profile
+   and obtain independent exact pushed HEAD review. Scheduling A/B is closed;
+   default product launch is retained.
+2. Use the repaired candidate's matching verified package/profile and native Sidecar with its
    independent product journal. Preserve old task/journal/failure evidence; the
    new run creates fresh home/state/workspace/task/remote. Do not reopen accepted
    multiline extraction or proof-first recovery foundations without a counterexample.
@@ -399,11 +401,61 @@ Next: independent actual-source/exact-HEAD scoped review, then fresh canonical
 product acceptance. Global real execution/recovery/DONE and producer gates remain
 open. User goal.md is preserved and excluded from candidate commits.
 
+Iteration88 (2026-10-03): restored development IAB and exact pushed658bdfe
+received DONE_SCOPED. Independent supplement read raw RED/full/package/profile
+outputs and authenticated real-CDP/RPC journal assertions, retaining the
+composition-only limitation. Fresh canonical r8kDd5/r3jZQe/native20748/new
+target60236383/journal10 passed localReady and real appDataPlaneVerified.
+INIT returned SEND_UNCERTAIN; reconnect returned BROWSER_TARGET_CHANGED.
+Accepted bootstrap journal has no bound baseline or INIT reply observation.
+Owned executor15188 was stopped; original4294967295 and all-false oracle remain.
+Authenticated generation-fenced native shutdown passed. No real PLAN/execution/
+nonce/recovery/DONE is claimed. Iteration89 independent diagnosis requires one
+fresh unchanged-runtime metadata wrapper around currentConversation/promotion/
+reconciliation before proposing another repair. No deadline/proof change.
+
+Iterations89–90: diagnostic9QNvEf passed exact App/digest promotion but its
+renderer-backed commands then timed out. Fresh root-attached sessions confirmed
+target-specific nonresponsiveness with another target and browser root healthy.
+Bounded App-proof-only scheduling comparison A/B/B2/A2 finished: normal fresh
+process A and A2 passed; scheduling-switch variants B and B2 failed product
+target probes while their controls responded. Flags are rejected and default
+product launch is restored. Control-creation timing differed for A, so no native
+causal claim is made. Owned services shut down; original failures and target
+metadata preserved. No INIT, source fix or acceptance follows from these probes.
+Next: return to unresolved canonical INIT first-fence diagnosis under default
+launch, with the independently requested unchanged-runtime metadata wrapper.
+
 At2026-10-02T15:20:59Z a fresh read-only OS probe identified foreground LockApp
-and lockAppRunning=true. This proves the current locked environment, not the
+and lockAppRunning=true. This proved that sampled locked environment, not the
 historical cause of VlgEmy's timeout or earlier renderer failures. User unlock
-was requested once and automatic detection is pending. Do not rerun product
+was requested once and subsequently supplied. Do not rerun product
 mutations while locked, replay an uncertain message, increase deadlines or
-attribute the preceding failure without its lifecycle evidence. Next: confirm
-unlocked visible empty target, independently assess raw82, then the appropriate
-fresh isolated product/diagnostic run. No source fix is currently established.
+attribute the preceding failure without its lifecycle evidence.
+
+Iterations91–92: default fresh diagnostic1c5zPI/journal16 passed real App proof.
+INIT was acknowledged; exact durable promotion succeeded, but immediately following
+independent reconciliation saw no messages on the same document and failed
+SEND_UNCERTAIN in341ms. No INIT reload/baseline bind/PLAN wait occurred. Its exit0
+was a diagnostic stop, not acceptance. Raw441 and later readonly442 were independently
+reviewed; iteration92 FIX_PLAN authorizes one existing fenced same-route load only
+when no user exists, with unchanged exact App/digest/latest-user proof and budgets.
+Candidate also refuses loading over an unsent composer draft. Real-CDP/RPC/journal
+RED on658bdfe reproduced SEND_UNCERTAIN; first11-case GREEN, typecheck/build and
+4files107 focused checks passed before adding the foreign-draft adversary. Final
+candidate focused4files108tests passed in253.75s, including foreign-draft preservation
+with zero loads and one Enter. Final typecheck/build passed; ordinary full regression
+passed:83files1130tests3original skips597.97s. PackageUWZG9s passed isolated imports
+and native Sidecar checks; its compiled driver matches frozen build SHA256
+C61C9562C5F79CF60F8008B4906E9EC109E9E45FC835F5BD453BB9C95D00048A.
+ProfileWrw7hm passed real DSH schema, stable identity and Git/containment boundaries
+twice. These are composition fixtures with real Browser/App NOT_RUN. No product
+acceptance is claimed.
+
+Iteration93 independent SOURCE_REVIEW_PASS_PENDING_GLOBAL_EVIDENCE read actual
+source/test diffs, the existing atomic reload primitive and composer resolver,
+bootstrap cancellation tests, and raw444–448. No concrete scoped source defect
+was found. It confirmed provisional adoption only after exact proof, no load for
+mismatch, signal propagation/quarantine, foreign draft preservation, unchanged
+journal boundary and explicit rendering digest. Frozen full/package/profile,
+commit/push and bounded exact-HEAD review remain required before deployment.

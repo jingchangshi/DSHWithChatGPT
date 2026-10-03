@@ -178,6 +178,104 @@ it.each(['exact proof', 'wrong digest', 'duplicate user', 'document replacement'
   }
 }, 8000)
 
+it.each([
+  'exact persisted', 'delayed raw App', 'wrong persisted digest', 'wrong persisted App',
+  'duplicate persisted users', 'permanent missing', 'permanent raw App', 'foreign-return',
+  'unfenced replacement', 'present wrong digest', 'present duplicate', 'foreign draft',
+] as const)('rematerializes a second bootstrap proof with %s', async scenario => {
+  const driver = await temporaryPromotionDriver({ deferSend: true })
+  const original = await driver.captureReplyBaseline()
+  await primitives.evaluate(`(() => {
+    document.querySelector('[role=textbox]').addEventListener('keydown', event => {
+      if (event.key === 'Enter') setTimeout(() => history.replaceState(null, '', '/c/6abfada1-f690-83ee-aedf-762de215604f'), 500);
+    }); return true;
+  })()`)
+  document.serve({ apps: ['DSH with ChatGPT'],
+    persistedControl: scenario === 'permanent missing' ? undefined : scenario === 'wrong persisted digest' ? 'foreign request' : 'owned request',
+    persistedApp: scenario === 'wrong persisted App' ? 'Different App' : undefined,
+    duplicatePersistedUser: scenario === 'duplicate persisted users',
+    pendingAppRendering: scenario === 'delayed raw App' || scenario === 'permanent raw App',
+    pendingAppLabel: '$dsh-with-chatgpt', persistedMountDelayMs: scenario === 'delayed raw App' ? 400 : undefined,
+    keepPendingAppRendering: scenario === 'permanent raw App',
+    redirectOnLoad: scenario === 'foreign-return' ? '/c/foreign' : undefined,
+    returnFromRedirect: scenario === 'foreign-return',
+  })
+  const observe = primitives.observe.bind(primitives)
+  const reload = primitives.reloadCurrent.bind(primitives)
+  const press = primitives.press.bind(primitives)
+  let awaitingFirstProof = false, firstProofRemoved = false, reloads = 0, enters = 0
+  primitives.press = async (...args) => { if (args[0] === 'Enter') enters++; return press(...args) }
+  primitives.observe = async (...args) => {
+    const result = await observe(...args)
+    if (awaitingFirstProof && args[0].includes('return messageObservations;')
+      && Array.isArray(result.value) && result.value.some(message => message.role === 'user')) {
+      awaitingFirstProof = false
+      await observe(`(() => {
+        const user = document.querySelector('[data-message-author-role=user]');
+        const scenario = ${JSON.stringify(scenario)};
+        if (scenario === 'present wrong digest') user.append(' foreign');
+        else if (scenario === 'present duplicate') document.body.append(user.cloneNode(true));
+        else {
+          user.remove();
+          if (scenario === 'foreign draft') document.querySelector('[role=textbox]').textContent = 'foreign unsent draft';
+        }
+        return true;
+      })()`)
+      firstProofRemoved = true
+    }
+    return result
+  }
+  primitives.reloadCurrent = async (...args) => {
+    reloads++
+    if (scenario === 'unfenced replacement') {
+      await primitives.navigate(args[0].url)
+      await primitives.waitForLoad(2000)
+    }
+    return reload(...args)
+  }
+  const directory = await mkdtemp(join(tmpdir(), 'plannerbridge-second-proof-'))
+  let service: Awaited<ReturnType<typeof startSidecar>> | undefined
+  try {
+    await protectPrivateStateDirectory(directory, [])
+    service = await startSidecar({ host: '127.0.0.1', port: 0, authentication: 'test-only', stateDirectory: directory, driver, requestTimeoutMs: 3000 })
+    const client = new SidecarChatControlClient({ endpoint: service.endpoint, authentication: 'test-only', requestTimeoutMs: 3000 })
+    const operation = { operationId: 'second-proof-bootstrap', replyBaseline: original,
+      correlation: { taskId: 'pb_' + 'e'.repeat(32), iteration: 0, workspaceId: 'world', phase: 'INIT' as const } }
+    await client.sendControlMessage('owned request', undefined, operation)
+    expect(await primitives.evaluate('window.enterCount')).toBe(1)
+    awaitingFirstProof = true
+    if (scenario === 'exact persisted' || scenario === 'delayed raw App') {
+      const bound = await client.captureSendObservation(operation.operationId)
+      expect(bound.conversationId).toBe('6abfada1-f690-83ee-aedf-762de215604f')
+      expect(bound.assistantCount).toBe(original.assistantCount)
+      expect(bound.textDigest).toBe(original.textDigest)
+      expect(bound.observationEpoch).not.toBe(original.observationEpoch)
+      const source = JSON.parse(await readFile(join(directory, 'delivery.json'), 'utf8')).entries.find((entry: any) => entry.operationId === operation.operationId)
+      expect(source.bootstrapBaseline).toEqual(bound)
+    } else {
+      const code = scenario === 'permanent missing' || scenario === 'permanent raw App' ? 'SIDECAR_TIMEOUT'
+        : scenario === 'foreign-return' || scenario === 'unfenced replacement' ? 'BROWSER_TARGET_CHANGED' : 'SEND_UNCERTAIN'
+      await expect(client.captureSendObservation(operation.operationId)).rejects.toMatchObject({ code })
+      const source = JSON.parse(await readFile(join(directory, 'delivery.json'), 'utf8')).entries.find((entry: any) => entry.operationId === operation.operationId)
+      expect(source.bootstrapBaseline).toBeUndefined()
+    }
+    expect(firstProofRemoved).toBe(true)
+    const noReload = scenario.startsWith('present ') || scenario === 'foreign draft'
+    expect(reloads).toBe(noReload ? 0 : 1)
+    expect(enters).toBe(1)
+    if (primitives.bindingState === 'BOUND') expect(await primitives.evaluate('window.enterCount')).toBe(noReload ? 1 : 0)
+    if (scenario === 'foreign draft') expect(await primitives.evaluate("document.querySelector('[role=textbox]').textContent")).toBe('foreign unsent draft')
+    const source = JSON.parse(await readFile(join(directory, 'delivery.json'), 'utf8')).entries.find((entry: any) => entry.operationId === operation.operationId)
+    expect(source.phase).toBe('accepted')
+    expect(source.bootstrap.replyBaseline).toEqual(original)
+  } finally {
+    primitives.observe = observe; primitives.reloadCurrent = reload; primitives.press = press
+    await service?.close()
+    await rm(directory, { recursive: true, force: true })
+    if (primitives.bindingState !== 'BOUND') await primitives.reconnect()
+  }
+}, 8000)
+
 it('proves the sent App message before adopting a temporary new-chat route as a durable conversation', async () => {
   const driver = await temporaryPromotionDriver()
   await primitives.evaluate(`(() => {

@@ -147,3 +147,46 @@ setup, lifecycle/identity proofs and real App/model acceptance. Never disable
 Windows locking or expose raw browser debugging remotely. Changing the product
 to API-based planning would change the current ChatGPT Web goal and requires a
 product decision rather than being counted as acceptance of this architecture.
+
+## 2026-10-03 follow-up: target responsiveness
+
+Exact658bdfe received independent source and raw-evidence DONE_SCOPED. Fresh
+canonical r8kDd5 passed real App workspace proof, then INIT was uncertain;
+accepted bootstrap remained unbound. A separate unchanged-runtime diagnostic
+9QNvEf reached an exact App/digest promotion ACK before renderer-backed commands
+stopped responding. Browser root and another target stayed responsive. Fresh
+root-attached sessions reproduced the same distinction: healthy target1–2ms,
+failed target Page.getFrameTree and Runtime.evaluate each5s timeout. This rules
+out merely retaining a stale diagnostic socket; it does not identify the native
+renderer cause or establish an OpenAI rejection. No response body was captured.
+
+Independent review prescribed at most four App-proof-only exposures, sequential
+fresh Chrome processes with the same dedicated profile and binary. The B variant
+adds only disable-background-timer-throttling, disable-backgrounding-occluded-windows,
+and disable-renderer-backgrounding. Original visibility, ownership, authentication,
+proof and command/outer deadlines remain enforced. No INIT is sent in this experiment.
+A and reverse-order A2 succeeded; B and B2 reproduced target-only command timeouts
+while their blank controls stayed responsive. The A control was created during
+reply waiting, whereas later controls were created before preflight, so this is
+not proof of a specific native scheduling cause. The switches are therefore
+not a demonstrated fix and are not added to the product launcher. Historical
+target URLs/journals are preserved before closing owned browser processes.
+
+Additional community sources actually read:
+
+- https://github.com/puppeteer/puppeteer/issues/9047 : headed Windows navigation
+  hangs, reporter-specific failure; closed without a reproducible test. A separate
+  comment's library upgrade fixed a different lifecycle-wait problem, while the
+  original reporter still failed. This is a lead, not a transferable fix.
+- https://github.com/puppeteer/puppeteer/issues/12423 : Linux standby detached-frame
+  report. Its standby and platform conditions differ from the current unlocked
+  Windows target timeout; it cannot establish this incident's cause.
+
+Fresh default diagnostic1c5zPI subsequently passed real App proof and exact
+durable-route promotion. Its immediate second reconciliation read no messages
+and returned SEND_UNCERTAIN in341ms; this is a distinct semantic materialization
+failure, not the previous renderer timeout. Independent iteration92 reviewed
+raw441/source and prescribed extending the existing fenced one-load recovery to
+that boundary. Later readonly442 was classified as present UI evidence only,
+never authority for the historical send. No general OpenAI platform prohibition
+is demonstrated by these observations.
