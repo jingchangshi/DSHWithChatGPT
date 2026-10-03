@@ -14,6 +14,39 @@ export interface OwnedSidecarReplacement {
   retireSource(): Promise<void>
 }
 
+/**
+ * Runs the ownership-sensitive portion shared by Sidecar replacement callers.
+ * Callers supply only lifecycle-specific readiness/proof callbacks. `commit`
+ * transfers provisional ownership to the caller; after it returns, retirement
+ * is best-effort and a retirement failure never rolls back committed ownership.
+ * Before commit, replacement cleanup is always attempted on failure.
+ */
+export async function runOwnedSidecarHandoff<T>(options: {
+  replacement: OwnedSidecarReplacement
+  closeSource(): Promise<void>
+  startReplacement(): Promise<T>
+  health(): Promise<{ ok: boolean }>
+  recover(): Promise<void>
+  prove(): Promise<string | undefined>
+  commit(value: T): void
+}): Promise<string | undefined> {
+  let committed = false
+  try {
+    await options.closeSource()
+    const value = await options.startReplacement()
+    if (!(await options.health()).ok) throw new SidecarRpcError('SIDECAR_UNAVAILABLE')
+    await options.recover()
+    const proofFailure = await options.prove()
+    if (proofFailure !== undefined) return proofFailure
+    options.commit(value)
+    committed = true
+    await options.replacement.retireSource().catch(() => {})
+    return undefined
+  } finally {
+    if (!committed) await options.replacement.closeReplacement().catch(() => {})
+  }
+}
+
 /** Deployment mechanics only. The handle confers no conversation/task authority;
  * a fresh Sidecar must independently reconcile the unchanged persisted journal. */
 export async function createOwnedSidecarReplacement(endpoint: string, ownedTargetId: string, signal?: AbortSignal): Promise<OwnedSidecarReplacement> {

@@ -54,7 +54,7 @@ import { validateSidecarEndpoint } from '../sidecar/protocol.ts'
 import type { BrowserControl } from '../browser/adapter.ts'
 import { SidecarRpcError } from '../sidecar/errors.ts'
 import { SidecarSupervisor } from './sidecar-supervisor.ts'
-import { createOwnedSidecarReplacement } from './sidecar-target-recovery.ts'
+import { createOwnedSidecarReplacement, runOwnedSidecarHandoff } from './sidecar-target-recovery.ts'
 import { readSidecarCredential } from './sidecar-credential.ts'
 
 // ---------------------------------------------------------------- config
@@ -798,35 +798,26 @@ export async function recoverOwnedAppProof(options: {
   const replacement = await createOwnedSidecarReplacement(owned.cdpEndpoint, owned.targetId, signal)
   let supervisor: SidecarSupervisor | undefined
   let committed = false
-  try {
-    await owned.supervisor.close()
-    throwIfCancelled(signal)
-    const authentication = await readSidecarCredential(options.credentialFile, options.excludedRoots)
-    supervisor = new SidecarSupervisor({ command: options.command, args: options.args,
-      endpoint: options.endpoint, authentication, startupTimeoutMs: options.startupTimeoutMs,
-      env: { PLANNERBRIDGE_SIDECAR_TARGET_ID: replacement.replacementTargetId } })
-    await supervisor.start(signal)
-    // Refresh the existing client's generation; never send on this transaction.
-    if (!(await options.health()).ok) throw new SidecarRpcError('SIDECAR_UNAVAILABLE')
-    throwIfCancelled(signal)
-    // A reachable URL is not a materialized conversation. Establish existing
-    // bounded semantic readiness before strict reconciliation resumes this wait.
-    // This is not send authority and remains under the original proof signal.
-    await options.recover(signal)
-    throwIfCancelled(signal)
-    const proofFailure = await resume()
-    throwIfCancelled(signal)
-    if (proofFailure !== undefined) return proofFailure
-    options.commit({ supervisor, targetId: replacement.replacementTargetId, cdpEndpoint: owned.cdpEndpoint })
-    committed = true
-    await replacement.retireSource().catch(() => {})
-    return undefined
-  } finally {
-    if (!committed) {
-      await supervisor?.close().catch(() => {})
-      await replacement.closeReplacement().catch(() => {})
-    }
-  }
+  return runOwnedSidecarHandoff({
+    replacement,
+    closeSource: async () => { await owned.supervisor.close(); throwIfCancelled(signal) },
+    startReplacement: async (): Promise<SidecarSupervisor> => {
+      const authentication = await readSidecarCredential(options.credentialFile, options.excludedRoots)
+      supervisor = new SidecarSupervisor({ command: options.command, args: options.args,
+        endpoint: options.endpoint, authentication, startupTimeoutMs: options.startupTimeoutMs,
+        env: { PLANNERBRIDGE_SIDECAR_TARGET_ID: replacement.replacementTargetId } })
+      await supervisor.start(signal)
+      return supervisor!
+    },
+    health: options.health,
+    recover: async () => { await options.recover(signal); throwIfCancelled(signal) },
+    prove: async () => { const proofFailure = await resume(); throwIfCancelled(signal); return proofFailure },
+    commit: value => { options.commit({ supervisor: value, targetId: replacement.replacementTargetId, cdpEndpoint: owned.cdpEndpoint! }); committed = true },
+  }).finally(async () => {
+    // The transaction owns replacement cleanup; the process itself is also
+    // provisional until commit and must be closed on failed proof/readiness.
+    if (supervisor && !committed) await supervisor.close().catch(() => {})
+  })
 }
 
 /** Minimal tool execution context shape used by this plugin. */

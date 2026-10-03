@@ -5,7 +5,7 @@ import { SidecarRpcError } from '../src/sidecar/errors.ts'
 import { recoverOwnedAppProof } from '../src/deployment/dsh-runtime.ts'
 import type { SidecarSupervisor } from '../src/deployment/sidecar-supervisor.ts'
 const calls = vi.hoisted(() => ({ create: vi.fn(), start: vi.fn(), close: vi.fn(), credential: vi.fn() }))
-vi.mock('../src/deployment/sidecar-target-recovery.ts', () => ({ createOwnedSidecarReplacement: calls.create }))
+vi.mock('../src/deployment/sidecar-target-recovery.ts', async importOriginal => ({ ...(await importOriginal<typeof import('../src/deployment/sidecar-target-recovery.ts')>()), createOwnedSidecarReplacement: calls.create }))
 vi.mock('../src/deployment/sidecar-credential.ts', () => ({ readSidecarCredential: calls.credential }))
 vi.mock('../src/deployment/sidecar-supervisor.ts', () => ({ SidecarSupervisor: class {
   constructor(readonly options: unknown) {}
