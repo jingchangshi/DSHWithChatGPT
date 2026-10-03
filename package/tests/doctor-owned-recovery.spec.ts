@@ -21,7 +21,7 @@ function fixture() {
   const options: Parameters<typeof recoverOwnedAppProof>[0] = {
     workspaceKey: 'world\0root', attempts: new Set(), owned: { supervisor: { close: oldClose } as unknown as SidecarSupervisor, targetId: 'source', cdpEndpoint: 'http://127.0.0.1:9222' },
     command: 'node', args: ['native-sidecar-entry'], endpoint: 'http://127.0.0.1:18765/', credentialFile: 'private-reference', excludedRoots: ['world-root'], startupTimeoutMs: 1000,
-    health: vi.fn(async () => ({ ok: true })), commit: vi.fn(),
+    health: vi.fn(async () => ({ ok: true })), recover: vi.fn(async () => {}), commit: vi.fn(),
   }
   return { options, replacement, oldClose }
 }
@@ -34,6 +34,9 @@ describe('owned App-proof recovery transaction', () => {
     expect(f.oldClose).toHaveBeenCalledTimes(1)
     expect(calls.start.mock.calls[0]![0]).toMatchObject({ command: 'node', args: ['native-sidecar-entry'], endpoint: 'http://127.0.0.1:18765/', authentication: 'synthetic-authentication', env: { PLANNERBRIDGE_SIDECAR_TARGET_ID: 'replacement' } })
     expect(resume).toHaveBeenCalledTimes(1)
+    expect(f.options.recover).toHaveBeenCalledExactlyOnceWith(undefined)
+    expect(vi.mocked(f.options.health).mock.invocationCallOrder[0]).toBeLessThan(vi.mocked(f.options.recover).mock.invocationCallOrder[0]!)
+    expect(vi.mocked(f.options.recover).mock.invocationCallOrder[0]).toBeLessThan(resume.mock.invocationCallOrder[0]!)
     expect(f.options.commit).toHaveBeenCalledTimes(1)
     expect(f.replacement.retireSource).toHaveBeenCalledTimes(1)
     expect(f.replacement.closeReplacement).not.toHaveBeenCalled()
@@ -50,12 +53,15 @@ describe('owned App-proof recovery transaction', () => {
     expect(calls.close).toHaveBeenCalledTimes(1)
     expect(f.replacement.closeReplacement).toHaveBeenCalledTimes(1)
   })
-  it.each(['startup', 'health', 'reconcile'] as const)('cleans exactly the known replacement on %s failure, with no second attempt', async stage => {
+  it.each(['startup', 'health', 'semantic-ready', 'reconcile'] as const)('cleans exactly the known replacement on %s failure, with no second attempt', async stage => {
     const f = fixture(), resume = vi.fn(async () => undefined)
     if (stage === 'startup') calls.start.mockRejectedValue(new SidecarRpcError('SIDECAR_UNAVAILABLE'))
     if (stage === 'health') vi.mocked(f.options.health).mockResolvedValue({ ok: false })
+    if (stage === 'semantic-ready') vi.mocked(f.options.recover).mockRejectedValue(new SidecarRpcError('BROWSER_STALE'))
     if (stage === 'reconcile') resume.mockRejectedValue(new SidecarRpcError('SEND_UNCERTAIN'))
-    await expect(recoverOwnedAppProof(f.options, operation, resume)).rejects.toMatchObject({ code: stage === 'reconcile' ? 'SEND_UNCERTAIN' : 'SIDECAR_UNAVAILABLE' })
+    await expect(recoverOwnedAppProof(f.options, operation, resume)).rejects.toMatchObject({ code: stage === 'reconcile' ? 'SEND_UNCERTAIN' : stage === 'semantic-ready' ? 'BROWSER_STALE' : 'SIDECAR_UNAVAILABLE' })
+    if (stage !== 'reconcile') expect(resume).not.toHaveBeenCalled()
+    if (stage === 'startup' || stage === 'health') expect(f.options.recover).not.toHaveBeenCalled()
     expect(calls.create).toHaveBeenCalledTimes(1)
     expect(f.options.commit).not.toHaveBeenCalled()
     expect(f.replacement.retireSource).not.toHaveBeenCalled()
@@ -87,5 +93,15 @@ describe('owned App-proof recovery transaction', () => {
     expect(f.options.commit).not.toHaveBeenCalled()
     expect(f.replacement.retireSource).not.toHaveBeenCalled()
     expect(f.replacement.closeReplacement).toHaveBeenCalledTimes(1)
+  })
+  it('preserves cancellation during semantic handoff without resuming the wait', async () => {
+    const f = fixture(), controller = new AbortController(), resume = vi.fn(async () => undefined)
+    vi.mocked(f.options.recover).mockImplementation(async signal => { expect(signal).toBe(controller.signal); controller.abort() })
+    await expect(recoverOwnedAppProof(f.options, operation, resume, controller.signal)).rejects.toBeInstanceOf(OperationCancelledError)
+    expect(resume).not.toHaveBeenCalled()
+    expect(f.options.commit).not.toHaveBeenCalled()
+    expect(f.replacement.retireSource).not.toHaveBeenCalled()
+    expect(f.replacement.closeReplacement).toHaveBeenCalledTimes(1)
+    expect(calls.create).toHaveBeenCalledTimes(1)
   })
 })

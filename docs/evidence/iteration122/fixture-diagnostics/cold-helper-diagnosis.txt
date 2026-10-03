@@ -1,0 +1,46 @@
+[WARN] The "pnpm" field in package.json is no longer read by pnpm. The following keys were ignored: "pnpm.overrides". See https://pnpm.io/settings for the new home of each setting.
+
+ RUN  v5.0.1 C:/Users/jingc/workspace/DSHWithChatGPT/package
+
+stdout | tests/doctor-owned-recovery-native.spec.ts > recovers the same native App wait without another send (cold-valid)
+Native source before replacement: [
+  {
+    source: true,
+    url: 'https://chatgpt.com/c/6abfada1-f690-83ee-aedf-762de215604f'
+  }
+]
+
+stdout | tests/doctor-owned-recovery-native.spec.ts > recovers the same native App wait without another send (cold-valid)
+Native trusted replacement created: EECB28FE9134A373D94C983444E69F03
+
+stdout | tests/doctor-owned-recovery-native.spec.ts > recovers the same native App wait without another send (cold-valid)
+Native App outcome: {"scenario":"cold-valid","verified":false,"code":"BROWSER_TARGET_CHANGED"}
+
+stdout | tests/doctor-owned-recovery-native.spec.ts > recovers the same native App wait without another send (cold-valid)
+Native recovery metadata: {"scenario":"cold-valid","replacements":1,"commit":0,"requests":[{"method":"sendControlMessage","operationId":"8076b75a-7631-4c0f-a2b9-5e8d20c451b6"},{"method":"waitForReply","operationId":"464687e3-d65f-414e-9d7f-2ab0a5235181"}],"entries":[{"method":"probeApp","phase":"accepted","bound":false},{"method":"sendControlMessage","phase":"accepted","bound":true},{"method":"waitForReply","phase":"uncertain","bound":false}]}
+
+ ❯ tests/doctor-owned-recovery-native.spec.ts (9 tests | 1 failed | 8 skipped) 15067ms
+   × recovers the same native App wait without another send (cold-valid) 15065ms
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  tests/doctor-owned-recovery-native.spec.ts > recovers the same native App wait without another send (cold-valid)
+AssertionError: expected false to be true // Object.is equality
+
+- Expected
++ Received
+
+- true
++ false
+
+ ❯ tests/doctor-owned-recovery-native.spec.ts:195:41
+
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯
+
+
+ Test Files  1 failed (1)
+      Tests  1 failed | 8 skipped (9)
+   Start at  18:30:16
+   Duration  16.61s (tests 92%, transform 5%, import 3%)
+

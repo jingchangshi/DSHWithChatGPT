@@ -1,0 +1,790 @@
+[
+  {
+    "hash": "E252328C761379E5B0B8575D442086D10B9934AEF5D22E680BEAEF81CECD3238",
+    "path": "src\\workspace\\with-read-lease.ts"
+  },
+  {
+    "hash": "AD844780A2F0C2AB644219E8F34D7B09F345D037764324D5EE66E8CE394E965E",
+    "path": "src\\workspace\\runtime.ts"
+  },
+  {
+    "hash": "ABCBCF152550D923FB53410A75D9A509612AAAB50CEE61A8E94C857497631B94",
+    "path": "src\\workspace\\read-lease.ts"
+  },
+  {
+    "hash": "524A4996FB102E19F2D016AFE92CEAD14FB3B602206EA300004F64A66FD15DA6",
+    "path": "src\\workspace\\query.ts"
+  },
+  {
+    "hash": "6046F044FC3B26A47372CD0B28039CDA967FEFF524E16E59E402880F3093C7A8",
+    "path": "src\\workspace\\index.ts"
+  },
+  {
+    "hash": "7AF9034B5D8B407946B8609D94A2334821A76F340B1A1992B87D58E2DCC54397",
+    "path": "src\\workspace\\identity.ts"
+  },
+  {
+    "hash": "F59255191D30C0E3B6BB0A1D5CE3AA3CD9D28A10B61D0949788A0E516A391131",
+    "path": "src\\workspace\\git.ts"
+  },
+  {
+    "hash": "661A2A2C4322C11B0CA54AF73227F2CBF0793D09362463519B13C637AD570CEC",
+    "path": "src\\workspace\\execution-identity.ts"
+  },
+  {
+    "hash": "24C59B174A3ADCDE478B143A7EC0DDC0831396BC28F27D91061E28F5DFC94809",
+    "path": "src\\workspace\\errors.ts"
+  },
+  {
+    "hash": "F9D79F72F2384B85192002C0DAC3811F1C121D974A86EE28D60CF9853543F00B",
+    "path": "src\\workspace\\directory-order.ts"
+  },
+  {
+    "hash": "4DB6A8565B5D66E2659880BAE0995B762516E0B2D773436EE276642E678D9C34",
+    "path": "src\\workspace\\boundary.ts"
+  },
+  {
+    "hash": "CFDFE34D0CDC23AB70E91172A550731881B0871EADE8E2F69E31C040F6F000B7",
+    "path": "src\\tunnel\\supervisor.ts"
+  },
+  {
+    "hash": "6F34C0C65E7192160B7B9A6279F2343B485A744BD3A2A745901234F3D50C1033",
+    "path": "src\\tunnel\\index.ts"
+  },
+  {
+    "hash": "47E674C652EFBE03AAC7FF3894CE63F266C854D365C165090C97B2315CA2B886",
+    "path": "src\\sidecar\\server.ts"
+  },
+  {
+    "hash": "B19517DBF89B6D79941562D4E8E9EB9722DCE2A9862E036872E070CEFBA88DD4",
+    "path": "src\\sidecar\\rpc-http.ts"
+  },
+  {
+    "hash": "2ABC8906DBC340BB122C179F9689DAA9A45D795814C20DC011EB781EE3DEDF02",
+    "path": "src\\sidecar\\protocol.ts"
+  },
+  {
+    "hash": "99B3DF20D14A7D597EB946697C6B4A720557008996EC338756E0011FB6171684",
+    "path": "src\\sidecar\\journal.ts"
+  },
+  {
+    "hash": "E2E5F8734E84CC7D24813A248DCBB69F173BCFE2B029B5A716F5AF1961C37969",
+    "path": "src\\sidecar\\index.ts"
+  },
+  {
+    "hash": "6C9EDD933CBBBBDA4F32BE95A2473AEFD9BCE45056B675BCEDE3F4FC30658DA0",
+    "path": "src\\sidecar\\errors.ts"
+  },
+  {
+    "hash": "1163795087B66BC8EA856D0877386B86B5E76609805DC119C17B820D9D7531E4",
+    "path": "src\\sidecar\\client.ts"
+  },
+  {
+    "hash": "C66DA53765529D1B120D7CB55BDCABE897C56FF4254040B199DB8B849682ECC0",
+    "path": "tests\\execution.spec.ts"
+  },
+  {
+    "hash": "329034500343151A8369A0A780359A5D5BAB96F42D24F46870EE9F8EF39542CB",
+    "path": "tests\\workspace.spec.ts"
+  },
+  {
+    "hash": "D9372D7B71B36DCE0CD9CBE26E5D109AA4F59FAF63CA3E541F8FAC356268341E",
+    "path": "tests\\workspace-recorders.spec.ts"
+  },
+  {
+    "hash": "15416A764126D1ACA7DAE03EA4DD7694D960F5EF9EB2D72B84CDC920A370E0ED",
+    "path": "tests\\with-read-lease.spec.ts"
+  },
+  {
+    "hash": "5ADED7824A62378F18B9EC43773DB9389CE6C2CFB00B899C9E00255B26E877E2",
+    "path": "tests\\web-driver-boundaries.spec.ts"
+  },
+  {
+    "hash": "48746DBC42367349048753F224931C7A2B82F8A98DD8ABD1ABF91B9F5EC9364F",
+    "path": "tests\\tunnel.spec.ts"
+  },
+  {
+    "hash": "8EFE67306FB73FF0510FD5AE21B87E9304B3EBE8057D15D3C6AAFFB186E40190",
+    "path": "tests\\execution-scope.spec.ts"
+  },
+  {
+    "hash": "5EEA6C9DF7AC1D4FA766BB6F968DF02EEED8AE629307049DCA3BB3CCD6B92592",
+    "path": "tests\\tunnel-readiness.spec.ts"
+  },
+  {
+    "hash": "5B3342F463F88172951A1208D048662FBB1C11C482CAF2FA424DB8B14ABD220D",
+    "path": "tests\\execution-identity.spec.ts"
+  },
+  {
+    "hash": "5E9D80633DDBEDF9601364DD8EE4B7F31441282ECA0A4CAEE470B9796D811496",
+    "path": "tests\\state-revisions.spec.ts"
+  },
+  {
+    "hash": "1C27825FB0EA91DD853C6FC111756676B78C3F145C8CBC2CE51F6C07ABD5D265",
+    "path": "tests\\sidecar-transport-loss.spec.ts"
+  },
+  {
+    "hash": "87C9AA67AB7C127C76063C8EC52F93694686FB7AFB524C6B3658F5090BBD2343",
+    "path": "tests\\sidecar-target-recovery.spec.ts"
+  },
+  {
+    "hash": "4642369D6C5541F2BF4CA147C6D3E6A0608EA22B9CA38728F265277D93A8EFD8",
+    "path": "tests\\sidecar-target-recovery-native.spec.ts"
+  },
+  {
+    "hash": "DDC11B4200B4C5A513E2AEA77D5DB967331CD9C390C1A40E5FAE436FE8C459BA",
+    "path": "tests\\sidecar-supervisor.spec.ts"
+  },
+  {
+    "hash": "1DFF536A7AE85D6B3EAAE39CC9CDF8057C75B7F8EAF57092E01114C9F1FAD415",
+    "path": "tests\\sidecar-rpc-security.spec.ts"
+  },
+  {
+    "hash": "2BDFE5FBAF3968A2A756DABD37102C596110652C9550A2355042B00E6E72FE9B",
+    "path": "tests\\sidecar-protocol.spec.ts"
+  },
+  {
+    "hash": "DEDBCBD327D995F3498A15E30F246AA6CE4B4C26A9BB69842DE9DF29E7770B62",
+    "path": "tests\\sidecar-private-state.spec.ts"
+  },
+  {
+    "hash": "49F4642AEA4AC941CA2FC1A469DE20BAF59E32E59D4A6771DB0D41B71125EFC1",
+    "path": "tests\\sidecar-observation-recovery.spec.ts"
+  },
+  {
+    "hash": "4324E9F0E94EF74425AB7EE1A6262979CDE6911881FF84F6D2585CDE5BFAF871",
+    "path": "tests\\sidecar-observation-process.spec.ts"
+  },
+  {
+    "hash": "D14CF034E08980115194FC78C2FA4667A6506EA7DB87470D18D67F280CCE93D4",
+    "path": "tests\\sidecar-lifecycle.spec.ts"
+  },
+  {
+    "hash": "37774AA66185CB52909B1CCB667263E6F775E3ED5D26CFD67E7344418AB458E4",
+    "path": "tests\\sidecar-journal.spec.ts"
+  },
+  {
+    "hash": "5E991EE3E55173F9182EA128EAE99C6CB180C64F7717FBE7BD8E15619BC40660",
+    "path": "tests\\dsh-composition-boundary.spec.ts"
+  },
+  {
+    "hash": "E6C46B29D4C494615A065E7CF8A0FC0064E0C8788DA63EADE59DF8B5C18C9105",
+    "path": "tests\\sidecar-diagnostics.spec.ts"
+  },
+  {
+    "hash": "ED3BEB80A87FEE1DDB5274CB4D083EAFD50AD645DD645DDB667B0DC1CB984D11",
+    "path": "tests\\sidecar-deployment-client.spec.ts"
+  },
+  {
+    "hash": "4121C601C41D6A4A808A41F43D8FED67AFE3CCCA4FA0593013731C8B69E61238",
+    "path": "tests\\sidecar-credential.spec.ts"
+  },
+  {
+    "hash": "6AAE91D98C30D39BC554F21EDBA606FC88B46A649CF9CDDC65E71D7CFBE1B334",
+    "path": "tests\\sidecar-config.spec.ts"
+  },
+  {
+    "hash": "7B4BA0433951B050130B0C78AE224133945F040E77527259C9749202B7FBB315",
+    "path": "tests\\sidecar-client-transport.spec.ts"
+  },
+  {
+    "hash": "F411B2616934E2790B14ACE13068693A5DCB11EF3BA1CC429D9AA956FA615259",
+    "path": "tests\\sidecar-client-boundary.spec.ts"
+  },
+  {
+    "hash": "6FB0316A13EC8BC59D1B49C2039198E98AD3741FBB1DF3C24E381A9CF34DAC3B",
+    "path": "tests\\sidecar-chat-control.spec.ts"
+  },
+  {
+    "hash": "F436E63E35B4F08962D445B0C1A1B57F79F0B06147FC6E955633AFEDC37330E8",
+    "path": "tests\\sidecar-bootstrap-process.spec.ts"
+  },
+  {
+    "hash": "B162DE7A972B94904AC39FBBBD322C342484253754375B66956EC9D5A2EAA790",
+    "path": "tests\\sidecar-bootstrap-observation.spec.ts"
+  },
+  {
+    "hash": "141BC12F17761CFE68E93D70B33B47B48C79648DE5AC56C857D03F3D534D677C",
+    "path": "tests\\runtime.spec.ts"
+  },
+  {
+    "hash": "1A560248A1E57B39E224043E7F3E70D8BF157CC5B6FF4A03A7587F8B24896643",
+    "path": "tests\\dsh-agent.spec.ts"
+  },
+  {
+    "hash": "64B2F4C823CAD94C0BC23EBA89A7E2AAEA9B7A8DDD40FF106BC5B00F9A8DB57C",
+    "path": "tests\\doctor.spec.ts"
+  },
+  {
+    "hash": "E1791400F44A6FF6B26BAD9AD00876C2047FF2EE124761BC10D35AB55A495179",
+    "path": "tests\\doctor-proof.spec.ts"
+  },
+  {
+    "hash": "AC178A2EF9E026675C2EEFF46B90F6486C97DAF0E0BF1535479ADE90CE508D67",
+    "path": "tests\\doctor-owned-recovery.spec.ts"
+  },
+  {
+    "hash": "9506A0973FFA255F6E63CCE5A930324524E3DA35FB20A768FE2663B580673D94",
+    "path": "tests\\doctor-owned-recovery-native.spec.ts"
+  },
+  {
+    "hash": "18C775A1AD5E28DC4FC52D4A15250855D280A963775F08B6188FA702BAEB9A6F",
+    "path": "tests\\doctor-browser-errors.spec.ts"
+  },
+  {
+    "hash": "642014CB44A1655D9F38D8847078AFAAF3FA3F2AD56010354688E1A3486F2282",
+    "path": "tests\\doctor-app-proof-integration.spec.ts"
+  },
+  {
+    "hash": "980D9DD86DCCEF3321DD214160C384BD862A8069FC547D47BCE904035BF1F38C",
+    "path": "tests\\direct-sidecar-entry.spec.ts"
+  },
+  {
+    "hash": "389EA43A9031CBF5BCCE032F0A3B0AD5CE7D72B2A8712FFCE34E9C5D3093039F",
+    "path": "tests\\direct-cdp-transition-race.spec.ts"
+  },
+  {
+    "hash": "F9AC5D39C23E9772C5F893C49CB3F3B0A9978A484C698B59C694D7D6FE3DCF05",
+    "path": "tests\\direct-cdp-page-failure.spec.ts"
+  },
+  {
+    "hash": "4C9FA2F45187012FADD43A2950F2D7A18BE050E0AA6C23E6122766F98344104D",
+    "path": "tests\\direct-cdp-local.spec.ts"
+  },
+  {
+    "hash": "D8ED0A8E00ABD66428EA90E4EC2FE7E841FEEB653D0299128058B5FFD45BEC77",
+    "path": "tests\\direct-cdp-dispatch.spec.ts"
+  },
+  {
+    "hash": "22DEF784112E4939F73FF751DCDF8DFBFEB107C8A713228C40DB81DF5AD1BB9A",
+    "path": "src\\readiness\\doctor.ts"
+  },
+  {
+    "hash": "FEB24E6CFE6AFBDA96849D3D368F67F791CE632D08B4A7FCF368135F68E61345",
+    "path": "tests\\direct-cdp-discovery.spec.ts"
+  },
+  {
+    "hash": "A7925CE51FCBDAC7E3B954CC68F8989F72058A2F60758BD1A6A14CB6F40AF73E",
+    "path": "src\\readiness\\app-proof.ts"
+  },
+  {
+    "hash": "0A1C6FFFBFB9E051725B16D98FB9DDC26DE18A2AB75F25E0DE49E1F8C1CC504A",
+    "path": "tests\\direct-cdp-boundary.spec.ts"
+  },
+  {
+    "hash": "1F308F35F532A203D2E1CF0C16B67CCBDC2BF36139C6124213C580098EF7A0B4",
+    "path": "tests\\core-ports.spec.ts"
+  },
+  {
+    "hash": "42263CBB5CC01D3A751BD61EAC24B96E44A60A774C6669B7483BA423BE5393D9",
+    "path": "tests\\core-boundaries.spec.ts"
+  },
+  {
+    "hash": "872A51201407A96AE64417F72BEAE51C8986BCFB2AA13C2FB990A2E823D241BC",
+    "path": "tests\\coordinator.spec.ts"
+  },
+  {
+    "hash": "827A7E703C86B876D79997970AACABBA8E9389AB586E31E5202844D17E6E1EE9",
+    "path": "tests\\coordinator-v2.spec.ts"
+  },
+  {
+    "hash": "7FC47461F90BF2B7E1740BB1B2DF544C226B8070A2F34548C86B2C6720BAF067",
+    "path": "tests\\chatgpt-web-driver.spec.ts"
+  },
+  {
+    "hash": "CE24A440560ABF36A97EC3254D62AF083428B84046494D69AFFF26392725641B",
+    "path": "tests\\chatgpt-web-driver-parity.spec.ts"
+  },
+  {
+    "hash": "5D4F591016D17DE7263B28BC51F57BCE62FC0DEEC3E62E32E61E8CC2AB8E4E68",
+    "path": "tests\\chatgpt-web-driver-direct-cdp.spec.ts"
+  },
+  {
+    "hash": "E40B3E63D1C027B66D514CDC1585CAEEA7B776EAC67F45E2CBD129DB3199DF8B",
+    "path": "tests\\cancellation.spec.ts"
+  },
+  {
+    "hash": "4CB9E1094216D62C78C755E648821A34F144BDB1727F951C5530B7C724007412",
+    "path": "tests\\browser.spec.ts"
+  },
+  {
+    "hash": "05FCCCAA078177E53B6CF550DFE2E3671C95B1BA04CFE516DE068ABAA5D8005A",
+    "path": "tests\\browser-transitions.spec.ts"
+  },
+  {
+    "hash": "5BFE2FFC17F88720681E381BDCE95070BA6BD323538FBC14073DD78965DF7573",
+    "path": "tests\\browser-ownership.spec.ts"
+  },
+  {
+    "hash": "677F9A669B02C550E53DEA4E4EAE22399341CC90A2227D0D37F1A53E0754F7D1",
+    "path": "tests\\browser-dom.spec.ts"
+  },
+  {
+    "hash": "EEA1E1BB35C82508E53BCFAEE50EBBD24915D6186B496D98528473DF6F179967",
+    "path": "tests\\bridge.spec.ts"
+  },
+  {
+    "hash": "4116BEA5FEDF79B08AF61D95E28B74E1CC67EC92D74B47A0A80865DD2B313CC3",
+    "path": "tests\\app-proof.spec.ts"
+  },
+  {
+    "hash": "9AC6CC24C5FE865D92CF53F19B2F12CB73A44E354911763388246C8503004779",
+    "path": "tests\\planner-executor-e2e-runner.spec.ts"
+  },
+  {
+    "hash": "EBC682A85926A2D39075F018D733DC0192707597C07E065CA2062639A7670680",
+    "path": "tests\\planner-executor-e2e-oracle.spec.ts"
+  },
+  {
+    "hash": "1392BFB7A9143D7F1379CC2B7D1C3FD19BD25C82AA401ACEF5E92F00CAFE3E27",
+    "path": "tests\\planner-envelope.spec.ts"
+  },
+  {
+    "hash": "F609A0AB39BAAB03742EB965CEDD35972E242CA7C0EC12F632F0DB001FA8AA00",
+    "path": "tests\\ownership.spec.ts"
+  },
+  {
+    "hash": "3E1320DAE66579D4F14E16FD9D23F392D41C6DF9A1E5B3AF858DB1A46959772B",
+    "path": "tests\\ownership-integration.spec.ts"
+  },
+  {
+    "hash": "85368FEA0F607E9238AA98A949BC7A364767FA82778FE3946E20B79807368853",
+    "path": "tests\\observe.spec.ts"
+  },
+  {
+    "hash": "C75240E329FFBA2432DE8E689DD1B915DBDEC5671A9E8EAECBEC2F2A82E030BA",
+    "path": "tests\\message-observation.spec.ts"
+  },
+  {
+    "hash": "B3A5F14F55A133B6B4D6A7A2935989FA39FD89026FFA5229A7ECD54E1BBBC3FC",
+    "path": "tests\\local-git.ts"
+  },
+  {
+    "hash": "8E2B5787869F357FE93AF4D2E3B05B8866753FC968D92E13D6AE3E2BD209C767",
+    "path": "tests\\journal-observation.spec.ts"
+  },
+  {
+    "hash": "B4DC623729263F972DC940A67356BD786FC03127058D02529168D53F10EE216E",
+    "path": "tests\\journal-bootstrap-observation.spec.ts"
+  },
+  {
+    "hash": "4DC6D6768BBD739404B310FC490064C892C29AEFA1DADD7A3FCBBFAEC6698BB8",
+    "path": "tests\\identity.spec.ts"
+  },
+  {
+    "hash": "435760D06D27765F5F1158AB4489D375BCFE429752E11B37961119687CF958A9",
+    "path": "tests\\history-observation.spec.ts"
+  },
+  {
+    "hash": "03521350696370981DCB631A3FBD2F7335A561DEF1B6F1870AB1854C7B2F7E83",
+    "path": "tests\\git.spec.ts"
+  },
+  {
+    "hash": "2DEC426AD02976A9AE27804B3F02FC60FEFE77070A10A2D41879916CE4F1728A",
+    "path": "tests\\git-executor.spec.ts"
+  },
+  {
+    "hash": "EA191473E62F5315F7D2CAA8A5C7A38D3055440F37D16EC0B5DD1D5B943ADC3B",
+    "path": "tests\\git-authority.spec.ts"
+  },
+  {
+    "hash": "798AD27CAD97D58DB3BC759915A02C2DC7A70DEBCA98F15EA6AA3DC5AAB77C33",
+    "path": "tests\\runtime-bridge.spec.ts"
+  },
+  {
+    "hash": "E0D8199A222391706E6027300741CF68BD1243BA99A2D3121F5DC1D2648E44BC",
+    "path": "tests\\round-identity.spec.ts"
+  },
+  {
+    "hash": "A660FE0D304CE9D37B5FA099D2AC5BA6B0E077096316F1E672B866557C6BFED3",
+    "path": "tests\\reply-reconciliation.spec.ts"
+  },
+  {
+    "hash": "C242D2A8177DE4B3495518E8B0907C9408B8F50749539EE9D2AF63A28C475EBB",
+    "path": "tests\\reply-observation.spec.ts"
+  },
+  {
+    "hash": "B6B842D3A83C3EFA08B0C2EA81ECB9496D8B64119D9A9041927265327235F94C",
+    "path": "tests\\read-lease.spec.ts"
+  },
+  {
+    "hash": "BB98B6B212A3199CA88916799EAAD9952B257259C40E7DB52E5A23753A563A46",
+    "path": "tests\\query.spec.ts"
+  },
+  {
+    "hash": "11BED303035E7F1D889028D7AF5E68CDB7131D9EBB2F87A3F55D91184086A5A1",
+    "path": "tests\\protocol.spec.ts"
+  },
+  {
+    "hash": "E3FDD5CAC1531962866D3B0E8E90E28B78F7A75155C5D91FDF106F41A7749967",
+    "path": "tests\\protocol-state-routing.spec.ts"
+  },
+  {
+    "hash": "FAF3DDC0A62AEFCC1AC879AB94C5CD76895CB188137EF509C9224F8365F99913",
+    "path": "tests\\protocol-fields.spec.ts"
+  },
+  {
+    "hash": "A5C5E6FF0F149B73CE3201E3153B25378E6A0AEE3ABB35B07E839494DD73898B",
+    "path": "tests\\profile-primary-path.spec.ts"
+  },
+  {
+    "hash": "02F760A2CD8A552CF6832904A5430CCF226B479147FB18B9B0ECD174C35691CD",
+    "path": "tests\\production-canonical.spec.ts"
+  },
+  {
+    "hash": "6732D3C209D1977398B2D7CD666C45C232A4332F2F78FFBD37ECFB28D9F74871",
+    "path": "tests\\port-adapters.spec.ts"
+  },
+  {
+    "hash": "A2F5800DB7AA8E15C69BE8B38D64A8E1AE065FE25A2432DD756FB466852B77FF",
+    "path": "tests\\plugin-contract.spec.ts"
+  },
+  {
+    "hash": "F4F5700A9EC37419466653EF29E19EC184D42D0D29CE92B2500C45A5C4A5257C",
+    "path": "tests\\planner-task-aggregate.spec.ts"
+  },
+  {
+    "hash": "34AB179B6ECC50FC7728CFA4A3165DC12714E8D37B6A829AAF5272D2D0ACCFA4",
+    "path": "tests\\planner-state-domain.spec.ts"
+  },
+  {
+    "hash": "DF4A74E23B334DA70574DAE7791588549D28DC2D33B0A9556C018ABD9032A84E",
+    "path": "tests\\planner-executor-owned-sidecar.spec.ts"
+  },
+  {
+    "hash": "40263E5A64E75D34CA62C898415894917B2E6D4537C0E8827926E22242E65713",
+    "path": "src\\protocol\\state-machine.ts"
+  },
+  {
+    "hash": "6AE0A39F7BE9C0BFE41AA17D40EC2300C238E012AA8CF78D51D5E8F7768635EE",
+    "path": "src\\protocol\\planner-instructions.ts"
+  },
+  {
+    "hash": "036A0689CAC03EF6220D10644C54C21B3F69D88B4A05FF490C6018331A2498AD",
+    "path": "src\\protocol\\planner-envelope.ts"
+  },
+  {
+    "hash": "9DE2470AD9F962D36F390ECCD343A8452601621073DF867DB9D1750700EB10A2",
+    "path": "src\\protocol\\legacy-reply.ts"
+  },
+  {
+    "hash": "A221B288CFE6E010F7596CF5D8DDA05655FBCDF33032211DE4D43AF916BDE381",
+    "path": "src\\protocol\\legacy-planner-policy.ts"
+  },
+  {
+    "hash": "654F5F2F97ED50AF028FE97F2E2EBE2C5590014D8CABA6F0E925BA207AF14A12",
+    "path": "src\\protocol\\index.ts"
+  },
+  {
+    "hash": "D5ECBE29314B3308351BCF3632EE3F9FE33C420C6A7D43B48BD718D1C3395D72",
+    "path": "src\\protocol\\envelope.ts"
+  },
+  {
+    "hash": "1211166BCBA5EC3BE04285D2ADF994510337ED1D5BD1CB9E58EE847C610BAE4C",
+    "path": "src\\orchestrator\\state.ts"
+  },
+  {
+    "hash": "8F417B86615FCA6C50F035D9B3DEC43194A3A8163AEEE7CE73890FE935AF959C",
+    "path": "src\\orchestrator\\protocol-state-backend.ts"
+  },
+  {
+    "hash": "1922B5E76899A10E932092BA0F73C679FAC7031770039A9DB6BC751027BB5903",
+    "path": "src\\orchestrator\\planner-task.ts"
+  },
+  {
+    "hash": "FDAAD6751533E68E9626A0BF795E63CEA0F64FBC22C97404B542592CF80A9F06",
+    "path": "src\\orchestrator\\ownership.ts"
+  },
+  {
+    "hash": "0B953716194D001F6769360059E4ACD39FE3EA0693AF50AA66C34A53EFC84E68",
+    "path": "src\\orchestrator\\legacy-send-guard.ts"
+  },
+  {
+    "hash": "C644138975255A545D8B4875CBBDD2EFA95EB421914F3EEC67CF3C87DF99732E",
+    "path": "src\\orchestrator\\index.ts"
+  },
+  {
+    "hash": "A94997735BC006A576178777510519FDBB33DC5EEA4D709D4500044357EB7E86",
+    "path": "src\\orchestrator\\coordinator.ts"
+  },
+  {
+    "hash": "6B2B80948556797200827A965FF852BCFF4D2DC2C2D62D5FC69AB341D86C7EBE",
+    "path": "src\\index.ts"
+  },
+  {
+    "hash": "0B4FE95AD0A9E8D5CDE70C09DB048F86640E45A473419D7C1F04F999BB89C5ED",
+    "path": "src\\core\\ports\\state-store.ts"
+  },
+  {
+    "hash": "EE479A3EBAAB88B389083AAD967866029B19EB9FF5105822313A77BBFCB1D106",
+    "path": "src\\core\\ports\\mcp-exposure.ts"
+  },
+  {
+    "hash": "9D17E217336F8D986E98FA626D36DECFC25BB7B5397A19847F5E7DDACAD80955",
+    "path": "src\\core\\ports\\index.ts"
+  },
+  {
+    "hash": "2EC269728C9BAA9258C2249344871B5ED6E3407A85A247B77BD188B1162FBD2F",
+    "path": "src\\core\\ports\\git-authority.ts"
+  },
+  {
+    "hash": "D5100AB31D45594A4169585D60BECB8DBCB67C7835C9F694B54307F428D850A3",
+    "path": "src\\core\\ports\\execution-workspace.ts"
+  },
+  {
+    "hash": "9073A9CD6977328A3144F951E96E10E8370AFB0663F46BC5244431411B8C7491",
+    "path": "src\\core\\ports\\chat-diagnostics.ts"
+  },
+  {
+    "hash": "79EE0BB754B13E546941381974B1C925DB612EF657A82D5BFA22100D8446058B",
+    "path": "src\\core\\ports\\chat-control.ts"
+  },
+  {
+    "hash": "DC9CC9F67EB1917ABD9DF25820B9B8FFD519C82EE966C65990FE96FA5212BF70",
+    "path": "src\\core\\ports\\agent.ts"
+  },
+  {
+    "hash": "A7320953634B37B262851734CE34343579DCF5EE03C5F883CFED49612EE0703A",
+    "path": "src\\core\\planner-task.ts"
+  },
+  {
+    "hash": "BD80821B8E25B6EB649665F5FEFDFD7545DC6981CC45917FB99CE19AF3EE1E1E",
+    "path": "src\\core\\model.ts"
+  },
+  {
+    "hash": "37D54DCBF961D3C91E77B5ED5A73888A666FF2E51F39113F430E5FE53CAE4884",
+    "path": "src\\cancellation.ts"
+  },
+  {
+    "hash": "9FED9CA0A3446B3504DB9124E955A638C45EEE92C9353EB7EF115BEFEDB170B8",
+    "path": "src\\execution\\workspaces.ts"
+  },
+  {
+    "hash": "A345FA075EFC602F5D53E84E2774C57C2DE3278F2F9B71F54C31F95B7D9070F5",
+    "path": "src\\execution\\scope.ts"
+  },
+  {
+    "hash": "6A51FAB0EEC2510B9FD76157157DDEC28021EF0EC0627BC51FAF1C0ED87DCC3F",
+    "path": "src\\execution\\recorder.ts"
+  },
+  {
+    "hash": "1E388DB4DB108F3094D36CF231A046C043467CCE83790AFF096ED3368A4A0323",
+    "path": "src\\execution\\observe.ts"
+  },
+  {
+    "hash": "7A1B84DD80BEC4DB60DAA45DBB748D9E62DC496A7A0FAF7008E4D559119D9CDF",
+    "path": "src\\execution\\index.ts"
+  },
+  {
+    "hash": "4EA0F7424EBA1B62DFA3E8D548B4BEE1FD5CEA6835D15795D5CED5ED34E9C936",
+    "path": "tests\\fixtures\\web-semantic-contract.ts"
+  },
+  {
+    "hash": "717EF3874CB0F61F145D268CD1F6A2E4F9CDE5C3E2A1AE0D24C6C7DB5A62D76A",
+    "path": "tests\\fixtures\\synthetic-cdp-document.ts"
+  },
+  {
+    "hash": "B072465BFB6B7B560FC9FFF581FD3324CAC46C25787CBF31A91ECD569CCD2CC9",
+    "path": "tests\\fixtures\\sidecar-process.ts"
+  },
+  {
+    "hash": "9F4F273A5AC4490363FB4782D30D898C7745DF07CF4195BBEEE6F0678FDE2380",
+    "path": "tests\\fixtures\\profile-sidecar-process.mjs"
+  },
+  {
+    "hash": "46617D766DFDE67C882032016F2EBA282A6756237FACD9AE6B8C959A4377EC92",
+    "path": "tests\\fixtures\\profile-identity-probe.mjs"
+  },
+  {
+    "hash": "2337AC1659724B424E5963C0D3C862BABAE12FC511C8F7B72F51FE85A496977E",
+    "path": "tests\\fixtures\\plannerbridge-fake-stack-sidecar.mjs"
+  },
+  {
+    "hash": "B4489387D2B8B5A553125FF42A677372C5C2C44ABEAAF58DC941C9FD7D6364FF",
+    "path": "tests\\fixtures\\plannerbridge-fake-stack-executor.mjs"
+  },
+  {
+    "hash": "F8ACA3E81559383FABE15D75E814A531CB2CED64236304F1AD3E161916B7ACF2",
+    "path": "tests\\fixtures\\planner-executor-owned-sidecar.mjs"
+  },
+  {
+    "hash": "4A0B4244D8C9EA50DA4ACF840AEFA34858DC4B0E6A428B7C51A277CD18244FDA",
+    "path": "tests\\fixtures\\planner-executor-e2e-observer.mjs"
+  },
+  {
+    "hash": "4E14B81B5C64D72CE93AD1056F5F0F9EE96E71D4512FF539E739F35B2B3E091C",
+    "path": "tests\\fixtures\\page-failure-sidecar.mjs"
+  },
+  {
+    "hash": "CC07B769E6B71E48A3EB550B7C5DD3E91CB0276770A52C7B3CF9FEB827CF6852",
+    "path": "tests\\fixtures\\local-cdp-browser.ts"
+  },
+  {
+    "hash": "1C10517E69B9D86B7C7BD472EA117E0A605230423EA510E3E4B8A70FA4B1BBEF",
+    "path": "tests\\fixtures\\legacy-review-observer.mjs"
+  },
+  {
+    "hash": "DD7036CACE0407D91F054850E3608E46056439B05B693338094D696E818A6214",
+    "path": "tests\\fixtures\\legacy-browser-observation.ts"
+  },
+  {
+    "hash": "5C59BB8BAB26AA13534EBDE23AEEE1C89F481A6110A0EF628768468E80E3AA37",
+    "path": "tests\\fixtures\\fake-sidecar.mjs"
+  },
+  {
+    "hash": "28AA86C9C1DE83A8CE01013C56AE79F496BE4F94DE27C1FE5C44EC1BCEBBC0A7",
+    "path": "tests\\fixtures\\fake-browser-primitives.ts"
+  },
+  {
+    "hash": "0E77C0E428F190B7CCE9CF75585AF3A2C6F8789B153BA8E511F15BC19777FBA6",
+    "path": "tests\\fixtures\\dom-browser.ts"
+  },
+  {
+    "hash": "3D42A5F0E283AB47D590FE2C7F36344F380CC8B0916F1650B8E85D1FEDDF313F",
+    "path": "tests\\fixtures\\cdp-page-command-proxy.ts"
+  },
+  {
+    "hash": "5CF0BC4131923D7F91D5C82F1E8D02DB181C71C58A93FA19812D5AC35B73B9F2",
+    "path": "tests\\fixtures\\cdp-input-ack-proxy.ts"
+  },
+  {
+    "hash": "059EE2402D45CC8296695406F83BDAB97F775C954D2765963A4B38E3D111CD4F",
+    "path": "tests\\fixtures\\browser-clock.ts"
+  },
+  {
+    "hash": "03FECEE9F1DA25668C98629E2B5FB0C4A9BB01E0D16171884D5D20B6130AD77C",
+    "path": "tests\\fixtures\\app-proof-recovery-sidecar.mjs"
+  },
+  {
+    "hash": "C0CCFA7ECF02E6D44865E3EDF8DD7C1D2D61DA256106ECDE36FDC7A03C0698C4",
+    "path": "src\\browser\\cdp-session.ts"
+  },
+  {
+    "hash": "71777DCA60EF0C7CE87018400E57DCFE564193F52EF6939C45ED5CC7992C9B8E",
+    "path": "src\\browser\\adapter.ts"
+  },
+  {
+    "hash": "385773734CC021AEB8530699C41F3A96B181D184EA3BC3DED9A45C4D7F0F673C",
+    "path": "src\\browser\\chatgpt-web-driver.ts"
+  },
+  {
+    "hash": "7A7D36E13E9BD292FBBAEF5AE38616B52AFF9307C538006CBB889AEA55D15343",
+    "path": "src\\browser\\direct-cdp.ts"
+  },
+  {
+    "hash": "63B61A50157F7C11663374BAF4F50D0027E38AB1539A7E2FE7E742346BC85E67",
+    "path": "src\\deployment\\direct-sidecar.ts"
+  },
+  {
+    "hash": "51B21C4A18A01175673F9D5F791A7D152732A2A6D19AA12CBB891300EC7C8432",
+    "path": "src\\browser\\errors.ts"
+  },
+  {
+    "hash": "3E21EEC77C18D06CA72F04EA3E5D3208167CB6F9CEB4BC7C2597929EDCB62AF8",
+    "path": "src\\browser\\epoch.ts"
+  },
+  {
+    "hash": "9B89C6BF7EE617EA53F591DF74FB94DB97EFF882AB0BCD1C10E5929AA4FCBD36",
+    "path": "src\\browser\\harness.ts"
+  },
+  {
+    "hash": "A0BB76BF99BD6DE802552B10A1BBE85E966DD7AAD8799931EC56B62A2E5B6797",
+    "path": "src\\browser\\focus-expression.ts"
+  },
+  {
+    "hash": "0210E8BF457A4FFF18673D255CAEF802B943C279023E60C6D65941799EAAF750",
+    "path": "src\\browser\\history-observation.ts"
+  },
+  {
+    "hash": "2BB449F2BB1088D2F83447CAD054BB039436286B66D981366B95327A5DFC491C",
+    "path": "src\\deployment\\sidecar-control.ts"
+  },
+  {
+    "hash": "4727394BFA0C3DB3ADAC76F701660952F0D13DE6E39CE50D5D68AFC0CD1ADF77",
+    "path": "src\\deployment\\private-state.ts"
+  },
+  {
+    "hash": "CB6A30F49A4242C7E2371CA8DD4AD5D84255FF24103B1BF5D6032235CB10280B",
+    "path": "src\\deployment\\dsh-runtime.ts"
+  },
+  {
+    "hash": "FBE7EC14ABB2FF54038ED0076F6C481DA901F90984C35C692B7B2303E8147EE5",
+    "path": "src\\deployment\\sidecar-credential.ts"
+  },
+  {
+    "hash": "FFA032CE87AB2BCBD7A6804EC8DDDEEE2C884403351C3C715A7DB37B61157546",
+    "path": "src\\deployment\\sidecar-process-entry.ts"
+  },
+  {
+    "hash": "96B8A554AC46342DB43B9EE305070E6AABD990A13924DCE442B2DB2F7FE3F346",
+    "path": "src\\deployment\\sidecar-target-recovery.ts"
+  },
+  {
+    "hash": "C55B3837059E5424DD42002EFB1D3F28CEC417FA374828119CE1E5F4B6C9CD64",
+    "path": "src\\deployment\\sidecar-supervisor.ts"
+  },
+  {
+    "hash": "5B4905EE17CC21099DB42EEC9C529539B36DB8FB6B4A1BD09D4C7F9E848D48E9",
+    "path": "src\\browser\\index.ts"
+  },
+  {
+    "hash": "56136AA250D1B33BDD7AD53F1C0E2DF65708D438D6C2E3E4D68D8266870FA816",
+    "path": "src\\browser\\message-observation.ts"
+  },
+  {
+    "hash": "E990BE4C53CB7A57E26E4CFAB6AAE31210A287F55968EBFBF18B69B2F713D486",
+    "path": "src\\browser\\transitions.ts"
+  },
+  {
+    "hash": "CFA352BD5C37F2E49445C7279FC450C8180EE26F09AAAD6405228E2468583717",
+    "path": "src\\browser\\primitives.ts"
+  },
+  {
+    "hash": "41F453FCB735AC5D6527F2E46C89ED1AF7E4A55F3DDA7FB57887C9100E98C08C",
+    "path": "src\\browser\\ownership.ts"
+  },
+  {
+    "hash": "7DC1E57F6DDFF72FF6CF830447541D27EDE46C87F323A9928D787E534D069AA6",
+    "path": "src\\bridge\\tools.ts"
+  },
+  {
+    "hash": "DA2A532202A1BBA7D3406F8129A0F1A80AD41B26392BB6DA21FA9EA6CF4295CB",
+    "path": "src\\bridge\\tool-definitions.ts"
+  },
+  {
+    "hash": "106A182CD52F125C83B49865B291A781D59423D0ED6EC055D151AD89CCA03590",
+    "path": "src\\bridge\\server.ts"
+  },
+  {
+    "hash": "DFE4B304015D84B71A36F50E9FE99DCBF9918B73E2B386E8C2EE5F72D3A423D0",
+    "path": "src\\bridge\\index.ts"
+  },
+  {
+    "hash": "2F0E54E96533D0EEC45B6EC4E9CA6FF5DD073EA39065AA5D148A450E56B13687",
+    "path": "src\\adapters\\mcp-exposure\\openai-secure-tunnel.ts"
+  },
+  {
+    "hash": "9E5CF361076D25C63A768B40F83929ACED8F54E4145BE1F669DFDC2A1E3674FE",
+    "path": "src\\adapters\\dsh\\round-identity.ts"
+  },
+  {
+    "hash": "ADC409607813034A276D46D5316060C731CC0B86FB0457AF29B4C072883C61C0",
+    "path": "src\\adapters\\dsh\\git-authority.ts"
+  },
+  {
+    "hash": "58025FCFF7FD0C214F8DB50B47D39079C1FD08962B00EE26F42BE1E19AE1D100",
+    "path": "src\\adapters\\dsh\\execution-workspace.ts"
+  },
+  {
+    "hash": "76335D37E294225E59B2CC6DF9A2179C5C304247E51B8B4C11C75289D5E21C4C",
+    "path": "src\\adapters\\dsh\\agent.ts"
+  },
+  {
+    "hash": "057F0EAF2111DC4988131135551A0D784101F082C21C86B78B295B1BA638D1CB",
+    "path": "src\\adapters\\cordis\\state-store.ts"
+  },
+  {
+    "hash": "4493C7E39829336E32371576846ECC937E23CEE77FB9D018132F1DFD72A76056",
+    "path": "src\\adapters\\cordis\\planner-state-store.ts"
+  }
+]

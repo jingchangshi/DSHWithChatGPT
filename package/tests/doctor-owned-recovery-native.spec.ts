@@ -15,6 +15,7 @@ import * as replacementMechanics from '../src/deployment/sidecar-target-recovery
 import { recoverOwnedAppProof } from '../src/deployment/dsh-runtime.ts'
 import { runDoctor } from '../src/readiness/doctor.ts'
 import { appProofPrompt } from '../src/readiness/app-proof.ts'
+import { messageObservationScript } from '../src/browser/message-observation.ts'
 import { startBridgeServer } from '../src/bridge/server.ts'
 import { ownedSidecarConfig, readTargetPointer } from '../scripts/planner-executor-owned-sidecar.mjs'
 const conversation = '6abfada1-f690-83ee-aedf-762de215604f'
@@ -26,7 +27,12 @@ async function unusedPort() {
 // Native compiled service + real CDP/Input + synthetic page. Never real ChatGPT
 // or a final acceptance substitute. The production transaction commits only the
 // proof result from the actual doctor; the synthetic donor is test-owned.
-it.each(['valid', 'foreign-message', 'wrong-proof'] as const)('recovers the same native App wait without another send (%s)', async scenario => {
+it.each(['valid', 'foreign-message', 'wrong-proof', 'cold-valid', 'cold-ambiguity', 'cold-foreign-message', 'cold-wrong-app', 'cold-wrong-digest', 'cold-wrong-proof'] as const)('recovers the same native App wait without another send (%s)', async scenario => {
+  const cold = scenario.startsWith('cold-')
+  const valid = scenario === 'valid' || scenario === 'cold-valid'
+  const wrongProof = scenario.endsWith('wrong-proof')
+  const foreign = scenario.endsWith('foreign-message')
+  const reconciliationFailure = foreign || scenario === 'cold-wrong-app' || scenario === 'cold-wrong-digest'
   const root = await mkdtemp(join(tmpdir(), 'plannerbridge-native-app-recovery-'))
   const browser = await localCdpBrowser()
   const source = await syntheticCdpDocument(browser.endpoint, browser.targetId)
@@ -95,14 +101,34 @@ it.each(['valid', 'foreign-message', 'wrong-proof'] as const)('recovers the same
     ])
     const create = replacementMechanics.createOwnedSidecarReplacement
     const spy = vi.spyOn(replacementMechanics, 'createOwnedSidecarReplacement').mockImplementation(async (...args) => {
-      const handle = await create(...args); replacementId = handle.replacementTargetId; replacementHandle = handle
-      // Production mechanics supplied the sole trusted ID. Interception is
-      // confined to this disposable fixture, never a user/product page.
+      console.log('Native source before replacement:', (await listCdpTargets(browser.endpoint)).filter(t => t.type === 'page').map(t => ({ source: t.id === browser.targetId, url: t.url })))
+      let handle: Awaited<ReturnType<typeof create>>
+      try { handle = await create(...args) } catch (error) { console.log('Native helper failure:', error); throw error }
+      replacementId = handle.replacementTargetId; replacementHandle = handle
+      console.log('Native trusted replacement created:', replacementId)
       replacementDocument = await syntheticCdpDocument(browser.endpoint, replacementId)
-      replacementDocument.serve({ apps: ['DSH with ChatGPT'], persistedControl: scenario === 'foreign-message' ? 'foreign control' : appProofPrompt, persistedApp: 'DSH with ChatGPT',
-        persistedReply: '[D2C_APP_PROOF_V1]' + JSON.stringify(scenario === 'wrong-proof' ? { ...proof, challenge: 'wrong' } : proof) })
+      replacementDocument.serve({ apps: ['DSH with ChatGPT'], coldConversation: cold,
+        persistedControl: foreign || scenario === 'cold-wrong-digest' ? 'foreign control' : appProofPrompt,
+        persistedApp: scenario === 'cold-wrong-app' ? 'Foreign App' : 'DSH with ChatGPT',
+        persistedReply: '[D2C_APP_PROOF_V1]' + JSON.stringify(wrongProof ? { ...proof, challenge: 'wrong' } : proof) })
       replacementDirect = await DirectCdpPrimitives.connect({ endpoint: browser.endpoint, targetId: replacementId })
-      await replacementDirect.navigate('https://chatgpt.com/c/' + conversation); await replacementDirect.waitForLoad(5000)
+      const loadShell = async () => {
+        await replacementDirect!.navigate('https://chatgpt.com/c/' + conversation)
+        await replacementDirect!.waitForLoad(5000)
+        if (cold) {
+          expect(await replacementDirect!.evaluate('window.materialized')).toBe(false)
+          expect(await replacementDirect!.evaluate(`(() => { ${messageObservationScript}; return messageObservations; })()`)).toBeNull()
+          console.log('Native cold shell delivered AFTER trusted handoff, no materialized conversation')
+        }
+      }
+      if (cold) {
+        // Prepare only ambiguous synthetic content. Return the trusted handle
+        // FIRST. The actual old-supervisor close is the first awaited operation
+        // after handoff; use that fixture boundary to deliver the cold shell.
+        // No exact history is mounted before or during new-service startup.
+        const close = first.close.bind(first)
+        vi.spyOn(first, 'close').mockImplementationOnce(async () => { await close(); await loadShell() })
+      } else await loadShell()
       vi.spyOn(handle, 'retireSource'); vi.spyOn(handle, 'closeReplacement')
       return handle
     })
@@ -119,7 +145,18 @@ it.each(['valid', 'foreign-message', 'wrong-proof'] as const)('recovers the same
         expect(disk.entries.find((entry: any) => entry.operationId === operation.waitOperation.operationId)).toMatchObject({ phase: 'uncertain' })
         return recoverOwnedAppProof({ workspaceKey: proof.workspaceId, attempts: new Set(), owned: { supervisor: first, targetId: browser.targetId, cdpEndpoint: browser.endpoint },
           command: deployment.sidecarProcessCommand, args: deployment.sidecarProcessArgs, endpoint, credentialFile, excludedRoots: [], startupTimeoutMs: 10000,
-          health: () => client.health(), commit,
+          health: async () => {
+            const health = await client.health()
+            if (cold) {
+              expect(health.ok).toBe(true)
+              expect(await replacementDirect!.evaluate('window.materialized')).toBe(false)
+              // Arm only after actual fresh-service health. The unchanged
+              // recovery enters exact reconciliation before this cold shell
+              // becomes usable; semantic readiness may wait, proof may not guess.
+              await replacementDirect!.evaluate(scenario === 'cold-ambiguity' ? 'true' : '(() => {setTimeout(window.materialize, 250);return true})()')
+            }
+            return health
+          }, recover: signal => client.recover(signal), commit,
         }, operation, resume, signal)
       },
     })
@@ -144,13 +181,18 @@ it.each(['valid', 'foreign-message', 'wrong-proof'] as const)('recovers the same
     expect(outcome).toHaveProperty('value')
     const result = (outcome as { value: Awaited<ReturnType<typeof runDoctor>> }).value
     expect(result.localReady).toBe(true)
-    expect(result.appDataPlaneVerified).toBe(scenario === 'valid')
-    if (scenario !== 'valid') expect(result.checks.find(c => c.id === 'remote_workspace_access')?.code).toBe(scenario === 'foreign-message' ? 'SEND_UNCERTAIN' : 'APP_PROOF_CHALLENGE_MISMATCH')
+    console.log('Native App outcome:', JSON.stringify({ scenario, verified: result.appDataPlaneVerified, code: result.checks.find(c => c.id === 'remote_workspace_access')?.code }))
+    const metadata = JSON.parse(await readFile(join(journal, 'delivery.json'), 'utf8'))
+    console.log('Native recovery metadata:', JSON.stringify({ scenario, replacements: spy.mock.calls.length, commit: commit.mock.calls.length, retired: vi.mocked(replacementHandle?.retireSource)?.mock?.calls.length, rollback: vi.mocked(replacementHandle?.closeReplacement)?.mock?.calls.length,
+      requests: requests.filter(r => ['sendControlMessage', 'waitForReply', 'cancel', 'recover'].includes(r.method)).map(r => ({ method: r.method, operationId: r.operationId })),
+      entries: metadata.entries.map((entry: any) => ({ method: entry.method, phase: entry.phase, bound: !!entry.bootstrapBaseline?.conversationId })) }))
+    expect(result.appDataPlaneVerified).toBe(valid)
+    if (!valid) expect(result.checks.find(c => c.id === 'remote_workspace_access')?.code).toBe(scenario === 'cold-ambiguity' ? 'BROWSER_STALE' : reconciliationFailure ? 'SEND_UNCERTAIN' : 'APP_PROOF_CHALLENGE_MISMATCH')
     expect(spy).toHaveBeenCalledTimes(1)
     expect(recoveredOperation).toBeDefined()
     const waits = requests.filter(r => r.method === 'waitForReply')
-    expect(waits).toHaveLength(2)
-    expect(waits[1]).toEqual(waits[0])
+    expect(waits).toHaveLength(scenario === 'cold-ambiguity' ? 1 : 2)
+    if (waits.length === 2) expect(waits[1]).toEqual(waits[0])
     expect(requests.filter(r => r.method === 'sendControlMessage')).toHaveLength(1)
     expect(requests.filter(r => r.method === 'cancel')).toHaveLength(0)
     const phases = (await readFile(telemetry, 'utf8')).trim().split('\n').map(line => JSON.parse(line))
@@ -158,9 +200,12 @@ it.each(['valid', 'foreign-message', 'wrong-proof'] as const)('recovers the same
     expect(new Set(phases.filter(entry => entry.kind === 'invoke' && entry.method === 'waitForReply').map(entry => entry.operationId)).size).toBe(1)
     const disk = JSON.parse(await readFile(join(journal, 'delivery.json'), 'utf8'))
     expect(disk.entries.filter((entry: any) => entry.method === 'sendControlMessage')).toHaveLength(1)
-    expect(disk.entries.find((entry: any) => entry.operationId === recoveredOperation!.waitOperation.operationId).phase).toBe(scenario === 'foreign-message' ? 'uncertain' : 'accepted')
+    expect(disk.entries.find((entry: any) => entry.operationId === recoveredOperation!.sendOperationId)).toMatchObject({ phase: 'accepted', bootstrapBaseline: { conversationId: conversation } })
+    expect(disk.entries.find((entry: any) => entry.operationId === recoveredOperation!.waitOperation.operationId).phase).toBe(reconciliationFailure || scenario === 'cold-ambiguity' ? 'uncertain' : 'accepted')
+    expect(requests.filter(r => r.method === 'recover')).toHaveLength(1)
+    expect(phases.filter(entry => entry.kind === 'phase' && entry.operationId === recoveredOperation!.waitOperation.operationId && entry.phase === 'awaiting-reply')).toHaveLength(valid || wrongProof ? 2 : 1)
     let targets = await listCdpTargets(browser.endpoint)
-    if (scenario === 'valid') {
+    if (valid) {
       expect(commit).toHaveBeenCalledTimes(1)
       expect(await readTargetPointer(pointer)).toBe(replacementId)
       expect(await replacementDirect!.evaluate('window.enterCount')).toBe(0)

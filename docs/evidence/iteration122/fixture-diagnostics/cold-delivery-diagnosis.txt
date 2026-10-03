@@ -1,0 +1,51 @@
+[WARN] The "pnpm" field in package.json is no longer read by pnpm. The following keys were ignored: "pnpm.overrides". See https://pnpm.io/settings for the new home of each setting.
+
+ RUN  v5.0.1 C:/Users/jingc/workspace/DSHWithChatGPT/package
+
+stdout | tests/doctor-owned-recovery-native.spec.ts > recovers the same native App wait without another send (cold-valid)
+Native source before replacement: [
+  {
+    source: true,
+    url: 'https://chatgpt.com/c/6abfada1-f690-83ee-aedf-762de215604f'
+  }
+]
+
+stdout | tests/doctor-owned-recovery-native.spec.ts > recovers the same native App wait without another send (cold-valid)
+Native trusted replacement created: 214DAF828E0828D77550DC5C49653D15
+
+stdout | tests/doctor-owned-recovery-native.spec.ts > recovers the same native App wait without another send (cold-valid)
+Native cold-shell delivery failure: Error: Cold shell was not delivered
+    at Object.waitForColdShell (C:/Users/jingc/workspace/DSHWithChatGPT/package/tests/fixtures/cold-cdp-document.ts:55:13)
+    at C:/Users/jingc/workspace/DSHWithChatGPT/package/tests/doctor-owned-recovery-native.spec.ts:113:15
+
+stdout | tests/doctor-owned-recovery-native.spec.ts > recovers the same native App wait without another send (cold-valid)
+Native App outcome: {"scenario":"cold-valid","verified":false,"code":"APP_PROOF_REPLY_MISSING"}
+
+stdout | tests/doctor-owned-recovery-native.spec.ts > recovers the same native App wait without another send (cold-valid)
+Native recovery metadata: {"scenario":"cold-valid","replacements":1,"commit":0,"requests":[{"method":"sendControlMessage","operationId":"1dd020cf-cce0-4861-9c40-7e3efb6cb9fc"},{"method":"waitForReply","operationId":"25dafa9f-e598-415b-a95d-320f50dafbaa"}],"entries":[{"method":"probeApp","phase":"accepted","bound":false},{"method":"sendControlMessage","phase":"accepted","bound":true},{"method":"waitForReply","phase":"uncertain","bound":false}]}
+
+ ❯ tests/doctor-owned-recovery-native.spec.ts (9 tests | 1 failed | 8 skipped) 16948ms
+   × recovers the same native App wait without another send (cold-valid) 16946ms
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  tests/doctor-owned-recovery-native.spec.ts > recovers the same native App wait without another send (cold-valid)
+AssertionError: expected false to be true // Object.is equality
+
+- Expected
++ Received
+
+- true
++ false
+
+ ❯ tests/doctor-owned-recovery-native.spec.ts:199:41
+
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯
+
+
+ Test Files  1 failed (1)
+      Tests  1 failed | 8 skipped (9)
+   Start at  18:31:47
+   Duration  18.47s (tests 93%, transform 5%, import 2%)
+

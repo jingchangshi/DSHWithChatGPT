@@ -1,5 +1,74 @@
 # Browser platform investigation — 2026-10-03
 
+## Latest validated delivery / user review hold — iteration122
+
+The cold-handoff task is locally complete and independently source-reviewed.
+Frozen full:90files1239PASS/3original skips909.66s;197hashes unchanged.
+Fresh package3ZkHDf PASS; installed profile18xaSF two native composition attempts
+PASS (real Browser/App NOT_RUN); ten built/packed modules byte-identical.
+Production change is seven lines in dsh-runtime plus strict native/controlled
+coverage. No new real run or overall acceptance claim.
+
+All code, existing user-owned goal edits, error lessons and original verification
+artifacts are included for manual GitHub review. See review-checkpoint-2026-10-03.md
+and evidence/iteration122/README.md. User explicitly requests implementation
+pause after this delivery/push. No real123, lock experiment or producer change
+until explicit resumption. Post-push scoped supplement checks this delivered
+commit; the original C2C conversation records its live verdict. Overall goal is
+incomplete, with the next plan preserved rather than automatically executed.
+
+## Current implementation lessons and recurrence checks — iteration122
+
+This is the active failure review, requested by the user on 2026-10-03.
+Historical evidence below is retained. Each new failure must add its observed
+boundary, raw artifact, confirmed cause or remaining uncertainty, corrective
+step, regression evidence and the next experiment's stop condition here.
+Do not repeat a failed approach without a new falsifiable hypothesis.
+
+| Failure pattern | Established evidence / uncertainty | Recurrence check during remaining delivery |
+|---|---|---|
+| Browser observation timeout mistaken for terminal operation or failed send | Development-page observation can time out while a message is already submitted or generation continues | Re-read the SAME tab/operation handle; confirm visible send/state before any resend. Never resend INIT/EXECUTED because observation timed out |
+| Healthy connection/service mistaken for complete product readiness | Local health and URL do not establish App tool access, semantic conversation history, accepted PLAN or product closure | Distinguish localReady, App proof, exact reconciliation and full oracle. Keep each acceptance gate tied to its own actual evidence |
+| Implicit transport deadline and stranded wait owner | A1/A2 reproduce transport loss/default headers cutoff; original112 cause code was not captured | Retain explicit RPC lifecycle, independent cancellation/fence tests and uncertain journal. BUSY requires existing-owner analysis, not target replacement or increased semantic deadline |
+| Page command failure swallowed as slow generation |117 typed propagation accepted;118 real product detection;119 root healthy/page failure with no continuous page observer | Preserve immediate typed page-failure termination; slow generation only while reads work. Do not reopen transport/classification without a concrete counterexample |
+| Locks/hidden samples incorrectly treated as whole-run causes | WTS establishes sampled lock state; LockApp/foreground alone cannot establish causal timeline.119/121 failures occur with continuous usable WTS samples | WTS authority; distinguish lock, visibility and page control. Do unlocked closure first; separately qualify lock/pause/revalidation rather than repeating foreground/flags experiments |
+| Probe contamination and stale provisional pointer |118 observer was already in flight;119 removes continuous page commands.121 postprobe replacement had been rolled back, so no page command ran | Continuous real observers only root/WTS/health/journal. Record target role/lifecycle at probe time; absent replacement is not evidence of renderer timeout |
+| Lost line breaks, pending App presentation or invalid protocol syntax | Ownership/paragraph/promotion/section-delimiter fixes have scoped reviews; prior real PLAN lacked required colons | Retain exact content/App/digest proof and strict parser. Fix instructed formatting, never normalize away identity or accept malformed envelopes |
+| Fixture preconditions hide cold replacement topology | Native120 loaded exact donor before handoff;121 failure before resume, exact subbranch unknown | Test cold ambiguous DOM after trusted handle handoff, with health PASS and delayed exact content. Existing recover()/ensureReady must precede strict same-wait reconciliation; mismatches still fail closed |
+| ACK mistaken for target disappearance |120 native failure after sole close ACK; within-existing-budget target-list observation later proved retirement | One close, then read-only terminal observation; no repeated close or speculative retirement source change |
+| Missing observation capabilities silently weaken proof |120 omitted baseline/binding exposed RED; guards now fail before send/wait | Keep malformed-provider fail-closed tests; no implicit unbound fallback for a declared observation provider |
+| Native fixture alters document identity or uses a not-yet-ready initial document |122 initial attempts returned BROWSER_TARGET_CHANGED/APP_PROOF_REPLY_MISSING before the intended boundary; diagnostics include delivery/root/connect/observe variants | Classify fixture failures separately, preserve originals, prove URL/document/semantic stage first. Do not modify production fences to make a flawed fixture pass |
+| Local invocation/configuration mistakes |122 Python alias unavailable; session-set does not accept --json; nonexistent fifth test filter ran nothing (actual compatibility4files55PASS); redirected test output can omit successful console metadata | Use installed Node and supported CLI options; discover/validate every test path before invocation, and check actual file counts, exit and original output. Use explicit test reporter/console settings only for evidence, never alter assertions |
+| Scope creep, stale goal instructions and repeated expensive validation | Earlier checkpoints mixed scoped successes with pending real work and old run instructions | One authoritative goal checkpoint; one frozen full per reviewed source candidate; no full rerun for pure docs. Immediately advance to canonical closure when gates pass |
+
+### Iteration122 current evidence
+
+- Production change: owned replacement health → existing recover(signal) → same
+  strict reconciliation/wait. Original deadline, journal/proof and one-replacement
+  rules remain. Source is not yet independently reviewed/frozen.
+- Deterministic cold RED: original code returns SEND_UNCERTAIN, one accepted
+  bound send, same wait ID twice, one replacement, zero commit/retire and one
+  rollback. Raw: %TEMP%/plannerbridge-iteration122-cold-red-final.txt.
+- Cold shell delivery is deferred until AFTER the real helper returns its trusted
+  handle, during the old supervisor's actual close boundary. Fixture loads only
+  ambiguous shell then; exact history is armed after actual fresh health. No
+  pre-handoff navigate/waitForLoad/materialization. It is synthetic composition,
+  not an unmodified real ChatGPT cold-load proof.
+- Initial corrected cold GREEN plus controlled transaction group:15PASS
+  (eight filtered cases, no added permanent skips). Typecheck/build PASS.
+  Expanded native/adversarial/focused group:6files73PASS232.72s, including all nine native recovery scenarios. Doctor compatibility:4files55PASS32.69s. All original failures and successful outputs published; independent source review next.
+- All initial fixture/invocation failures are preserved separately from the final
+  causal RED. No new real product exposure; real121 cause remains unproven.
+
+Before each future real run, review this table and confirm: exact frozen
+candidate/package association; explicit owned target/journal/task; authoritative
+WTS; no independent continuous page commands; same-ID/zero-resend recovery;
+first-failure stop; original oracle; required complete execution/fix/restart loop.
+This is an internal execution check, not a new user approval requirement.
+
+
+Independent122 SOURCE_REVIEW_PASS_PENDING_FULL received: actual production diff, causal RED raw638, focused raw641 and regression outputs independently reviewed; no concrete source fix remains. Cold synthetic handoff topology and native negative coverage accepted with stated limits. No preemptive telemetry patch: existing recover method/phase separates pre-handoff, semantic-ready failure, pre-resume reconciliation failure and resumed wait. Exact real121 subbranch remains unknown. Frozen full122 now running on unchanged candidate; no production/test edits during it. Next: full terminal/hash equality → fresh package/profile/association → push/exact-HEAD supplement → one fresh original canonical closure run.
+
 ## Iteration113: consolidated lifecycle review input
 
 Iteration113 diagnostic baseline HEAD: `6b92ead1d82341578ae23015cde15d52068ed9db`.

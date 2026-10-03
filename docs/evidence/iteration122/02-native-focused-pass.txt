@@ -1,0 +1,112 @@
+[WARN] The "pnpm" field in package.json is no longer read by pnpm. The following keys were ignored: "pnpm.overrides". See https://pnpm.io/settings for the new home of each setting.
+
+ RUN  v5.0.1 C:/Users/jingc/workspace/DSHWithChatGPT/package
+
+Native source before replacement: [
+  {
+    source: true,
+    url: 'https://chatgpt.com/c/6abfada1-f690-83ee-aedf-762de215604f'
+  }
+]
+Native trusted replacement created: E7CC4F79C2218472474561D9CF37B285
+Native App outcome: {"scenario":"valid","verified":true}
+Native recovery metadata: {"scenario":"valid","replacements":1,"commit":1,"retired":1,"rollback":0,"requests":[{"method":"sendControlMessage","operationId":"f3e7040a-57b2-4a12-a02b-3bb7a46b36ff"},{"method":"waitForReply","operationId":"1e4facde-bd4d-40bd-b150-3572fa1da5a0"},{"method":"recover","operationId":"abbd2692-25e0-4cbb-93c3-22ef42950f03"},{"method":"waitForReply","operationId":"1e4facde-bd4d-40bd-b150-3572fa1da5a0"}],"entries":[{"method":"probeApp","phase":"accepted","bound":false},{"method":"sendControlMessage","phase":"accepted","bound":true},{"method":"waitForReply","phase":"accepted","bound":false},{"method":"recover","phase":"accepted","bound":false}]}
+Native retirement result: [ { type: 'fulfilled', value: undefined } ]
+Native source terminal observation: {"elapsedMs":498,"sourcePresent":false}
+Native App-proof transaction: valid one send, same wait ID/digest, one trusted replacement, proof-gated commit/rollback
+Native source before replacement: [
+  {
+    source: true,
+    url: 'https://chatgpt.com/c/6abfada1-f690-83ee-aedf-762de215604f'
+  }
+]
+Native trusted replacement created: D7112BF972B31F191A09F5B353B2FA55
+Native App outcome: {"scenario":"foreign-message","verified":false,"code":"SEND_UNCERTAIN"}
+Native recovery metadata: {"scenario":"foreign-message","replacements":1,"commit":0,"retired":0,"rollback":1,"requests":[{"method":"sendControlMessage","operationId":"df57da39-0693-41c7-9070-9082a65b5411"},{"method":"waitForReply","operationId":"9cbd2769-81ea-4a06-bf41-cfd131d7792d"},{"method":"recover","operationId":"b7473661-556e-471c-a834-bba49d34b2a8"},{"method":"waitForReply","operationId":"9cbd2769-81ea-4a06-bf41-cfd131d7792d"}],"entries":[{"method":"probeApp","phase":"accepted","bound":false},{"method":"sendControlMessage","phase":"accepted","bound":true},{"method":"waitForReply","phase":"uncertain","bound":false},{"method":"recover","phase":"accepted","bound":false}]}
+Native App-proof transaction: foreign-message one send, same wait ID/digest, one trusted replacement, proof-gated commit/rollback
+Native source before replacement: [
+  {
+    source: true,
+    url: 'https://chatgpt.com/c/6abfada1-f690-83ee-aedf-762de215604f'
+  }
+]
+Native trusted replacement created: 8F2E3BD57DECC410C826704105440D9F
+Native App outcome: {"scenario":"wrong-proof","verified":false,"code":"APP_PROOF_CHALLENGE_MISMATCH"}
+Native recovery metadata: {"scenario":"wrong-proof","replacements":1,"commit":0,"retired":0,"rollback":1,"requests":[{"method":"sendControlMessage","operationId":"21686672-1d4f-4f80-ab85-3b1d4488bd44"},{"method":"waitForReply","operationId":"43d46651-a6a8-4f1d-904a-a792ec315c45"},{"method":"recover","operationId":"960fb5c3-c282-4aca-b58f-58483309b4e0"},{"method":"waitForReply","operationId":"43d46651-a6a8-4f1d-904a-a792ec315c45"}],"entries":[{"method":"probeApp","phase":"accepted","bound":false},{"method":"sendControlMessage","phase":"accepted","bound":true},{"method":"waitForReply","phase":"accepted","bound":false},{"method":"recover","phase":"accepted","bound":false}]}
+Native App-proof transaction: wrong-proof one send, same wait ID/digest, one trusted replacement, proof-gated commit/rollback
+Native source before replacement: [
+  {
+    source: true,
+    url: 'https://chatgpt.com/c/6abfada1-f690-83ee-aedf-762de215604f'
+  }
+]
+Native trusted replacement created: 15984FBAE60665A61EB48F1500338655
+Native cold shell delivered AFTER trusted handoff, no materialized conversation
+Native App outcome: {"scenario":"cold-valid","verified":true}
+Native recovery metadata: {"scenario":"cold-valid","replacements":1,"commit":1,"retired":1,"rollback":0,"requests":[{"method":"sendControlMessage","operationId":"f53fa09d-2ba4-4ca3-aa90-8f89d5b21e78"},{"method":"waitForReply","operationId":"2e9f71d5-7bed-448d-a835-40684f48155b"},{"method":"recover","operationId":"4f8b4b65-a687-449c-a6af-9d4e20ba1542"},{"method":"waitForReply","operationId":"2e9f71d5-7bed-448d-a835-40684f48155b"}],"entries":[{"method":"probeApp","phase":"accepted","bound":false},{"method":"sendControlMessage","phase":"accepted","bound":true},{"method":"waitForReply","phase":"accepted","bound":false},{"method":"recover","phase":"accepted","bound":false}]}
+Native retirement result: [ { type: 'fulfilled', value: undefined } ]
+Native source terminal observation: {"elapsedMs":537,"sourcePresent":false}
+Native App-proof transaction: cold-valid one send, same wait ID/digest, one trusted replacement, proof-gated commit/rollback
+Native source before replacement: [
+  {
+    source: true,
+    url: 'https://chatgpt.com/c/6abfada1-f690-83ee-aedf-762de215604f'
+  }
+]
+Native trusted replacement created: E81A43EBE05409DD440EC124A8895B30
+Native cold shell delivered AFTER trusted handoff, no materialized conversation
+Native App outcome: {"scenario":"cold-ambiguity","verified":false,"code":"BROWSER_STALE"}
+Native recovery metadata: {"scenario":"cold-ambiguity","replacements":1,"commit":0,"retired":0,"rollback":1,"requests":[{"method":"sendControlMessage","operationId":"1695da03-a0c7-419d-b06b-2675bbe24f50"},{"method":"waitForReply","operationId":"99dd5829-9531-4feb-ad50-23188f961249"},{"method":"recover","operationId":"44301c4b-9bdf-4e02-9919-dc513c96f00e"}],"entries":[{"method":"probeApp","phase":"accepted","bound":false},{"method":"sendControlMessage","phase":"accepted","bound":true},{"method":"waitForReply","phase":"uncertain","bound":false},{"method":"recover","phase":"uncertain","bound":false}]}
+Native App-proof transaction: cold-ambiguity one send, same wait ID/digest, one trusted replacement, proof-gated commit/rollback
+Native source before replacement: [
+  {
+    source: true,
+    url: 'https://chatgpt.com/c/6abfada1-f690-83ee-aedf-762de215604f'
+  }
+]
+Native trusted replacement created: DA3824476429D5773997C2AA2D6A3051
+Native cold shell delivered AFTER trusted handoff, no materialized conversation
+Native App outcome: {"scenario":"cold-foreign-message","verified":false,"code":"SEND_UNCERTAIN"}
+Native recovery metadata: {"scenario":"cold-foreign-message","replacements":1,"commit":0,"retired":0,"rollback":1,"requests":[{"method":"sendControlMessage","operationId":"c9aad4a7-f823-44b1-b62a-dcf3cfe0489f"},{"method":"waitForReply","operationId":"c4ce73fa-3ef3-4e45-a4ce-a27e970edb4b"},{"method":"recover","operationId":"c32dcaaf-ec31-4ea4-aec8-5bc58c9e8911"},{"method":"waitForReply","operationId":"c4ce73fa-3ef3-4e45-a4ce-a27e970edb4b"}],"entries":[{"method":"probeApp","phase":"accepted","bound":false},{"method":"sendControlMessage","phase":"accepted","bound":true},{"method":"waitForReply","phase":"uncertain","bound":false},{"method":"recover","phase":"accepted","bound":false}]}
+Native App-proof transaction: cold-foreign-message one send, same wait ID/digest, one trusted replacement, proof-gated commit/rollback
+Native source before replacement: [
+  {
+    source: true,
+    url: 'https://chatgpt.com/c/6abfada1-f690-83ee-aedf-762de215604f'
+  }
+]
+Native trusted replacement created: 00B1C269F52CDC0FEAEFBBCCF1DB5F53
+Native cold shell delivered AFTER trusted handoff, no materialized conversation
+Native App outcome: {"scenario":"cold-wrong-app","verified":false,"code":"SEND_UNCERTAIN"}
+Native recovery metadata: {"scenario":"cold-wrong-app","replacements":1,"commit":0,"retired":0,"rollback":1,"requests":[{"method":"sendControlMessage","operationId":"6fa01de8-b27b-4711-8933-5a6f7494951e"},{"method":"waitForReply","operationId":"93cc0178-3451-44c5-8cd7-0c37b42b69da"},{"method":"recover","operationId":"69ae7567-a043-4cc5-be9b-ae182172cd84"},{"method":"waitForReply","operationId":"93cc0178-3451-44c5-8cd7-0c37b42b69da"}],"entries":[{"method":"probeApp","phase":"accepted","bound":false},{"method":"sendControlMessage","phase":"accepted","bound":true},{"method":"waitForReply","phase":"uncertain","bound":false},{"method":"recover","phase":"accepted","bound":false}]}
+Native App-proof transaction: cold-wrong-app one send, same wait ID/digest, one trusted replacement, proof-gated commit/rollback
+Native source before replacement: [
+  {
+    source: true,
+    url: 'https://chatgpt.com/c/6abfada1-f690-83ee-aedf-762de215604f'
+  }
+]
+Native trusted replacement created: 948AB653A5DDA459CE79A4D50DA4B3FA
+Native cold shell delivered AFTER trusted handoff, no materialized conversation
+Native App outcome: {"scenario":"cold-wrong-digest","verified":false,"code":"SEND_UNCERTAIN"}
+Native recovery metadata: {"scenario":"cold-wrong-digest","replacements":1,"commit":0,"retired":0,"rollback":1,"requests":[{"method":"sendControlMessage","operationId":"d065cd38-c3b6-4346-afe6-ed3a4fac7014"},{"method":"waitForReply","operationId":"e8e9f973-7647-41bb-8513-30d7df5f7ffb"},{"method":"recover","operationId":"6ad69700-5c6d-44a3-b6f7-a920344977da"},{"method":"waitForReply","operationId":"e8e9f973-7647-41bb-8513-30d7df5f7ffb"}],"entries":[{"method":"probeApp","phase":"accepted","bound":false},{"method":"sendControlMessage","phase":"accepted","bound":true},{"method":"waitForReply","phase":"uncertain","bound":false},{"method":"recover","phase":"accepted","bound":false}]}
+Native App-proof transaction: cold-wrong-digest one send, same wait ID/digest, one trusted replacement, proof-gated commit/rollback
+Native source before replacement: [
+  {
+    source: true,
+    url: 'https://chatgpt.com/c/6abfada1-f690-83ee-aedf-762de215604f'
+  }
+]
+Native trusted replacement created: E6DDCD99F7803FA1D476FB5AF82B7BF3
+Native cold shell delivered AFTER trusted handoff, no materialized conversation
+Native App outcome: {"scenario":"cold-wrong-proof","verified":false,"code":"APP_PROOF_CHALLENGE_MISMATCH"}
+Native recovery metadata: {"scenario":"cold-wrong-proof","replacements":1,"commit":0,"retired":0,"rollback":1,"requests":[{"method":"sendControlMessage","operationId":"14f60d8e-e193-425e-b418-442b20b9b00a"},{"method":"waitForReply","operationId":"15f68bdd-34cd-45e3-9099-52c44c34f7b4"},{"method":"recover","operationId":"f14a834a-35f8-4576-8176-2233a7bdcb76"},{"method":"waitForReply","operationId":"15f68bdd-34cd-45e3-9099-52c44c34f7b4"}],"entries":[{"method":"probeApp","phase":"accepted","bound":false},{"method":"sendControlMessage","phase":"accepted","bound":true},{"method":"waitForReply","phase":"accepted","bound":false},{"method":"recover","phase":"accepted","bound":false}]}
+Native App-proof transaction: cold-wrong-proof one send, same wait ID/digest, one trusted replacement, proof-gated commit/rollback
+RED behavior: current native recovery cannot bind the unresponsive owned target; journal and one-send evidence preserved
+Native architecture oracle PASS: same journal/task/send/digest and assistant baseline bound through fresh target and fresh Sidecar; zero second send
+
+ Test Files  6 passed (6)
+      Tests  73 passed (73)
+   Start at  18:40:39
+   Duration  232.72s (tests 99%, import 1%)
+

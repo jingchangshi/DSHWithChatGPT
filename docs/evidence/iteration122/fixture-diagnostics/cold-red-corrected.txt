@@ -1,0 +1,35 @@
+[WARN] The "pnpm" field in package.json is no longer read by pnpm. The following keys were ignored: "pnpm.overrides". See https://pnpm.io/settings for the new home of each setting.
+
+ RUN  v5.0.1 C:/Users/jingc/workspace/DSHWithChatGPT/package
+
+stdout | tests/doctor-owned-recovery-native.spec.ts > recovers the same native App wait without another send (cold-valid)
+Native App outcome: {"scenario":"cold-valid","verified":false,"code":"BROWSER_TARGET_CHANGED"}
+
+stdout | tests/doctor-owned-recovery-native.spec.ts > recovers the same native App wait without another send (cold-valid)
+Native recovery metadata: {"scenario":"cold-valid","replacements":1,"commit":0,"requests":[{"method":"sendControlMessage","operationId":"840e09c9-d0e7-4f34-85be-e236eaef3967"},{"method":"waitForReply","operationId":"b74eb806-c5f9-4392-baf3-d95dfb14cf44"}],"entries":[{"method":"probeApp","phase":"accepted","bound":false},{"method":"sendControlMessage","phase":"accepted","bound":true},{"method":"waitForReply","phase":"uncertain","bound":false}]}
+
+ ❯ tests/doctor-owned-recovery-native.spec.ts (9 tests | 1 failed | 8 skipped) 14927ms
+   × recovers the same native App wait without another send (cold-valid) 14924ms
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  tests/doctor-owned-recovery-native.spec.ts > recovers the same native App wait without another send (cold-valid)
+AssertionError: expected false to be true // Object.is equality
+
+- Expected
++ Received
+
+- true
++ false
+
+ ❯ tests/doctor-owned-recovery-native.spec.ts:190:41
+
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯
+
+
+ Test Files  1 failed (1)
+      Tests  1 failed | 8 skipped (9)
+   Start at  18:27:33
+   Duration  16.49s (tests 92%, transform 5%, import 3%)
+

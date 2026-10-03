@@ -1,1471 +1,1024 @@
 你正在 Windows 11 Codex Desktop 的 Goal 模式中工作。
 
-当前开发仓库：
+你拥有并必须主动使用 `codex-with-chatgpt` 插件。你的职责是持续推进实现、测试、Git 和真实验收；ChatGPT Web 高思考模型负责独立规划、架构/安全审阅和最终 exact-HEAD 审阅。
 
-- `C:\Users\jingc\workspace\DSHWithChatGPT`
-- branch: `feat/complete-c2c-runtime`
+除非遇到登录、2FA、CAPTCHA、缺失真实 credential、不可逆外部操作或确实必须由用户决定的产品选择，否则不要停下来询问用户。发现普通实现问题时继续分析、修复、测试和审阅。
 
-关联 producer 仓库：
+## 2026-10-03 目标刷新：以真实产品闭环为唯一交付主线
 
-- `C:\Users\jingc\workspace\deepseek-harness`
-- branch: `feat/complete-c2c-runtime`
+本节为当前执行依据，优先于后续历史步骤。依据 codex-with-chatgpt 独立 ARCHITECTURE_PLAN、iteration115/117/120 exact-HEAD DONE_SCOPED 和 iteration121 RECONCILIATION_FIX_PLAN / COLD_REPLACEMENT_HANDOFF_FIX_PLAN 刷新。历史证据保留于 docs/current-delivery-plan.md 与 docs/browser-platform-investigation.md；不再执行过期运行指令。
 
-开发期高能力规划/评审工具：
+**最终目标：Windows 上真实、可恢复、证据闭环的 ChatGPT Planner/Reviewer + DSH/DeepSeek Executor 产品工作流。** Codex负责执行，ChatGPT独立规划和审阅。连接成功、局部测试、App proof或有效PLAN均非完成条件。整体active/incomplete。
 
-- CodexWithChatGPT 已安装并已完成真实 PLAN 和独立 REVIEW。
-- 你负责源码分析、编辑、shell、测试、Git。
-- ChatGPT Web 高思考模型通过 CodexWithChatGPT 负责架构规划、阶段审阅和最终独立评审。
+**用户审阅暂停要求（2026-10-03）：** 完成本轮iteration122冷页面交接修复的剩余冻结验证、整理全部修改/信息、规范commit并push后，暂停整体目标实施，等待用户仔细审阅并明确恢复。此次明确授权提交全部修改，包含此前用户拥有而未自动提交的goal.md。不得启动新的真实canonical123、锁屏实验或producer修复。下一步方案见review-checkpoint-2026-10-03.md，恢复前须重新核对实际Git/包/运行状态。
 
-首先完整阅读：
+**本轮交付检查点：** iteration122已获独立SOURCE_REVIEW_PASS_PENDING_FULL，后续冻结全量90files1239PASS/3original skips909.66s，197hashes全部未变；fresh package3ZkHDf、profile18xaSF两次组合验证及10个built/packed模块关联PASS。代码、用户已有goal修改、复盘与原始证据随本次提交交付，SHA以Git为准。当前只完成本轮交付和推送后的scoped复核，之后按用户要求暂停。没有新的真实123验收；整体目标未完成。下一步只形成方案，待用户明确恢复再实施。
 
-- `docs/env-win.md`
-- 当前所有 architecture / protocol / security / browser / DSH integration 文档
-- `package/src/**`
-- `package/tests/**`
-- `package/scripts/**`
-- `package/package.json`
-- deepseek-harness 中 execution-world / sandbox / DSH plugin/runtime 的相关公共接口
-- CodexWithChatGPT 仅用于理解开发期协作能力，不得成为产品运行时依赖
+### 已冻结基线与真实证据
 
-不要根据旧文档假设目标架构。源码和 `env-win.md` 是当前 baseline。
+- 本候选修复前已冻结的主库base HEAD：163ea98413343e2c7f1372d08820281e8d40e86a；producer：0afd708c288b079096affbfeff4626dcf9a19bf1。
+- M1传输、页面失响应分类及iteration120一次owned App-proof恢复已获scoped exact-HEAD接受。只有具体新反例才重开对应边界。
+- Frozen120：90files1231PASS/3original skips773.15s，197源码/测试哈希未变；typecheck/build、fresh package qhd1m2、installed profile CrfKSV两次组合验证、10个built/packed模块关联PASS。全量进程已终态，不重复运行；native synthetic GREEN不证明真实产品验收。
+- Real121原canonical：localReady PASS；唯一accepted send绑定durable conversation，原wait变uncertain；一次trusted replacement创建，恢复在resumeObservation之前失败，最终SEND_UNCERTAIN并回滚。具体reconciliation子分支未知，不追认为proof mismatch。
+- Real121 WTS15/15可用/解锁/Chrome前台；失败前独立页面连接/命令为0。事后probe指向已回滚replacement，未执行页面命令，不证明新renderer超时。Executor/观察进程终止、服务无监听；journal18与源浏览器保留。无INIT/PLAN/重发，exit1、全false oracle；九份原始输出已发布。
+- Real119零连续独立页面观察时同源target仍有页面命令超时；支持页面控制故障，不证明renderer崩溃或OpenAI根本禁止流程。Real121的新边界是恢复交接，不应继续泛归因锁屏或传输。
+
+**iteration122当前检查点：** cold native RED已复现；最小semantic handoff修复已实施。最终focused6files73PASS（含9个native恢复场景）、doctor兼容4files55PASS、typecheck/build PASS。稳定歧义在readiness阶段BROWSER_STALE且零resume；exact消息/App/digest错误仍SEND_UNCERTAIN，错误最终proof仍对应mismatch并回滚。当前下一步为独立source review；尚未执行本候选full/package/profile/push/exact-HEAD或真实验收。原fixture失败已保留并纳入复盘，不追认为real121根因已确认。
+
+
+Independent122 SOURCE_REVIEW_PASS_PENDING_FULL received: actual production diff, causal RED raw638, focused raw641 and regression outputs independently reviewed; no concrete source fix remains. Cold synthetic handoff topology and native negative coverage accepted with stated limits. No preemptive telemetry patch: existing recover method/phase separates pre-handoff, semantic-ready failure, pre-resume reconciliation failure and resumed wait. Exact real121 subbranch remains unknown. Frozen full122 now running on unchanged candidate; no production/test edits during it. Next: full terminal/hash equality → fresh package/profile/association → push/exact-HEAD supplement → one fresh original canonical closure run.
+
+### 当前关键路径：冷页面交接RED → 最小修复 → 产品闭环
+
+独立121源码分析指出：trusted target + durable URL + fresh Sidecar health不足以证明会话内容已就绪。现有事务从health直接进入exact reconciliation；native120却预先加载/物化donor，遗漏cold-handoff拓扑。**这是源码与覆盖缺口；是否为real121实际原因，仍须受控RED/GREEN及后续真实证据确认。**
+
+1. **先deterministic native RED，暂不运行canonical122。** trusted replacement正常返回，URL正确、root健康、health可通过，初始消息观察不可用；恢复收到target后才延迟物化exact原发送和有效回复。不得提前navigate/waitForLoad/物化。记录当前HEAD的SEND_UNCERTAIN/回滚，并证明一次send/Enter、唯一wait、零cancel/重发/第二replacement、bound source与uncertain wait。
+2. **严格负例。** 稳定语义歧义、foreign user、错误App label/digest保持SEND_UNCERTAIN；错误最终challenge/root/Git proof保持对应APP_PROOF mismatch。semantic handoff失败须零resume/commit/source retirement，并清理exact known replacement。
+3. **RED证实后最小修复。** 首选owned部署事务的 fresh Sidecar health → existing ChatControl.recover()/ensureReady → same exact reconciliation → same wait。使用现有readiness预算及原App-proof绝对期限，不增加deadline。cold GREEN必须证明该组合足够；否则发布具体缺口并请求独立新方案，不扩大reconciliation容忍度。
+4. **GREEN不变量。** same sendId/waitId/baseline/timeout，一次send/Enter/replacement、零resend/cancel；wait由uncertain恢复并accepted；完整proof通过才commit/退役source。负例仍fail closed。优先只改dsh-runtime.ts、owned recovery测试及必要fixture；不先修改browser/Sidecar proof、journal schema或canonical recovery。
+5. **有界诊断。** metadata类别可为replacement_semantic_ready_failed、reconcile_driver_send_uncertain、reconcile_baseline_mismatch、reconcile_success。不得记录prompt/reply/body/control digest/challenge，不补写real121未观测的分支。保留全部原始RED/失败。
+6. **候选一次冻结。** focused recovery/native/adversarial、M1/page-classification、typecheck/build → 独立source review → PASS后一次frozen full → fresh package/profile/关联 → commit/push（排除goal.md）→ exact pushed scoped review。纯目标刷新/诊断无需全量回归。
+7. **冻结后一次fresh原canonical完整验收。** fresh Chrome、明确target、credential、journal、DSH_HOME、workspace/task；连续独立观察仅root/WTS/health/journal metadata。App PASS后同run直接推进完整闭环，不在PLAN处停止。首次未建模失败冻结证据，按metadata独立分析，不普通重试、第二replacement或提前扩展canonical recovery。
+
+### 必须完成的整体交付节点
+
+1. **真实Windows闭环：** App → INIT → PLAN → DeepSeek真实实现/测试 → fresh stdout-only nonce → commit/push → 独立读取source/Git/raw output的REVIEW → mandatory fix PLAN → actual DSH restart/受控target handoff → same-task reconnect → 第二轮实现/测试/提交/审阅 → same-round exact identity/HEAD DONE → 原独立oracle全部required项true，包括plannerExecutorAccepted=true。
+2. **Windows锁屏能力资格：** 解锁闭环优先，随后权威WTS受控lock/unlock实验。先验证锁屏暂停新页面操作、保留uncertainty、解锁后验证并恢复same wait；不得标为已支持。锁屏继续执行所需headless/专用browser host须独立真实验收原identity/visibility/proof及App/PLAN/REVIEW/restart；不伪造可见性、不关闭锁屏保护、不以API替换Web目标。无人值守扩展不替代本轮解锁闭环。
+3. **Producer Windows Git gate：** 产品闭环后处理deepseek-harness原deadline gate，保持Git和安全覆盖，不延长期限掩盖问题。
+4. **最终global exact-HEAD审阅：** 架构、协议、源码、安全、恢复、打包、真实Windows和producer证据全部核对，执行具体fix PLAN并重新审阅。所有required gates真实通过才宣布完成。
+
+### 防止局部重试循环
+
+用户要求持续回顾并总结实现中出现的各种错误。docs/browser-platform-investigation.md 的 Current implementation lessons 是当前复盘记录：每个新失败写入证据、原因/不确定性、修复、回归保护和停止条件；每次真实验收前核对，禁止无新假设地重复已失败做法。
+
+
+- 一个因果假设至多一次受控真实曝光；必须有可证伪实验和退出条件。无新证据不再重复置前台/解锁/刷新/重启/增加超时。
+- 保持strict parser/proof/oracle、delivery uncertainty、target ownership、原deadline；未知创建结果不猜cleanup，不盲重发。health PASS不证明operation结束或conversation ready。
+- 公开讨论/他人代码仅用于当前具体缺口的可验证实验；不当作OpenAI限制的证据，不无限调研。
+- 原浏览器/journal未明确ownership及uncertainty前不清理；历史失败不改写成功。goal.md用户拥有，不自动stage/commit。
+- 仅登录、2FA、CAPTCHA、缺失真实凭据、不可逆外部操作或确需用户选择时请求介入；普通实现问题持续执行。必须介入时立即通知并给出一个明确操作。
+
+# 0. 当前仓库
+
+主项目：
+
+```text
+C:\Users\jingc\workspace\DSHWithChatGPT
+branch: feat/complete-c2c-runtime
+remote reference HEAD at task creation:
+16df18bcaf2b90020b88b2a02471660453870525
+```
+
+producer：
+
+```text
+C:\Users\jingc\workspace\deepseek-harness
+branch: feat/complete-c2c-runtime
+remote reference HEAD at task creation:
+0afd708c288b079096affbfeff4626dcf9a19bf1
+```
+
+开始时必须重新：
+
+```text
+git status
+git log -n 20
+git fetch
+```
+
+确认本地真实 HEAD。
+
+不要 hard reset。
+不要覆盖未提交修改。
+如果远端又有更新，以当前实际源码重新判断，不机械依赖上述 SHA。
 
 ---
 
-# 一、最终目标
+# 1. 权威目标
 
-本项目新的架构名称使用：
-
-**PlannerBridge**
-
-当前 GitHub 仓库可以暂时继续叫 `DSHWithChatGPT`，本轮不要为了名称迁移阻塞功能开发。
-
-理解为：
+完整阅读：
 
 ```text
-PlannerBridge
-= generic Planner / Reviewer ↔ Executor collaboration runtime
-
-当前第一个 deployment：
-
-Planner / Reviewer = ChatGPT Web
-Executor           = DSH + DeepSeek-V4.1-Flash
+docs/goal.md
+docs/current-delivery-plan.md
+docs/target-architecture.md
+docs/planner-executor-protocol.md
+docs/acceptance-plan.md
+docs/direct-cdp-contract.md
+docs/windows-deployment.md
+docs/env-win.md
+docs/migration-plan.md
 ```
 
-不要再把历史 `C2C` 当成新架构概念。
+以及与当前 critical path 直接相关的源码和测试。
 
-新的源码、文档、模块、测试、协议、状态字段、环境变量和脚本名称不得继续创造新的：
+`docs/goal.md` 是完整目标规范。
+
+`docs/current-delivery-plan.md` 是当前 delivery 状态，但它只是已记录证据；源码和本轮实际运行结果优先。
+
+不要重新开始已经完成并经过 scoped review 的 Stage A-H 工作。
+
+只有新的反例、当前源码与 contract 不一致或真实产品运行暴露问题时，才重新打开已接受的 foundation。
+
+---
+
+# 2. 当前架构事实
+
+PlannerBridge 的主要架构已经存在。
+
+不要再实施“只抽接口”的伪进展。
+
+当前源码已经包含至少：
+
+```text
+core/ports/*
+DshAgentAdapter
+DshExecutionWorkspaceAdapter
+McpExposureProvider adapter
+canonical Planner–Executor protocol v2
+ChatGptWebDriver
+BrowserPrimitives
+DirectCdpPrimitives
+SidecarChatControlClient
+Sidecar server/journal/protocol
+Direct Sidecar deployment
+DSH production deployment
+Planner–Executor E2E runner
+independent acceptance oracle
+```
+
+`package/src/index.ts` 已基本退化为 deployment export。
+
+主 Windows 产品路径已经应为：
+
+```text
+Windows DSH
+   ↓
+PlannerBridge canonical runtime
+   ↓
+SidecarChatControlClient
+   ↓
+loopback authenticated RPC
+   ↓
+Chat Control Sidecar
+   ↓
+ChatGptWebDriver
+   ↓
+DirectCdpPrimitives
+   ↓
+dedicated Chrome / ChatGPT Web
+```
+
+Workspace Data Plane：
+
+```text
+ChatGPT Web
+   ↓
+DSH with ChatGPT App
+   ↓
+Secure MCP exposure
+   ↓
+Windows MCP Bridge
+   ↓
+WorkspaceRuntimeRegistry
+   ↓
+live ReadLease / GitLease / execution-output authority
+```
+
+Browser Harness 只是 compatibility path。
+
+最终 Windows primary acceptance 必须在 Browser Harness 不存在的情况下成功。
+
+---
+
+# 3. 不要重新设计这些安全不变量
+
+以下已经是架构基础，除非反例证明有问题，不要重新发明：
+
+```text
+ExecutionWorkspaceId != authority
+```
+
+workspace ID 只是 durable identity。
+
+实际读取必须来自 live capability：
+
+```text
+ExecutionReadLease
+ExecutionGitLease
+execution-output scope
+```
+
+保持：
+
+```text
+no Host filesystem fallback
+provider generation / affinity binding
+root containment
+fixed Git argv
+sanitized Git environment
+bounded timeout/output
+Windows hardened Git assurance
+secret redaction
+task/workspace/round scoped execution evidence
+```
+
+`deepseek-harness` 当前 producer contract 已经具备：
+
+```text
+ExecutionWorldIdentity
+bindExecutionReadLease
+bindExecutionGitLease
+Windows native root reader
+Windows Job containment
+allow-hardened-windows Git policy
+```
+
+不要因为 consumer 方便而复制 producer 实现。
+
+---
+
+# 4. 当前真正的 delivery 状态
+
+过去的 architecture foundation 不再是首要瓶颈。
+
+当前真实状态按最新证据是：
+
+```text
+ARCHITECTURE       PARTIAL only because final global audit remains
+PROTOCOL           substantial implementation exists
+CHAT_CONTROL       real App proof exists; real send path previously failed
+DIRECT_CDP         implemented and heavily tested
+SIDECAR            implemented with auth/journal/recovery contracts
+DSH_ADAPTER        installed composition evidence exists
+WORKSPACE_DATA_PLANE real App workspace proof exists
+PACKAGING          repeated isolated package/profile evidence exists
+WINDOWS_E2E        FAILED / not yet closed
+FUTURE_LINUX       FUTURE
+```
+
+之前真实 Windows run 已经达到：
+
+```text
+localReady=true
+appDataPlaneVerified=true
+```
+
+随后 INIT 发送失败。
+
+此后已经实现多轮针对真实失败的修复，包括：
+
+```text
+logical paragraph composer extraction
+preservation of spaces/tabs/blank lines
+hidden/inert/aria-hidden/CSS-hidden payload rejection
+durable bootstrap baseline fencing
+unknown send fail-closed
+message observation semantic line-break handling
+zero-area visible BR preservation
+```
+
+最新 HEAD `16df18bc` 又修复了 current ChatGPT DOM 中 zero-area `<br>` 的语义换行。
+
+这些修复之后的真实完整产品 run 尚未形成最终 PASS。
+
+因此当前目标不是继续 speculative hardening。
+
+当前目标是：
+
+**用最新 candidate 完成真实 Windows Planner–Executor 闭环，并只修真实运行中继续暴露的有限问题。**
+
+---
+
+# 5. 历史失败任务的处理原则
+
+现有历史失败 INIT/task/journal 有 SEND_UNCERTAIN evidence。
+
+必须保留它作为 recovery/fail-closed evidence。
+
+禁止：
+
+```text
+自动假定旧 INIT 未发送
+自动重发旧 INIT
+自动把 SEND_UNCERTAIN 晋升为 sent
+删除历史 journal 以让测试通过
+清除 foreign / uncertain ownership
+用人工观察猜测 durable delivery
+```
+
+如果旧状态不适合继续最终验收：
+
+**不要修饰旧事实。**
+
+创建新的、隔离的：
+
+```text
+DSH_HOME
+PlannerBridge state
+Sidecar state/journal
+acceptance workspace
+task
+Git remote
+```
+
+运行一个 fresh acceptance。
+
+旧任务继续保持 SEND_UNCERTAIN 即可。
+
+新的 successful E2E 不需要“洗白”旧的不确定操作。
+
+---
+
+# 6. 第一阶段：冻结当前 exact HEAD 并重新建立 baseline
+
+先不要修改源码。
+
+读取最近至少 20 个 commits 和：
+
+```text
+package/src/browser/message-observation.ts
+package/src/browser/chatgpt-web-driver.ts
+package/src/browser/direct-cdp.ts
+package/src/browser/transitions.ts
+package/src/browser/history-observation.ts
+
+package/src/sidecar/*
+package/src/deployment/direct-sidecar.ts
+package/src/deployment/sidecar-control.ts
+package/src/deployment/sidecar-supervisor.ts
+package/src/deployment/dsh-runtime.ts
+
+package/src/orchestrator/*
+package/src/protocol/*
+package/src/core/*
+package/src/adapters/*
+
+package/scripts/verify-planner-executor-e2e.mjs
+package/scripts/planner-executor-acceptance.mjs
+package/scripts/verify-real-sidecar-entry.mjs
+package/scripts/verify-plannerbridge-fake-stack.mjs
+```
+
+然后运行当前 exact HEAD 的：
+
+```text
+typecheck
+build
+ordinary full pnpm test
+package verification
+profile verification
+real-sidecar-entry verification where environment permits
+```
+
+不要引用旧的 “1051 passed” 当作当前 HEAD 的结果。
+
+最新 HEAD 增加了测试，因此必须获得新的实际数字。
+
+记录：
+
+```text
+HEAD
+test files
+passed
+failed
+skipped
+duration
+exit code
+```
+
+保留失败原始输出。
+
+不要为了让 full suite 通过而：
+
+```text
+增加 timeout
+删除断言
+skip
+降低 security check
+删除 race/adversarial fixture
+```
+
+Windows worker bound 可以保持当前已接受策略。
+
+---
+
+# 7. 第一次使用 CodexWithChatGPT：只做“当前 critical-path review”
+
+完成 baseline 后，调用 CodexWithChatGPT。
+
+不要要求 ChatGPT 从头重新设计 PlannerBridge。
+
+要求它独立读取：
+
+```text
+docs/goal.md
+docs/current-delivery-plan.md
+docs/acceptance-plan.md
+
+最新 HEAD
+最近真实 product evidence
+最近 browser/message/recovery commits
+当前 E2E runner + acceptance oracle
+```
+
+让 ChatGPT回答：
+
+```text
+1. 最新 HEAD 距离完整 Windows acceptance 还缺哪些“必须闭合”的证据？
+2. 当前代码里有没有会阻止下一次真实 acceptance 的已知 source-level bug？
+3. 是否应先修源码，还是已经应该直接运行 fresh real E2E？
+4. 哪些 foundation 已经有足够 evidence，不应再次打开？
+```
+
+要求它输出一个非常有限的：
+
+```text
+NEXT_DELIVERY_PLAN
+```
+
+不要让它重新提出大规模架构重构，除非它能指出当前源码中的具体反例。
+
+---
+
+# 8. 在真实 acceptance 前，只允许关闭有证据的 blocker
+
+如果 baseline / ChatGPT review 显示最新：
+
+```text
+message observation
+composer ownership
+bootstrap recovery
+Sidecar auth
+schema
+packaging
+```
+
+仍有确定问题，则：
+
+1. 先写/找到 reproducer；
+2. 证明 RED；
+3. 做最小修复；
+4. focused tests；
+5. full regression；
+6. package/profile check；
+7. commit；
+8. CodexWithChatGPT independent source review；
+9. DONE 后继续。
+
+不要开始下一轮 speculative hardening。
+
+一个修复必须能够回答：
+
+```text
+具体哪个真实/反例 failure？
+最小错误机制是什么？
+哪个 test 在修复前 RED？
+修复后什么 evidence 变 GREEN？
+为什么没有降低原 security/recovery guarantee？
+```
+
+回答不了就不要改。
+
+---
+
+# 9. 生成 fresh product candidate
+
+真实运行前：
+
+```text
+pnpm build
+pnpm test
+package artifact
+isolated package import
+Sidecar executable verification
+installed DSH profile verification
+DSH tool schema consumer verification
+```
+
+fresh candidate 必须来自当前 exact HEAD。
+
+不能运行旧 tgz / 旧 lib / 旧 Sidecar。
+
+记录 artifact 与源码 HEAD 的对应关系。
+
+---
+
+# 10. Fresh Windows real E2E
+
+然后运行真正的：
+
+```text
+verify-planner-executor-e2e.mjs
+```
+
+不得使用 legacy：
+
+```text
+verify-live-c2c.mjs
+```
+
+除了验证 legacy delegation 本身。
+
+必须满足：
+
+```text
+BROWSER_HARNESS_COMPAT_EXECUTABLE undefined
+```
+
+主 acceptance 中不得 mount Browser Harness provider。
+
+Executor 必须是当前选定：
+
+```text
+provider: deepseek-official
+model: deepseek-flash
+DeepSeek-V4.1-Flash
+```
+
+Planner / Reviewer 是真实 ChatGPT Web。
+
+使用：
+
+```text
+dedicated Browser B
+real Direct CDP
+real native Sidecar
+real installed DSH
+real DeepSeek call
+real Secure MCP exposure
+real Custom App
+real disposable Git workspace
+real local bare upstream
+```
+
+不能用 fake Sidecar / fake browser / mock model 关闭 WINDOWS_E2E。
+
+---
+
+# 11. Real E2E 必须实际走完
+
+必须观察：
+
+```text
+doctor(local)
+  localReady=true
+
+doctor(app-proof)
+  appDataPlaneVerified=true
+
+chatgpt_plan
+  real PLAN accepted
+
+DeepSeek Executor
+  follows PLAN
+  edits source
+  runs real tests
+
+successful test stdout:
+  E2E_EVIDENCE=<fresh random nonce>
+
+commit
+
+push
+
+chatgpt_review
+  exact current HEAD
+```
+
+Reviewer 必须独立通过 Workspace Data Plane 阅读：
+
+```text
+workspace source
+Git status/diff/log
+raw execution_output
+```
+
+并在 REVIEW SUMMARY 中回显最新 successful stdout nonce。
+
+Nonce 绝不能通过：
+
+```text
+executor prose
+review arguments
+protocol envelope
+workspace file
+summary passed from Executor
+```
+
+泄露给 Reviewer。
+
+Acceptance oracle 必须继续机器验证该关系。
+
+---
+
+# 12. Recovery 是真实 acceptance 的一部分
+
+最终 E2E 不是：
+
+```text
+PLAN → perfect implementation → DONE
+```
+
+就结束。
+
+Goal 要求真实 recovery / fix path。
+
+必须实际证明：
+
+```text
+initial PLAN
+ ↓
+execution
+ ↓
+review returns real fix PLAN
+ ↓
+durable restart checkpoint
+ ↓
+DSH process exits/restarts
+ ↓
+chatgpt_reconnect
+ ↓
+same task/workspace/iteration
+ ↓
+continue fix
+ ↓
+new test
+ ↓
+new commit + push
+ ↓
+review
+ ↓
+DONE
+```
+
+不得用 synthetic fixture 替代这一 product proof。
+
+如果当前 acceptance fixture 无法可靠要求真实 fix/restart path：
+
+不要通过硬编码 observer event 或 fake PLAN 来伪造。
+
+分析如何设计一个**可证伪且真实由 Reviewer 发现问题**的 acceptance fixture。
+
+任何改变必须先让 CodexWithChatGPT 审阅其 oracle integrity。
+
+---
+
+# 13. Acceptance oracle 不得降级
+
+当前：
+
+```text
+planner-executor-acceptance.mjs
+```
+
+已经机器验证：
+
+```text
+readinessVerified
+identityVerified
+nonceVerified
+recoveryVerified
+plannerExecutorAccepted
+```
+
+并要求：
+
+```text
+TASK_ID
+WORKSPACE_ID
+ITERATION
+HEAD
+```
+
+一致。
+
+保持这些条件。
+
+最终：
+
+```text
+plannerExecutorAccepted=true
+```
+
+只能由实际 events + real Git state 算出。
+
+绝不允许：
+
+```text
+hardcoded true
+environment override
+manual pass flag
+fake records
+跳过 recovery
+borrowed old nonce
+borrowed old doctor result
+borrowed old DONE
+```
+
+---
+
+# 14. Exact identity
+
+最终 DONE 必须证明：
+
+```text
+same TASK_ID
+same WORKSPACE_ID
+same canonical protocol v2
+correct same-round ITERATION
+exact pushed HEAD
+```
+
+Git 必须：
+
+```text
+normal branch
+not main/master
+clean worktree
+upstream exists
+local HEAD == upstream HEAD
+ahead == 0
+reviewed HEAD == local HEAD
+```
+
+只 commit 没 push 不算。
+
+---
+
+# 15. Message/input/recovery 失败的调试原则
+
+如果新的 real run 又在 ChatGPT Web 层失败：
+
+优先捕获**只读、无秘密、最小的实际事实**：
+
+```text
+DOM shape
+semantic message observations
+composer structure
+target identity
+route
+observation epoch
+transition history
+assistant count
+text digest
+App identity
+Sidecar journal metadata
+coordinator durable state
+```
+
+不要读取/打印：
+
+```text
+ChatGPT cookies
+OAuth
+bearer
+API key
+full sensitive browser state
+```
+
+如果输入失败：
+
+必须保留 foreign/unknown draft。
+
+如果发送 ACK 不确定：
+
+必须 fail closed。
+
+如果当前 route / document / baseline 不匹配：
+
+不得自动 resend。
+
+如果 browser transition history unavailable：
+
+不得基于 URL 猜 provenance。
+
+所有新修复必须继续遵守 current Direct CDP contract。
+
+---
+
+# 16. 最新 message semantics 必须特别验证
+
+最新 HEAD 修改了 visible zero-area `<br>` 的 message semantic extraction。
+
+在下一次 real acceptance 前，至少执行：
+
+```text
+message-observation focused tests
+ChatGptWebDriver composer/input tests
+Direct CDP semantic/input tests
+bootstrap/recovery focused tests
+```
+
+并考虑针对当前真实 ChatGPT DOM 做一个只读 smoke：
+
+```text
+user message multiline extraction
+assistant message extraction
+App mention identity
+line-break preservation
+spaces/tabs preservation
+hidden content exclusion
+```
+
+不能通过改变真实 conversation 内容来做只读 smoke。
+
+---
+
+# 17. Producer deepseek-harness 的处理
+
+Producer HEAD：
+
+```text
+0afd708c288b079096affbfeff4626dcf9a19bf1
+```
+
+当前 producer 已经有：
+
+```text
+ExecutionWorldIdentity
+ReadLease
+GitLease
+Windows hardened Git
+native root-relative reads
+Windows Job process ownership
+Git redirect environment tombstones
+```
+
+DSHWithChatGPT 应继续作为 consumer。
+
+不要为了 PlannerBridge 再增加 producer API，除非满足全部：
+
+```text
+1. 当前 real/consumer test 明确无法表达必要 guarantee；
+2. 有 RED consumer test；
+3. 能指出缺失的 public contract；
+4. CodexWithChatGPT architecture review 同意 producer change；
+5. 修改最小；
+6. producer 自己增加对应 tests。
+```
+
+---
+
+# 18. Producer Windows Git deadline gate
+
+当前仍记录一个独立 producer native Git support timeout failure。
+
+不要在真实 E2E 前把主要时间花在它上面，除非它直接阻止 acceptance。
+
+真实 Windows PlannerBridge E2E 闭环后再处理它。
+
+重新在 producer exact HEAD：
+
+```text
+0afd708c
+```
+
+复现原始测试。
+
+不得：
+
+```text
+增加 timeout
+删除测试
+skip Windows
+降低 Job/ACL enforcement
+减少 Git queries 只为通过
+```
+
+如果失败：
+
+区分：
+
+```text
+actual correctness/security bug
+resource/scheduling bug
+test orchestration bug
+```
+
+若需要修改 producer，先让 CodexWithChatGPT 独立 review 原始 failure 和 proposed fix。
+
+最终不能把一个真实 FAILED gate写成 VERIFIED。
+
+---
+
+# 19. 历史命名
+
+新的代码继续禁止新建：
 
 ```text
 C2C
 c2c
 ```
 
-历史 identifier 可以在 compatibility layer 中暂时存在，但：
+历史：
 
-1. 必须明确标为 legacy；
-2. 新实现不得继续依赖历史命名；
-3. touched private identifiers 应逐步迁移；
-4. 不允许盲目全局字符串替换；
-5. externally-owned 名称不得擅自修改。
+```text
+branch names
+legacy compatibility entries
+old public aliases
+released state domains
+```
+
+可以保留。
+
+不要为了“清理名称”破坏：
+
+```text
+released storage compatibility
+legacy CLI compatibility
+historical migration tests
+```
+
+当前 delivery priority 是真实产品闭环，不是 cosmetic rename。
 
 ---
 
-# 二、当前阶段唯一 P0 deployment
+# 20. 不要重新打开已经 scoped DONE 的 foundation
 
-现在只实现和完整验收：
-
-```text
-Windows 11
-
-ChatGPT Web
-high-capability Planner / Reviewer
-        ↕
-PlannerBridge
-        ↕
-Windows DSH
-        ↕
-DeepSeek-V4.1-Flash Executor
-        ↕
-workspace / shell / tests / git
-```
-
-当前没有 Linux server。
-
-Linux cross-host deployment 是 FUTURE，绝不能阻塞 Windows 工作。
-
-未来拓扑必须可以自然扩展成：
+除非出现新的矛盾证据，不要重新进行：
 
 ```text
-Windows
-Chrome + Chat Control Sidecar
-               ↑
-               │ secure localhost forwarding
-               ↓
-Linux
-SidecarChatControlClient
-PlannerBridge
-DSH
-Execution World
-Workspace Data Plane
-repo / build / tests / git
+Core ports extraction
+ChatControl abstraction设计
+BrowserPrimitives abstraction设计
+Sidecar protocol从零设计
+ExecutionWorkspacePort从零设计
+McpExposureProvider从零设计
+StateStore从零设计
+Protocol v2从零设计
+Workspace capability architecture从零设计
 ```
 
-但是当前阶段：
+当前阶段最容易失败的方式就是：
 
-- 不实现 Linux deployment automation；
-- 不实现 SSH lifecycle manager；
-- 不要求 Linux Browser Harness；
-- 不远程暴露 Chrome CDP；
-- 不因为 Linux 不存在而停止开发。
+```text
+真实 E2E 尚未完成
+→ 又开始增加新 abstraction
+→ scoped unit tests更多
+→ 但产品仍然不工作
+```
 
-未来远程部署必须复用与 Windows 本地部署完全相同的 `SidecarChatControlClient` 和协议。
+避免这个循环。
 
 ---
 
-# 三、开发链与产品链必须完全分离
+# 21. 每次使用 CodexWithChatGPT 的节奏
 
-开发链：
+从现在开始，不必每个小 commit 都让 ChatGPT 重新审阅整个架构。
 
-```text
-Codex Desktop
-   ↓
-CodexWithChatGPT
-   ↓
-ChatGPT Web high-thinking
-   ↓
-指导你开发 PlannerBridge
-```
+使用四种 review：
 
-产品链：
+## A. Delivery-plan review
 
-```text
-DSH
- ↓
-PlannerBridge
- ↓
-ChatGPT Web Planner / Reviewer
-```
-
-硬约束：
-
-**CodexWithChatGPT 永远不得成为 PlannerBridge 产品运行时依赖。**
-
-不要通过调用 CodexWithChatGPT 来伪造产品 E2E。
-
----
-
-# 四、目标架构
-
-最终依赖方向应接近：
-
-```text
-                 ChatGPT Web
-                 /        \
-          Chat Control   Workspace Data Plane
-               |                |
-               |          ChatGPT Custom App
-               |                |
-               |        Secure MCP Exposure
-               |                |
-        Chat Control Sidecar     |
-               |                |
-               +-------+--------+
-                       |
-               PlannerBridge Runtime
-                       |
-                Planner–Executor
-                  Orchestrator
-                       |
-        +--------------+--------------+
-        |              |              |
-     Protocol       StateStore     AgentAdapter
-                                      |
-                                  DSH Adapter
-                                      |
-                              Execution World
-                                      |
-                   +------------------+------------------+
-                   |                                     |
-             Read capability                        Git capability
-                   |                                     |
-                   +------------------+------------------+
-                                      |
-                           workspace / test / git
-```
-
-核心原则：
-
-> Chat Control 只负责对话。
->
-> Workspace Data Plane 只负责模型读取事实。
->
-> Execution World 只负责执行发生在哪里。
->
-> Lease 只负责当前操作被授权访问什么。
->
-> Orchestrator 只负责状态机和工作流。
->
-> Agent Adapter 只负责谁来执行。
->
-> Deployment transport 不得污染核心协议。
-
----
-
-# 五、必须形成的抽象边界
-
-目标代码必须形成清晰的 ports / adapters 边界。
-
-## 1. Planner–Executor Protocol
-
-只认识：
-
-```text
-TASK_ID
-ITERATION
-WORKSPACE_ID
-HEAD
-
-PLAN
-EXECUTED
-REVIEW
-DONE
-BLOCKED
-```
-
-协议层不得 import：
-
-```text
-DSH
-Cordis
-Browser Harness
-Chrome
-CDP
-Windows
-Linux
-SSH
-Secure MCP Tunnel implementation
-```
-
----
-
-## 2. ChatControl
-
-定义 provider-neutral contract，例如：
-
-```text
-health
-ensureReady
-openConversation
-sendControlMessage
-waitForReply
-recover
-currentConversation
-```
-
-主实现：
-
-```text
-SidecarChatControlClient
-```
-
-兼容实现：
-
-```text
-BrowserHarnessChatControl
-```
-
-禁止设计：
-
-```text
-WindowsChatControl
-LinuxChatControl
-LocalChatControl
-RemoteChatControl
-```
-
-local / remote 是 deployment concern。
-
----
-
-## 3. ChatGptWebDriver
-
-现有 Browser Harness 实现中这些高价值语义必须保留：
-
-```text
-exact App mention
-composer discovery
-exact autocomplete selection
-mention decorator verification
-assistant baseline fencing
-new assistant reply detection
-streaming detection
-reply settling
-logged-out detection
-App unavailable fail-closed
-conversation reconnect
-timeout
-cancellation
-```
-
-将它们从 Browser Harness transport 中抽离为：
-
-```text
-ChatGptWebDriver
-```
-
-其下只依赖：
-
-```text
-BrowserPrimitives
-```
-
-实现：
-
-```text
-BrowserHarnessPrimitives   # compatibility
-DirectCdpPrimitives        # primary
-```
-
-不要把现有 ChatGPT DOM/settling 逻辑复制两份。
-
----
-
-## 4. Chat Control Sidecar
-
-Windows 独立小进程：
-
-```text
-chat-control-sidecar
-```
+本任务开始时一次。
 
 目标：
 
 ```text
-127.0.0.1:18765
-        ↓
-ChatGptWebDriver
-        ↓
-DirectCdpPrimitives
-        ↓
-127.0.0.1:9222
-        ↓
-dedicated product Chrome
+确认当前下一步真的是 real delivery critical path
 ```
 
-Sidecar RPC 必须：
+## B. Bounded bug review
 
-- loopback-only；
-- versioned；
-- authenticated；
-- bounded body；
-- request id；
-- timeout；
-- cancellation；
-- duplicate/replay protection；
-- typed errors；
-- clean shutdown；
-- deterministic health semantics。
+只有 real run / adversarial test 暴露新问题时。
 
-Sidecar 不得暴露：
+给 ChatGPT：
 
 ```text
-arbitrary CDP
-arbitrary browser_js
-arbitrary navigation
-shell
-filesystem
-Git
-workspace
-MCP
-generic computer-use
-```
-
-这是 narrow semantic sidecar，不是 browser remote-control daemon。
-
----
-
-## 5. Workspace Data Plane
-
-保留并加强当前成熟能力：
-
-```text
-MCP Bridge
- → WorkspaceRuntimeRegistry
- → active capabilities
- → ExecutionReadLease
- → ExecutionGitLease
- → execution evidence
-```
-
-硬约束：
-
-```text
-ExecutionWorkspaceId != authority
-```
-
-Workspace ID 只是 durable identity。
-
-绝不允许：
-
-```text
-workspaceId → Host path
-workspaceId → filesystem permission
-workspaceId → shell capability
-```
-
-禁止 Host filesystem fallback。
-
-ReadLease / GitLease 必须绑定正确的 execution-world provider generation / affinity。
-
----
-
-## 6. Agent Adapter
-
-把当前 `index.ts` 中 DSH/Cordis-specific wiring 收敛成：
-
-```text
-DshAgentAdapter
-```
-
-至少隔离：
-
-```text
-tool registration
-system prompt contribution
-Session cwd
-shell execution observation
-execution evidence attribution
-Cordis storage integration
-```
-
-PlannerBridge core 不应直接理解 Cordis plugin 生命周期。
-
----
-
-## 7. MCP Exposure
-
-把当前 Secure MCP Tunnel implementation 放到：
-
-```text
-McpExposureProvider
-```
-
-当前实现：
-
-```text
-OpenAiSecureMcpTunnelProvider
-```
-
-Tunnel 是网络 transport，不是：
-
-```text
-Planner–Executor protocol
-browser reply transport
-execution backend
-authorization model
-```
-
----
-
-## 8. StateStore
-
-Orchestrator 依赖 generic async state store。
-
-当前 Cordis persistence 是 adapter，而不是 core contract。
-
----
-
-# 六、第一步必须先写架构文档，不要直接大规模修改源码
-
-在任何结构性产品重构前，创建或重写下面文档：
-
-```text
-docs/target-architecture.md
-docs/windows-deployment.md
-docs/planner-executor-protocol.md
-docs/acceptance-plan.md
-docs/migration-plan.md
-```
-
-已有旧文档可以链接或改写，但最终不得存在两个互相矛盾的“当前架构”。
-
-## `target-architecture.md`
-
-必须包含：
-
-- PlannerBridge 定位；
-- 当前 Windows deployment；
-- 未来 Windows-browser + Linux-executor deployment；
-- control plane；
-- Workspace Data Plane；
-- ports/adapters；
-- dependency rules；
-- security boundaries；
-- lifecycle；
-- ownership；
-- failure domains；
-- recovery；
-- 明确哪些组件与 OS 无关；
-- 明确哪些只是 deployment detail。
-
-必须画出：
-
-1. Windows primary topology；
-2. Future cross-host topology；
-3. control plane；
-4. Workspace Data Plane；
-5. package/module dependency DAG。
-
----
-
-## `planner-executor-protocol.md`
-
-必须冻结：
-
-- envelope；
-- state machine；
-- TASK_ID；
-- ITERATION；
-- WORKSPACE_ID；
-- HEAD；
-- PLAN / EXECUTED / REVIEW / DONE；
-- retry；
-- replay；
-- duplicate；
-- timeout；
-- cancellation；
-- reconnect；
-- idempotency；
-- exact-HEAD verification。
-
-不得保留新的历史 `C2C` 协议命名。
-
----
-
-## `windows-deployment.md`
-
-必须准确对应 `docs/env-win.md`：
-
-```text
-Product Chrome
-  127.0.0.1:9222
-
-Chat Control Sidecar
-  127.0.0.1:18765
-
-Windows DSH
-  DeepSeek-V4.1-Flash
-
-MCP Bridge
-Secure MCP exposure
-```
-
-同时区分：
-
-```text
-Browser A = CodexWithChatGPT development
-Browser B = PlannerBridge product runtime
-```
-
----
-
-## `acceptance-plan.md`
-
-在实现之前先定义每一个 acceptance gate。
-
-每一项必须有：
-
-```text
-Goal
-Fixture
-Action
-Expected evidence
-Failure condition
-Status
-```
-
-状态只能是：
-
-```text
-VERIFIED
-FAILED
-NOT_RUN
-PARTIAL
-BLOCKED
-FUTURE
-NOT_APPLICABLE
-```
-
-禁止把 NOT_RUN 当成成功。
-
----
-
-## `migration-plan.md`
-
-对现有所有 `C2C/c2c` identifier 做 inventory，分类为：
-
-```text
-PUBLIC_COMPATIBILITY
-PRIVATE_RENAME_NOW
-TEST_RENAME_NOW
-DOC_RENAME_NOW
-BRANCH_HISTORY_ONLY
-EXTERNAL_NAME_DO_NOT_CONTROL
-```
-
-不要盲目全局替换。
-
----
-
-# 七、架构文档完成后，必须先让 ChatGPT 独立审阅
-
-在开始结构性源码重构前：
-
-1. commit 架构文档；
-2. 使用 CodexWithChatGPT 请求 ChatGPT 高思考模型；
-3. 让它直接读取仓库中的：
-   - 文档；
-   - 当前实现；
-   - `env-win.md`；
-   - Execution World contract；
-4. 要求它检查：
-   - dependency direction；
-   - 是否真正支持未来跨 host；
-   - security boundaries；
-   - acceptance 是否足以证伪错误实现；
-   - 是否错误继承了 Browser Harness / historical C2C coupling；
-5. 不要把源码大段复制进 prompt；
-6. 让 ChatGPT 独立读取 source；
-7. 如果 REVIEW 返回修改项，先改文档并再次 REVIEW；
-8. 直到架构文档 REVIEW = DONE。
-
-在架构冻结前，不进入大规模实现。
-
----
-
-# 八、先建立测试，再开发每个功能
-
-遵守：
-
-**test / falsification first**
-
-每个阶段先建立能证明目标、也能击穿错误实现的测试，然后再实现。
-
-不能：
-
-```text
-先实现
-→ 再写一个只证明自己实现的测试
-```
-
----
-
-# 九、功能点和验收矩阵
-
-## F0. Baseline 与已知失败
-
-当前 baseline 已记录：
-
-```text
-403 passed
-3 skipped
-1 failed
-```
-
-已知失败：
-
-```text
-browser cancellation cleanup
-```
-
-首先：
-
-- 独立复现；
-- 记录原始 baseline；
-- 判断其是否落在本次 Chat Control 重构路径。
-
-由于本次必然修改 browser/cancellation lifecycle，如果该失败涉及同一 ownership / cleanup contract：
-
-**在抽象重构之前先建立明确 regression test 并修复。**
-
-不得通过删除断言、延时扩大、skip 或降低 cleanup guarantee 来消灭失败。
-
----
-
-## F1. Core ports extraction
-
-先测试：
-
-```text
-orchestrator imports no Browser Harness
-protocol imports no DSH/Cordis/browser/CDP
-ChatControl contract can run fake provider
-StateStore can run in-memory fake
-ExecutionWorkspacePort can be faked
-McpExposureProvider can be faked
-```
-
-然后抽接口。
-
-要求：
-
-- 行为不变；
-- 现有 tests 尽量保持；
-- 不做 big-bang rewrite。
-
----
-
-## F2. ChatGPT semantics extraction
-
-先建立 contract/fixture tests：
-
-```text
-exact App selection
-ambiguous App fails
-missing App fails closed
-composer changed unexpectedly fails
-old assistant message ignored
-new assistant detected
-streaming waits
-settling requires stability
-logout recognized
-timeout works
-abort works
-conversation recovery works
-```
-
-再把语义从：
-
-```text
-BrowserHarnessAdapter
-```
-
-迁入：
-
-```text
-ChatGptWebDriver
-```
-
-Browser Harness 只保留 primitives。
-
----
-
-## F3. Direct CDP primitives
-
-先用非 ChatGPT 本地 test page 验证：
-
-```text
-connect
-list/find target
-evaluate semantic DOM query
-focus
-type
-click
-keyboard
-observe DOM mutation
-navigation detection
-target disappearance
-abort
-timeout
-disconnect
-reconnect
-```
-
-不得依赖 screenshot/vision 作为正常控制路径。
-
-正常路径应该：
-
-```text
-DOM
-Runtime
-Input
-MutationObserver / event-driven observation
-```
-
-截图仅用于 diagnostic。
-
-然后使用 Browser B 的：
-
-```text
-127.0.0.1:9222
-```
-
-做真实 CDP smoke test。
-
-不要污染 Browser A。
-
----
-
-## F4. Chat Control Sidecar RPC
-
-先使用 FakeChatGptWebDriver。
-
-建立 tests：
-
-```text
-health
-version mismatch
-auth success/failure
-request id
-body limit
-timeout
-cancel
-duplicate request
-restart
-clean shutdown
-concurrent incompatible request rejection
-typed error mapping
-```
-
-安全测试必须证明不存在：
-
-```text
-arbitrary CDP RPC
-arbitrary JS RPC
-filesystem RPC
-shell RPC
-Git RPC
-```
-
-再实现 Sidecar。
-
----
-
-## F5. SidecarChatControlClient
-
-contract test 要对同一个 ChatControl suite 验证：
-
-```text
-FakeChatControl
-SidecarChatControlClient
-```
-
-客户端只看到：
-
-```text
-http://127.0.0.1:18765
-```
-
-不能知道：
-
-```text
-Chrome
-CDP
-Windows
-future SSH
-```
-
-这样未来 Linux 通过 localhost forwarding 即可复用。
-
----
-
-## F6. Browser Harness compatibility
-
-Browser Harness 是 compatibility/reference provider，不是 primary path。
-
-当前 `env-win.md` 表明它不是当前 P0 环境依赖。
-
-要求：
-
-- existing BrowserHarness implementation 不阻塞主路径；
-- contract-level compatibility tests 保留；
-- 若真实 Browser Harness executable 当前不可用，标记其 real E2E 为 NOT_RUN；
-- 不因此停止 Sidecar + Direct CDP 工作；
-- 禁止为了 compatibility 把 Browser Harness dependency重新塞进 core。
-
----
-
-## F7. DSH Agent Adapter
-
-先写测试证明 PlannerBridge core 不直接依赖：
-
-```text
-Cordis tool registry
-DSH Session implementation
-DSH prompt implementation
-DSH shell event implementation
-```
-
-再将这些 wiring 收入 DshAgentAdapter。
-
-DeepSeek Executor 使用当前已经选择并验证 credential reachability 的：
-
-```text
-DeepSeek-V4.1-Flash
-provider = deepseek-official
-reasoning = provider default
-```
-
-不要继续复用旧 E2E 中硬编码的其他 provider/model。
-
----
-
-## F8. Workspace Data Plane preservation
-
-不要重写已经正确的 capability architecture。
-
-建立 regression tests：
-
-```text
-workspaceId alone cannot read
-missing lease fails
-stale generation fails
-provider replacement invalidates capability
-no Host fallback
-ReadLease root containment
-GitLease fixed argv only
-Git environment sanitized
-timeout bounded
-output bounded
-execution evidence workspace/task scoped
-secret redaction
-```
-
-如果生产代码已有这些 guarantees，应优先保留和适配，而不是重新设计。
-
----
-
-## F9. MCP Exposure abstraction
-
-将 TunnelSupervisor 收敛在 provider adapter 后面。
-
-测试：
-
-```text
-runtime key not exposed
-bridge bearer not exposed
-localhost bridge only
-workspace rebinding controlled
-restart cleanup
-cancellation cleanup
-provider failure does not corrupt protocol state
-```
-
-当前环境若尚无真实 Custom App / Tunnel credential：
-
-- unit/integration implementation继续；
-- final live Workspace Data Plane acceptance 标记 BLOCKED；
-- 不要停下询问用户，直到所有不依赖真实 credential 的工作全部完成。
-
----
-
-## F10. Durable state / recovery
-
-测试：
-
-```text
-DSH restart
-Sidecar restart
-Chrome reload
-conversation reopen
-cancel while waiting PLAN
-cancel while waiting REVIEW
-no duplicate EXECUTED
-no duplicate message after reconnect
-exact iteration retained
-exact HEAD retained
-workspace binding retained
-```
-
-Linux 不需要参与这些测试。
-
----
-
-## F11. Historical naming migration
-
-新代码不得出现新的 `C2C/c2c`。
-
-优先迁移 private/test/docs：
-
-```text
-c2c-e2e
-verify-live-c2c.mjs
-fullC2CAccepted
-C2C_E2E_RUN_ID
-C2C_E2E_PHASE
-C2C_DSH_CLI
-内部 class / type / test names
-```
-
-目标示例：
-
-```text
-planner-executor-e2e
-verify-planner-executor-e2e.mjs
-plannerExecutorAccepted
-PLANNER_EXECUTOR_RUN_ID
-PLANNER_EXECUTOR_PHASE
-DSH_CLI
-```
-
-legacy public environment aliases可以暂时 fallback，但新 canonical name 必须优先。
-
-不得改 externally-owned：
-
-```text
-CONTROL_PLANE_TUNNEL_ID
-CONTROL_PLANE_API_KEY
-```
-
-除非外部产品本身要求。
-
----
-
-# 十、最终 Windows Planner–Executor E2E
-
-旧的：
-
-```text
-verify-live-c2c.mjs
-```
-
-最终应该由新的：
-
-```text
-verify-planner-executor-e2e.mjs
-```
-
-取代。
-
-不能只是 rename；必须重新设计为 Windows primary architecture acceptance。
-
-创建真实 disposable Git fixture：
-
-```text
-temporary workspace
-temporary normal task branch
-temporary local bare remote
-```
-
-fixture 初始存在 deterministic bug / requirements。
-
-真实流程：
-
-```text
-User goal
- ↓
-ChatGPT Web PLAN
- ↓
-DSH / DeepSeek-V4.1-Flash implement
- ↓
-real tests
- ↓
-successful test prints random E2E_EVIDENCE=<nonce>
- ↓
-commit
- ↓
-push
- ↓
 exact HEAD
- ↓
-ChatGPT REVIEW
- ↓
-DONE or another PLAN
- ↓
-repeat
+原始 failure evidence
+RED test
+修改范围
+focused/full test evidence
 ```
 
-Reviewer 必须独立：
+要求只审该 bounded scope。
+
+## C. Producer change review
+
+仅当确实准备修改 deepseek-harness。
+
+要求证明 missing contract。
+
+## D. Final global review
+
+真实 E2E 完成后。
+
+让 ChatGPT 从头独立阅读：
 
 ```text
-read workspace
-read Git data
-read raw execution_output
+goal.md
+final source
+final tests
+current-delivery-plan
+acceptance-plan
+real E2E result
+producer result
+Git exact HEAD
 ```
 
-并在 REVIEW SUMMARY 中回显最新成功：
-
-```text
-E2E_EVIDENCE=<nonce>
-```
-
-Executor 不得通过：
-
-```text
-control message
-review arguments
-summary
-workspace file
-protocol envelope
-```
-
-把 nonce 告诉 Reviewer。
-
-这条是 Workspace Data Plane 的 falsification proof。
-
----
-
-# 十一、最终 E2E 必须验证 exact identity
-
-DONE 必须同时绑定：
-
-```text
-TASK_ID
-ITERATION
-WORKSPACE_ID
-HEAD
-```
-
-并证明：
-
-```text
-worktree clean
-normal branch
-not main/master
-upstream configured
-ahead == 0
-local HEAD == upstream HEAD
-reviewed HEAD == local HEAD
-```
-
-只 commit 没 push 不得进入最终 review。
-
----
-
-# 十二、最终 primary acceptance 禁止 Browser Harness
-
-真实 Windows primary E2E 必须是：
-
-```text
-Windows DSH
- ↓
-PlannerBridge Runtime
- ↓
-SidecarChatControlClient
- ↓
-127.0.0.1:18765
- ↓
-Chat Control Sidecar
- ↓
-ChatGptWebDriver
- ↓
-DirectCdpPrimitives
- ↓
-Chrome :9222
- ↓
-ChatGPT Web
-```
-
-启动验收时故意不给 Browser Harness executable/provider。
-
-如果主流程仍然工作，才算证明架构解耦成功。
-
----
-
-# 十三、实现阶段与 commit/review 节奏
-
-不要把所有改动塞进一个巨大 commit。
-
-建议阶段：
-
-### Stage A — Architecture freeze
-
-只做：
-
-```text
-target architecture
-protocol
-deployment
-acceptance matrix
-migration plan
-baseline
-```
-
-commit。
-
-然后 CodexWithChatGPT independent REVIEW。
-
-必须 DONE 才进入结构性实现。
-
----
-
-### Stage B — Core ports
-
-```text
-protocol/core interfaces
-ChatControl contract
-StateStore port
-ExecutionWorkspacePort
-McpExposureProvider
-AgentAdapter boundaries
-```
-
-tests → implementation → commit → ChatGPT REVIEW。
-
----
-
-### Stage C — ChatGPT Web semantics extraction
-
-```text
-fix relevant cancellation regression
-ChatGptWebDriver
-BrowserPrimitives
-BrowserHarness compatibility primitives
-```
-
-tests → implementation → commit → REVIEW。
-
----
-
-### Stage D — Sidecar transport
-
-```text
-Sidecar RPC contract
-Sidecar process
-SidecarChatControlClient
-fake-driver integration
-```
-
-tests → implementation → commit → REVIEW。
-
----
-
-### Stage E — Direct CDP
-
-```text
-DirectCdpPrimitives
-local fixture
-real Browser B smoke test
-ChatGptWebDriver + Direct CDP
-```
-
-tests → implementation → commit → REVIEW。
-
----
-
-### Stage F — DSH composition
-
-```text
-DshAgentAdapter
-DeepSeek-V4.1-Flash executor config
-new profile naming
-Windows runtime composition
-```
-
-tests → implementation → commit → REVIEW。
-
----
-
-### Stage G — Workspace Data Plane / MCP exposure / recovery
-
-```text
-capability regressions
-MCP exposure adapter
-restart/reconnect
-evidence integrity
-```
-
-tests → implementation → commit → REVIEW。
-
----
-
-### Stage H — Naming migration + packaging
-
-```text
-remove new historical terminology
-compatibility aliases
-scripts
-docs
-package exports
-profile/package verification
-```
-
-tests → implementation → commit → REVIEW。
-
----
-
-### Stage I — Real Windows E2E
-
-运行真实 Planner–Executor E2E。
-
-只有真正通过才允许：
-
-```text
-plannerExecutorAccepted = true
-```
-
-绝不允许：
-
-```text
-hardcoded true
-mock result
-same-process fake result
-skipped critical assertion
-```
-
-最终 exact HEAD 再交给 ChatGPT 独立 REVIEW。
-
----
-
-# 十四、每次调用 CodexWithChatGPT 的要求
-
-不要只是问：
-
-```text
-review this
-```
-
-每次都要求 ChatGPT：
-
-1. 独立读取当前仓库；
-2. 查看 exact HEAD；
-3. 查看本阶段 architecture contract；
-4. 查看本阶段 tests；
-5. 检查是否存在为了让测试通过而降低保证；
-6. 检查 dependency direction；
-7. 检查安全边界；
-8. 检查未来 cross-host portability；
-9. 给出：
-   - DONE
-   - 或具体 fix PLAN。
-
-如果返回 fix PLAN：
-
-```text
-直接执行
-→ tests
-→ commit
-→ 再 review
-```
-
-不要因为普通实现问题询问用户。
-
----
-
-# 十五、避免 Goal 模式“自己开发自己证明”
-
-以下均不算可靠验收：
-
-```text
-实现 sidecar 后只调用 sidecar 自己写的 mock
-实现 protocol 后只跑 happy path
-实现 Direct CDP 后只检查 websocket 能连
-实现 E2E 后把 acceptance=true 写死
-Executor 在 summary 中告诉 Reviewer 测试通过
-Executor 直接把 evidence nonce 传给 Reviewer
-same-process fake 被描述成 real E2E
-Browser Harness 路径被描述成 Direct CDP path
-```
-
-必须建立独立 falsification evidence。
-
----
-
-# 十六、禁止的伪完成
-
-以下任意一项出现都不能宣布完成：
-
-- 只是把 `BrowserControl` rename 成 `ChatControl`；
-- Sidecar 内部仍调用 Browser Harness；
-- Linux/远程机器需要直接访问 Windows :9222；
-- Sidecar暴露 unrestricted CDP；
-- Sidecar拥有 repo/filesystem/shell；
-- workspaceId 被当作权限；
-- GitLease 被 generic shell 替代；
-- Host filesystem fallback；
-- Reviewer相信 Executor prose；
-- primary E2E 仍需要 Browser Harness；
-- historical `C2C` 继续出现在新模块/测试/API；
-- `full acceptance` 由 hardcoded boolean 决定；
-- skipped tests 被算作 VERIFIED；
-- future Linux 模式没有真实运行却标成 pass。
-
----
-
-# 十七、当前环境事实
-
-以 `docs/env-win.md` 为准，不重复向用户询问已经记录的信息。
-
-特别注意：
-
-```text
-Windows build environment: ready
-CodexWithChatGPT PLAN/REVIEW: VERIFIED
-Plugin build/typecheck: VERIFIED
-Current unit baseline: 403 pass / 3 skip / 1 fail
-Dedicated product Chrome CDP :9222: VERIFIED
-DeepSeek authentication: VERIFIED
-DeepSeek-V4.1-Flash: selected Executor
-Execution World source/contracts: present
-Chat Control Sidecar: not implemented
-Direct CDP implementation: not implemented
-Real Windows Planner–Executor E2E: not run
-Linux: FUTURE
-```
-
-Browser Harness 不属于 P0 prerequisite。
-
----
-
-# 十八、缺失外部前置条件时的行为
-
-如果最终 real App/Tunnel/login 等前置条件缺失：
-
-不要提前停下来。
-
-先完成所有：
-
-```text
-architecture
-unit tests
-contract tests
-integration tests
-Sidecar
-Direct CDP
-DSH adapter
-DeepSeek integration
-Workspace Data Plane
-recovery
-packaging
-fake-stack E2E
-```
-
-只有真正走到必须使用该 external prerequisite 的 acceptance gate 时：
-
-```text
-标记 BLOCKED
-记录精确原因
-继续所有其他独立工作
-```
-
-只有以下情况可以要求用户介入：
-
-```text
-login
-2FA
-CAPTCHA
-missing real credential
-irreversible external operation
-必须由用户决定且架构无法自行推导的产品选择
-```
-
-普通设计和实现选择不要停下来询问用户。
-
----
-
-# 十九、deepseek-harness 修改原则
-
-优先把改动留在 DSHWithChatGPT。
-
-只有当现有 Execution World / DSH public API 明确不足时才能修改：
-
-```text
-C:\Users\jingc\workspace\deepseek-harness
-```
-
-修改前：
-
-1. 明确缺失 public contract；
-2. 写 failing consumer test；
-3. 请求 ChatGPT architecture review；
-4. 做最小 producer API change；
-5. 不复制 execution-world source 到 DSHWithChatGPT。
-
----
-
-# 二十、最终完成标准
-
-最终报告必须分别列：
+要求逐项审：
 
 ```text
 ARCHITECTURE
@@ -1484,65 +1037,151 @@ WINDOWS_E2E
 FUTURE_LINUX
 ```
 
-每项只能使用：
+---
+
+# 22. Final global review 之前必须更新事实文档
+
+只根据实际 evidence 更新：
 
 ```text
-VERIFIED
-FAILED
-NOT_RUN
-PARTIAL
-BLOCKED
-FUTURE
-NOT_APPLICABLE
+docs/current-delivery-plan.md
+docs/acceptance-plan.md
 ```
 
-最终必须给出：
+不要修改 `goal.md` 来降低要求。
 
-```text
-final HEAD
-commits
-tests run
-tests passed/failed/skipped
-real E2E result
-remaining blockers
-legacy compatibility retained
-future work
-```
-
-Linux 必须保持：
-
-```text
-FUTURE
-```
-
-除非真的在 Linux 环境运行过。
+不要用“unit tests 很多”代替 real product proof。
 
 ---
 
-# 二十一、现在开始执行
+# 23. 最终成功条件
 
-执行顺序严格如下：
+当前 Windows delivery 只有同时满足以下事实才可以宣告完成：
 
-1. 读取 `docs/env-win.md` 和当前源码；
-2. 建立 baseline；
-3. 分析现有实现与目标架构差距；
-4. 先写五份目标架构/协议/验收/迁移文档；
-5. 使用 CodexWithChatGPT 进行第一次 architecture PLAN/REVIEW；
-6. 根据 review 修订直到 DONE；
-7. 建立完整 feature → falsification test → implementation mapping；
-8. 从 Stage B 开始逐阶段实施；
-9. 每阶段先测试后实现；
-10. 每阶段独立 commit；
-11. 每阶段通过 CodexWithChatGPT 做 exact-HEAD review；
-12. fix PLAN 自动执行并重新 review；
-13. 最终运行 Windows primary Planner–Executor E2E；
-14. 最终 exact HEAD 再做一次全局 architecture/security/acceptance review；
-15. 输出完整完成矩阵。
+```text
+[VERIFIED] current exact HEAD full regression
+[VERIFIED] clean package/import verification
+[VERIFIED] installed real DSH profile
+[VERIFIED] native Sidecar process
+[VERIFIED] Direct CDP primary path
+[VERIFIED] Browser Harness absent from primary path
+[VERIFIED] DeepSeek-V4.1-Flash real generation
+[VERIFIED] local doctor
+[VERIFIED] real App workspace proof
+[VERIFIED] real ChatGPT PLAN
+[VERIFIED] real Executor implementation
+[VERIFIED] real test
+[VERIFIED] stdout-only random nonce
+[VERIFIED] real commit and push
+[VERIFIED] independent Reviewer source/Git/output reads
+[VERIFIED] correct nonce echoed by Reviewer
+[VERIFIED] real fix PLAN
+[VERIFIED] actual DSH restart
+[VERIFIED] reconnect without duplicate send
+[VERIFIED] second execution
+[VERIFIED] exact pushed HEAD
+[VERIFIED] same-round DONE
+[VERIFIED] acceptance oracle plannerExecutorAccepted=true
+[VERIFIED] final global exact-HEAD ChatGPT review DONE
+```
 
-不要为了快速交付跳过 architecture freeze、测试先行或独立 review。
+如果 producer Git gate仍是 FAILED：
 
-目标不是“让现有测试变绿”。
+必须在 completion matrix 明确保留 FAILED，继续处理，不能隐藏。
+
+Linux：
+
+```text
+FUTURE
+```
+
+不阻塞当前 Windows completion。
+
+---
+
+# 24. 如果 real run 失败
+
+失败不是理由立即增加架构。
+
+每次只做：
+
+```text
+1. freeze raw evidence
+2. identify first violated contract
+3. reproduce minimally
+4. add adversarial RED
+5. minimal fix
+6. focused GREEN
+7. full regression
+8. fresh package
+9. independent bounded review
+10. retry real run
+```
+
+不要在同一轮顺手“清理”附近模块。
+
+---
+
+# 25. 禁止的伪完成
+
+以下任意情况都不能宣布 Windows 目标完成：
+
+```text
+fake-stack PASS
+synthetic Sidecar PASS
+Browser Harness E2E PASS
+only App proof PASS
+only local doctor PASS
+only PLAN PASS
+Executor prose says tests passed
+mock Reviewer returns DONE
+old successful nonce reused
+old readiness reused
+hardcoded plannerExecutorAccepted=true
+same-process restart fixture代替真实 DSH restart
+Sidecar fixture代替native Sidecar
+direct CDP websocket connect代替ChatGPT semantic success
+focused tests代替full regression
+scoped ChatGPT review代替final global review
+```
+
+---
+
+# 26. 工作方式
+
+持续工作，不要频繁请求用户。
+
+每轮内部维护一个非常简短的 delivery ledger：
+
+```text
+CURRENT_HEAD
+CURRENT_BLOCKER
+RED_EVIDENCE
+FIX
+FOCUSED_TEST
+FULL_TEST
+PACKAGE
+REAL_RUN
+REVIEW
+NEXT
+```
+
+一个 blocker关闭后立即进入下一个真实 delivery node。
+
+不要无限增加 robustness work。
+
+---
+
+# 27. 当前起点（2026-10-03 刷新）
+
+执行本文开头的当前关键路径。iteration120已冻结并获exact-HEAD scoped接受；real121已停止并保留原始失败。当前执行iteration122冷页面交接RED/GREEN及最小部署修复，之后独立source review、候选冻结、fresh原canonical全闭环。具体结果以开头检查点、current-delivery-plan及原始输出为准，不再执行旧iteration120/121指令。
+
+继续之前核对实际HEAD与dirty状态；保留已完成的独立分析、原始证据和用户修改。goal.md 不自动 stage/commit。不要重开已接受的传输基础；页面故障分类修复不授权重发、自动换页、延长deadline或启动普通验收重试。仅文档和临时观察控制更改无需重复源码冻结验证。
+
+每个有证据的blocker关闭后立即进入下一交付节点。只有源码候选发生变化才执行相应的冻结验证；所有真实 SEND_UNCERTAIN历史task保留，不能复用为最终成功run。真实闭环失败时按统一分类与首次失败停止规则处理，再依据新证据推进。
+
+目标不是继续“完善 PlannerBridge 架构”。
 
 目标是：
 
-**把当前历史实现演进成一套边界清晰、证据驱动、Windows 上真实可运行，并能自然扩展到未来 cross-host deployment 的 PlannerBridge。**
+**让已经基本成形的 PlannerBridge 在 Windows 上真正完成一次不可伪造、可恢复、证据闭环的 ChatGPT Planner/Reviewer + DSH/DeepSeek Executor 产品工作流。**

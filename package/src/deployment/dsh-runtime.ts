@@ -715,6 +715,7 @@ export async function apply(ctx: Context, config: Config): Promise<void> {
               credentialFile: config.sidecarCredentialFile ?? joinPath(privateStateBase(), 'PlannerBridge', 'credentials', 'authentication.secret'),
               excludedRoots: [workspaceRoot.displayRoot], startupTimeoutMs: config.tunnelStartupTimeoutMs,
               health: () => makeBrowser(exec?.agent, workspaceRoot).health(),
+              recover: signal => makeBrowser(exec?.agent, workspaceRoot).recover(signal),
               commit: owned => { sidecarSupervisors.set(key, owned) },
             }, operation, resume, signal),
           } : {}),
@@ -784,6 +785,7 @@ export async function recoverOwnedAppProof(options: {
   excludedRoots: string[]
   startupTimeoutMs: number
   health(): Promise<{ ok: boolean }>
+  recover(signal?: AbortSignal): Promise<void>
   commit(owned: { supervisor: SidecarSupervisor; targetId: string; cdpEndpoint: string }): void
 }, operation: AppProofWaitRecovery, resume: () => Promise<string | undefined>, signal?: AbortSignal): Promise<string | undefined> {
   throwIfCancelled(signal)
@@ -806,6 +808,11 @@ export async function recoverOwnedAppProof(options: {
     await supervisor.start(signal)
     // Refresh the existing client's generation; never send on this transaction.
     if (!(await options.health()).ok) throw new SidecarRpcError('SIDECAR_UNAVAILABLE')
+    throwIfCancelled(signal)
+    // A reachable URL is not a materialized conversation. Establish existing
+    // bounded semantic readiness before strict reconciliation resumes this wait.
+    // This is not send authority and remains under the original proof signal.
+    await options.recover(signal)
     throwIfCancelled(signal)
     const proofFailure = await resume()
     throwIfCancelled(signal)

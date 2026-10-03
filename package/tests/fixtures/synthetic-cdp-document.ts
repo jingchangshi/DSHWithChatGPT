@@ -25,14 +25,14 @@ export async function syntheticCdpDocument(endpoint: string, targetId: string) {
   })
   await session.command('Fetch.enable', { patterns: [{ urlPattern: 'https://chatgpt.com/*', requestStage: 'Request' }] })
   return {
-    serve(options: { apps?: string[]; draft?: string; logout?: boolean; foreignOnInput?: boolean; replaceOnInput?: boolean; baseline?: boolean; paragraphComposer?: boolean; alterParagraph?: boolean; hiddenParagraph?: boolean; persistedControl?: string; persistedApp?: string; persistedReply?: string; duplicatePersistedUser?: boolean; redirectOnLoad?: string; returnFromRedirect?: boolean; persistedMountDelayMs?: number; pendingAppRendering?: boolean; pendingAppLabel?: string; keepPendingAppRendering?: boolean } = {}) {
+    serve(options: { apps?: string[]; draft?: string; logout?: boolean; foreignOnInput?: boolean; replaceOnInput?: boolean; baseline?: boolean; paragraphComposer?: boolean; alterParagraph?: boolean; hiddenParagraph?: boolean; persistedControl?: string; persistedApp?: string; persistedReply?: string; duplicatePersistedUser?: boolean; redirectOnLoad?: string; returnFromRedirect?: boolean; persistedMountDelayMs?: number; pendingAppRendering?: boolean; pendingAppLabel?: string; keepPendingAppRendering?: boolean; coldConversation?: boolean } = {}) {
       html = `<!doctype html><meta charset="utf-8"><title>Synthetic semantic fixture</title>
 <style>[role=textbox]{width:450px;min-height:80px;border:1px solid black} button{min-width:180px;min-height:40px}</style>
 ${options.logout ? '<button>Log in</button>' : '<div role="textbox" contenteditable="true"></div>'}
 <div role="listbox"></div>${options.baseline ? '<article data-message-author-role="assistant">old reply</article>' : ''}
 <script>
 const options = ${JSON.stringify(options)};
-window.enterCount = 0; window.sent = []; window.keys = [];
+window.enterCount = 0; window.sent = []; window.keys = []; window.materialized = false;
 const composer = document.querySelector('[role=textbox]');
 if (composer) {
   composer.textContent = options.draft || (location.pathname === '/c/replacement' ? 'replacement draft' : '');
@@ -88,15 +88,17 @@ if (options.pendingAppRendering) {
   pending.textContent = (options.pendingAppLabel || '\\u200bDSH with ChatGPT') + ' ' + options.persistedControl; document.body.append(pending);
   if (options.duplicatePersistedUser) { const duplicate = pending.cloneNode(true); duplicate.id = 'duplicate-pending-user'; document.body.append(duplicate); }
 }
-const mountPersisted = () => { if (options.keepPendingAppRendering) return; document.querySelector('#pending-user')?.remove(); if (options.persistedControl !== undefined) {
+if (options.coldConversation) { const shell = document.createElement('article'); shell.id='cold-shell'; shell.dataset.messageAuthorRole='pending'; shell.textContent='hydrating'; document.body.append(shell); }
+const mountPersisted = () => { if (options.keepPendingAppRendering) return; document.querySelector('#cold-shell')?.remove(); document.querySelector('#pending-user')?.remove(); if (options.persistedControl !== undefined) {
   const user = document.createElement('article'); user.setAttribute('data-message-author-role', 'user');
   const app = document.createElement('a'); app.href = '/plugins/owned-app'; app.textContent = options.persistedApp || 'DSH with ChatGPT';
   user.append(app, document.createTextNode(' ' + options.persistedControl)); document.body.append(user);
   if (options.duplicatePersistedUser) document.body.append(user.cloneNode(true));
 }
-if (options.persistedReply) window.addReply(options.persistedReply);
+if (options.persistedReply) window.addReply(options.persistedReply); window.materialized = true;
 };
-if (options.persistedMountDelayMs) setTimeout(mountPersisted, options.persistedMountDelayMs); else mountPersisted();
+window.materialize = mountPersisted;
+if (!options.coldConversation) { if (options.persistedMountDelayMs) setTimeout(mountPersisted, options.persistedMountDelayMs); else mountPersisted(); }
 if (options.redirectOnLoad) { const original = location.href; history.replaceState(null, '', options.redirectOnLoad); if (options.returnFromRedirect) history.replaceState(null, '', original); }
 </script>`
       if (failure) throw failure

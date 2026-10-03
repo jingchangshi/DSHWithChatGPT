@@ -1,58 +1,93 @@
 # Current Windows delivery plan
 
-This plan refreshes execution priorities against `goal.md`; it does not replace
-or reduce that specification. Independent iteration-59 gap analysis at `cf78fb7`
-read the goal, environment, target architecture, protocol, acceptance plan and
-latest real execution evidence. Previously reviewed source boundaries remain
-accepted within their stated scope. Full product completion is still unproven.
+## Latest validated delivery / user review hold — iteration122
 
-Dedicated acceptance draft policy: on 2026-10-02 the user explicitly authorized
-Codex to clear unsent content and App tags in the dedicated acceptance window
-without another confirmation. This supersedes earlier delivery instructions
-asking the user to clear that window manually. Operator cleanup must verify the
-explicit dedicated target, visible page and mutation fence and must never send
-the draft. This authorization is for the dedicated acceptance window.
+The cold-handoff task is locally complete and independently source-reviewed.
+Frozen full:90files1239PASS/3original skips909.66s;197hashes unchanged.
+Fresh package3ZkHDf PASS; installed profile18xaSF two native composition attempts
+PASS (real Browser/App NOT_RUN); ten built/packed modules byte-identical.
+Production change is seven lines in dsh-runtime plus strict native/controlled
+coverage. No new real run or overall acceptance claim.
 
-| Required category | Current status | Evidence or remaining proof |
-|---|---|---|
-| ARCHITECTURE | PARTIAL | Scoped ports/dependency/topology reviews exist; final global exact-HEAD audit remains |
-| SOURCE | PARTIAL | Paragraph repair, observation guard, BR extraction and proof-first recovery implemented; recovery source reviewed at d81193e; global audit remains |
-| PROTOCOL | PARTIAL | Canonical v2 identity and same-round oracle tested; real PLAN through DONE absent |
-| CHAT_CONTROL | PARTIAL | Fresh canonicalVCYpBf passed real App proof and INIT bound/wait accepted, but generated PLAN bare section headings were rejected |
-| DIRECT_CDP | PARTIAL | Exact08cdc41 second reconciliation scoped accepted; VCYPBf548commands noerror/timeout/crash and INIT baseline bound |
-| SIDECAR | PARTIAL | Auth/replay/uncertainty contracts covered; real recovery loop remains |
-| DSH_ADAPTER | PARTIAL | Installed native DSH readiness/identity verified; full real executor workflow absent |
-| WORKSPACE_DATA_PLANE | PARTIAL | Installed authority checks and real App workspace proof passed; independent raw-output nonce review absent |
-| SECURITY | PARTIAL | Containment/credential boundaries verified within scope; producer native Git deadline gate still FAILED |
-| RECOVERY | PARTIAL | Actual failed INIT journal/task/claim recovered without resend and confirmed across native restart; real fix/restart/DONE loop remains |
-| PACKAGING | PARTIAL | Section guidance candidate matched o03d6u package/native Sidecar andSMbmNX installed composition passed; real recovery remains |
-| TESTS | PARTIAL | Section guidance candidate:83 files/1132 passed/3 original skips,616.61s;144 focused PASS; producer gate remains FAILED |
-| WINDOWS_E2E | FAILED | Fresh r8kDd5 passed local/App readiness, then INIT uncertain; no PLAN, nonce or DONE |
-| FUTURE_LINUX | FUTURE | No Linux host execution; it does not block Windows delivery |
+All code, existing user-owned goal edits, error lessons and original verification
+artifacts are included for manual GitHub review. See review-checkpoint-2026-10-03.md
+and evidence/iteration122/README.md. User explicitly requests implementation
+pause after this delivery/push. No real123, lock experiment or producer change
+until explicit resumption. Post-push scoped supplement checks this delivered
+commit; the original C2C conversation records its live verdict. Overall goal is
+incomplete, with the next plan preserved rather than automatically executed.
 
-Implementation order:
 
-1. Complete iteration98 independently planned production section-syntax guidance
-   repair: explicit NAME: delimiter, blank separator and unchanged byte limits;
-   strict parser remains intact. Validate focused/full/package/profile and exact
-   pushed HEAD review. Second reconciliation fix08cdc41 is scoped accepted;
-   scheduling A/B is closed and default product launch is retained.
-2. Use the repaired candidate's matching verified package/profile and native Sidecar with its
-   independent product journal. Preserve old task/journal/failure evidence; the
-   new run creates fresh home/state/workspace/task/remote. Do not reopen accepted
-   multiline extraction or proof-first recovery foundations without a counterexample.
-3. Require a no-send semantic preflight before launching the canonical runner.
-   Browser Harness remains absent. Refresh package/baseline only if source changes
-   require it; the current source baseline is recorded below.
-4. Run one controlled real Windows DSH/DeepSeek/App workflow after local readiness
-   and exact input proof. Require real fix PLAN, restart/reconnect, tests, commit,
-   push and same-round exact task/workspace/iteration/HEAD DONE. Generate nonce
-   only in successful test stdout; Reviewer reads workspace/Git/raw output itself.
-5. Resolve or retain accurately the separate producer native Git support timeout
-   without increasing its deadline or changing producer APIs without the required
-   missing-contract evidence and independent architecture review.
-6. Final global exact-HEAD architecture/security/acceptance audit and the complete
-   matrix required by `goal.md`. No scoped review can substitute for this gate.
+User review hold: finish iteration122 freeze/verification, publish all changes
+(including explicitly authorized goal.md), then pause overall implementation.
+No real123 run, lock experiment or producer change before explicit resumption.
+Review entry: review-checkpoint-2026-10-03.md.
+
+## Authoritative checkpoint — 2026-10-03 / independent iteration121
+
+This section supersedes historical execution instructions below. goal.md remains
+the complete specification. Overall delivery is active/incomplete.
+
+- Pre-candidate frozen base HEAD: 163ea98413343e2c7f1372d08820281e8d40e86a.
+  Producer HEAD: 0afd708c288b079096affbfeff4626dcf9a19bf1.
+- Transport, page classification and owned App-proof recovery: DONE_SCOPED.
+- Frozen120: 90files1231PASS/3original skips773.15s;197hashes unchanged.
+  Typecheck/build, qhd1m2 package, two CrfKSV profile attempts and ten module
+  associations PASS. Full process terminal; no repeated full regression.
+- Real121: LocalReady PASS; one bound accepted send, original uncertain wait,
+  one trusted replacement, pre-resume SEND_UNCERTAIN/rollback; sub-branch unknown.
+  WTS15/15 usable/unlocked/Chrome; zero independent pre-failure page commands.
+  Postprobe target removed/no page command; all terminal/no listener;
+  journal18/source browser retained. No INIT/PLAN/resend; exit1/all-false oracle.
+- Independent121 RECONCILIATION_FIX_PLAN identifies missing semantic-ready
+  handoff between fresh replacement health and strict reconciliation. Native120
+  pre-materialized its donor. Source/coverage gap confirmed; real121 causality
+  remains unproven. Do not invent a message/proof mismatch.
+
+Current critical path:
+
+1. Cold-replacement native deterministic RED without preloading donor.
+2. Stable ambiguity/foreign user/wrong App label-digest/wrong final proof negatives;
+   handoff failure must not resume/commit/retire source.
+3. If RED reproduces, existing recover()/ensureReady after fresh health before
+   same-wait resume, unchanged budgets. Cold GREEN must prove sufficiency;
+   otherwise request bounded revised independent plan. Reconciliation stays strict.
+4. One send/Enter/wait/replacement, zero resend/cancel, exact binding and
+   proof-gated commit/rollback; metadata-only branch diagnostics.
+5. Focused/native/adversarial/typecheck/build → independent source review →
+   one frozen full/package/profile/association → push → exact-HEAD review.
+6. One fresh original canonical run; after App PASS continue same run through
+   PLAN/execution/stdout nonce/push/REVIEW/mandatory fix/actual restart/reconnect/
+   second execution/review/DONE/all-true oracle. Stop first unmodeled failure;
+   no ordinary retry or speculative canonical expansion.
+7. WTS lock/unlock qualification, producer Windows Git gate, final global audit.
+   Locked unattended capability remains unproven; unlocked closure comes first.
+
+Dedicated draft policy: user authorized clearing unsent content/App tags only in
+explicit dedicated acceptance window, without sending draft; verify target,
+visible page and mutation fence. goal.md must not be automatically committed.
+
+## Iteration122 candidate checkpoint
+
+Cold native RED reproduced SEND_UNCERTAIN on the unchanged recovery path:
+one bound accepted send, same wait ID, one replacement/rollback, no commit/retire.
+Fix adds existing recover(signal) after fresh health before same-wait resume.
+Initial cold/controlled15PASS; rebuilt final focused6files73PASS232.72s,
+including nine native recovery scenarios; doctor compatibility4files55PASS32.69s;
+typecheck/buildPASS. Stable ambiguity fails at readiness with BROWSER_STALE and
+zero second wait; foreign/App/digest negatives fail SEND_UNCERTAIN; wrong final
+proof fails APP_PROOF_CHALLENGE_MISMATCH with rollback. No strict proof changes.
+Cold shell fixture loads only AFTER trusted handoff during actual old supervisor
+close; exact history waits until after fresh health. Synthetic composition only,
+not real ChatGPT cold-load proof. Original fixture failures retained/published.
+User-requested error review and recurrence checks are maintained at the top of
+browser-platform-investigation.md. Independent source review next; full/package/
+profile/push/exact-HEAD/real acceptance not yet run for this candidate.
+
+
+Independent122 SOURCE_REVIEW_PASS_PENDING_FULL received: actual production diff, causal RED raw638, focused raw641 and regression outputs independently reviewed; no concrete source fix remains. Cold synthetic handoff topology and native negative coverage accepted with stated limits. No preemptive telemetry patch: existing recover method/phase separates pre-handoff, semantic-ready failure, pre-resume reconciliation failure and resumed wait. Exact real121 subbranch remains unknown. Frozen full122 now running on unchanged candidate; no production/test edits during it. Next: full terminal/hash equality → fresh package/profile/association → push/exact-HEAD supplement → one fresh original canonical closure run.
+
+## Historical evidence (not current execution instructions)
 
 Iteration-58 product evidence: ordinary dedicated Chrome restart restored a
 visible no-send App probe without additional launch flags. Restarting the owned
@@ -1065,3 +1100,32 @@ PASS: five schema subset, authenticated hardened Windows Git, containment, alias
 restart/plugin identity. Profile is composition fixture; real Browser/App NOT_RUN.
 All197 frozen source/test hashes retained; commit/push and exact-HEAD scoped
 supplement next. User-owned docs/goal.md excluded from automatic commit.
+
+Independent120 exact pushed163ea98413343e2c7f1372d08820281e8d40e86a
+DONE_SCOPED accepted App-proof owned recovery; no concrete fix. Package output
+tail was truncated at connector, reviewer explicitly qualified that and checked
+successful verifier exit/source assertions. Full/package/profile/association/Git
+read. Overall closure/producer/global audit remain open.
+
+Real121 original canonical runner on exact163ea984/qhd1m2, fresh Chrome35176,
+explicit source F10B580509E6F4D636AB5995E5BB86DA/private journal30/root fExlcf,
+run29f0e20f-5297-4c96-b5e7-d7833a9bf201: localReady PASS at1791022092823.
+App-proof at1791022115217 returned SEND_UNCERTAIN. One accepted send
+3d508e24-bfcd-4d6e-a0e1-94552819652a durably bound to conversation
+6ac0d40f-746c-83e8-9a40-cacf94fdccf0; original wait
+5df52155-02fe-447d-9dff-33bbd21feb95 admitted1791022103335→uncertain1791022109867.
+Owned target pointer changed to trusted replacement A9F70477ABF83C0A72F8F319C4EB1BFE,
+then source recovery failed closed. Existing code triggers this transaction only
+on initial bound BROWSER_STALE; initial error is inferred from that gate/pointer,
+not a separately persisted original error result. Exact reconciliation branch
+causing SEND_UNCERTAIN is not yet identified; do not call it a proof mismatch.
+15/15 WTS usable/unlocked/Chrome; ZERO independent page connections/commands
+before failure. Health loss during owned restart is not initial root-cause proof.
+First final-product failure stopped exact Executor34248 at1791022115407. Post-
+failure probe used recorded PROVISIONAL replacement pointer; root reports target
+already absent (rollback), so no page command was issued. That probe proves no
+new renderer timeout and must not be compared to119 same-source page timeout.
+Executor/observers18896/23728 terminal, no18765 listener; journal18 retains accepted
+bound send and uncertain wait. No INIT/PLAN/second send, exit1/allfalse oracle.
+Original source browser retained. Freeze originals/publish and independently
+analyze first violated reconciliation contract before any next product exposure.

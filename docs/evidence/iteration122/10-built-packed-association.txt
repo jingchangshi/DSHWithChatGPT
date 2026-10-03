@@ -1,0 +1,66 @@
+{
+  "package": "dsh-chatgpt-package-3ZkHDf",
+  "allMatch": true,
+  "modules": [
+    {
+      "module": "readiness/doctor.js",
+      "buildHash": "fc091a0e07814fd6d04681162e301e5f645ba2dfe1e8c55c25ec992ac7ac9f67",
+      "packedHash": "fc091a0e07814fd6d04681162e301e5f645ba2dfe1e8c55c25ec992ac7ac9f67",
+      "match": true
+    },
+    {
+      "module": "deployment/dsh-runtime.js",
+      "buildHash": "826cbbf6d107667a6782242fcf81e0d8c034b6de4e7be720c3244543fc9e78b0",
+      "packedHash": "826cbbf6d107667a6782242fcf81e0d8c034b6de4e7be720c3244543fc9e78b0",
+      "match": true
+    },
+    {
+      "module": "browser/adapter.js",
+      "buildHash": "af1cb8350b95384051b3ab1fd98d0cfb89ecad5547eb409b3801045ce6291a50",
+      "packedHash": "af1cb8350b95384051b3ab1fd98d0cfb89ecad5547eb409b3801045ce6291a50",
+      "match": true
+    },
+    {
+      "module": "browser/errors.js",
+      "buildHash": "26b5390e7ba62b2b600a878965659f75542007bd47db7214bf1bd803c7ba3e0d",
+      "packedHash": "26b5390e7ba62b2b600a878965659f75542007bd47db7214bf1bd803c7ba3e0d",
+      "match": true
+    },
+    {
+      "module": "browser/direct-cdp.js",
+      "buildHash": "cad46acb2e01f5761dc79ce0375486ee41159015b68be4f65b3ba0f6b0b43d7d",
+      "packedHash": "cad46acb2e01f5761dc79ce0375486ee41159015b68be4f65b3ba0f6b0b43d7d",
+      "match": true
+    },
+    {
+      "module": "browser/chatgpt-web-driver.js",
+      "buildHash": "0cdd443734e19cbedaf89299bf484de75c10871704b80a23166f4c5df7dbf2e7",
+      "packedHash": "0cdd443734e19cbedaf89299bf484de75c10871704b80a23166f4c5df7dbf2e7",
+      "match": true
+    },
+    {
+      "module": "sidecar/client.js",
+      "buildHash": "896284144aee6a1cb4ad241a8293f0351cf22df52d49fc833d37794eb1a1c3d5",
+      "packedHash": "896284144aee6a1cb4ad241a8293f0351cf22df52d49fc833d37794eb1a1c3d5",
+      "match": true
+    },
+    {
+      "module": "sidecar/rpc-http.js",
+      "buildHash": "a4eefd27ee1cbedb6d4ecaed2a4498e448baf72d8c57c27baded305549d7d3fd",
+      "packedHash": "a4eefd27ee1cbedb6d4ecaed2a4498e448baf72d8c57c27baded305549d7d3fd",
+      "match": true
+    },
+    {
+      "module": "sidecar/server.js",
+      "buildHash": "4b1399366ec96bc3507bbb01d563a1c6afb94be27a583963c8f8a834e6855f31",
+      "packedHash": "4b1399366ec96bc3507bbb01d563a1c6afb94be27a583963c8f8a834e6855f31",
+      "match": true
+    },
+    {
+      "module": "deployment/sidecar-target-recovery.js",
+      "buildHash": "9277f691d578e20e285cd582d0a0e0756a7bf5b21495e764a3b451aae8b1e8ba",
+      "packedHash": "9277f691d578e20e285cd582d0a0e0756a7bf5b21495e764a3b451aae8b1e8ba",
+      "match": true
+    }
+  ]
+}

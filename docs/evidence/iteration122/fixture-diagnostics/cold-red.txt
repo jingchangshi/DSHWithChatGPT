@@ -1,0 +1,32 @@
+[WARN] The "pnpm" field in package.json is no longer read by pnpm. The following keys were ignored: "pnpm.overrides". See https://pnpm.io/settings for the new home of each setting.
+
+ RUN  v5.0.1 C:/Users/jingc/workspace/DSHWithChatGPT/package
+
+stdout | tests/doctor-owned-recovery-native.spec.ts > recovers the same native App wait without another send (cold-valid)
+Native App outcome: {"scenario":"cold-valid","verified":false,"code":"BROWSER_TARGET_CHANGED"}
+
+ ❯ tests/doctor-owned-recovery-native.spec.ts (9 tests | 1 failed | 8 skipped) 15532ms
+   × recovers the same native App wait without another send (cold-valid) 15530ms
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  tests/doctor-owned-recovery-native.spec.ts > recovers the same native App wait without another send (cold-valid)
+AssertionError: expected false to be true // Object.is equality
+
+- Expected
++ Received
+
+- true
++ false
+
+ ❯ tests/doctor-owned-recovery-native.spec.ts:186:41
+
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯
+
+
+ Test Files  1 failed (1)
+      Tests  1 failed | 8 skipped (9)
+   Start at  18:26:19
+   Duration  17.13s (tests 92%, transform 5%, import 3%)
+

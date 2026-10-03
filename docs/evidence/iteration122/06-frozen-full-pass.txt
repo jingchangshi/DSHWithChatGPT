@@ -1,0 +1,14 @@
+[WARN] The "pnpm" field in package.json is no longer read by pnpm. The following keys were ignored: "pnpm.overrides". See https://pnpm.io/settings for the new home of each setting.
+$ vitest run
+
+ RUN  v5.0.1 C:/Users/jingc/workspace/DSHWithChatGPT/package
+
+
+ Test Files  90 passed (90)
+      Tests  1239 passed | 3 skipped (1242)
+   Start at  18:55:32
+   Duration  909.66s (tests 98%, import 2%)
+
+    Isolate  90 workers spawned · ~173ms startup each (spawn + environment, per file)
+             at least ~15.44s faster with isolate: false — reuses workers across files instead of one per file
+
