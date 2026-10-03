@@ -55,3 +55,5 @@
 - Exact HEAD equals upstream after push.
 - Frozen full at HEAD `0eec461d415e1c27cf9bf37d06897c09a2c6810e`: passed, 93 files / 1285 passed / 3 original skips; output `C:/Users/jingc/AppData/Local/Temp/dsh-frozen-full-0eec461.txt`.
 - Real exposure and full product-loop acceptance: NOT RUN.
+- Independent pre-exposure review at HEAD `7e47c3fd4206f4ac8374bc7b32127bc65db5eaa0`: pre-exposure gates PASS; one fresh controlled Windows exposure AUTHORIZED.
+- Exposure is currently BLOCKED by missing local `DSH_CLI`, `DEEPSEEK_API_KEY`, `CONTROL_PLANE_API_KEY`, `CONTROL_PLANE_TUNNEL_ID`, and `MCP_EXPOSURE_CLIENT` environment configuration. No secrets are recorded here.
