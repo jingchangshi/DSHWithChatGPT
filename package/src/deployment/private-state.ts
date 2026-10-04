@@ -89,7 +89,7 @@ export async function protectPrivateStateDirectory(directory: string, excludedRo
     catch (error) { if ((error as NodeJS.ErrnoException).code !== 'ENOENT') throw error }
     if (files.length) return await verifyPrivateStateDirectory(directory)
     await mkdir(dirname(directory), { recursive: true, mode: 0o700 })
-    if (process.platform === 'win32') await windows(directory, 'protect')
+    if (process.platform === 'win32') return await windows(directory, 'protect')
     else { await mkdir(directory, { mode: 0o700 }).catch(error => { if (error.code !== 'EEXIST') throw error }); await chmod(directory, 0o700) }
     return await verifyPrivateStateDirectory(directory)
   } catch { unavailable() }

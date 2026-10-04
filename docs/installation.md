@@ -86,6 +86,10 @@ links and unprotected permissions are rejected; the reader never repairs an
 existing credential's ACL. Keep credentials out of argv, tool arguments, status,
 source control and chat. The model key is another private Executor input.
 
+Windows journal protection verifies the resulting owner and DACL in the same
+PowerShell invocation. Sidecar startup independently verifies the directory
+before opening its journal and again after acquiring journal ownership.
+
 Canonical product connection entries are `scripts/prepare-plannerbridge.ps1`
 (`-Setup`, `-Check`, `-Clear`) and `scripts/launch-plannerbridge.ps1`.
 They retain released DPAPI state at
