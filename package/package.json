@@ -48,6 +48,9 @@
   "scripts": {
     "build": "node scripts/clean-build.mjs && tsc -p tsconfig.json",
     "test": "vitest run",
+    "test:invariants": "vitest run tests/protocol.spec.ts tests/planner-envelope.spec.ts tests/protocol-fields.spec.ts tests/protocol-state-routing.spec.ts tests/planner-task-aggregate.spec.ts tests/conversation-binding.spec.ts tests/planner-executor-e2e-oracle.spec.ts",
+    "test:components": "vitest run tests/browser.spec.ts tests/browser-dom.spec.ts tests/browser-ownership.spec.ts tests/chatgpt-web-driver-parity.spec.ts tests/reply-reconciliation.spec.ts tests/doctor-owned-recovery.spec.ts tests/sidecar-target-recovery.spec.ts tests/tunnel.spec.ts tests/tunnel-readiness.spec.ts tests/production-canonical.spec.ts",
+    "test:native": "vitest run tests/chatgpt-web-driver-direct-cdp.spec.ts tests/direct-cdp-transition-race.spec.ts tests/direct-cdp-page-failure.spec.ts tests/sidecar-target-recovery-native.spec.ts tests/doctor-owned-recovery-native.spec.ts tests/doctor-bind-boundary-native.spec.ts",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "test:package": "node scripts/verify-package.mjs",
     "test:profile": "node scripts/verify-profile.mjs",

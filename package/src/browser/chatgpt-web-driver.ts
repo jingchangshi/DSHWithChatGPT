@@ -1,4 +1,5 @@
 import { messageObservationScript } from './message-observation.ts'
+import { classifyChatRoute, isDurableChatRoute, outgoingControlProof, pendingAppRendering, planConversationBinding, replyTextDigest } from './conversation-binding.ts'
 import { CancellableBrowserPrimitives, type BrowserPrimitives, type BrowserMutationContext, type BrowserMutationAck } from './primitives.ts'
 import { createHash } from 'node:crypto'
 import type { ChatRecoveryControl, ControlOperation, ReplyObservationBaseline, ReplyReconciliationRequest, ChatReply as BrowserReply } from '../core/ports/chat-control.ts'
@@ -208,34 +209,16 @@ export class ChatGptWebDriver implements ChatRecoveryControl {
         || replacement.documentId === expected.documentId || replacement.epoch <= expected.epoch) throw new BrowserTargetChangedError()
       observation = await this.reconciliationMessages(replacement, signal)
       messages = observation.messages
-      while ((observation.state === 'MISSING_BODY' || (messages && (!messages.some(message => message.role === 'user') || this.pendingAppRendering(messages, request.controlDigest)))) && Date.now() < until) {
+      while ((observation.state === 'MISSING_BODY' || (messages && (!messages.some(message => message.role === 'user') || pendingAppRendering(messages, this.appName, request.controlDigest)))) && Date.now() < until) {
         await abortableDelay(200, signal)
         observation = await this.reconciliationMessages(replacement, signal)
         messages = observation.messages
       }
     }
     if (!messages) throw new SendUncertainError('OBSERVATION_MISSING')
-    const matches = messages.map((message, index) => ({ message, index })).filter(({ message }) => {
-      const appName = this.appName.trim()
-      return message.role === 'user' && message.appNames.length === 1 && message.appNames[0] === appName
-        && message.text.startsWith(appName) && /\s/.test(message.text.slice(appName.length, appName.length + 1))
-        && replyTextDigest(message.text.slice(appName.length + 1)) === request.controlDigest
-    })
-    let lastUser = -1
-    for (let index = 0; index < messages.length; index++) if (messages[index]!.role === 'user') lastUser = index
-    if (matches.length !== 1 || matches[0]!.index !== lastUser) {
-      // Classify the existing rejection using only the already-read proof.
-      // No classification changes its decision, public code or browser calls.
-      if (matches.length > 1) throw new SendUncertainError('PROOF_AMBIGUOUS')
-      if (matches.length === 1) throw new SendUncertainError('NOT_LAST_USER')
-      const users = messages.filter(message => message.role === 'user')
-      if (!users.length) throw new SendUncertainError('PROOF_NOT_FOUND')
-      const app = this.appName.trim()
-      const exactApp = users.filter(message => message.appNames.length === 1 && message.appNames[0] === app
-        && message.text.startsWith(app) && /\s/.test(message.text.slice(app.length, app.length + 1)))
-      throw new SendUncertainError(exactApp.length ? 'DIGEST_MISMATCH' : 'WRONG_APP')
-    }
-    const preceding = messages.slice(0, lastUser).filter(message => message.role === 'assistant')
+    const proof = outgoingControlProof(messages, this.appName, request.controlDigest)
+    if (proof.kind === 'rejected') throw new SendUncertainError(proof.reason)
+    const preceding = messages.slice(0, proof.lastUser).filter(message => message.role === 'assistant')
     // Replacement remains provisional until the unchanged exact proof succeeds.
     if (replacement) this.target = replacement
     const target = await this.browser.currentTarget(signal)
@@ -474,37 +457,13 @@ export class ChatGptWebDriver implements ChatRecoveryControl {
 
   private acceptTarget(target: BrowserTargetIdentity, transitions: BrowserTransition[] = [], promotionProven = false): void {
     if (this.fenced) {
-      if (!Number.isSafeInteger(target.transitionSequence) || target.transitionSequence < 0) { this.replyBaseline = undefined; throw new BrowserTargetChangedError() }
-      if (this.target) {
-        if (!sameBrowserTarget(this.target, target)) { this.replyBaseline = undefined; throw new BrowserTargetChangedError() }
-        let sequence = this.target.transitionSequence
-        let url = this.target.url
-        for (const transition of transitions) {
-          if (transition.sequence !== ++sequence || transition.beforeUrl !== url) { this.replyBaseline = undefined; throw new BrowserTargetChangedError() }
-          this.admitRoute(transition.afterUrl, promotionProven)
-          url = transition.afterUrl
-        }
-        if (sequence !== target.transitionSequence || url !== target.url) { this.replyBaseline = undefined; throw new BrowserTargetChangedError() }
-      }
-      this.admitRoute(target.url)
+      try {
+        const planned = planConversationBinding({ route: this.route, temporaryRoute: this.temporaryRoute, finalEnter: this.finalEnter }, this.target, target, transitions, promotionProven ? 'proved' : 'forbidden')
+        this.route = planned.route
+        this.temporaryRoute = planned.temporaryRoute
+      } catch (error) { this.replyBaseline = undefined; throw error }
     }
     this.target = target
-  }
-  private admitRoute(url: string, promotionProven = false): void {
-    const route = classifyChatRoute(url)
-    if (route === 'OTHER') { this.replyBaseline = undefined; throw new BrowserTargetChangedError() }
-    if (this.route === undefined) this.route = route
-    else if (route !== this.route) {
-      if (this.route === 'NEW_CHAT' && route.startsWith('CONVERSATION:') && this.finalEnter !== 'before') {
-        this.route = route
-        if (isTemporaryChatRoute(route)) this.temporaryRoute = route
-      }
-      else if (promotionProven && this.finalEnter === 'acknowledged' && this.temporaryRoute === this.route && isDurableChatRoute(route)) {
-        this.route = route
-        this.temporaryRoute = undefined
-      }
-      else { this.replyBaseline = undefined; throw new BrowserTargetChangedError() }
-    }
   }
   private async mutationContext(signal?: AbortSignal): Promise<BrowserMutationContext> {
     if (!this.target) this.acceptTarget((await this.browser.observe('true', undefined, signal)).target)
@@ -530,24 +489,8 @@ export class ChatGptWebDriver implements ChatRecoveryControl {
    * A route prefix alone never grants ownership of the durable conversation. */
   private async proveTemporaryPromotion(target: BrowserTargetIdentity, transitions: BrowserTransition[], signal?: AbortSignal): Promise<boolean | BrowserTargetIdentity> {
     if (!this.target || !sameBrowserTarget(this.target, target)) return false
-    let route = this.route
-    let temporary = this.temporaryRoute
-    let needsProof = false
-    let sequence = this.target.transitionSequence
-    let url = this.target.url
-    for (const transition of transitions) {
-      if (transition.sequence !== ++sequence || transition.beforeUrl !== url) throw new BrowserTargetChangedError()
-      const next = classifyChatRoute(transition.afterUrl)
-      if (route === next) { /* Same-route lifecycle events retain the fence. */ }
-      else if (route === 'NEW_CHAT' && next.startsWith('CONVERSATION:') && this.finalEnter !== 'before') temporary = isTemporaryChatRoute(next) ? next : undefined
-      else if (route !== next && temporary === route && isDurableChatRoute(next)) {
-        if (needsProof) throw new BrowserTargetChangedError()
-        needsProof = true; temporary = undefined
-      } else throw new BrowserTargetChangedError()
-      route = next; url = transition.afterUrl
-    }
-    if (sequence !== target.transitionSequence || url !== target.url) throw new BrowserTargetChangedError()
-    if (!needsProof) return false
+    const planned = planConversationBinding({ route: this.route, temporaryRoute: this.temporaryRoute, finalEnter: this.finalEnter }, this.target, target, transitions, 'pending')
+    if (!planned.needsProof) return false
     if (this.finalEnter !== 'acknowledged' || !this.sentControlDigest || !this.appName.trim()) throw new BrowserTargetChangedError()
     let messages = await this.promotionMessages(target, signal)
     // The live new-chat UI can render the assistant while omitting the sent user
@@ -569,20 +512,13 @@ export class ChatGptWebDriver implements ChatRecoveryControl {
       // Load completion precedes ChatGPT's semantic message mount. Keep the
       // replacement cursor fenced while observing its materialized proof.
       const materializeUntil = Date.now() + POST_NAVIGATION_SEMANTIC_TIMEOUT_MS
-      while ((!messages || !messages.some(message => message.role === 'user') || this.pendingAppRendering(messages, this.sentControlDigest)) && Date.now() < materializeUntil) {
+      while ((!messages || !messages.some(message => message.role === 'user') || pendingAppRendering(messages, this.appName, this.sentControlDigest)) && Date.now() < materializeUntil) {
         await abortableDelay(200, signal)
         messages = await this.promotionMessages(replacement, signal)
       }
     }
     if (!messages) throw new BrowserTargetChangedError()
-    const app = this.appName.trim()
-    const matches = messages.map((message, index) => ({ message, index })).filter(({ message }) =>
-      message.role === 'user' && message.appNames.length === 1 && message.appNames[0] === app
-      && message.text.startsWith(app) && /\s/.test(message.text.slice(app.length, app.length + 1))
-      && replyTextDigest(message.text.slice(app.length + 1)) === this.sentControlDigest)
-    let lastUser = -1
-    for (let index = 0; index < messages.length; index++) if (messages[index]!.role === 'user') lastUser = index
-    if (matches.length !== 1 || matches[0]!.index !== lastUser) throw new BrowserTargetChangedError()
+    if (outgoingControlProof(messages, this.appName, this.sentControlDigest).kind !== 'proved') throw new BrowserTargetChangedError()
     return replacement ?? true
   }
 
@@ -590,23 +526,6 @@ export class ChatGptWebDriver implements ChatRecoveryControl {
     const proof = await this.browser.observe<{ role: string; text: string; appNames: string[] }[] | null>(`(() => { ${messageObservationScript}; return messageObservations; })()`, target, signal)
     if (!sameBrowserTarget(target, proof.target) || proof.target.url !== target.url || proof.target.transitionSequence !== target.transitionSequence) throw new BrowserTargetChangedError()
     return proof.value
-  }
-
-  /** Hydration can expose the exact control body with an unresolved App label,
-   * either a raw slug or one leading renderer character. This is never proof:
-   * only the later exact App link/prefix/digest checks authorize adoption. */
-  private pendingAppRendering(messages: { role: string; text: string; appNames: string[] }[], expectedDigest: string | undefined): boolean {
-    const users = messages.filter(message => message.role === 'user')
-    const app = this.appName.trim()
-    if (users.length !== 1 || users[0]!.appNames.length !== 0) return false
-    const text = users[0]!.text
-    if (text.slice(1, app.length + 1) === app
-      && /\s/.test(text.slice(app.length + 1, app.length + 2))
-      && replyTextDigest(text.slice(app.length + 2)) === expectedDigest) return true
-    const slug = '$' + app.toLowerCase().replace(/\s+/g, '-')
-    return slug.length <= 257 && /^\$[a-z0-9]+(?:-[a-z0-9]+)*$/.test(slug)
-      && text.startsWith(slug) && /\s/.test(text.slice(slug.length, slug.length + 1))
-      && replyTextDigest(text.slice(slug.length + 1)) === expectedDigest
   }
 
   private async checkTarget(signal?: AbortSignal): Promise<void> {
@@ -881,26 +800,8 @@ export class ChatGptWebDriver implements ChatRecoveryControl {
 
 }
 
-function replyTextDigest(text: string): string { return createHash('sha256').update(text, 'utf8').digest('hex') }
 function observationEpoch(target: BrowserTargetIdentity): string {
   return createHash('sha256').update(JSON.stringify([target.targetId, target.documentId, target.epoch])).digest('hex')
-}
-
-function classifyChatRoute(value: string): string {
-  try {
-    const url = new URL(value)
-    if (url.origin !== 'https://chatgpt.com') return 'OTHER'
-    if (url.pathname === '/') return 'NEW_CHAT'
-    const match = /^\/c\/([^/]+)\/?$/.exec(url.pathname)
-    return match ? 'CONVERSATION:' + match[1] : 'OTHER'
-  } catch { return 'OTHER' }
-}
-
-function isTemporaryChatRoute(route: string | undefined): boolean {
-  return typeof route === 'string' && /^CONVERSATION:local-chatgpt%3A[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/.test(route)
-}
-function isDurableChatRoute(route: string): boolean {
-  return /^CONVERSATION:[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/.test(route)
 }
 
 function normalizePageState(value: unknown): ChatPageState {
