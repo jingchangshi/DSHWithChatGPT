@@ -1,0 +1,99 @@
+
+ RUN  v5.0.1 C:/Users/jingc/workspace/DSHWithChatGPT/package
+
+ ❯ tests/doctor-owned-recovery.spec.ts (15 tests | 5 failed) 33ms
+   ❯ owned App-proof recovery transaction (15)
+     × cleans exactly the known replacement on startup failure, with no second attempt 6ms
+     × cleans exactly the known replacement on health failure, with no second attempt 1ms
+     × cleans exactly the known replacement on semantic-ready failure, with no second attempt 1ms
+     × cleans exactly the known replacement on reconcile failure, with no second attempt 1ms
+     × does not enter semantic recovery when health finishes after caller cancellation 4ms
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 5 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  tests/doctor-owned-recovery.spec.ts > owned App-proof recovery transaction > cleans exactly the known replacement on startup failure, with no second attempt
+AssertionError: expected 39 to be less than 38
+ ❯ tests/doctor-owned-recovery.spec.ts:70:53
+     68|     expect(f.replacement.closeReplacement).toHaveBeenCalledTimes(1)
+     69|     expect(calls.close).toHaveBeenCalledTimes(1)
+     70|     expect(calls.close.mock.invocationCallOrder[0]).toBeLessThan(f.rep…
+       |                                                     ^
+     71|     await expect(recoverOwnedAppProof(f.options, operation, resume)).r…
+     72|     expect(calls.create).toHaveBeenCalledTimes(1)
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/5]⎯
+
+ FAIL  tests/doctor-owned-recovery.spec.ts > owned App-proof recovery transaction > cleans exactly the known replacement on health failure, with no second attempt
+AssertionError: expected 46 to be less than 45
+ ❯ tests/doctor-owned-recovery.spec.ts:70:53
+     68|     expect(f.replacement.closeReplacement).toHaveBeenCalledTimes(1)
+     69|     expect(calls.close).toHaveBeenCalledTimes(1)
+     70|     expect(calls.close.mock.invocationCallOrder[0]).toBeLessThan(f.rep…
+       |                                                     ^
+     71|     await expect(recoverOwnedAppProof(f.options, operation, resume)).r…
+     72|     expect(calls.create).toHaveBeenCalledTimes(1)
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/5]⎯
+
+ FAIL  tests/doctor-owned-recovery.spec.ts > owned App-proof recovery transaction > cleans exactly the known replacement on semantic-ready failure, with no second attempt
+AssertionError: expected 54 to be less than 53
+ ❯ tests/doctor-owned-recovery.spec.ts:70:53
+     68|     expect(f.replacement.closeReplacement).toHaveBeenCalledTimes(1)
+     69|     expect(calls.close).toHaveBeenCalledTimes(1)
+     70|     expect(calls.close.mock.invocationCallOrder[0]).toBeLessThan(f.rep…
+       |                                                     ^
+     71|     await expect(recoverOwnedAppProof(f.options, operation, resume)).r…
+     72|     expect(calls.create).toHaveBeenCalledTimes(1)
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[3/5]⎯
+
+ FAIL  tests/doctor-owned-recovery.spec.ts > owned App-proof recovery transaction > cleans exactly the known replacement on reconcile failure, with no second attempt
+AssertionError: expected 63 to be less than 62
+ ❯ tests/doctor-owned-recovery.spec.ts:70:53
+     68|     expect(f.replacement.closeReplacement).toHaveBeenCalledTimes(1)
+     69|     expect(calls.close).toHaveBeenCalledTimes(1)
+     70|     expect(calls.close.mock.invocationCallOrder[0]).toBeLessThan(f.rep…
+       |                                                     ^
+     71|     await expect(recoverOwnedAppProof(f.options, operation, resume)).r…
+     72|     expect(calls.create).toHaveBeenCalledTimes(1)
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[4/5]⎯
+
+ FAIL  tests/doctor-owned-recovery.spec.ts > owned App-proof recovery transaction > does not enter semantic recovery when health finishes after caller cancellation
+AssertionError: expected "vi.fn()" to not be called at all, but actually been called 1 times
+
+Received:
+
+  1st vi.fn() call:
+
+    Array [
+      AbortSignal {
+        Symbol(kEvents): Map {},
+        Symbol(events.maxEventTargetListeners): 0,
+        Symbol(events.maxEventTargetListenersWarned): false,
+        Symbol(kHandlers): Map {},
+        Symbol(kAborted): true,
+        Symbol(kReason): [AbortError: This operation was aborted],
+        Symbol(kComposite): false,
+      },
+    ]
+
+
+Number of calls: 1
+
+ ❯ tests/doctor-owned-recovery.spec.ts:112:35
+    110|     vi.mocked(f.options.health).mockImplementation(async () => { contr…
+    111|     await expect(recoverOwnedAppProof(f.options, operation, resume, co…
+    112|     expect(f.options.recover).not.toHaveBeenCalled()
+       |                                   ^
+    113|     expect(resume).not.toHaveBeenCalled()
+    114|     expect(f.options.commit).not.toHaveBeenCalled()
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[5/5]⎯
+
+
+ Test Files  1 failed (1)
+      Tests  5 failed | 10 passed (15)
+   Start at  08:53:18
+   Duration  1.32s (transform 62%, import 34%, tests 3%, worker 1%)
+

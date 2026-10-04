@@ -1,0 +1,5 @@
+{"runId":"d921ba4b-290d-4458-8679-e961d21764ba","phase":"1","pid":31604,"at":1791078159644,"kind":"boot"}
+{"runId":"d921ba4b-290d-4458-8679-e961d21764ba","phase":"1","pid":31604,"at":1791078161159,"kind":"dispatch","name":"chatgpt_doctor","callId":"call_00_9BAd2cGw5PXUgy3CYPCj5743","sessionId":"session-88769179-3977-4cb4-92d9-e4f7f695beb7","mode":"local","testCommand":false,"reviewArgumentNonceLeak":false}
+{"runId":"d921ba4b-290d-4458-8679-e961d21764ba","phase":"1","pid":31604,"at":1791078204666,"kind":"tool-error","name":"chatgpt_doctor","message":"Error: TUNNEL_START_TIMEOUT: TUNNEL_CONTROL_PLANE_UNAVAILABLE"}
+{"runId":"d921ba4b-290d-4458-8679-e961d21764ba","phase":"1","pid":31604,"at":1791078204667,"kind":"result","name":"chatgpt_doctor","callId":"call_00_9BAd2cGw5PXUgy3CYPCj5743","sessionId":"session-88769179-3977-4cb4-92d9-e4f7f695beb7","mode":"local","isError":true}
+{"runId":"d921ba4b-290d-4458-8679-e961d21764ba","phase":"1","pid":31604,"at":1791078204667,"kind":"acceptance-stop","reason":"READINESS_LOCAL_FAILED","callId":"call_00_9BAd2cGw5PXUgy3CYPCj5743","sessionId":"session-88769179-3977-4cb4-92d9-e4f7f695beb7"}

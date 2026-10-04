@@ -1,0 +1,13 @@
+
+> dsh-with-chatgpt@0.1.0 test:native C:\Users\jingc\workspace\DSHWithChatGPT\package
+> vitest run tests/chatgpt-web-driver-direct-cdp.spec.ts tests/direct-cdp-transition-race.spec.ts tests/direct-cdp-page-failure.spec.ts tests/sidecar-target-recovery-native.spec.ts tests/doctor-owned-recovery-native.spec.ts tests/doctor-bind-boundary-native.spec.ts
+
+
+ RUN  v5.0.1 C:/Users/jingc/workspace/DSHWithChatGPT/package
+
+
+ Test Files  6 passed (6)
+      Tests  97 passed (97)
+   Start at  09:10:36
+   Duration  548.42s (tests 100%)
+

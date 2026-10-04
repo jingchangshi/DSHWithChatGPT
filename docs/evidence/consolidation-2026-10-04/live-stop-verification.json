@@ -1,0 +1,14 @@
+{
+  "consumerSourceHead": "2fef84407d1e2c41e2b093b683345a56987530bd",
+  "runId": "d921ba4b-290d-4458-8679-e961d21764ba",
+  "readinessFailure": "TUNNEL_START_TIMEOUT: TUNNEL_CONTROL_PLANE_UNAVAILABLE",
+  "stopReason": "READINESS_LOCAL_FAILED",
+  "dispatchesAfterStop": 0,
+  "appProofDispatches": 0,
+  "planDispatches": 0,
+  "phaseTwoBoots": 0,
+  "executorExit": 0,
+  "oracleExit": 1,
+  "automaticStopVerified": true,
+  "productAccepted": false
+}

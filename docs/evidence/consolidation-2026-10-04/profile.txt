@@ -1,0 +1,11 @@
+
+> dsh-with-chatgpt@0.1.0 test:profile C:\Users\jingc\workspace\DSHWithChatGPT\package
+> node scripts/verify-profile.mjs "C:/Users/jingc/workspace/deepseek-harness" "C:/Users/jingc/AppData/Local/Temp/dsh-chatgpt-package-M5QQYF"
+
+VERIFIED: all five packed collaboration tools satisfy the real DSH schema subset; nullable HEAD enforces string/null
+Profile verification mode: composition-fixture; real Browser/App proof NOT_RUN
+Profile attempt 1: exit 0; evidence C:\Users\jingc\AppData\Local\Temp\dsh-chatgpt-profile-vmRdB6
+{"ok":true,"statuses":[{"workspaceId":"4e65fcb3-167e-4045-b9f6-8585d05ce927","bridgePort":53249,"latestTask":null},{"workspaceId":"4e65fcb3-167e-4045-b9f6-8585d05ce927","bridgePort":53249,"latestTask":null},{"workspaceId":"9d706fc3-7bfe-4af7-b427-7980c2aca697","bridgePort":53521,"latestTask":null}],"calls":["chatgpt_status","chatgpt_doctor","chatgpt_status","chatgpt_status","chatgpt_status"],"gitAcceptance":{"ok":true,"assurance":"hardened-windows","operations":["workspace_info","list_directory","git_status","git_diff","git_log"],"unchanged":true},"boundaryAcceptance":{"ok":true,"denied":["traversal","absolute","junction","expired-lease"],"tripwireUnchanged":true},"runId":"0e728ad5-2f66-4b6a-9f8a-62fc03834776","pid":33344}
+Profile attempt 2: exit 0; evidence C:\Users\jingc\AppData\Local\Temp\dsh-chatgpt-profile-vmRdB6
+{"ok":true,"statuses":[{"workspaceId":"4e65fcb3-167e-4045-b9f6-8585d05ce927","bridgePort":61226,"latestTask":null},{"workspaceId":"4e65fcb3-167e-4045-b9f6-8585d05ce927","bridgePort":61226,"latestTask":null},{"workspaceId":"9d706fc3-7bfe-4af7-b427-7980c2aca697","bridgePort":61234,"latestTask":null}],"calls":["chatgpt_status","chatgpt_doctor","chatgpt_status","chatgpt_status","chatgpt_status"],"gitAcceptance":{"ok":true,"assurance":"hardened-windows","operations":["workspace_info","list_directory","git_status","git_diff","git_log"],"unchanged":true},"boundaryAcceptance":{"ok":true,"denied":["traversal","absolute","junction","expired-lease"],"tripwireUnchanged":true},"runId":"7acbaad3-823f-447e-9679-3161e328a2bc","pid":32000}
+Real DSH profile: identity stable across aliases/restart/plugin reload; authenticated Git status/diff/log preserve repository state; execution output remains unavailable

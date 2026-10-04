@@ -1,0 +1,2 @@
+{"mode":"canonical-real-direct-cdp","pid":27220,"authenticatedHealth":true,"browserReady":true,"appDataPlaneVerified":false}
+Canonical real entry shutdown and transport closure verified; App/planner acceptance NOT_RUN

@@ -1,0 +1,1 @@
+{"version":1,"at":"2026-10-04T01:43:24.653Z","failure":"TUNNEL_START_TIMEOUT","classification":"TUNNEL_CONTROL_PLANE_UNAVAILABLE","lastParsedHealth":{"schemaSupported":true,"live":true,"ready":true,"controlStatusOk":false,"consecutiveFailures":1,"lastSuccessValid":false,"httpStatus":null,"localProbeSucceeded":true}}

@@ -1,0 +1,16 @@
+
+> dsh-with-chatgpt@0.1.0 test C:\Users\jingc\workspace\DSHWithChatGPT\package
+> vitest run
+
+
+ RUN  v5.0.1 C:/Users/jingc/workspace/DSHWithChatGPT/package
+
+
+ Test Files  94 passed (94)
+      Tests  1327 passed | 3 skipped (1330)
+   Start at  09:22:36
+   Duration  979.14s (tests 99%, import 1%)
+
+    Isolate  94 workers spawned · ~133ms startup each (spawn + environment, per file)
+             at least ~12.39s faster with isolate: false — reuses workers across files instead of one per file
+

@@ -1,0 +1,5 @@
+{
+  "endedAt": "2026-10-04T01:38:55.4112824Z",
+  "command": "npx --yes pnpm@10.34.5 test",
+  "exitCode": 0
+}

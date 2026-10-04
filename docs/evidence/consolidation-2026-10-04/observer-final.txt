@@ -1,0 +1,22 @@
+
+> dsh-with-chatgpt@0.1.0 test:planner-executor-observer C:\Users\jingc\workspace\DSHWithChatGPT\package
+> node --test scripts/planner-executor-observer.test.mjs
+
+✔ canonical observer records successful nonce provenance and rejects review leaks (12.4593ms)
+✔ observer freezes shell task/workspace/iteration before dispatch and records reviewer identity (12.694ms)
+✔ observer selects the final marker from a successful test and never attributes a failed result (7.2042ms)
+✔ failed explicit local readiness closes tool admission before another dispatch (12.2627ms)
+✔ failed explicit local readiness closes tool admission before another dispatch (12.847ms)
+✔ failed explicit app-proof readiness closes tool admission before another dispatch (12.344ms)
+✔ failed explicit app-proof readiness closes tool admission before another dispatch (11.9109ms)
+✔ failed explicit app-proof readiness closes tool admission before another dispatch (12.1083ms)
+✔ local readiness ignores the unrequested remote proof and ordinary test failures remain repairable (15.7605ms)
+✔ a restarted observer preserves fatal readiness for the same run but ignores other runs (7.6754ms)
+ℹ tests 10
+ℹ suites 0
+ℹ pass 10
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 293.9504

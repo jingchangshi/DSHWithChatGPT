@@ -1,0 +1,5 @@
+{
+  "command": "npx --yes pnpm@10.34.5 run test:package",
+  "endedAt": "2026-10-04T01:39:43.0002088Z",
+  "exitCode": 0
+}

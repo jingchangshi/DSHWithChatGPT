@@ -1,0 +1,36 @@
+{
+  "at": "2026-10-04T01:28:36.050Z",
+  "defaultContext": [
+    {
+      "file": "goal.md",
+      "before": 279,
+      "after": 23
+    },
+    {
+      "file": "acceptance-plan.md",
+      "before": 771,
+      "after": 31
+    },
+    {
+      "file": "current-delivery-plan.md",
+      "before": 1215,
+      "after": 8
+    },
+    {
+      "file": "browser-platform-investigation.md",
+      "before": 584,
+      "after": 8
+    },
+    {
+      "file": "target-architecture.md",
+      "before": 177,
+      "after": 175
+    }
+  ],
+  "driverLines": 818,
+  "pureRulesLines": 97,
+  "handoffProductionCallers": 2,
+  "newMutableBrowserFields": 0,
+  "newPublicPorts": 0,
+  "removedRegressions": 0
+}

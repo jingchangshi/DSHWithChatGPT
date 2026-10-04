@@ -1,0 +1,871 @@
+历史用户输入（完整原文见 docs/history/2026-10-04-pre-consolidation/clean-goal.txt）。本轮最新指示已允许完全自主实现和审阅，不再以 codex-with-chatgpt 作为开发审批前置。当前执行入口为 docs/status/current.md；以下旧执行提示不代表当前状态。
+
+# Goal：收敛 PlannerBridge / DSHWithChatGPT 架构复杂度，在不破坏现有正确性的前提下完成真实 Windows 产品闭环
+
+你在 Windows 11 Codex Desktop Goal 模式中工作。
+
+你是 Executor / Implementer。整个任务中的高层规划、架构判断、关键设计决策、源码独立审阅和最终验收审阅，必须优先使用本机已安装的 **codex-with-chatgpt** 插件，让 ChatGPT Web 的高推理模型承担 Planner / Architecture Reviewer / Independent Reviewer。
+
+不要把 Codex 自己的判断冒充 ChatGPT 独立审阅。
+
+普通工程问题自行推进，不要频繁询问用户。只有登录、2FA/CAPTCHA、缺失真实凭据、不可逆外部操作或真正需要用户决定产品范围时才暂停询问。
+
+---
+
+# 一、最终产品目标
+
+目标不是“更多测试通过”“更多 commit”或“修复当前一个 failure”。
+
+最终目标仍然是：
+
+Windows DSH / DeepSeek Executor
+→ PlannerBridge
+→ ChatGPT Web Planner
+→ PLAN
+→ DSH 实际实现
+→ tests
+→ commit/push
+→ ChatGPT Web 独立 Reviewer
+→ 必要时返回真实 fix PLAN
+→ DSH 实际 restart
+→ same-task reconnect
+→ 第二轮执行
+→ exact-HEAD REVIEW
+→ DONE
+→ 原独立 acceptance oracle 全部通过。
+
+Windows 本地优先。
+
+Linux executor + Windows ChatGPT browser host 仍为 FUTURE，不要为了未来模式扩大本轮实现。
+
+两个仓库：
+
+- `C:\Users\jingc\workspace\DSHWithChatGPT`
+- `C:\Users\jingc\workspace\deepseek-harness`
+
+目标分支：
+
+- `feat/complete-c2c-runtime`
+
+不要假设任何历史 SHA 仍然是最新。
+
+当前已知 DSHWithChatGPT 检查点曾到：
+
+`a43f4a85b27e71022289f45d106479efd077c51d`
+`fix: bound missing-body reconciliation and preserve review handoff`
+
+但开始工作时必须重新：
+
+- git status
+- git fetch
+- branch
+- HEAD
+- upstream
+- log
+- working tree
+
+并以实际状态为准。
+
+不得 hard reset。
+不得覆盖用户未提交修改。
+不得偷偷改变分支。
+不得把历史 SHA 当作永久基线。
+
+---
+
+# 二、本轮新增的最高优先级目标：避免“局部正确、整体腐化”
+
+近期代码演进已经暴露一种重要工程风险：
+
+模型能够不断产生局部正确、测试通过、安全性较好的 patch，但这些 patch 持续沉积后，可能把系统推向：
+
+- 隐式状态机不断增厚
+- mutable flags 增加
+- recovery special case 增加
+- 相同 lifecycle transaction 重复实现
+- fixture / diagnostic infrastructure 持续膨胀
+- 文档历史状态不断 prepend
+- 模型每次需要理解越来越多历史上下文
+- 每轮开发成本越来越高
+
+因此，本轮开发必须把：
+
+`correctness`
+
+和
+
+`complexity convergence`
+
+同时作为一等目标。
+
+禁止只因为 tests green 就认为工程完成。
+
+---
+
+# 三、已知高风险区域
+
+重点审阅但不要未经证据立即大改：
+
+## 1. ChatGptWebDriver
+
+当前已明显承担大量状态：
+
+- target
+- document / epoch
+- fenced
+- route
+- temporary route
+- final Enter state
+- sent control digest
+- materialization reload state
+- reply baseline
+- conversation promotion
+- App hydration
+- missing-body
+- reconciliation
+- reply observation
+
+当前文件规模已经明显增大。
+
+这很可能已经成为一个“实际上是状态机，但主要通过成员变量 + if/throw 表达”的结构。
+
+重点文件：
+
+`package/src/browser/chatgpt-web-driver.ts`
+
+以及：
+
+- `direct-cdp.ts`
+- `primitives.ts`
+- `transitions.ts`
+- `message-observation.ts`
+- `history-observation.ts`
+- `ownership.ts`
+
+## 2. Sidecar replacement / handoff
+
+目前至少存在：
+
+- pending bootstrap recovery
+- App-proof recovery
+- target replacement
+- source retirement
+- replacement rollback
+- semantic readiness
+- strict reconciliation
+
+检查是否存在重复 lifecycle transaction。
+
+重点：
+
+- `package/src/deployment/dsh-runtime.ts`
+- `package/src/deployment/sidecar-target-recovery.ts`
+- `package/src/deployment/sidecar-supervisor.ts`
+- `package/src/readiness/doctor.ts`
+- `package/src/orchestrator/ownership.ts`
+
+## 3. Coordinator / deployment composition
+
+检查：
+
+`package/src/orchestrator/coordinator.ts`
+
+和：
+
+`package/src/deployment/dsh-runtime.ts`
+
+是否正在同时承担：
+
+- dependency wiring
+- tool registration
+- state machine
+- recovery logic
+- runtime lifecycle
+- ownership
+- product policy
+
+如果是，优先寻找内部职责拆分机会。
+
+但禁止为了“文件变短”而机械拆文件。
+
+只有职责边界明确时才重构。
+
+## 4. 文档上下文
+
+重点检查：
+
+- `docs/goal.md`
+- `docs/target-architecture.md`
+- `docs/current-delivery-plan.md`
+- `docs/acceptance-plan.md`
+- `docs/browser-platform-investigation.md`
+- `docs/review-checkpoint-*.md`
+
+问题不是历史证据太多。
+
+问题是：
+
+历史证据和当前执行状态混在默认上下文里。
+
+目标是保留完整历史，但让 Planner / Reviewer 默认只需要读取：
+
+1. stable goal
+2. stable architecture
+3. current status
+4. 当前 incident / evidence pointer
+
+而不是每轮恢复一千多行历史时间线。
+
+---
+
+# 四、开始时必须先通过 codex-with-chatgpt 做一次独立架构审阅
+
+不要直接开始改代码。
+
+先使用 codex-with-chatgpt，让 ChatGPT Web 实际读取：
+
+- 当前 Git HEAD
+- `docs/goal.md`
+- `docs/target-architecture.md`
+- 当前 delivery/checkpoint
+- 最近约 20～40 个相关 commits
+- 当前 production source
+- 当前 tests / acceptance runner
+- 最近真实失败 evidence
+
+要求 ChatGPT 独立判断：
+
+## A. 当前 `a43` 或最新候选是否应该先完成现有验收
+
+重点判断：
+
+- 当前 `MISSING_BODY` 是否是一个真实合法的 transient semantic state
+- single absolute deadline 是否正确
+- 是否存在 deadline renewal
+- route/document/caller cancellation 是否仍 fail closed
+- 是否没有 resend / duplicate Enter
+- identity / digest / App proof 是否没有被放宽
+- diagnostic reason 是否只是分类，而没有改变安全行为
+
+如果当前候选本身仍有具体缺陷：
+
+先最小修复。
+
+如果没有：
+
+不要为了“架构漂亮”立即重写。
+
+先完成：
+
+focused/native/adversarial
+→ typecheck/build
+→ independent source review
+→ 一次 frozen full
+→ package/profile/source association
+→ commit/push
+→ exact-HEAD review
+→ 一次 fresh real exposure。
+
+---
+
+# 五、增加 Architecture Debt Trigger
+
+从现在开始，每一次想修改 production source 前，都必须执行以下检查。
+
+如果任意一项为 YES：
+
+1. 同一机制最近已经被 patch ≥ 3 次
+2. 本次需要新增 mutable boolean / state field
+3. 本次需要新增 recovery special case
+4. 本次需要增加新的 “if X then retry/reload/recover”
+5. 本次需要复制一个已经存在的 lifecycle transaction
+6. 本次 fixture 必须知道更多 production private state 才能工作
+7. 新 failure 无法映射到已有 invariant / state
+8. Reviewer 的建议本质上是“再加一个 branch”
+9. 同一函数已经承担多个不同生命周期阶段
+10. 为修当前问题必须修改多个层的隐式约定
+
+则：
+
+**禁止立即继续局部 patch。**
+
+必须先通过 codex-with-chatgpt 发起：
+
+`ARCHITECTURE_CONSOLIDATION_REVIEW`
+
+让 ChatGPT 基于真实源码回答：
+
+- 当前 invariant 是什么
+- 当前 mechanism 是什么
+- failure 属于哪一个 invariant
+- 是否是缺失 state
+- 是否是已有 state transition bug
+- 是否应该抽取 state machine / transaction
+- 哪些旧逻辑可以被删除
+- 怎样重构才能减少而不是增加状态数量
+- 如何用现有测试证明行为等价
+
+没有独立架构方案，不要自行发明大型抽象。
+
+---
+
+# 六、ChatGptWebDriver 的目标结构
+
+如果 architecture checkpoint 确认应该重构，不要做“大爆炸重写”。
+
+目标是将已经存在的隐式状态机显式化。
+
+优先考虑内部结构，例如：
+
+`ConversationBindingMachine`
+
+或等价内部概念。
+
+它可以负责：
+
+- target continuity
+- document identity
+- transition cursor
+- route admission
+- temporary conversation promotion
+- durable conversation adoption
+- send lifecycle
+- materialization
+- reconciliation
+- quarantine / uncertain state
+
+要求：
+
+- transition 尽量是纯逻辑
+- DOM / CDP mutation 与状态判断分离
+- BrowserPrimitives 仍只提供机制
+- ChatGptWebDriver 仍拥有 ChatGPT semantic policy
+- 不把 generic CDP/evaluate 暴露成产品 RPC
+- 不增加新 public provider
+- 不为了抽象而增加层级
+- 如果新抽象不能删除现有复杂逻辑，不采用
+
+理想目标不是文件行数最少。
+
+理想目标是：
+
+对于任意状态迁移，都能回答：
+
+`FROM + EVENT -> TO / ERROR`
+
+而不是依赖 6 个 boolean 的组合推断。
+
+---
+
+# 七、统一 Sidecar Handoff Transaction
+
+独立检查当前是否存在两套或更多近似流程：
+
+bootstrap recovery：
+
+create replacement
+→ close source
+→ start replacement
+→ health
+→ semantic readiness
+→ reconcile
+→ commit
+→ retire source
+→ rollback on failure
+
+App-proof recovery：
+
+create replacement
+→ close source
+→ start replacement
+→ health
+→ recover
+→ resume original wait
+→ proof
+→ commit
+→ retire source
+→ rollback on failure
+
+如果独立 review 确认确实是同一 transaction：
+
+抽取一个内部：
+
+`OwnedSidecarHandoff`
+
+或等价机制。
+
+状态建议体现类似：
+
+PREPARED
+→ REPLACEMENT_CREATED
+→ SOURCE_RELEASED
+→ REPLACEMENT_STARTED
+→ TRANSPORT_READY
+→ SEMANTIC_READY
+→ PROVED
+→ COMMITTED
+
+失败：
+
+→ ROLLED_BACK / UNCERTAIN
+
+不同 caller 只提供：
+
+- readiness callback
+- proof/reconcile callback
+- commit callback
+
+不要把 App-proof / bootstrap 产品语义硬编码进通用 handoff transaction。
+
+必须保持：
+
+- one replacement budget
+- no resend
+- original operation ID
+- original absolute deadline
+- exact source/replacement ownership
+- commit only after proof
+- rollback on failure
+- source retirement only after commit
+- unknown stays unknown
+
+---
+
+# 八、把 dsh-runtime.ts 恢复成 composition root
+
+如果独立 review 确认职责混合：
+
+逐步把下面的业务 transaction 移到独立内部模块：
+
+- App-proof recovery transaction
+- bootstrap replacement transaction
+- tool-specific handler logic
+
+`dsh-runtime.ts` 最终应更接近：
+
+config
+→ construct dependencies
+→ register adapters/tools
+→ wire lifecycle
+→ dispose
+
+而不是承担核心 recovery state machine。
+
+禁止一次性大范围搬文件。
+
+每次 extraction 必须：
+
+1. 先 characterization tests
+2. production behavior zero-change
+3. diff 中主要是 move/extract
+4. tests 全绿
+5. Reviewer 确认依赖方向改善
+
+---
+
+# 九、压缩模型默认文档上下文
+
+保留所有历史 evidence，不删除。
+
+但新增或重构为一个简洁的当前入口，例如：
+
+`docs/status/current.md`
+
+内容只允许包含：
+
+- 当前 repo HEAD
+- producer HEAD
+- 当前 frozen candidate
+- 当前已 VERIFIED 的范围
+- 当前 FAILED / UNKNOWN
+- 当前唯一 blocking gate
+- 唯一 next action
+- 当前可用 evidence pointers
+- 不能重复的历史实验
+- 当前 architecture debt trigger 状态
+
+目标规模：
+
+尽量控制在几百行以内，最好明显更短。
+
+历史 incident 放入独立 immutable 文档，例如：
+
+`docs/incidents/real121.md`
+`docs/incidents/real123.md`
+
+或保持现有 evidence tree。
+
+不得删除历史失败。
+
+不得把过去的“当前执行状态”继续 prepend 到多个长文档顶端。
+
+`goal.md`：
+
+只保留目标、边界、总体原则。
+
+`target-architecture.md`：
+
+只保留稳定架构 contract。
+
+`current status`：
+
+只保留当前执行依据。
+
+历史 evidence：
+
+独立归档。
+
+之后 codex-with-chatgpt 默认读取顺序调整为：
+
+1. goal
+2. target architecture
+3. current status
+4. 当前 incident/evidence
+5. 只有必要时读取历史
+
+---
+
+# 十、测试策略必须开始控制长期成本
+
+不要让所有 diagnostic 永久进入 full suite。
+
+将测试重新分类：
+
+## Tier 0 — invariant / pure tests
+
+必须快。
+
+用于：
+
+- state transitions
+- protocol
+- identity
+- digest
+- routing
+- replay
+- fail-closed invariants
+
+目标：几十秒。
+
+## Tier 1 — component/native
+
+用于：
+
+- Direct CDP
+- Sidecar
+- native process
+- recovery transaction
+- Windows-specific lifecycle
+
+目标：数分钟。
+
+## Tier 2 — integration
+
+用于：
+
+- DSH runtime composition
+- package/profile
+- planner/executor runner
+- restart/reconnect synthetic composition
+
+## Tier 3 — frozen full
+
+只在：
+
+production source candidate 已通过 independent review
+
+之后运行一次。
+
+纯文档修改不重跑。
+
+纯 diagnostic evidence 不重跑。
+
+## Tier 4 — real Windows E2E
+
+一次 fresh controlled exposure。
+
+第一处未建模 failure 即停止。
+
+不得普通 retry。
+
+不得靠概率刷成功。
+
+D27/D28 等一次性 diagnosis：
+
+如果形成长期 invariant，则提炼成小型 deterministic regression。
+
+如果只是一次调查工具，则不要永久加入所有 full 回归。
+
+---
+
+# 十一、Reviewer 不允许被 tests green 锚定
+
+今后 production candidate 的独立源码 review 分两阶段。
+
+## Phase A：Architecture / Source Review
+
+先只给 ChatGPT：
+
+- architecture contract
+- invariants
+- production source diff
+- relevant existing source
+
+不要先告诉：
+
+“1246 tests passed”。
+
+要求 Reviewer 独立回答：
+
+- 新增多少 state
+- 新增多少 branches
+- 有没有 duplicated lifecycle
+- 有没有 dead code
+- 有没有 unreachable state
+- 是否存在 workaround
+- 是否存在 test-specific production behavior
+- 是否能删除旧逻辑
+- 这次修改让系统复杂度增加还是减少
+- 第三个同类 caller 出现时当前结构是否成立
+
+只有 Phase A 通过后，再进入：
+
+## Phase B：Evidence Review
+
+再给：
+
+- causal RED
+- focused tests
+- native/adversarial
+- typecheck/build
+- frozen full
+- package/profile
+- exact HEAD
+
+测试证明 correctness。
+
+Phase A 证明 architecture 没有继续腐化。
+
+两者缺一不可。
+
+---
+
+# 十二、禁止以下做法
+
+除非独立 evidence 明确证明必要，否则不要：
+
+- 增加 timeout
+- 新增 blind retry
+- resend INIT / EXECUTED
+- 重复 Enter
+- 新建 target 逃避 uncertainty
+- 新增宽松 fallback
+- 修改 identity checks
+- 修改 digest checks
+- 修改 exact App proof
+- 增加 permanent skip
+- 删除 failing regression
+- 修改测试来接受错误 production behavior
+- 把 synthetic PASS 冒充 real product PASS
+- 把 post-failure probe 倒推成历史 root cause
+- 将 UNKNOWN 写成已确认
+- 将 scoped DONE 写成 global DONE
+- 仅因为函数太长就机械拆文件
+- 仅因为架构“不够漂亮”就扩大公共接口
+- 为未来 Linux 模式增加当前不需要的 provider
+- 重做已经接受的 foundation
+
+---
+
+# 十三、新 failure 的处理模板
+
+每一个新的真实 failure 都先回答：
+
+## 1. Which invariant?
+
+例如：
+
+- no duplicate send
+- exact conversation ownership
+- target continuity
+- document continuity
+- exact App identity
+- exact digest
+- reply baseline continuity
+- bounded deadline
+- no post-cancel mutation
+- exact HEAD
+- workspace authority
+- lease generation
+
+## 2. Which mechanism owns it?
+
+只能落入一个主要 mechanism，例如：
+
+- ConversationBindingMachine
+- Sidecar delivery journal
+- OwnedSidecarHandoff
+- Coordinator round state machine
+- Workspace authority
+- Git authority
+- Execution evidence
+
+如果无法归类：
+
+不要加 branch。
+
+触发 architecture checkpoint。
+
+## 3. Is this:
+
+- missing state
+- illegal transition
+- wrong observation
+- stale authority
+- transport uncertainty
+- product environment
+- test fixture defect
+
+先分类，再修复。
+
+---
+
+# 十四、关于真实 Windows exposure
+
+当前或下一候选完成 freeze 后，只允许一次 controlled real run。
+
+运行前确认：
+
+- source HEAD
+- built package
+- installed package
+- producer HEAD
+- actual loaded module
+- Chrome target
+- Sidecar target
+- private journal
+- workspace/task identity
+- WTS usable/unlocked
+- no independent page observer interfering
+- no stale product process
+- original oracle unchanged
+
+运行：
+
+local doctor
+→ app-proof
+→ INIT
+→ PLAN
+→ DSH implementation
+→ tests
+→ stdout-only E2E nonce
+→ commit/push
+→ ChatGPT independent review
+→ real fix PLAN
+→ DSH actual process restart
+→ same-task reconnect
+→ second implementation/test/commit
+→ exact-HEAD review
+→ DONE
+→ oracle
+
+首次未建模 failure：
+
+立即停止新的业务发送。
+
+冻结：
+
+- task
+- operation IDs
+- journal
+- target lifecycle
+- reason enum
+- elapsed time
+- WTS
+- root/health
+- evidence
+- exact source/package identity
+
+只允许一个有证据支持的下一实验。
+
+---
+
+# 十五、最终完成标准
+
+不要因为：
+
+- source review PASS
+- focused tests PASS
+- full tests PASS
+- package PASS
+- App proof PASS
+- first PLAN 成功
+- restart synthetic PASS
+
+就宣布完成。
+
+最终必须区分：
+
+VERIFIED
+FAILED
+UNKNOWN
+NOT_RUN
+BLOCKED
+FUTURE
+
+最终 global DONE 至少要求：
+
+1. 当前目标架构与生产实现一致
+2. ChatGptWebDriver 状态复杂度已经停止无界增长
+3. duplicated Sidecar handoff transaction 已消除或独立 Reviewer 明确认定不存在
+4. deployment composition 职责清楚
+5. current status 文档已与历史 evidence 分离
+6. tests 分层并避免 diagnostic 无限进入 full
+7. 无测试 weakening
+8. 无 resend / hidden retry
+9. Windows real Planner → Executor → Review → fix → restart → reconnect → second review → DONE 完整闭环通过
+10. original acceptance oracle 全部通过
+11. Windows lock/pause/resume gate 得到明确 VERIFIED/FAILED/NOT_RUN 结论
+12. producer Windows Git gate 得到明确结论
+13. 两仓库 exact-HEAD global review 通过
+
+---
+
+# 十六、执行顺序
+
+现在开始，不要只输出计划后结束。
+
+按以下顺序持续工作：
+
+1. 获取两个 repo 当前真实状态。
+2. 阅读当前 goal / target architecture / current status / latest evidence。
+3. 通过 codex-with-chatgpt 发起一次独立 ARCHITECTURE + CURRENT CANDIDATE review。
+4. 判断最新候选是：
+   - 需要最小 source fix
+   - 可以 freeze
+   - 必须 architecture consolidation
+5. 优先完成当前真实产品 gate，不要因为美化代码无条件推迟真实 E2E。
+6. 一旦触发 Architecture Debt Trigger，停止继续堆 patch，进行 consolidation。
+7. 每次重构必须减少或集中状态，而不是增加抽象数量。
+8. 每次 production candidate 都执行：
+   causal RED
+   → focused
+   → architecture/source review
+   → native/adversarial
+   → typecheck/build
+   → one frozen full
+   → package/profile association
+   → push
+   → exact-HEAD review
+9. 然后进行一次真实 controlled exposure。
+10. 持续推进直到最终产品闭环或者遇到真正需要用户操作的外部 blocker。
+
+最重要的原则：
+
+**Tests green 是必要条件，不是完成定义。**
+
+**每个 failure 必须先属于一个 invariant 和 mechanism，而不是自动产生一个新的 branch。**
+
+**优先删除和统一机制；只有不能由现有机制表达时才增加新的 state。**
+
+**目标不是让当前 issue 关闭，而是让 PlannerBridge 在后续需求继续演化时仍然容易理解、验证和修改。**

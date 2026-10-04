@@ -1,0 +1,8 @@
+
+> dsh-with-chatgpt@0.1.0 test:planner-executor-e2e C:\Users\jingc\workspace\DSHWithChatGPT\package
+> node scripts/verify-planner-executor-e2e.mjs "C:/Users/jingc/workspace/deepseek-harness" "C:\\Users\\jingc\\AppData\\Local\\Temp\\dsh-chatgpt-package-M5QQYF"
+
+VERIFIED: all five packed collaboration tools satisfy the real DSH schema subset; nullable HEAD enforces string/null
+{"root":"C:\\Users\\jingc\\AppData\\Local\\Temp\\planner-executor-live-sWMAYZ","pid":31604,"workspace":"C:\\Users\\jingc\\AppData\\Local\\Temp\\planner-executor-live-sWMAYZ\\workspace","phase":1}
+{"code":0,"root":"C:\\Users\\jingc\\AppData\\Local\\Temp\\planner-executor-live-sWMAYZ","plannerExecutorAccepted":false,"identityVerified":false,"nonceVerified":false,"recoveryVerified":false,"readinessVerified":false,"exitCode":1}
+ ELIFECYCLE  Command failed with exit code 1.

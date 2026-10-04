@@ -1,0 +1,72 @@
+
+ RUN  v5.0.1 C:/Users/jingc/workspace/DSHWithChatGPT/package
+
+ ❯ tests/tunnel-readiness.spec.ts (11 tests | 1 failed) 1531ms
+   ❯ managed exposure readiness against real tunnel health semantics (11)
+     × retains a safe startup diagnostic and removes the health pointer after spawn-error 9ms
+ ❯ tests/conversation-binding.spec.ts (23 tests | 5 failed) 13ms
+   × rejects a foreign detour, repeated promotion or incomplete history even with proof 5ms
+   × rejects a foreign detour, repeated promotion or incomplete history even with proof 1ms
+   × rejects a foreign detour, repeated promotion or incomplete history even with proof 1ms
+   × rejects a foreign detour, repeated promotion or incomplete history even with proof 1ms
+   × rejects a foreign detour, repeated promotion or incomplete history even with proof 0ms
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 6 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  tests/conversation-binding.spec.ts > rejects a foreign detour, repeated promotion or incomplete history even with proof
+ FAIL  tests/conversation-binding.spec.ts > rejects a foreign detour, repeated promotion or incomplete history even with proof
+ FAIL  tests/conversation-binding.spec.ts > rejects a foreign detour, repeated promotion or incomplete history even with proof
+ FAIL  tests/conversation-binding.spec.ts > rejects a foreign detour, repeated promotion or incomplete history even with proof
+ FAIL  tests/conversation-binding.spec.ts > rejects a foreign detour, repeated promotion or incomplete history even with proof
+AssertionError: expected [Function] to throw error including 'BROWSER_TARGET_CHANGED' but got 'events.at is not a function'
+
+Expected: "BROWSER_TARGET_CHANGED"
+Received: "events.at is not a function"
+
+ ❯ tests/conversation-binding.spec.ts:28:134
+     26|   [{ sequence: 1, beforeUrl: other, afterUrl: durable }],
+     27| ])('rejects a foreign detour, repeated promotion or incomplete history…
+     28|   expect(() => planConversationBinding(state, target(), target(events.…
+       |                                                                                                                                      ^
+     29| })
+     30|
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/6]⎯
+
+ FAIL  tests/tunnel-readiness.spec.ts > managed exposure readiness against real tunnel health semantics > retains a safe startup diagnostic and removes the health pointer after spawn-error
+AssertionError: promise resolved "{ mode: 'managed', …(6) }" instead of rejecting
+
+- Expected
++ Received
+
+- Error {
+-   "message": "rejected promise",
++ {
++   "configured": true,
++   "detail": "managed Secure MCP Tunnel is ready",
++   "healthUrl": "http://127.0.0.1:9999",
++   "mode": "managed",
++   "pid": 123,
++   "ready": true,
++   "tunnelId": "fixture-id",
+  }
+
+ ❯ tests/tunnel-readiness.spec.ts:100:49
+     98|       return child
+     99|     })
+    100|     await expect(f.supervisor.ensure(f.binding)).rejects.toThrow('TUNN…
+       |                                                 ^
+    101|     const text = fs.readFileSync(path.join(f.dir, 'tunnel', 'workspace…
+    102|     expect(JSON.parse(text).failure).toBe('TUNNEL_START_FAILED')
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/6]⎯
+
+
+ Test Files  2 failed | 5 passed (7)
+      Tests  6 failed | 114 passed (120)
+   Start at  09:08:02
+   Duration  4.35s (tests 60%, transform 20%, import 20%, worker 1%)
+
+    Isolate  7 workers spawned · ~105ms startup each (spawn + environment, per file)
+             at least ~630ms faster with isolate: false — reuses workers across files instead of one per file
+

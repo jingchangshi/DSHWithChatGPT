@@ -1,0 +1,8 @@
+
+Status                  : VERIFIED
+Profile                 : C:\Users\jingc\AppData\Local\DSHWithChatGPT\chrome-product
+Browser                 : Chrome/154.0.8037.93
+ProtocolVersion         : 1.3
+DebuggerEndpointPresent : True
+
+Please sign in to ChatGPT manually in this dedicated Chrome window.

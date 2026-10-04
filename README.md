@@ -10,7 +10,7 @@ The repository and released DSH package remain named `DSHWithChatGPT` and
 
 The Windows implementation has scoped source, packaging, installed-authority
 and synthetic workflow evidence. **The real Windows model/App loop and final
-global audit are not complete.** See [acceptance-plan](docs/acceptance-plan.md)
+global audit are not complete.** See [current status](docs/status/current.md) and [acceptance contract](docs/acceptance-plan.md)
 for actual results; component and fake-stack passes do not imply product acceptance.
 
 ## Windows deployment

@@ -1,0 +1,12 @@
+
+ RUN  v5.0.1 C:/Users/jingc/workspace/DSHWithChatGPT/package
+
+
+ Test Files  7 passed (7)
+      Tests  120 passed (120)
+   Start at  09:08:44
+   Duration  4.34s (tests 63%, transform 18%, import 18%, worker 1%)
+
+    Isolate  7 workers spawned · ~98ms startup each (spawn + environment, per file)
+             at least ~588ms faster with isolate: false — reuses workers across files instead of one per file
+

@@ -1,0 +1,13 @@
+
+> dsh-with-chatgpt@0.1.0 test:components C:\Users\jingc\workspace\DSHWithChatGPT\package
+> vitest run tests/browser.spec.ts tests/browser-dom.spec.ts tests/browser-ownership.spec.ts tests/chatgpt-web-driver-parity.spec.ts tests/reply-reconciliation.spec.ts tests/doctor-owned-recovery.spec.ts tests/sidecar-target-recovery.spec.ts tests/tunnel.spec.ts tests/tunnel-readiness.spec.ts tests/production-canonical.spec.ts
+
+
+ RUN  v5.0.1 C:/Users/jingc/workspace/DSHWithChatGPT/package
+
+
+ Test Files  10 passed (10)
+      Tests  262 passed (262)
+   Start at  09:10:09
+   Duration  24.39s (tests 89%, import 7%, transform 4%)
+

@@ -1,0 +1,29 @@
+Progress: resolved 0, reused 0, downloaded 1, added 0
+
+   ╭────────────────────────────────────────────────────────────────────────╮
+   │                                                                        │
+   │                  Update available! 11.25.0 → 12.9.1.                   │
+   │                  Changelog: https://pnpm.io/v/12.9.1                   │
+   │   To update, run: Invoke-WebRequest https://get.pnpm.io/install.ps1    │
+   │                 -UseBasicParsing | Invoke-Expression                   │
+   │                                                                        │
+   ╰────────────────────────────────────────────────────────────────────────╯
+
+Packages: +3
++++
+Packages are hard linked from the content-addressable store to the virtual store.
+  Content-addressable store is at: C:\Users\jingc\AppData\Local\pnpm\store\v11
+  Virtual store is at:             node_modules/.pnpm
+Progress: resolved 3, reused 2, downloaded 1, added 2
+Progress: resolved 3, reused 2, downloaded 1, added 3, done
+
+dependencies:
++ @deepseek-ai/cordis 4.0.2 <- ..\..\..\..\..\..\..\workspace\deepseek-harness\vendor\cordis
++ @deepseek-ai/dsh-execution-world 0.1.6-alpha.4 <- ..\..\..\..\..\..\..\workspace\deepseek-harness\packages\execution\execution-world
++ @deepseek-ai/dsh-fs 0.1.6-alpha.2 <- ..\..\..\..\..\..\..\workspace\deepseek-harness\packages\fs\fs
++ @deepseek-ai/dsh-sandbox 0.1.6-alpha.2 <- ..\..\..\..\..\..\..\workspace\deepseek-harness\packages\sandbox\sandbox
++ @deepseek-ai/dsh-storage-domain 0.1.6-alpha.2 <- ..\..\..\..\..\..\..\workspace\deepseek-harness\packages\storage\storage-domain
++ @deepseek-ai/dsh-subprocess 0.1.6-alpha.2 <- ..\..\..\..\..\..\..\workspace\deepseek-harness\packages\subprocess\subprocess
++ dsh-with-chatgpt 0.1.0
+
+Done in 2.7s using pnpm v11.25.0

@@ -1,0 +1,76 @@
+
+ RUN  v5.0.1 C:/Users/jingc/workspace/DSHWithChatGPT/package
+
+ ❯ tests/planner-executor-e2e-oracle.spec.ts (32 tests | 4 failed) 67ms
+   ❯ real Planner-Executor runner acceptance oracle (32)
+     × never overwrites an earlier failed local readiness with later success 12ms
+     × never overwrites an earlier failed app-proof readiness with later success 2ms
+     × rejects failed doctor calls even when their readiness fields are absent 2ms
+     × rejects a recorded acceptance stop across the process restart 2ms
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 4 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  tests/planner-executor-e2e-oracle.spec.ts > real Planner-Executor runner acceptance oracle > never overwrites an earlier failed local readiness with later success
+ FAIL  tests/planner-executor-e2e-oracle.spec.ts > real Planner-Executor runner acceptance oracle > never overwrites an earlier failed app-proof readiness with later success
+AssertionError: expected true to be false // Object.is equality
+
+- Expected
++ Received
+
+- false
++ true
+
+ ❯ tests/planner-executor-e2e-oracle.spec.ts:68:64
+     66|     const records = fixture()
+     67|     records.unshift({ ...scope, phase: '1', kind: 'result', name: 'cha…
+     68|     expect((await runOracle(records)).plannerExecutorAccepted).toBe(fa…
+       |                                                                ^
+     69|   })
+     70|   it('rejects failed doctor calls even when their readiness fields are…
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/4]⎯
+
+ FAIL  tests/planner-executor-e2e-oracle.spec.ts > real Planner-Executor runner acceptance oracle > rejects failed doctor calls even when their readiness fields are absent
+AssertionError: expected true to be false // Object.is equality
+
+- Expected
++ Received
+
+- false
++ true
+
+ ❯ tests/planner-executor-e2e-oracle.spec.ts:73:64
+     71|     const records = fixture()
+     72|     records.unshift({ ...scope, phase: '1', kind: 'result', name: 'cha…
+     73|     expect((await runOracle(records)).plannerExecutorAccepted).toBe(fa…
+       |                                                                ^
+     74|   })
+     75|   it('rejects a recorded acceptance stop across the process restart', …
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/4]⎯
+
+ FAIL  tests/planner-executor-e2e-oracle.spec.ts > real Planner-Executor runner acceptance oracle > rejects a recorded acceptance stop across the process restart
+AssertionError: expected true to be false // Object.is equality
+
+- Expected
++ Received
+
+- false
++ true
+
+ ❯ tests/planner-executor-e2e-oracle.spec.ts:78:64
+     76|     const records = fixture()
+     77|     records.splice(5, 0, { ...scope, phase: '1', kind: 'acceptance-sto…
+     78|     expect((await runOracle(records)).plannerExecutorAccepted).toBe(fa…
+       |                                                                ^
+     79|   })
+     80|   it('returns failure even when DSH exits zero without accepted eviden…
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[3/4]⎯
+
+
+ Test Files  1 failed (1)
+      Tests  4 failed | 28 passed (32)
+   Start at  08:52:15
+   Duration  420ms (tests 42%, transform 34%, import 18%, worker 6%)
+

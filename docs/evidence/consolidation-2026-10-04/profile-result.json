@@ -1,0 +1,5 @@
+{
+  "endedAt": "2026-10-04T01:40:38.1874090Z",
+  "command": "npx --yes pnpm@10.34.5 run test:profile <producer> <M5QQYF>",
+  "exitCode": 0
+}

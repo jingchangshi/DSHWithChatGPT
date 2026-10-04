@@ -1,59 +1,16 @@
-# Current Delivery Status
+# Current delivery status
 
-- DSHWithChatGPT HEAD: `02add8be66b2ccb405447f113ea2efa38147bcae`
-- Branch: `feat/complete-c2c-runtime`
-- Upstream: `origin/feat/complete-c2c-runtime`
-- Producer (`deepseek-harness`) HEAD: `0afd708c288b079096affbfeff4626dcf9a19bf1`
-- Frozen candidate: not established for this clean-goal iteration.
+Updated 2026-10-04. This is the only dynamic execution entry.
 
-## Verified
+- Consumer production candidate: 2fef84407d1e2c41e2b093b683345a56987530bd, branch feat/complete-c2c-runtime. Subsequent documentation/evidence commits preserve its frozen inputs; use git rev-parse HEAD for the delivery revision.
+- Producer: 0afd708c288b079096affbfeff4626dcf9a19bf1, unchanged worktree.
+- Implemented: run-level readiness fail-stop; safe pre-shutdown tunnel predicate facts; one Sidecar handoff for bootstrap and App-proof; shared pure route/proof rules; one status entry, archived history and test tiers.
+- VERIFIED: 187 invariant, 262 component, 97 native and 10 observer tests; typecheck/build; one frozen full (94 files / 1,327 PASS / 3 original skips / 979.14 s); all 230 frozen input hashes unchanged; package and two profile runs; 174 consumer built/packed/installed files and 28 Producer installed runtime files match. Actual live-installed consumer files also match.
+- VERIFIED in the real run: failed readiness closed tool admission, recorded stop, exited DSH gracefully and prevented App proof, PLAN and phase two; no manual stop/retry, no owned child/listener remained.
+- FAILED: controlled real product acceptance before PLAN, TUNNEL_START_TIMEOUT: TUNNEL_CONTROL_PLANE_UNAVAILABLE. All original oracle fields false. Last parsed facts show control status not ok, one failure, no valid last success, null HTTP status, successful local probe. Network/credential/server root cause remains UNKNOWN; historical causes remain UNKNOWN.
+- FAILED separately: Producer original Windows Git suite, 1 failed / 2 passed at unchanged 5,000 ms total fixture deadline. Profile PASS does not supersede it.
+- NOT VERIFIED: real PLAN → independent nonce/fix review → actual restart/reconnect → same-round DONE. Actual Windows lock/unlock qualification NOT_RUN; WTS unlocked preflight alone is insufficient. Global product DONE is not claimed.
+- Review: user authorized autonomous implementation/review without codex-with-chatgpt; no external development-review verdict is claimed.
+- Next action: diagnose the exposure control-plane prerequisite using retained bounded facts and operator/control-plane evidence, then justify a new controlled run. Preserve the failed run; do not extend deadlines, resend or infer a historical cause. Producer timing/lifecycle and real lock/unlock gates remain separate required work.
 
-- Local C2C doctor, bridge, MCP authentication, OAuth, and named connection are green.
-- Existing source review history records strict identity, digest, route, deadline, and no-resend invariants for the current ChatGptWebDriver candidate.
-- Existing evidence distinguishes synthetic, focused, native, frozen, full, and real exposure scopes.
-
-## Failed / Unknown
-
-- Real Windows Planner → Executor → Review → restart → reconnect → second review closure: **NOT VERIFIED**.
-- Historical Real123 failure cause: **UNKNOWN**.
-- Producer Windows Git gate, Windows lock/pause/resume gate, and two-repository exact-HEAD global audit: **NOT VERIFIED**.
-
-## Current blocker
-
-- Independent architecture review is available and classifies the next step as **consolidation-first**.
-- The first bounded production consolidation is complete: internal Sidecar handoff lifecycle extraction with no public/protocol behavior change.
-
-## Next action
-
-- Keep ChatGptWebDriver frozen while validating the Sidecar extraction.
-- Frozen full regression and real exposure remain gated; obtain a fresh independent exact-HEAD review after the candidate artifacts are frozen.
-
-## Evidence pointers
-
-- `docs/clean-goal.txt` — task requirements.
-- `docs/goal.md` — product goal and boundaries.
-- `docs/target-architecture.md` — architecture contract.
-- `docs/review-handoff-2026-10-04.md` — latest scoped evidence and open gates.
-- `package/src/browser/chatgpt-web-driver.ts` — browser semantic state machine.
-- `package/src/deployment/sidecar-target-recovery.ts` — owned replacement primitive.
-- `package/src/deployment/dsh-runtime.ts` — composition and recovery call sites.
-
-## Architecture debt trigger
-
-- ChatGptWebDriver has multiple mutable fields representing one lifecycle; consolidation review is required before adding another state field or recovery branch.
-- Sidecar replacement has a shared primitive, but caller equivalence is not yet proven.
-- dsh-runtime is a large composition root with recovery call sites requiring a responsibility audit.
-
-## Latest validation
-
-- Focused recovery/canonical suites: 63 passed.
-- Broader deployment/Sidecar/coordinator suites: 131 passed.
-- `pnpm build`: passed.
-- `pnpm typecheck`: passed.
-- `pnpm run test:package`: passed; isolated packed plugin imports and Sidecar probe passed.
-- `pnpm run test:profile C:/Users/jingc/workspace/deepseek-harness C:/Users/jingc/AppData/Local/Temp/dsh-chatgpt-package-qZdn0E`: passed twice; composition fixture and hardened-Windows Git acceptance passed.
-- Exact HEAD equals upstream after push.
-- Frozen full at HEAD `0eec461d415e1c27cf9bf37d06897c09a2c6810e`: passed, 93 files / 1285 passed / 3 original skips; output `C:/Users/jingc/AppData/Local/Temp/dsh-frozen-full-0eec461.txt`.
-- Real exposure and full product-loop acceptance: NOT RUN.
-- Independent pre-exposure review at HEAD `7e47c3fd4206f4ac8374bc7b32127bc65db5eaa0`: pre-exposure gates PASS; one fresh controlled Windows exposure AUTHORIZED.
-- Exposure is currently BLOCKED by missing local `DSH_CLI`, `DEEPSEEK_API_KEY`, `CONTROL_PLANE_API_KEY`, `CONTROL_PLANE_TUNNEL_ID`, and `MCP_EXPOSURE_CLIENT` environment configuration. No secrets are recorded here.
+Evidence: [consolidation](../evidence/consolidation-2026-10-04/README.md), [new real incident](../incidents/consolidation-live-2026-10-04.md), [historical real incident](../incidents/clean-live-2026-10-04.md), [Producer gate](../incidents/producer-windows-git-2026-10-04.md), [architecture inventory](../architecture-inventory-2026-10-04.md). Stable contracts: [goal](../goal.md), [architecture](../target-architecture.md), [acceptance](../acceptance-plan.md). Superseded default context remains [verbatim](../history/2026-10-04-pre-consolidation/README.md).

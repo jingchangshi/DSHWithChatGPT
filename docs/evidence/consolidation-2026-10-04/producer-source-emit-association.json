@@ -1,0 +1,296 @@
+{
+  "producerHead": "0afd708c288b079096affbfeff4626dcf9a19bf1",
+  "at": "2026-10-04T01:27:18.207Z",
+  "typescript": "6.0.3",
+  "method": "Type-aware in-memory TypeScript emit using each package config; normalize line endings and terminal sourceMappingURL only. No disk emission; not a full producer typecheck or bundled-entry rebuild.",
+  "allMatch": true,
+  "modules": [
+    {
+      "package": "packages/execution/execution-world",
+      "module": "lib/types/allocation-lock.js",
+      "sourceHash": "b5cc2dcfcf30e4e5b14d0c43e9af360d8fb91ce0e584cca3082ee8583be29866",
+      "compiledHash": "e3e0e02058342142cf63967ee4005a8f205ea7359c5a19b0a472c87e500ff796",
+      "sourceEmitMatches": true
+    },
+    {
+      "package": "packages/execution/execution-world",
+      "module": "lib/types/git-argv.js",
+      "sourceHash": "559f56a849da0bc8af0cceba6763432d28e59549b6040bb42dab5a0765408846",
+      "compiledHash": "93d7d52e30860ec27cdf35d07099edca5501249422ea2fb749d5cec9334ac382",
+      "sourceEmitMatches": true
+    },
+    {
+      "package": "packages/execution/execution-world",
+      "module": "lib/types/git-lease.js",
+      "sourceHash": "6d1a48dd2e89d3d2bfa7da62b862e1b73a2db6229585acf5ce58a9b4bb1d2cfb",
+      "compiledHash": "c5fd0756fae64abb2268e728601d47310f0b4b97ccd1e2f30e841595ae20c654",
+      "sourceEmitMatches": true
+    },
+    {
+      "package": "packages/execution/execution-world",
+      "module": "lib/types/index.js",
+      "sourceHash": "8e600da8f0191efd09ba2d59cfb6d3d4ea8fbcc5bd2b32c7e71d0958a29af999",
+      "compiledHash": "d6a8ea6145ba297ac6e56569b5d70100a1b4ac13a2740df14156e62f6a0d85d7",
+      "sourceEmitMatches": true
+    },
+    {
+      "package": "packages/execution/execution-world",
+      "module": "lib/types/read-lease.js",
+      "sourceHash": "8980d2e6ece88f2cd5d2ac7fb2b857bdb8fe05fba27b7c880c1011da67f31826",
+      "compiledHash": "dc110d3736ca4cbe5abe33b93b6282652b3199fb570805d33dc2afb09d765e5f",
+      "sourceEmitMatches": true
+    },
+    {
+      "package": "packages/execution/execution-world",
+      "module": "lib/types/read-only-types.js",
+      "sourceHash": "2bfcc3946ac4e8fb8d348bbd9c05c3ff4deb9b094d55a744ebb35075c3987d82",
+      "compiledHash": "b406dc4bb28c81c87dbd3cf26fc9a9f14bc8bbdd2efbdd726b86b4e718aba769",
+      "sourceEmitMatches": true
+    },
+    {
+      "package": "packages/execution/execution-world",
+      "module": "lib/types/read-only.js",
+      "sourceHash": "72f471c50d7a60f4698f47665139f15277530ee2f3475f799162d4ce854af43b",
+      "compiledHash": "f873f45cd5e2ce4350ee88d7b2c752c768425c012fe9e66b5e3834d4e545f8d8",
+      "sourceEmitMatches": true
+    },
+    {
+      "package": "packages/execution/execution-world",
+      "module": "lib/types/spec.js",
+      "sourceHash": "fa4cbb8d7aec1508da6855005ca642fc1b4f9262e999c4d8e402db96abb6dfd6",
+      "compiledHash": "afdbc55a7c22d8d5baec6698b5d211467c1310823e8d8e0eb3407c7bc0db9451",
+      "sourceEmitMatches": true
+    },
+    {
+      "package": "packages/execution/execution-world",
+      "module": "lib/types/types.js",
+      "sourceHash": "c2befe2ad00f275e02d6d1315f76197ff9d53bfe4f5e06ee50aa0ac1e80deb90",
+      "compiledHash": "01ae2a5b120382f9a648ced7ee8507493a134f216d100fc61600c6c9738235d2",
+      "sourceEmitMatches": true
+    },
+    {
+      "package": "packages/execution/execution-world-affinity",
+      "module": "lib/types/index.js",
+      "sourceHash": "d50fe7bf31d28a04c7cd03d38ad1b72f0d74b13456061b64b6dfcb12eca973de",
+      "compiledHash": "6d56aea71c9f383fc0f9e1cc9b567bd5a706714f615552baf3f2a167d1ec92db",
+      "sourceEmitMatches": true
+    },
+    {
+      "package": "packages/fs/fs",
+      "module": "lib/types/index.js",
+      "sourceHash": "1d35b79e33f1a94adeb06177e1be998c9f2017e2f37fa9d148b3a7df7fc1f520",
+      "compiledHash": "b0fa684ceb410ea29e9747bf08129da3091aba2a4c59581ea2587f52ebdd922e",
+      "sourceEmitMatches": true
+    },
+    {
+      "package": "packages/fs/fs",
+      "module": "lib/types/invariant.js",
+      "sourceHash": "f71e643b2b2b500d249dee9ba5edb1b9bb4b20592d1541ab718052396a86c21f",
+      "compiledHash": "d57c5d7c00253b18e60765b7f77c59761c489a22baff802ec6e6c62c6c5143d8",
+      "sourceEmitMatches": true
+    },
+    {
+      "package": "packages/fs/fs",
+      "module": "lib/types/root-read.js",
+      "sourceHash": "05a3c5cf6dd3c04c9fdabb71086e9194db134f69cf780d7832867deb700a08d5",
+      "compiledHash": "30c22e68a8637e64c040544009f85235b67297a1e7f31f14ee7732fef2b86e20",
+      "sourceEmitMatches": true
+    },
+    {
+      "package": "packages/fs/fs",
+      "module": "lib/types/types.js",
+      "sourceHash": "5918ac1953e92aaeadb00d209c6043a8207c165e82085c9fdef4581f0b2933a4",
+      "compiledHash": "3d507cdd71608b95dd60d686e891751c8964b4a6dd0c67ed2c775bf31b413975",
+      "sourceEmitMatches": true
+    },
+    {
+      "package": "packages/storage/storage-domain",
+      "module": "lib/types/domain.js",
+      "sourceHash": "e9801b98454e45c530ea90293e6aaf3cba2d532ddf751a7e869fbe2524b12958",
+      "compiledHash": "af99b06cd8a8660e1d21ab4fe796e406eb539f86d92fb9478224a02cf5cf746f",
+      "sourceEmitMatches": true
+    },
+    {
+      "package": "packages/storage/storage-domain",
+      "module": "lib/types/error.js",
+      "sourceHash": "1f285ff8b6aeba68b96f048fc1f427212b5f6e1938770915adf40ecff3f938da",
+      "compiledHash": "5d1d23b5fdbf7ce2e36267a6e9b5169b10e8d822229e233859c989e031dcb634",
+      "sourceEmitMatches": true
+    },
+    {
+      "package": "packages/storage/storage-domain",
+      "module": "lib/types/events.js",
+      "sourceHash": "3c239eca0157166ce7ae8b417215e1e5366e5c6f36e375f3680f4bacfaf1da1c",
+      "compiledHash": "74f462b80b4be57908da1906531dc8f86add89b5d84e348d5edf02ec48e59877",
+      "sourceEmitMatches": true
+    },
+    {
+      "package": "packages/storage/storage-domain",
+      "module": "lib/types/index.js",
+      "sourceHash": "661c0b7daa38e994443782a47362e9c3077c62df5da2c7db4892816ea5e8d32f",
+      "compiledHash": "833b3d7f433825ab96f233ed14ea401bb5ef409c6cc4d9e5243f4328a0f7328c",
+      "sourceEmitMatches": true
+    },
+    {
+      "package": "packages/storage/storage-domain",
+      "module": "lib/types/invariant.js",
+      "sourceHash": "5fd0720dae9e3cbf794d54fcfdead0a429d6a5fb705d2b2568778d399c157e66",
+      "compiledHash": "61969e2884e1b5266f45a0321b30d3e2119a5b80c5053144c33466d1443fc945",
+      "sourceEmitMatches": true
+    },
+    {
+      "package": "packages/storage/storage-domain",
+      "module": "lib/types/spec.js",
+      "sourceHash": "f08d0e7932b1bba40546d63f780359c12a81ebcba080d8b439a6eb960cf355cd",
+      "compiledHash": "650a04b58e235ce559f0355e30a4f7c578f443fb06ac8b15d71f50dbaa54d1d0",
+      "sourceEmitMatches": true
+    },
+    {
+      "package": "packages/llm/llm",
+      "module": "lib/types/adapter-failure.js",
+      "sourceHash": "533507191d814fc7b3df5ae65076b2ebc4134bbb47a2bbd9bb7309d7e7f9241b",
+      "compiledHash": "f1213f11f11e0f20aae26c09a5e0cf3d72512c1f1519e1b3f107edf64af43c28",
+      "sourceEmitMatches": true
+    },
+    {
+      "package": "packages/llm/llm",
+      "module": "lib/types/api-key.js",
+      "sourceHash": "16bf926a82b0c0c1d4adbee78e2a1eebe260f100285795edb8330f3fe46141a4",
+      "compiledHash": "254b774234c0bd38dd759765c0fd1e60788651a22106f5559ec2760a39935f2d",
+      "sourceEmitMatches": true
+    },
+    {
+      "package": "packages/llm/llm",
+      "module": "lib/types/assembler.js",
+      "sourceHash": "ff30f5ca346015bfffeffb5ee3398901d03eb3429fda5d0d4e0c40e8638dfe58",
+      "compiledHash": "3257b31b5b93156cb31d610296a505170527eda44e3f60d8277ad564a4418f65",
+      "sourceEmitMatches": true
+    },
+    {
+      "package": "packages/llm/llm",
+      "module": "lib/types/assistant-stream.js",
+      "sourceHash": "9ac0c19b83eb8243f4907579608e00f77d8c447c010f31afeec4a1e760f2da82",
+      "compiledHash": "7e0cc96a4d60aed34381b552f9cb4549d70df36dbd28c0630da4cd93fa44b7a1",
+      "sourceEmitMatches": true
+    },
+    {
+      "package": "packages/llm/llm",
+      "module": "lib/types/attribution.js",
+      "sourceHash": "031f0a29b75498b9208ab2ede0a32b755c925f1a992562dd23970cff7caea075",
+      "compiledHash": "6f61d7b685175f7c74ed2a0498212258240f2a7fd93e939349cf7daccf33414b",
+      "sourceEmitMatches": true
+    },
+    {
+      "package": "packages/llm/llm",
+      "module": "lib/types/brand.js",
+      "sourceHash": "a3a3f22174353af8aea34a9a439986530bffcc6df6339e55612fd5a1fa4fb14c",
+      "compiledHash": "6b70219e0478d3307d865309523e7e7be3f169b06c04f4eef0d49b54aaef72a2",
+      "sourceEmitMatches": true
+    },
+    {
+      "package": "packages/llm/llm",
+      "module": "lib/types/call-config.js",
+      "sourceHash": "c2ead88240db88af3199235389585d2ddc566312d8976d9648a5f5190d32e6c6",
+      "compiledHash": "170f3ce7c7136b93087e2f5d50faa8b69815894ec3ebdf26c36d57e4c7a17a03",
+      "sourceEmitMatches": true
+    },
+    {
+      "package": "packages/llm/llm",
+      "module": "lib/types/content.js",
+      "sourceHash": "5c84127f24032f6cdbfadd721cbbdc1df3e6d35393e9563a030c7f5c250aa76f",
+      "compiledHash": "0aec3aa018df4084a94c2939bc979440b75df86ddcc074b3b5b4ed982119a264",
+      "sourceEmitMatches": true
+    },
+    {
+      "package": "packages/llm/llm",
+      "module": "lib/types/error.js",
+      "sourceHash": "6e8bb15cef604210f678ea962a125d0e3b4b5872a947252ee5a66fbc7a06dbd9",
+      "compiledHash": "38da8daa39c13cf5d408e47e27578d6ceddd454b6980e00b197b1d943e2e1978",
+      "sourceEmitMatches": true
+    },
+    {
+      "package": "packages/llm/llm",
+      "module": "lib/types/index.js",
+      "sourceHash": "2260ce28e29fddeaa0b78a273292b6f5c7194adf6226f38ff9e59a50b808cf09",
+      "compiledHash": "2ee1a57cc49747b31ad71e3f2445bc6f399ba1bc27570bcbf9b2285892a7a62a",
+      "sourceEmitMatches": true
+    },
+    {
+      "package": "packages/llm/llm",
+      "module": "lib/types/invariant.js",
+      "sourceHash": "ba2fd65ba8a0d886b5f21810f5f5d008984ac64387b024de0237ff71a7e483bd",
+      "compiledHash": "31e6ab4e29731d461b2bd49fd285666ea1a1fb96fa71ecd5c449c6c27e95d889",
+      "sourceEmitMatches": true
+    },
+    {
+      "package": "packages/llm/llm",
+      "module": "lib/types/message.js",
+      "sourceHash": "0e19944d71cce8172c640c801da6e9256c8940dff5906ec0e28aaf8a9c4ef130",
+      "compiledHash": "3cc4fad513f747a9beeb1c25e6621a44367c1698c60a4640afcfffa1452f80d2",
+      "sourceEmitMatches": true
+    },
+    {
+      "package": "packages/llm/llm",
+      "module": "lib/types/retry-policy.js",
+      "sourceHash": "eee2423a0152096026446dd651f29678e0c504f0349a91758720f01f74efa871",
+      "compiledHash": "f0a8fe075ac24c56ed2aa5d5e359a85539f5ffa237af54b68d3f4fc5124b5d83",
+      "sourceEmitMatches": true
+    },
+    {
+      "package": "packages/llm/llm",
+      "module": "lib/types/types.js",
+      "sourceHash": "713bdc8bfdb13b6b4637c76a0a4ae21fea52b98ae6da84174e2f68a1d6a8f5e6",
+      "compiledHash": "14106d660103de2db746964fbb5be90c5eb2a7ff736779e2501e9faff956cbf5",
+      "sourceEmitMatches": true
+    },
+    {
+      "package": "apps/cli",
+      "module": "lib/types/args.js",
+      "sourceHash": "5b1e5e2d1ade6ff33fe16ad448eca7b99ea0f20e49122f3c97a18c4348e4e0ec",
+      "compiledHash": "7dab9e32181068a2559c879e43ea2ea358399407b189de58bda7a9f925bd5923",
+      "sourceEmitMatches": true
+    },
+    {
+      "package": "apps/cli",
+      "module": "lib/types/bin.js",
+      "sourceHash": "4dbb5ecab6e320125847e872534b3fa3550255c29601e590b43d73df694a3808",
+      "compiledHash": "fe01631ecb3141bb645a6036b13bacf42f8bc5369474daf11e10e9fbadb0a8e4",
+      "sourceEmitMatches": true
+    },
+    {
+      "package": "apps/cli",
+      "module": "lib/types/dump-config.js",
+      "sourceHash": "5f166e3a0e09c2b3d6fa10a6d81f50c7aa591a12998d523a3aee78c4e0794eb6",
+      "compiledHash": "a0876d2a950af6d2b5cf84b1cd3551f918b7cd9705eaedcd5d3dcbc7d830c041",
+      "sourceEmitMatches": true
+    },
+    {
+      "package": "apps/cli",
+      "module": "lib/types/plugin.js",
+      "sourceHash": "165e21303545888ed9222f1126ed3774038864a7b263037c155f8ef978c00832",
+      "compiledHash": "ac79fb22a35fe7911b88018190faf7ace9b830c87cc33a95995dbacdbaa4e577",
+      "sourceEmitMatches": true
+    },
+    {
+      "package": "apps/cli",
+      "module": "lib/types/process-shutdown.js",
+      "sourceHash": "30743d5ac88154b25fd2d14ac22f7ff1b8d94e915547383de1ca7e49d1bbfc66",
+      "compiledHash": "bb66832c853c3de2cf2566fb19d537a179016255c84e98995701191319c3b23d",
+      "sourceEmitMatches": true
+    },
+    {
+      "package": "apps/cli",
+      "module": "lib/types/profile-boot.js",
+      "sourceHash": "45d376dca5504bfda07e76d84bd5b327cb09ffad13436bfc7194621d7e2cfcee",
+      "compiledHash": "a25de3e291512e1ac3f48aedaca42c647d7d281a474165c243493121cb7209d1",
+      "sourceEmitMatches": true
+    },
+    {
+      "package": "apps/cli",
+      "module": "lib/types/startup-diagnostics.js",
+      "sourceHash": "8242b472467f7efbf5ae46804080e101702a71d8be382c6d96e402a51eb1ab95",
+      "compiledHash": "d645dcac6ade1007a0ef0638ec54859fb6671c4e8ea657dc31363621f45762f4",
+      "sourceEmitMatches": true
+    }
+  ]
+}

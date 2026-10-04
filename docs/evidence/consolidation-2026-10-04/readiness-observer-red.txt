@@ -1,0 +1,89 @@
+✔ canonical observer records successful nonce provenance and rejects review leaks (8.9399ms)
+✔ observer freezes shell task/workspace/iteration before dispatch and records reviewer identity (7.1384ms)
+✔ observer selects the final marker from a successful test and never attributes a failed result (3.344ms)
+✖ failed explicit local readiness closes tool admission before another dispatch (5.2874ms)
+✖ failed explicit local readiness closes tool admission before another dispatch (2.5806ms)
+✖ failed explicit app-proof readiness closes tool admission before another dispatch (2.872ms)
+✖ failed explicit app-proof readiness closes tool admission before another dispatch (1.7332ms)
+✖ failed explicit app-proof readiness closes tool admission before another dispatch (1.6983ms)
+✔ local readiness ignores the unrequested remote proof and ordinary test failures remain repairable (4.1177ms)
+ℹ tests 9
+ℹ suites 0
+ℹ pass 4
+ℹ fail 5
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 117.6759
+
+✖ failing tests:
+
+test at scripts\planner-executor-observer.test.mjs:68:4
+✖ failed explicit local readiness closes tool admission before another dispatch (5.2874ms)
+  AssertionError [ERR_ASSERTION]: Missing expected rejection.
+      at async TestContext.<anonymous> (file:///C:/Users/jingc/workspace/DSHWithChatGPT/package/scripts/planner-executor-observer.test.mjs:80:3)
+      at async Test.run (node:internal/test_runner/test:1313:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:897:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: undefined,
+    expected: /ACCEPTANCE_READINESS_FAILED/,
+    operator: 'rejects',
+    diff: 'simple'
+  }
+
+test at scripts\planner-executor-observer.test.mjs:68:4
+✖ failed explicit local readiness closes tool admission before another dispatch (2.5806ms)
+  AssertionError [ERR_ASSERTION]: Missing expected rejection.
+      at async TestContext.<anonymous> (file:///C:/Users/jingc/workspace/DSHWithChatGPT/package/scripts/planner-executor-observer.test.mjs:80:3)
+      at async Test.run (node:internal/test_runner/test:1313:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:897:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: undefined,
+    expected: /ACCEPTANCE_READINESS_FAILED/,
+    operator: 'rejects',
+    diff: 'simple'
+  }
+
+test at scripts\planner-executor-observer.test.mjs:68:4
+✖ failed explicit app-proof readiness closes tool admission before another dispatch (2.872ms)
+  AssertionError [ERR_ASSERTION]: Missing expected rejection.
+      at async TestContext.<anonymous> (file:///C:/Users/jingc/workspace/DSHWithChatGPT/package/scripts/planner-executor-observer.test.mjs:80:3)
+      at async Test.run (node:internal/test_runner/test:1313:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:897:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: undefined,
+    expected: /ACCEPTANCE_READINESS_FAILED/,
+    operator: 'rejects',
+    diff: 'simple'
+  }
+
+test at scripts\planner-executor-observer.test.mjs:68:4
+✖ failed explicit app-proof readiness closes tool admission before another dispatch (1.7332ms)
+  AssertionError [ERR_ASSERTION]: Missing expected rejection.
+      at async TestContext.<anonymous> (file:///C:/Users/jingc/workspace/DSHWithChatGPT/package/scripts/planner-executor-observer.test.mjs:80:3)
+      at async Test.run (node:internal/test_runner/test:1313:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:897:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: undefined,
+    expected: /ACCEPTANCE_READINESS_FAILED/,
+    operator: 'rejects',
+    diff: 'simple'
+  }
+
+test at scripts\planner-executor-observer.test.mjs:68:4
+✖ failed explicit app-proof readiness closes tool admission before another dispatch (1.6983ms)
+  AssertionError [ERR_ASSERTION]: Missing expected rejection.
+      at async TestContext.<anonymous> (file:///C:/Users/jingc/workspace/DSHWithChatGPT/package/scripts/planner-executor-observer.test.mjs:80:3)
+      at async Test.run (node:internal/test_runner/test:1313:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:897:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: undefined,
+    expected: /ACCEPTANCE_READINESS_FAILED/,
+    operator: 'rejects',
+    diff: 'simple'
+  }

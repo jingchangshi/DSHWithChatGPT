@@ -1,0 +1,4 @@
+
+> dsh-with-chatgpt@0.1.0 typecheck C:\Users\jingc\workspace\DSHWithChatGPT\package
+> tsc -p tsconfig.json --noEmit
+

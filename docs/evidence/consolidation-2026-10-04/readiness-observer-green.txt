@@ -1,0 +1,17 @@
+✔ canonical observer records successful nonce provenance and rejects review leaks (6.6922ms)
+✔ observer freezes shell task/workspace/iteration before dispatch and records reviewer identity (7.44ms)
+✔ observer selects the final marker from a successful test and never attributes a failed result (3.0773ms)
+✔ failed explicit local readiness closes tool admission before another dispatch (3.7467ms)
+✔ failed explicit local readiness closes tool admission before another dispatch (3.7358ms)
+✔ failed explicit app-proof readiness closes tool admission before another dispatch (3.472ms)
+✔ failed explicit app-proof readiness closes tool admission before another dispatch (3.0497ms)
+✔ failed explicit app-proof readiness closes tool admission before another dispatch (3.3135ms)
+✔ local readiness ignores the unrequested remote proof and ordinary test failures remain repairable (4.2977ms)
+ℹ tests 9
+ℹ suites 0
+ℹ pass 9
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 129.7035
