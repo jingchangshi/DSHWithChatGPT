@@ -1,0 +1,33 @@
+{
+  "runId": "b0c43441-85bb-47d1-952b-fe5ed3d4e98a",
+  "started": "2026-10-04T02:33:30.587Z",
+  "packageRoot": "C:\\Users\\jingc\\AppData\\Local\\Temp\\dsh-chatgpt-package-AV1UuL\\node_modules\\dsh-with-chatgpt",
+  "startupTimeoutMs": 20000,
+  "initialPollRequestedWait": "1s",
+  "controlPlaneProxyReference": "env:CONTROL_PLANE_HTTP_PROXY",
+  "productMessages": 0,
+  "workspaceTools": 0,
+  "successful": true,
+  "readinessElapsedMs": 5553,
+  "childPid": 21912,
+  "health": {
+    "schema": 1,
+    "live": true,
+    "ready": true,
+    "controlStatus": "ok",
+    "consecutiveFailures": 0,
+    "lastSuccessValid": true,
+    "configuredPollWaitSeconds": 30,
+    "effectivePollWaitSeconds": 30,
+    "pollDeadlineSeconds": 35,
+    "localProbeState": "succeeded"
+  },
+  "tunnelAuthenticatedBridgeRequests": 3,
+  "bridgeAuthEnforced": true,
+  "authenticatedBridgeRequests": 4,
+  "healthPointerRemoved": true,
+  "supervisorStopped": true,
+  "childStopped": true,
+  "healthEndpointClosed": true,
+  "bridgeEndpointClosed": true
+}

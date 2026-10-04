@@ -1,0 +1,55 @@
+{
+  "mode": "proxy",
+  "started": "2026-10-04T02:22:18.053Z",
+  "startupTimeoutMs": 40000,
+  "embeddedStub": true,
+  "productMessages": 0,
+  "successful": true,
+  "snapshots": [
+    {
+      "elapsedMs": 250,
+      "schema": 1,
+      "live": true,
+      "ready": true,
+      "controlStatus": "unknown",
+      "controlState": "polling",
+      "controlDetailKeys": [
+        "last_attempt",
+        "consecutive_failures",
+        "current_poll_age_seconds",
+        "configured_wait_seconds",
+        "effective_wait_seconds",
+        "deadline_seconds"
+      ],
+      "controlDetails": {
+        "consecutive_failures": 0
+      },
+      "localProbeState": "succeeded"
+    },
+    {
+      "elapsedMs": 31299,
+      "schema": 1,
+      "live": true,
+      "ready": true,
+      "controlStatus": "ok",
+      "controlState": "polling",
+      "controlDetailKeys": [
+        "last_attempt",
+        "last_success",
+        "consecutive_failures",
+        "current_poll_age_seconds",
+        "configured_wait_seconds",
+        "effective_wait_seconds",
+        "deadline_seconds"
+      ],
+      "controlDetails": {
+        "consecutive_failures": 0,
+        "last_success": "2026-10-04T02:22:49.1564494Z"
+      },
+      "localProbeState": "succeeded"
+    }
+  ],
+  "durationMs": 31307,
+  "childStopped": true,
+  "safeLogTail": "th-server:8651e9040c5c:0\",\"inclusion_reason\":\"loopback\",\"error\":\"harpoon: target \\\"oauth-issuer-0\\\" base URL must use https\",\"remediation\":\"use HTTPS, or for trusted local HTTP MCP servers set --harpoon.allow-plaintext-http or HARPOON_ALLOW_PLAINTEXT_HTTP=true\"}\n{\"time\":\"2026-10-04T10:22:18.1195583+08:00\",\"level\":\"WARN\",\"msg\":\"harpoon host auto-registration failed\",\"client_instance_id\":\"b99af497154daa4235176ca4d630d1ed\",\"tunnel_id\":\"[REDACTED]\",\"component\":\"harpoon\",\"label\":\"oauth-token-endpoint-0\",\"url\":\"[URL]\",\"source\":\"oauth\",\"role\":\"token-endpoint\",\"group\":\"auth-server:8651e9040c5c:0\",\"inclusion_reason\":\"loopback\",\"error\":\"harpoon: target \\\"oauth-token-endpoint-0\\\" base URL must use https\",\"remediation\":\"use HTTPS, or for trusted local HTTP MCP servers set --harpoon.allow-plaintext-http or HARPOON_ALLOW_PLAINTEXT_HTTP=true\"}\n{\"time\":\"2026-10-04T10:22:18.1195583+08:00\",\"level\":\"WARN\",\"msg\":\"harpoon host auto-registration failed\",\"client_instance_id\":\"b99af497154daa4235176ca4d630d1ed\",\"tunnel_id\":\"[REDACTED]\",\"component\":\"harpoon\",\"label\":\"oauth-jwks-uri-0\",\"url\":\"[URL]\",\"source\":\"oauth\",\"role\":\"jwks-uri\",\"group\":\"auth-server:8651e9040c5c:0\",\"inclusion_reason\":\"loopback\",\"error\":\"harpoon: target \\\"oauth-jwks-uri-0\\\" base URL must use https\",\"remediation\":\"use HTTPS, or for trusted local HTTP MCP servers set --harpoon.allow-plaintext-http or HARPOON_ALLOW_PLAINTEXT_HTTP=true\"}\n{\"time\":\"2026-10-04T10:22:18.1195583+08:00\",\"level\":\"WARN\",\"msg\":\"harpoon host auto-registration failed\",\"client_instance_id\":\"b99af497154daa4235176ca4d630d1ed\",\"tunnel_id\":\"[REDACTED]\",\"component\":\"harpoon\",\"label\":\"oauth-registration-endpoint-0\",\"url\":\"[URL]\",\"source\":\"oauth\",\"role\":\"registration-endpoint\",\"group\":\"auth-server:8651e9040c5c:0\",\"inclusion_reason\":\"loopback\",\"error\":\"harpoon: target \\\"oauth-registration-endpoint-0\\\" base URL must use https\",\"remediation\":\"use HTTPS, or for trusted local HTTP MCP servers set --harpoon.allow-plaintext-http or HARPOON_ALLOW_PLAINTEXT_HTTP=true\"}\n"
+}

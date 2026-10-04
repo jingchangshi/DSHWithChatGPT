@@ -1,0 +1,80 @@
+{
+  "mode": "direct",
+  "started": "2026-10-04T02:21:24.054Z",
+  "startupTimeoutMs": 40000,
+  "embeddedStub": true,
+  "productMessages": 0,
+  "successful": false,
+  "snapshots": [
+    {
+      "elapsedMs": 251,
+      "schema": 1,
+      "live": true,
+      "ready": true,
+      "controlStatus": "unknown",
+      "controlState": "polling",
+      "controlDetailKeys": [
+        "last_attempt",
+        "consecutive_failures",
+        "current_poll_age_seconds",
+        "configured_wait_seconds",
+        "effective_wait_seconds",
+        "deadline_seconds"
+      ],
+      "controlDetails": {
+        "consecutive_failures": 0
+      },
+      "localProbeState": "succeeded"
+    },
+    {
+      "elapsedMs": 21599,
+      "schema": 1,
+      "live": true,
+      "ready": true,
+      "controlStatus": "degraded",
+      "controlState": "backoff",
+      "controlDetailKeys": [
+        "last_attempt",
+        "last_error",
+        "consecutive_failures",
+        "current_poll_age_seconds",
+        "configured_wait_seconds",
+        "effective_wait_seconds",
+        "deadline_seconds",
+        "next_retry",
+        "failure_category"
+      ],
+      "controlDetails": {
+        "consecutive_failures": 1,
+        "last_error": "2026-10-04T02:21:45.4994293Z"
+      },
+      "localProbeState": "succeeded"
+    },
+    {
+      "elapsedMs": 21815,
+      "schema": 1,
+      "live": true,
+      "ready": true,
+      "controlStatus": "degraded",
+      "controlState": "polling",
+      "controlDetailKeys": [
+        "last_attempt",
+        "last_error",
+        "consecutive_failures",
+        "current_poll_age_seconds",
+        "configured_wait_seconds",
+        "effective_wait_seconds",
+        "deadline_seconds",
+        "failure_category"
+      ],
+      "controlDetails": {
+        "consecutive_failures": 1,
+        "last_error": "2026-10-04T02:21:45.4994293Z"
+      },
+      "localProbeState": "succeeded"
+    }
+  ],
+  "durationMs": 40139,
+  "childStopped": true,
+  "safeLogTail": ":\"2026-10-04T10:21:24.1330753+08:00\",\"level\":\"WARN\",\"msg\":\"harpoon host auto-registration failed\",\"client_instance_id\":\"3c7bcf936b6480da09453f380b32aae4\",\"tunnel_id\":\"[REDACTED]\",\"component\":\"harpoon\",\"label\":\"oauth-jwks-uri-0\",\"url\":\"[URL]\",\"source\":\"oauth\",\"role\":\"jwks-uri\",\"group\":\"auth-server:334c5700730d:0\",\"inclusion_reason\":\"loopback\",\"error\":\"harpoon: target \\\"oauth-jwks-uri-0\\\" base URL must use https\",\"remediation\":\"use HTTPS, or for trusted local HTTP MCP servers set --harpoon.allow-plaintext-http or HARPOON_ALLOW_PLAINTEXT_HTTP=true\"}\n{\"time\":\"2026-10-04T10:21:24.1340748+08:00\",\"level\":\"WARN\",\"msg\":\"harpoon host auto-registration failed\",\"client_instance_id\":\"3c7bcf936b6480da09453f380b32aae4\",\"tunnel_id\":\"[REDACTED]\",\"component\":\"harpoon\",\"label\":\"oauth-registration-endpoint-0\",\"url\":\"[URL]\",\"source\":\"oauth\",\"role\":\"registration-endpoint\",\"group\":\"auth-server:334c5700730d:0\",\"inclusion_reason\":\"loopback\",\"error\":\"harpoon: target \\\"oauth-registration-endpoint-0\\\" base URL must use https\",\"remediation\":\"use HTTPS, or for trusted local HTTP MCP servers set --harpoon.allow-plaintext-http or HARPOON_ALLOW_PLAINTEXT_HTTP=true\"}\n{\"time\":\"2026-10-04T10:21:45.4994293+08:00\",\"level\":\"WARN\",\"msg\":\"poll failed; backing off\",\"client_instance_id\":\"3c7bcf936b6480da09453f380b32aae4\",\"tunnel_id\":\"[REDACTED]\",\"component\":\"controlplane\",\"error\":\"controlplane client: poll transport failed (network_error)\",\"retry_in_ms\":200,\"tunnel_request_id\":\"missing_request_id\"}\n{\"time\":\"2026-10-04T10:21:45.4994293+08:00\",\"level\":\"WARN\",\"msg\":\"tunnel metadata fetch failed\",\"client_instance_id\":\"3c7bcf936b6480da09453f380b32aae4\",\"tunnel_id\":\"[REDACTED]\",\"component\":\"controlplane\",\"error\":\"controlplane client: fetch tunnel metadata: Get \\\"[URL]\": dial tcp [2a03:2880:f117:83:face:b00c:0:25de]:443: connectex: A connection attempt failed because the connected party did not properly respond after a period of time, or established connection failed because connected host has failed to respond.\"}\n"
+}

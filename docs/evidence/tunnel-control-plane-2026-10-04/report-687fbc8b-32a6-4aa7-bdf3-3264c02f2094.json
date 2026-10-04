@@ -1,0 +1,51 @@
+{
+  "ok": true,
+  "statuses": [
+    {
+      "workspaceId": "d0887595-aa2d-44b9-96d7-fe9bc1de6383",
+      "bridgePort": 51622,
+      "latestTask": null
+    },
+    {
+      "workspaceId": "d0887595-aa2d-44b9-96d7-fe9bc1de6383",
+      "bridgePort": 51622,
+      "latestTask": null
+    },
+    {
+      "workspaceId": "523d9139-205a-47ae-af7f-f068997bc936",
+      "bridgePort": 50560,
+      "latestTask": null
+    }
+  ],
+  "calls": [
+    "chatgpt_status",
+    "chatgpt_doctor",
+    "chatgpt_status",
+    "chatgpt_status",
+    "chatgpt_status"
+  ],
+  "gitAcceptance": {
+    "ok": true,
+    "assurance": "hardened-windows",
+    "operations": [
+      "workspace_info",
+      "list_directory",
+      "git_status",
+      "git_diff",
+      "git_log"
+    ],
+    "unchanged": true
+  },
+  "boundaryAcceptance": {
+    "ok": true,
+    "denied": [
+      "traversal",
+      "absolute",
+      "junction",
+      "expired-lease"
+    ],
+    "tripwireUnchanged": true
+  },
+  "runId": "687fbc8b-32a6-4aa7-bdf3-3264c02f2094",
+  "pid": 31328
+}

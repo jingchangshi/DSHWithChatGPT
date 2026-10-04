@@ -1,0 +1,30 @@
+{
+  "runId": "d9474913-a182-48a9-ae9e-cb83a7e2401a",
+  "started": "2026-10-04T02:30:31.942Z",
+  "packageRoot": "C:\\Users\\jingc\\workspace\\DSHWithChatGPT\\package",
+  "startupTimeoutMs": 20000,
+  "initialPollRequestedWait": "1s",
+  "controlPlaneProxyReference": "env:CONTROL_PLANE_HTTP_PROXY",
+  "productMessages": 0,
+  "workspaceTools": 0,
+  "successful": false,
+  "readinessElapsedMs": 5529,
+  "health": {
+    "schema": 1,
+    "live": true,
+    "ready": true,
+    "controlStatus": "ok",
+    "consecutiveFailures": 0,
+    "lastSuccessValid": true,
+    "configuredPollWaitSeconds": 30,
+    "effectivePollWaitSeconds": 30,
+    "pollDeadlineSeconds": 35,
+    "localProbeState": "succeeded"
+  },
+  "failureCode": "The expression evaluated to a falsy value",
+  "authenticatedBridgeRequests": 0,
+  "healthPointerRemoved": true,
+  "supervisorStopped": true,
+  "healthEndpointClosed": true,
+  "bridgeEndpointClosed": true
+}

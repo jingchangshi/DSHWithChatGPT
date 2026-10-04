@@ -47,6 +47,7 @@ The browser mutex protects only this plugin’s PLAN, REVIEW, doctor, and reconn
 - Tokens are never written to the workspace or repository. The plugin writes `Bearer <token>` to a local mode-0600 state file and managed `tunnel-client` injects it only on the final local MCP hop via `MCP_EXTRA_HEADERS` / `MCP_DISCOVERY_EXTRA_HEADERS`.
 - Mode 0600 is a legacy implementation detail, not verified Windows credential protection. The target requires current-user DACL/approved protection and actual denial evidence; this gate is NOT_RUN.
 - `CONTROL_PLANE_API_KEY` remains an environment secret consumed by tunnel-client; it is not included in argv, status output, prompts, or connector metadata.
+- `CONTROL_PLANE_HTTP_PROXY` (or its configured environment name) is passed through an `env:` reference only for control-plane transport. Proxy credentials stay out of argv; startup errors redact the captured runtime key, proxy URL and HTTP URL userinfo. Failure records retain only finite health facts, a network-category boolean and bounded poll timings.
 
 ## Autonomous git policy
 

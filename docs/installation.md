@@ -57,6 +57,28 @@ Keep the three credential scopes separate:
 | Workspace read-only bridge | runtime-managed independent bearer and protected exposure header reference |
 | External secure connection | `CONTROL_PLANE_TUNNEL_ID` and `CONTROL_PLANE_API_KEY` inherited into the owned child |
 
+Use tunnel-client 0.0.15 or a compatible version exposing
+`--control-plane.initial-poll-timeout` and `--control-plane.http-proxy`.
+If the control plane requires a proxy, supply `CONTROL_PLANE_HTTP_PROXY` in
+the DSH launch environment. For example, with an already verified local proxy:
+
+```powershell
+$env:CONTROL_PLANE_HTTP_PROXY = 'http://127.0.0.1:7893'
+```
+
+The optional `tunnelControlPlaneHttpProxyEnv` config selects another environment
+variable name. Its value is a proxy URL; any proxy credentials stay in that
+private variable. The owned child receives an `env:` reference for control-plane
+requests. The local MCP hop keeps its existing transport and authorization.
+Windows desktop proxy settings alone do not configure this child. Loading a
+private `.env` remains the launcher's responsibility.
+
+Managed startup requests a 1-second first long-poll wait so an idle tunnel can
+prove successful authentication within the existing 20-second startup budget.
+Steady polling and its HTTP deadline retain the client's defaults/explicit
+operator settings. Readiness still requires a successful authenticated poll,
+zero consecutive failures and a successful local MCP probe.
+
 The Sidecar credential file contains a bare 43-128-character base64url secret,
 without a prefix or newline. Its file and parent require protected current-user
 Windows DACLs outside every workspace. Workspace paths, reparse points, hard
