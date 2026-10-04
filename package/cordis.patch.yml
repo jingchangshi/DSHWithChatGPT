@@ -2,6 +2,7 @@
 # One-time prerequisites for the unattended runtime:
 # - ChatGPT custom MCP app named exactly "DSH with ChatGPT"
 # - CONTROL_PLANE_TUNNEL_ID and CONTROL_PLANE_API_KEY in the DSH environment
+# - optional CONTROL_PLANE_HTTP_PROXY for control-plane-only proxy routing
 # - tunnel-client available on PATH
 # - dedicated product Chrome and authenticated Sidecar started by deployment
 # - protected Sidecar credential at the documented OS private-state reference
@@ -24,4 +25,5 @@
         tunnelClientPath: tunnel-client
         tunnelIdEnv: CONTROL_PLANE_TUNNEL_ID
         tunnelRuntimeApiKeyEnv: CONTROL_PLANE_API_KEY
+        tunnelControlPlaneHttpProxyEnv: CONTROL_PLANE_HTTP_PROXY
         tunnelStartupTimeoutMs: 20000

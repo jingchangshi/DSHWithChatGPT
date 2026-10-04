@@ -62,4 +62,39 @@ describe('Secure MCP Tunnel launch contract', () => {
     })
     expect(preview.args.join(' ')).toContain('ws_fedcba9876543210.health-url')
   })
+
+  it('requests a short first authenticated poll without changing the steady poll deadline', () => {
+    const preview = buildTunnelLaunchPreview({ mode: 'managed', clientPath: 'tunnel-client',
+      tunnelIdEnv: 'EXPOSURE_TEST_TUNNEL_ID', runtimeApiKeyEnv: 'EXPOSURE_TEST_TUNNEL_KEY',
+      startupTimeoutMs: 20_000, stateDir: 'state' },
+    { workspaceId: 'workspace', localUrl: 'http://127.0.0.1:1/mcp', bearerValueFile: 'bearer' })
+    expect(preview.args[preview.args.indexOf('--control-plane.initial-poll-timeout') + 1]).toBe('1s')
+    expect(preview.args).not.toContain('--control-plane.poll-timeout')
+    expect(preview.args).not.toContain('--control-plane.poll-deadline-guardrail')
+  })
+
+  it.each(['CONTROL_PLANE_HTTP_PROXY', 'PRIVATE_TUNNEL_PROXY'])('uses %s only for the control plane and keeps proxy credentials out of argv', envName => {
+    const proxy = 'http://operator:private-proxy-password@127.0.0.1:7893'
+    vi.stubEnv(envName, proxy)
+    const preview = buildTunnelLaunchPreview({ mode: 'managed', clientPath: 'tunnel-client',
+      tunnelIdEnv: 'EXPOSURE_TEST_TUNNEL_ID', runtimeApiKeyEnv: 'EXPOSURE_TEST_TUNNEL_KEY',
+      ...(envName === 'CONTROL_PLANE_HTTP_PROXY' ? {} : { controlPlaneHttpProxyEnv: envName }),
+      startupTimeoutMs: 20_000, stateDir: 'state' },
+    { workspaceId: 'workspace', localUrl: 'http://127.0.0.1:1/mcp', bearerValueFile: 'bearer' })
+    expect(preview.args[preview.args.indexOf('--control-plane.http-proxy') + 1]).toBe('env:' + envName)
+    expect(preview.envKeys).toContain(envName)
+    expect(preview.args.join(' ')).not.toContain(proxy)
+    expect(preview.args).not.toContain('--http-proxy')
+    expect(preview.args).not.toContain('--mcp.http-proxy')
+  })
+
+  it.each([undefined, '', '   '])('keeps the client proxy policy when the dedicated proxy is absent or blank', value => {
+    vi.stubEnv('CONTROL_PLANE_HTTP_PROXY', value)
+    const preview = buildTunnelLaunchPreview({ mode: 'managed', clientPath: 'tunnel-client',
+      tunnelIdEnv: 'EXPOSURE_TEST_TUNNEL_ID', runtimeApiKeyEnv: 'EXPOSURE_TEST_TUNNEL_KEY',
+      startupTimeoutMs: 20_000, stateDir: 'state' },
+    { workspaceId: 'workspace', localUrl: 'http://127.0.0.1:1/mcp', bearerValueFile: 'bearer' })
+    expect(preview.args).not.toContain('--control-plane.http-proxy')
+    expect(preview.envKeys).not.toContain('CONTROL_PLANE_HTTP_PROXY')
+  })
 })

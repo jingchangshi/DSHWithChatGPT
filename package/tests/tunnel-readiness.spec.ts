@@ -3,7 +3,7 @@ import fs from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { TunnelSupervisor } from '../src/tunnel/supervisor.ts'
+import { TunnelSupervisor, buildTunnelLaunchPreview } from '../src/tunnel/supervisor.ts'
 
 const childState = vi.hoisted(() => ({ spawn: vi.fn() }))
 vi.mock('node:child_process', () => ({ spawn: childState.spawn }))
@@ -13,6 +13,12 @@ const healthy = () => ({ schema_version: 1, live: true, ready: true, components:
   mcp: { details: { startup_probe: { state: 'succeeded' } } },
 } })
 
+function fakeChild(pid = 123) {
+  const child = Object.assign(new EventEmitter(), { pid, exitCode: null as number | null, signalCode: null as string | null,
+    stdout: new EventEmitter(), stderr: new EventEmitter(), kill: vi.fn(() => { child.signalCode = 'SIGTERM'; child.emit('exit'); return true }) })
+  return child
+}
+
 describe('managed exposure readiness against real tunnel health semantics', () => {
   const directories: string[] = []
   afterEach(() => { vi.unstubAllGlobals(); vi.unstubAllEnvs(); vi.clearAllMocks(); for (const dir of directories.splice(0)) fs.rmSync(dir, { recursive: true, force: true }) })
@@ -21,7 +27,7 @@ describe('managed exposure readiness against real tunnel health semantics', () =
     const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'plannerbridge-tunnel-health-'))
     directories.push(dir)
     vi.stubEnv('PLANNERBRIDGE_TEST_RUNTIME_KEY', 'private-fixture-key')
-    const child = Object.assign(new EventEmitter(), { pid: 123, exitCode: null as number | null, signalCode: null as string | null, stdout: new EventEmitter(), stderr: new EventEmitter(), kill: vi.fn(() => { child.signalCode = 'SIGTERM'; child.emit('exit'); return true }) })
+    const child = fakeChild()
     childState.spawn.mockImplementation((_command, args: string[]) => {
       fs.writeFileSync(args[args.indexOf('--health.url-file') + 1]!, 'http://127.0.0.1:9999')
       return child
@@ -29,9 +35,10 @@ describe('managed exposure readiness against real tunnel health semantics', () =
     let current = snapshot
     const fetchMock = vi.fn(async (url: string) => new Response(url.endsWith('/readyz') ? 'ready' : JSON.stringify(current)))
     vi.stubGlobal('fetch', fetchMock)
-    const supervisor = new TunnelSupervisor({ mode: 'managed', clientPath: 'fixture', configuredTunnelId: 'fixture-id', tunnelIdEnv: 'PLANNERBRIDGE_TEST_TUNNEL_ID', runtimeApiKeyEnv: 'PLANNERBRIDGE_TEST_RUNTIME_KEY', startupTimeoutMs, stateDir: dir })
+    const options = { mode: 'managed' as const, clientPath: 'fixture', configuredTunnelId: 'fixture-id', tunnelIdEnv: 'PLANNERBRIDGE_TEST_TUNNEL_ID', runtimeApiKeyEnv: 'PLANNERBRIDGE_TEST_RUNTIME_KEY', startupTimeoutMs, stateDir: dir }
+    const supervisor = new TunnelSupervisor(options)
     const binding = { workspaceId: 'workspace', localUrl: 'http://127.0.0.1:1/mcp', bearerValueFile: path.join(dir, 'bearer') }
-    return { supervisor, binding, child, fetchMock, dir, setSnapshot: (value: unknown) => { current = value } }
+    return { supervisor, options, binding, child, fetchMock, dir, setSnapshot: (value: unknown) => { current = value } }
   }
 
   it('rejects remote authentication failure despite readyz=200 and closes its child', async () => {
@@ -69,6 +76,93 @@ describe('managed exposure readiness against real tunnel health semantics', () =
     const f = fixture(data)
     await expect(f.supervisor.ensure(f.binding)).rejects.toThrow('TUNNEL_START_TIMEOUT')
     expect(f.child.kill).toHaveBeenCalledOnce()
+  })
+
+  it('launches the previewed scoped proxy reference and short initial poll with private local-hop headers', async () => {
+    vi.stubEnv('CONTROL_PLANE_HTTP_PROXY', 'http://operator:private-proxy-password@127.0.0.1:7893')
+    const f = fixture(healthy())
+    try {
+      expect((await f.supervisor.ensure(f.binding)).ready).toBe(true)
+      const [command, args, { env }] = childState.spawn.mock.calls[0]!
+      const preview = buildTunnelLaunchPreview(f.options, f.binding)
+      expect(command).toBe(preview.clientPath)
+      expect(args).toEqual(preview.args)
+      expect(args).toContain('--control-plane.initial-poll-timeout')
+      expect(args).toContain('--control-plane.http-proxy')
+      expect(args).toContain('env:CONTROL_PLANE_HTTP_PROXY')
+      expect(args.join(' ')).not.toMatch(/private-proxy-password|private-fixture-key|Authorization/)
+      expect(env.CONTROL_PLANE_HTTP_PROXY).toBe(process.env.CONTROL_PLANE_HTTP_PROXY)
+      expect(env.MCP_EXTRA_HEADERS).toBe('Authorization: file:' + f.binding.bearerValueFile)
+      expect(env.MCP_DISCOVERY_EXTRA_HEADERS).toBe(env.MCP_EXTRA_HEADERS)
+    } finally { await f.supervisor.close() }
+  })
+
+  it('retains a network category and poll timing facts without copying raw control-plane errors', async () => {
+    const data = healthy()
+    data.components['control-plane'].status = 'degraded'
+    data.components['control-plane'].details.consecutive_failures = 1
+    Object.assign(data.components['control-plane'].details, { failure_category: 'network_error',
+      configured_wait_seconds: 30, effective_wait_seconds: 30, deadline_seconds: 35,
+      error: 'private-fixture-key http://private-host.invalid' })
+    const f = fixture(data)
+    await expect(f.supervisor.ensure(f.binding)).rejects.toThrow('TUNNEL_START_TIMEOUT: TUNNEL_CONTROL_PLANE_UNAVAILABLE')
+    const text = fs.readFileSync(path.join(f.dir, 'tunnel', 'workspace.failure.json'), 'utf8')
+    expect(JSON.parse(text).lastParsedHealth).toMatchObject({ controlNetworkError: true,
+      configuredPollWaitSeconds: 30, effectivePollWaitSeconds: 30, pollDeadlineSeconds: 35 })
+    expect(text).not.toMatch(/private-fixture-key|private-host/)
+  })
+
+  it('closes the old child and applies a changed explicit proxy on rebind', async () => {
+    vi.stubEnv('CONTROL_PLANE_HTTP_PROXY', '')
+    const f = fixture(healthy())
+    const next = fakeChild(124)
+    try {
+      expect((await f.supervisor.ensure(f.binding)).pid).toBe(123)
+      expect(childState.spawn.mock.calls[0]![1]).not.toContain('--control-plane.http-proxy')
+      vi.stubEnv('CONTROL_PLANE_HTTP_PROXY', 'http://127.0.0.1:7893')
+      childState.spawn.mockImplementation((_command, args: string[]) => {
+        expect(f.child.kill).toHaveBeenCalledOnce()
+        fs.writeFileSync(args[args.indexOf('--health.url-file') + 1]!, 'http://127.0.0.1:9999')
+        return next
+      })
+      expect((await f.supervisor.ensure(f.binding)).pid).toBe(124)
+      expect(childState.spawn).toHaveBeenCalledTimes(2)
+      expect(childState.spawn.mock.calls[1]![1]).toContain('env:CONTROL_PLANE_HTTP_PROXY')
+      expect((await f.supervisor.ensure(f.binding)).pid).toBe(124)
+      expect(childState.spawn).toHaveBeenCalledTimes(2)
+    } finally { await f.supervisor.close() }
+    expect(next.kill).toHaveBeenCalledOnce()
+  })
+
+  it('rejects unknown categories and unbounded poll timing without copying their values', async () => {
+    const data = healthy()
+    data.components['control-plane'].status = 'degraded'
+    Object.assign(data.components['control-plane'].details, { failure_category: 'private-category',
+      configured_wait_seconds: 'private-duration', effective_wait_seconds: -1, deadline_seconds: 86401 })
+    const f = fixture(data)
+    await expect(f.supervisor.ensure(f.binding)).rejects.toThrow('TUNNEL_START_TIMEOUT')
+    const text = fs.readFileSync(path.join(f.dir, 'tunnel', 'workspace.failure.json'), 'utf8')
+    expect(JSON.parse(text).lastParsedHealth).toMatchObject({ controlNetworkError: false,
+      configuredPollWaitSeconds: null, effectivePollWaitSeconds: null, pollDeadlineSeconds: null })
+    expect(text).not.toMatch(/private-category|private-duration/)
+  })
+
+  it('redacts runtime keys and proxy credentials from early-exit errors as well as failure files', async () => {
+    vi.stubEnv('CONTROL_PLANE_HTTP_PROXY', 'http://operator:private-proxy-password@127.0.0.1:7893')
+    const f = fixture(undefined, 1000)
+    const spawn = childState.spawn.getMockImplementation()!
+    childState.spawn.mockImplementation((...args) => {
+      const child = spawn(...args)
+      queueMicrotask(() => {
+        child.stderr.emit('data', 'private-fixture-key ' + process.env.CONTROL_PLANE_HTTP_PROXY + ' http://other:other-password@proxy.invalid')
+        child.exitCode = 1
+      })
+      return child
+    })
+    const error = await f.supervisor.ensure(f.binding).catch(error => error as Error)
+    expect(error.message).toContain('TUNNEL_START_FAILED: [REDACTED]')
+    expect(error.message).not.toMatch(/private-fixture-key|private-proxy-password|other-password/)
+    expect(fs.readFileSync(path.join(f.dir, 'tunnel', 'workspace.failure.json'), 'utf8')).not.toMatch(/private-fixture-key|private-proxy-password|other-password/)
   })
 
   it('captures only bounded predicate facts before a failed tunnel is stopped', async () => {

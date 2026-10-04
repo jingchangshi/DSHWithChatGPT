@@ -11,6 +11,8 @@ export interface TunnelSupervisorOptions {
   configuredTunnelId?: string
   tunnelIdEnv: string
   runtimeApiKeyEnv: string
+  /** Dedicated control-plane proxy URL; credentials stay in this environment variable. */
+  controlPlaneHttpProxyEnv?: string
   startupTimeoutMs: number
   stateDir: string
 }
@@ -41,11 +43,12 @@ interface RunningTunnel {
   readinessFacts?: ReturnType<typeof tunnelReadinessFacts>
 }
 
-/** Only facts used by the existing readiness predicate; never retain raw health. */
+/** Bounded readiness and transport facts; never retain raw health or errors. */
 function tunnelReadinessFacts(snapshot: any) {
   const control = snapshot?.components?.['control-plane']
   const status = control?.details?.http_status
   const failures = control?.details?.consecutive_failures
+  const seconds = (value: unknown): number | null => typeof value === 'number' && Number.isFinite(value) && value >= 0 && value <= 86400 ? value : null
   return {
     schemaSupported: snapshot?.schema_version === 1,
     live: snapshot?.live === true,
@@ -54,6 +57,10 @@ function tunnelReadinessFacts(snapshot: any) {
     consecutiveFailures: Number.isSafeInteger(failures) && failures >= 0 ? failures as number : null,
     lastSuccessValid: typeof control?.details?.last_success === 'string' && Number.isFinite(Date.parse(control.details.last_success)),
     httpStatus: Number.isInteger(status) && status >= 100 && status <= 599 ? status as number : null,
+    controlNetworkError: control?.details?.failure_category === 'network_error',
+    configuredPollWaitSeconds: seconds(control?.details?.configured_wait_seconds),
+    effectivePollWaitSeconds: seconds(control?.details?.effective_wait_seconds),
+    pollDeadlineSeconds: seconds(control?.details?.deadline_seconds),
     localProbeSucceeded: snapshot?.components?.mcp?.details?.startup_probe?.state === 'succeeded',
   }
 }
@@ -151,12 +158,14 @@ export class TunnelSupervisor {
       throw new Error('TUNNEL_NOT_CONFIGURED: ' + configured.missing)
     }
 
-    const bindingKey = [
+    const proxyEnv = this.options.controlPlaneHttpProxyEnv ?? 'CONTROL_PLANE_HTTP_PROXY'
+    const bindingKey = JSON.stringify([
       binding.workspaceId,
       configured.tunnelId,
       binding.localUrl,
       binding.bearerValueFile,
-    ].join('|')
+      process.env[proxyEnv]?.trim() || '',
+    ])
 
     if (
       this.running !== undefined
@@ -191,16 +200,8 @@ export class TunnelSupervisor {
       MCP_EXTRA_HEADERS: 'Authorization: file:' + binding.bearerValueFile,
       MCP_DISCOVERY_EXTRA_HEADERS: 'Authorization: file:' + binding.bearerValueFile,
     }
-    const args = [
-      'run',
-      '--control-plane.tunnel-id', configured.tunnelId,
-      '--mcp.server-url', binding.localUrl,
-      '--health.listen-addr', '127.0.0.1:0',
-      '--health.url-file', healthFile,
-      '--log.level', 'warn',
-      '--log.format', 'struct-text',
-    ]
-    const child = spawn(this.options.clientPath, args, {
+    const launch = buildTunnelLaunchPreview({ ...this.options, configuredTunnelId: configured.tunnelId }, binding)
+    const child = spawn(launch.clientPath, launch.args, {
       env,
       stdio: ['ignore', 'pipe', 'pipe'],
       windowsHide: true,
@@ -216,13 +217,15 @@ export class TunnelSupervisor {
 
     let diagnostic = ''
     let spawnError: Error | undefined
+    const secrets = [configured.apiKey, process.env[proxyEnv] ?? '']
+    const sanitize = (text: string): string => sanitizeDiagnostic(text, secrets)
     child.once('error', (error) => {
       spawnError = error
-      running.detail = sanitizeDiagnostic(error.message)
+      running.detail = sanitize(error.message)
     })
     const append = (chunk: unknown): void => {
       diagnostic = (diagnostic + String(chunk)).slice(-8192)
-      running.detail = sanitizeDiagnostic(diagnostic)
+      running.detail = sanitize(diagnostic)
     }
     child.stdout?.on('data', append)
     child.stderr?.on('data', append)
@@ -232,10 +235,10 @@ export class TunnelSupervisor {
     while (Date.now() < deadline) {
       throwIfCancelled(signal)
       if (spawnError !== undefined) {
-        throw new Error('TUNNEL_START_FAILED: ' + sanitizeDiagnostic(spawnError.message))
+        throw new Error('TUNNEL_START_FAILED: ' + sanitize(spawnError.message))
       }
       if (child.exitCode !== null || child.signalCode !== null) {
-        const detail = sanitizeDiagnostic(diagnostic) || `tunnel-client exited with code ${String(child.exitCode)}`
+        const detail = sanitize(diagnostic) || `tunnel-client exited with code ${String(child.exitCode)}`
         throw new Error('TUNNEL_START_FAILED: ' + detail)
       }
       if (fs.existsSync(healthFile)) {
@@ -267,7 +270,7 @@ export class TunnelSupervisor {
       throw error
     }
 
-    const detail = running.detail || sanitizeDiagnostic(diagnostic) || `tunnel-client did not become ready within ${this.options.startupTimeoutMs} ms`
+    const detail = running.detail || sanitize(diagnostic) || `tunnel-client did not become ready within ${this.options.startupTimeoutMs} ms`
     this.recordFailure(running, 'TUNNEL_START_TIMEOUT')
     await this.close()
     throw new Error('TUNNEL_START_TIMEOUT: ' + detail)
@@ -275,7 +278,7 @@ export class TunnelSupervisor {
 
   private recordFailure(running: RunningTunnel, code: string): void {
     // This diagnostic cannot grant readiness or recovery authority. Capture it
-    // before shutdown removes the health endpoint; only the last parsed facts
+    // before shutdown removes the health endpoint; only the last bounded facts
     // are retained, not credentials, URLs, bodies or child output.
     const failure = /^TUNNEL_[A-Z_]+$/.test(code) ? code : 'TUNNEL_START_FAILED'
     const file = running.healthFile.replace(/\.health-url$/, '.failure.json')
@@ -369,18 +372,24 @@ export function buildTunnelLaunchPreview(options: TunnelSupervisorOptions, bindi
   envKeys: string[]
 } {
   const tunnelId = options.configuredTunnelId?.trim() || process.env[options.tunnelIdEnv]?.trim() || '<tunnel-id>'
+  const proxyEnv = options.controlPlaneHttpProxyEnv ?? 'CONTROL_PLANE_HTTP_PROXY'
+  const proxyConfigured = !!process.env[proxyEnv]?.trim()
   return {
     clientPath: options.clientPath,
     args: [
       'run',
       '--control-plane.tunnel-id', tunnelId,
+      // A successful empty first poll must fit the existing startup budget.
+      // This shortens only the requested server wait, not the HTTP deadline or steady polling.
+      '--control-plane.initial-poll-timeout', '1s',
+      ...(proxyConfigured ? ['--control-plane.http-proxy', 'env:' + proxyEnv] : []),
       '--mcp.server-url', binding.localUrl,
       '--health.listen-addr', '127.0.0.1:0',
       '--health.url-file', path.join(options.stateDir, 'tunnel', binding.workspaceId + '.health-url'),
       '--log.level', 'warn',
       '--log.format', 'struct-text',
     ],
-    envKeys: ['CONTROL_PLANE_API_KEY', 'MCP_EXTRA_HEADERS', 'MCP_DISCOVERY_EXTRA_HEADERS'],
+    envKeys: ['CONTROL_PLANE_API_KEY', 'MCP_EXTRA_HEADERS', 'MCP_DISCOVERY_EXTRA_HEADERS', ...(proxyConfigured ? [proxyEnv] : [])],
   }
 }
 
@@ -395,8 +404,10 @@ async function stopChild(child: ChildProcess): Promise<void> {
   }
 }
 
-function sanitizeDiagnostic(text: string): string {
+function sanitizeDiagnostic(text: string, secrets: readonly string[]): string {
+  for (const secret of secrets) if (secret) text = text.split(secret).join('[REDACTED]')
   return text
+    .replace(/(https?:\/\/)[^\s/@]+@/gi, '$1[REDACTED]@')
     .replace(/sk-[A-Za-z0-9_-]{12,}/g, '[REDACTED]')
     .replace(/Bearer\s+[A-Za-z0-9._~-]{12,}/gi, 'Bearer [REDACTED]')
     .trim()

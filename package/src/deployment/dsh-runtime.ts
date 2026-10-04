@@ -93,6 +93,8 @@ export interface Config {
   tunnelIdEnv: string
   /** Environment variable containing the runtime API key. */
   tunnelRuntimeApiKeyEnv: string
+  /** Optional environment reference for a control-plane-only HTTP proxy URL. */
+  tunnelControlPlaneHttpProxyEnv?: string
   /** Deadline for tunnel-client readiness. */
   tunnelStartupTimeoutMs: number
 }
@@ -117,6 +119,7 @@ export const Config: z.ZodType<Config> = z.object({
   tunnelClientPath: z.string().default('tunnel-client'),
   tunnelIdEnv: z.string().default('CONTROL_PLANE_TUNNEL_ID'),
   tunnelRuntimeApiKeyEnv: z.string().default('CONTROL_PLANE_API_KEY'),
+  tunnelControlPlaneHttpProxyEnv: z.string().regex(/^[A-Za-z_][A-Za-z0-9_]*$/).default('CONTROL_PLANE_HTTP_PROXY'),
   tunnelStartupTimeoutMs: z.number().int().min(1000).default(20_000),
 }) as unknown as z.ZodType<Config>
 
@@ -183,6 +186,7 @@ export async function apply(ctx: Context, config: Config): Promise<void> {
       ...(config.tunnelId !== undefined ? { configuredTunnelId: config.tunnelId } : {}),
       tunnelIdEnv: config.tunnelIdEnv,
       runtimeApiKeyEnv: config.tunnelRuntimeApiKeyEnv,
+      ...(config.tunnelControlPlaneHttpProxyEnv !== undefined ? { controlPlaneHttpProxyEnv: config.tunnelControlPlaneHttpProxyEnv } : {}),
       startupTimeoutMs: config.tunnelStartupTimeoutMs,
       stateDir,
     })

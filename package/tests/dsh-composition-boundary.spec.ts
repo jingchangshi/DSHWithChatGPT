@@ -27,6 +27,12 @@ describe('DSH inbound adapter and deployment boundary', () => {
     expect(Config.parse({}).browserMode).toBe('sidecar')
     expect(Config.parse({ browserMode: 'browser-harness-mcp' }).browserMode).toBe('browser-harness-mcp')
   })
+  it('accepts only an environment variable name for control-plane proxy configuration', () => {
+    expect(Config.parse({}).tunnelControlPlaneHttpProxyEnv).toBe('CONTROL_PLANE_HTTP_PROXY')
+    expect(Config.parse({ tunnelControlPlaneHttpProxyEnv: 'PRIVATE_TUNNEL_PROXY' }).tunnelControlPlaneHttpProxyEnv).toBe('PRIVATE_TUNNEL_PROXY')
+    expect(() => Config.parse({ tunnelControlPlaneHttpProxyEnv: 'http://operator:password@proxy.invalid' })).toThrow()
+    expect(() => Config.parse({ tunnelControlPlaneHttpProxyEnv: '' })).toThrow()
+  })
   it('installs the primary path rather than silently overriding defaults in the bundle patch', () => {
     const patch = readFileSync(resolve(sourceRoot, '../cordis.patch.yml'), 'utf8')
     expect(patch).toMatch(/browserMode:\s+sidecar\s/)
