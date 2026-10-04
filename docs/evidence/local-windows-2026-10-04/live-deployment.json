@@ -1,0 +1,11 @@
+{
+  "at": "2026-10-04T03:22:25.130Z",
+  "consumerHead": "9bb8668",
+  "producerHead": "0afd708c288b079096affbfeff4626dcf9a19bf1",
+  "producerUncommittedBootstrap": true,
+  "installation": "C:/Users/jcshi/AppData/Local/Temp/dsh-chatgpt-package-ruufeg",
+  "journal": "C:\\Users\\jcshi\\AppData\\Local\\PlannerBridge\\acceptance\\live-8605e49c-d7b7-4fd5-9d38-adafa9d0a0cf",
+  "targetId": "BB700479313BE1655650DD940BACDC12",
+  "controlPlaneProxyPort": 7890,
+  "secretValuesRecorded": false
+}

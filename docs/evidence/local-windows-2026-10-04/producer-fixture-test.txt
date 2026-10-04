@@ -1,0 +1,17 @@
+The plugin "vite-tsconfig-paths" is detected. Vite now supports tsconfig paths resolution natively via the resolve.tsconfigPaths option. You can remove the plugin and set resolve.tsconfigPaths: true in your Vite config instead.
+The plugin "vite-tsconfig-paths" is detected. Vite now supports tsconfig paths resolution natively via the resolve.tsconfigPaths option. You can remove the plugin and set resolve.tsconfigPaths: true in your Vite config instead.
+The plugin "vite-tsconfig-paths" is detected. Vite now supports tsconfig paths resolution natively via the resolve.tsconfigPaths option. You can remove the plugin and set resolve.tsconfigPaths: true in your Vite config instead.
+
+ RUN  v4.1.8 D:/workspace/deepseek-harness
+
+(node:2232) [KOFFI008] DeprecationWarning: The koffi.introspect() function was deprecated in Koffi 3.0, use koffi.type() instead
+(Use `node --trace-deprecation ...` to show where the warning was created)
+ ✓ |thread-safe| packages/execution/execution-world/tests/git-lease-windows.spec.ts > native Windows fixed Git reads > leaves writable repository state and helper tripwires unchanged for each allowed read 4992ms
+ ✓ |thread-safe| packages/execution/execution-world/tests/git-lease-windows.spec.ts > native Windows fixed Git reads > ignores Windows output redirection inherited by an authorized read 2240ms
+ ✓ |thread-safe| packages/execution/execution-world/tests/git-lease-windows.spec.ts > native Windows fixed Git reads > rejects full enforcement before any native target starts 576ms
+
+ Test Files  1 passed (1)
+      Tests  3 passed (3)
+   Start at  11:04:30
+   Duration  9.96s (transform 941ms, setup 430ms, import 1.54s, tests 7.81s, environment 0ms)
+

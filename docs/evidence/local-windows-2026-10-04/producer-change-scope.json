@@ -1,0 +1,35 @@
+$ tsx scripts/change-scope.ts "--base" "jcshi/feat/complete-c2c-runtime"
+{
+  "formatVersion": 1,
+  "repositoryRoot": "D:/workspace/deepseek-harness",
+  "input": {
+    "base": "jcshi/feat/complete-c2c-runtime",
+    "head": "HEAD"
+  },
+  "resolved": {
+    "baseSha": "0afd708c288b079096affbfeff4626dcf9a19bf1",
+    "headSha": "0afd708c288b079096affbfeff4626dcf9a19bf1",
+    "mergeBaseSha": "0afd708c288b079096affbfeff4626dcf9a19bf1"
+  },
+  "paths": {
+    "committed": [],
+    "staged": [],
+    "unstaged": [
+      "packages/execution/execution-world/tests/git-lease-windows.spec.ts",
+      "packages/subprocess/subprocess-local/README.i18n.yaml",
+      "packages/subprocess/subprocess-local/README.md",
+      "packages/subprocess/subprocess-local/README.zh.md",
+      "packages/subprocess/subprocess-local/src/bin.ts",
+      "packages/subprocess/subprocess-local/src/runner-launch.ts",
+      "packages/subprocess/subprocess-local/src/spawn-runner.ts"
+    ],
+    "untracked": [
+      "packages/subprocess/subprocess-local/src/runner-bootstrap.ts",
+      "undefined/temp/tsx-jcshi/17903-08d123772cb78493d0474ee8176f2adfa03dab3d",
+      "undefined/temp/tsx-jcshi/17903-4dcaaaa550a5708b2d533f49695f96b549660ef4",
+      "undefined/temp/tsx-jcshi/17903-6f92e7320d46294dc3e90a0d68205c5fdda4a055",
+      "undefined/temp/tsx-jcshi/17903-a75097f3a1fb3c841e0948eadbbd343167bcfac1",
+      "undefined/temp/tsx-jcshi/17903-c085d8c5369a9c6640b381606f9e89a15f0d5b4f"
+    ]
+  }
+}

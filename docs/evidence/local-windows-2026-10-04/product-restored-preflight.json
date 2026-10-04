@@ -1,0 +1,16 @@
+{
+  "at": "2026-10-04T03:08:28.306Z",
+  "targetId": "BB700479313BE1655650DD940BACDC12",
+  "readiness": {
+    "url": "https://chatgpt.com/",
+    "composer": true,
+    "loggedOut": false
+  },
+  "facts": {
+    "visible": false,
+    "composerCount": 1,
+    "empty": true
+  },
+  "sendPerformed": false,
+  "appDataPlaneVerified": false
+}

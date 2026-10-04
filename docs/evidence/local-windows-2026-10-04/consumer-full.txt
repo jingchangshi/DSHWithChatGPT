@@ -1,0 +1,298 @@
+
+> dsh-with-chatgpt@0.1.0 test D:\workspace\DSHWithChatGPT\package
+> vitest run
+
+
+ RUN  v5.0.1 D:/workspace/DSHWithChatGPT/package
+
+ ❯ tests/sidecar-bootstrap-observation.spec.ts (29 tests | 6 failed) 124605ms
+   ❯ journal-derived send observation, synthetic provider only (29)
+     × recovers an ACKed EXECUTED after Sidecar restart using its journal and publishes DONE atomically 5018ms
+     × does not promote an unbound source after service restart without exact outgoing proof 5016ms
+     × binds an uncertain bootstrap after restart only from exact journal-derived proof without resending 5009ms
+     × returns a previously bound source after restart without inventing a new binding 5002ms
+     × reconciles a bound bootstrap before the first wait after service restart 5012ms
+     × reconciles a known accepted source before a never-journaled wait after restart 5007ms
+ ❯ tests/sidecar-lifecycle.spec.ts (20 tests | 8 failed) 119447ms
+   ❯ separate-process operation delivery lifecycle (20)
+     × bounds an abort-ignoring driver and keeps the uncertain operation quarantined 5020ms
+     × applies the operation deadline before browser mutation begins 5010ms
+     × admits only one new writer when two processes reclaim a dead owner concurrently 5020ms
+     × reconciles a hard crash at durable phase prepared without forgotten sends 9914ms
+     × reconciles a hard crash at durable phase observed-sent without forgotten sends 9068ms
+     × reconciles a hard crash at durable phase accepted without forgotten sends 9865ms
+     × retains an interrupted reply observation without resending a control message 5035ms
+     × cancels at the prepared boundary before invoking the semantic send 5015ms
+ ❯ tests/doctor-bind-boundary-native.spec.ts (13 tests | 1 failed) 223306ms
+   × D27 native bind boundary (duplicate-user) 13685ms
+ ❯ tests/sidecar-transport-loss.spec.ts (8 tests | 8 failed) 40290ms
+   ❯ transport interruption against a separate compiled Sidecar (8)
+     × fences a cancelled operation previously refused admission as BUSY 5049ms
+     × does not poison accepted send replay with a later cancel (restart=false) 5036ms
+     × does not poison accepted send replay with a later cancel (restart=true) 5029ms
+     × rejects delayed old-generation requests after a pre-admission cancel and restart 5031ms
+     × fences late sendControlMessage admission when independent cancellation arrives first 5037ms
+     × fences late waitForReply admission when independent cancellation arrives first 5039ms
+     × cancels a persisted wait, releases ownership, and resumes its exact identity after restart without another send 5030ms
+     × preserves an admitted send as uncertain after transport loss and refuses to duplicate it after restart 5036ms
+ ❯ tests/sidecar-observation-recovery.spec.ts (17 tests | 10 failed) 78961ms
+   ❯ semantic Sidecar observation recovery (17)
+     × resumes an uncertain wait using journal-bound outgoing proof without another send 5009ms
+     × preserves SEND_UNCERTAIN after failed read-only proof 5014ms
+     × preserves BROWSER_TARGET_CHANGED after failed read-only proof 5017ms
+     × rejects changed replay metadata before semantic reconciliation 5002ms
+     × reconciles an uncertain send before the first resumed wait without sending again 5017ms
+     × replays an accepted wait only if its independently reobserved digest is unchanged (false) 5012ms
+     × replays an accepted wait only if its independently reobserved digest is unchanged (true) 5007ms
+     × rejects changed preceding baseline assistantCount from reconciliation 5018ms
+     × rejects changed preceding baseline textDigest from reconciliation 5013ms
+     × rejects changed preceding baseline conversationId from reconciliation 5009ms
+
+⎯⎯⎯⎯⎯⎯ Failed Tests 33 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  tests/doctor-bind-boundary-native.spec.ts > D27 native bind boundary (duplicate-user)
+SidecarRpcError: SIDECAR_TIMEOUT
+ ❯ SidecarSupervisor.start src/deployment/sidecar-supervisor.ts:45:13
+     43|         await delay(50, undefined, { signal: signal ?? undefined }).ca…
+     44|       }
+     45|       throw new SidecarRpcError('SIDECAR_TIMEOUT')
+       |             ^
+     46|     } catch (error) {
+     47|       await this.close()
+ ❯ tests/doctor-bind-boundary-native.spec.ts:86:5
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/33]⎯
+
+ FAIL  tests/sidecar-bootstrap-observation.spec.ts > journal-derived send observation, synthetic provider only > recovers an ACKed EXECUTED after Sidecar restart using its journal and publishes DONE atomically
+Error: Test timed out in 5000ms.
+If this is a long-running test, pass a timeout value as the last argument or configure it globally with "testTimeout".
+ ❯ tests/sidecar-bootstrap-observation.spec.ts:87:3
+     85|     expect(f.message).toHaveBeenCalledOnce()
+     86|   })
+     87|   it('recovers an ACKed EXECUTED after Sidecar restart using its journ…
+       |   ^
+     88|     const f = await fixture()
+     89|     const store = new CoordinatorState(createMemoryStore())
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/33]⎯
+
+ FAIL  tests/sidecar-bootstrap-observation.spec.ts > journal-derived send observation, synthetic provider only > does not promote an unbound source after service restart without exact outgoing proof
+Error: Test timed out in 5000ms.
+If this is a long-running test, pass a timeout value as the last argument or configure it globally with "testTimeout".
+ ❯ tests/sidecar-bootstrap-observation.spec.ts:197:3
+    195|     expect(f.message).toHaveBeenCalledOnce()
+    196|   })
+    197|   it('does not promote an unbound source after service restart without…
+       |   ^
+    198|     const f = await fixture()
+    199|     await f.client.sendControlMessage('private INIT control', undefine…
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[3/33]⎯
+
+ FAIL  tests/sidecar-bootstrap-observation.spec.ts > journal-derived send observation, synthetic provider only > binds an uncertain bootstrap after restart only from exact journal-derived proof without resending
+Error: Test timed out in 5000ms.
+If this is a long-running test, pass a timeout value as the last argument or configure it globally with "testTimeout".
+ ❯ tests/sidecar-bootstrap-observation.spec.ts:205:3
+    203|     expect(f.message).toHaveBeenCalledOnce()
+    204|   })
+    205|   it('binds an uncertain bootstrap after restart only from exact journ…
+       |   ^
+    206|     const f = await fixture()
+    207|     f.message.mockRejectedValueOnce(Object.assign(new Error('lost ACK'…
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[4/33]⎯
+
+ FAIL  tests/sidecar-bootstrap-observation.spec.ts > journal-derived send observation, synthetic provider only > returns a previously bound source after restart without inventing a new binding
+Error: Test timed out in 5000ms.
+If this is a long-running test, pass a timeout value as the last argument or configure it globally with "testTimeout".
+ ❯ tests/sidecar-bootstrap-observation.spec.ts:239:3
+    237|     expect(f.message).toHaveBeenCalledOnce()
+    238|   })
+    239|   it('returns a previously bound source after restart without inventin…
+       |   ^
+    240|     const f = await fixture()
+    241|     await f.client.sendControlMessage('private INIT control', undefine…
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[5/33]⎯
+
+ FAIL  tests/sidecar-bootstrap-observation.spec.ts > journal-derived send observation, synthetic provider only > reconciles a bound bootstrap before the first wait after service restart
+Error: Test timed out in 5000ms.
+If this is a long-running test, pass a timeout value as the last argument or configure it globally with "testTimeout".
+ ❯ tests/sidecar-bootstrap-observation.spec.ts:265:3
+    263|     expect(f.message).toHaveBeenCalledOnce()
+    264|   })
+    265|   it('reconciles a bound bootstrap before the first wait after service…
+       |   ^
+    266|     const f = await fixture()
+    267|     await f.client.sendControlMessage('private INIT control', undefine…
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[6/33]⎯
+
+ FAIL  tests/sidecar-bootstrap-observation.spec.ts > journal-derived send observation, synthetic provider only > reconciles a known accepted source before a never-journaled wait after restart
+Error: Test timed out in 5000ms.
+If this is a long-running test, pass a timeout value as the last argument or configure it globally with "testTimeout".
+ ❯ tests/sidecar-bootstrap-observation.spec.ts:277:3
+    275|     expect(await readFile(join(f.directory, 'delivery.json'), 'utf8'))…
+    276|   })
+    277|   it('reconciles a known accepted source before a never-journaled wait…
+       |   ^
+    278|     const f = await fixture()
+    279|     await f.client.sendControlMessage('known control', undefined, { ..…
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[7/33]⎯
+
+ FAIL  tests/sidecar-lifecycle.spec.ts > separate-process operation delivery lifecycle > bounds an abort-ignoring driver and keeps the uncertain operation quarantined
+Error: Test timed out in 5000ms.
+If this is a long-running test, pass a timeout value as the last argument or configure it globally with "testTimeout".
+ ❯ tests/sidecar-lifecycle.spec.ts:32:3
+     30|     expect(second.sends).toEqual([])
+     31|   }, restartTestBudget)
+     32|   it('bounds an abort-ignoring driver and keeps the uncertain operatio…
+       |   ^
+     33|     const child = await start()
+     34|     const request = envelope(child, 'hang-before-ack')
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[8/33]⎯
+
+ FAIL  tests/sidecar-lifecycle.spec.ts > separate-process operation delivery lifecycle > applies the operation deadline before browser mutation begins
+Error: Test timed out in 5000ms.
+If this is a long-running test, pass a timeout value as the last argument or configure it globally with "testTimeout".
+ ❯ tests/sidecar-lifecycle.spec.ts:41:3
+     39|     expect(child.sends).toEqual(['hang-before-ack'])
+     40|   })
+     41|   it('applies the operation deadline before browser mutation begins', …
+       |   ^
+     42|     const child = await start(undefined, { pausePhase: 'prepared' })
+     43|     const request = envelope(child, 'must not enter after preparation …
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[9/33]⎯
+
+ FAIL  tests/sidecar-lifecycle.spec.ts > separate-process operation delivery lifecycle > admits only one new writer when two processes reclaim a dead owner concurrently
+ FAIL  tests/sidecar-lifecycle.spec.ts > separate-process operation delivery lifecycle > reconciles a hard crash at durable phase prepared without forgotten sends
+ FAIL  tests/sidecar-lifecycle.spec.ts > separate-process operation delivery lifecycle > reconciles a hard crash at durable phase observed-sent without forgotten sends
+ FAIL  tests/sidecar-lifecycle.spec.ts > separate-process operation delivery lifecycle > reconciles a hard crash at durable phase accepted without forgotten sends
+ FAIL  tests/sidecar-lifecycle.spec.ts > separate-process operation delivery lifecycle > retains an interrupted reply observation without resending a control message
+ FAIL  tests/sidecar-transport-loss.spec.ts > transport interruption against a separate compiled Sidecar > fences a cancelled operation previously refused admission as BUSY
+ FAIL  tests/sidecar-transport-loss.spec.ts > transport interruption against a separate compiled Sidecar > does not poison accepted send replay with a later cancel (restart=false)
+ FAIL  tests/sidecar-transport-loss.spec.ts > transport interruption against a separate compiled Sidecar > does not poison accepted send replay with a later cancel (restart=true)
+ FAIL  tests/sidecar-transport-loss.spec.ts > transport interruption against a separate compiled Sidecar > rejects delayed old-generation requests after a pre-admission cancel and restart
+ FAIL  tests/sidecar-transport-loss.spec.ts > transport interruption against a separate compiled Sidecar > fences late sendControlMessage admission when independent cancellation arrives first
+ FAIL  tests/sidecar-transport-loss.spec.ts > transport interruption against a separate compiled Sidecar > fences late waitForReply admission when independent cancellation arrives first
+ FAIL  tests/sidecar-transport-loss.spec.ts > transport interruption against a separate compiled Sidecar > cancels a persisted wait, releases ownership, and resumes its exact identity after restart without another send
+ FAIL  tests/sidecar-transport-loss.spec.ts > transport interruption against a separate compiled Sidecar > preserves an admitted send as uncertain after transport loss and refuses to duplicate it after restart
+Error: Sidecar child startup deadline exceeded
+ ❯ Timeout.<anonymous> tests/fixtures/sidecar-process.ts:32:59
+     30|   })
+     31|   const ready = await new Promise<{ endpoint: string; generation: stri…
+     32|     const timer = setTimeout(() => { child.kill(); reject(new Error('S…
+       |                                                           ^
+     33|     child.once('exit', () => { clearTimeout(timer); reject(new Error('…
+     34|     child.on('message', value => {
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[10/33]⎯
+
+ FAIL  tests/sidecar-lifecycle.spec.ts > separate-process operation delivery lifecycle > cancels at the prepared boundary before invoking the semantic send
+Error: Test timed out in 5000ms.
+If this is a long-running test, pass a timeout value as the last argument or configure it globally with "testTimeout".
+ ❯ tests/sidecar-lifecycle.spec.ts:84:3
+     82|     expect(second.sends).toEqual([])
+     83|   }, restartTestBudget)
+     84|   it('cancels at the prepared boundary before invoking the semantic se…
+       |   ^
+     85|     const child = await start(undefined, { pausePhase: 'prepared' })
+     86|     const request = envelope(child, 'must not mutate')
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[11/33]⎯
+
+ FAIL  tests/sidecar-observation-recovery.spec.ts > semantic Sidecar observation recovery > resumes an uncertain wait using journal-bound outgoing proof without another send
+Error: Test timed out in 5000ms.
+If this is a long-running test, pass a timeout value as the last argument or configure it globally with "testTimeout".
+ ❯ tests/sidecar-observation-recovery.spec.ts:39:3
+     37|     expect(f.sendMessage).not.toHaveBeenCalled()
+     38|   })
+     39|   it('resumes an uncertain wait using journal-bound outgoing proof wit…
+       |   ^
+     40|     const f = await fixture()
+     41|     await f.client.sendControlMessage('owned control', undefined, send)
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[12/33]⎯
+
+ FAIL  tests/sidecar-observation-recovery.spec.ts > semantic Sidecar observation recovery > preserves SEND_UNCERTAIN after failed read-only proof
+ FAIL  tests/sidecar-observation-recovery.spec.ts > semantic Sidecar observation recovery > preserves BROWSER_TARGET_CHANGED after failed read-only proof
+Error: Test timed out in 5000ms.
+If this is a long-running test, pass a timeout value as the last argument or configure it globally with "testTimeout".
+ ❯ tests/sidecar-observation-recovery.spec.ts:53:56
+     51|     expect(JSON.parse(disk).entries.find((entry: any) => entry.operati…
+     52|   })
+     53|   it.each(['SEND_UNCERTAIN', 'BROWSER_TARGET_CHANGED'])('preserves %s …
+       |                                                        ^
+     54|     const f = await fixture()
+     55|     await f.client.sendControlMessage('owned control', undefined, send)
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[13/33]⎯
+
+ FAIL  tests/sidecar-observation-recovery.spec.ts > semantic Sidecar observation recovery > rejects changed replay metadata before semantic reconciliation
+Error: Test timed out in 5000ms.
+If this is a long-running test, pass a timeout value as the last argument or configure it globally with "testTimeout".
+ ❯ tests/sidecar-observation-recovery.spec.ts:67:3
+     65|     expect(f.reply).not.toHaveBeenCalled(); expect(f.reconcile).not.to…
+     66|   })
+     67|   it('rejects changed replay metadata before semantic reconciliation',…
+       |   ^
+     68|     const f = await fixture()
+     69|     await f.client.sendControlMessage('owned control', undefined, send)
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[14/33]⎯
+
+ FAIL  tests/sidecar-observation-recovery.spec.ts > semantic Sidecar observation recovery > reconciles an uncertain send before the first resumed wait without sending again
+Error: Test timed out in 5000ms.
+If this is a long-running test, pass a timeout value as the last argument or configure it globally with "testTimeout".
+ ❯ tests/sidecar-observation-recovery.spec.ts:76:3
+     74|     expect(f.reconcile).not.toHaveBeenCalled(); expect(f.sendMessage).…
+     75|   })
+     76|   it('reconciles an uncertain send before the first resumed wait witho…
+       |   ^
+     77|     const f = await fixture()
+     78|     f.sendMessage.mockRejectedValueOnce(Object.assign(new Error('SEND_…
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[15/33]⎯
+
+ FAIL  tests/sidecar-observation-recovery.spec.ts > semantic Sidecar observation recovery > replays an accepted wait only if its independently reobserved digest is unchanged (false)
+ FAIL  tests/sidecar-observation-recovery.spec.ts > semantic Sidecar observation recovery > replays an accepted wait only if its independently reobserved digest is unchanged (true)
+Error: Test timed out in 5000ms.
+If this is a long-running test, pass a timeout value as the last argument or configure it globally with "testTimeout".
+ ❯ tests/sidecar-observation-recovery.spec.ts:84:25
+     82|     expect(f.reconcile).toHaveBeenCalledOnce(); expect(f.sendMessage).…
+     83|   })
+     84|   it.each([false, true])('replays an accepted wait only if its indepen…
+       |                         ^
+     85|     const f = await fixture()
+     86|     await f.client.sendControlMessage('owned control', undefined, send)
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[16/33]⎯
+
+ FAIL  tests/sidecar-observation-recovery.spec.ts > semantic Sidecar observation recovery > rejects changed preceding baseline assistantCount from reconciliation
+ FAIL  tests/sidecar-observation-recovery.spec.ts > semantic Sidecar observation recovery > rejects changed preceding baseline textDigest from reconciliation
+ FAIL  tests/sidecar-observation-recovery.spec.ts > semantic Sidecar observation recovery > rejects changed preceding baseline conversationId from reconciliation
+Error: Test timed out in 5000ms.
+If this is a long-running test, pass a timeout value as the last argument or configure it globally with "testTimeout".
+ ❯ tests/sidecar-observation-recovery.spec.ts:104:62
+    102|     expect(f.reply).not.toHaveBeenCalled(); expect(f.reconcile).not.to…
+    103|   })
+    104|   it.each(['assistantCount', 'textDigest', 'conversationId'])('rejects…
+       |                                                              ^
+    105|     const f = await fixture()
+    106|     await f.client.sendControlMessage('owned control', undefined, send)
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[17/33]⎯
+
+
+ Test Files  5 failed | 89 passed (94)
+      Tests  33 failed | 1306 passed | 3 skipped (1342)
+   Start at  11:09:48
+   Duration  1464.36s (tests 99%, import 1%)
+
+    Isolate  94 workers spawned · ~126ms startup each (spawn + environment, per file)
+             at least ~11.72s faster with isolate: false — reuses workers across files instead of one per file
+
+ ELIFECYCLE  Test failed. See above for more details.

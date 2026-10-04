@@ -1,0 +1,9 @@
+
+ RUN  v5.0.1 D:/workspace/DSHWithChatGPT/package
+
+
+ Test Files  4 passed (4)
+      Tests  52 passed (52)
+   Start at  11:05:28
+   Duration  14.48s (tests 86%, import 10%, transform 4%)
+

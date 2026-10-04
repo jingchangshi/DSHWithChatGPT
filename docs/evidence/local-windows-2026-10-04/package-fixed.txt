@@ -1,0 +1,220 @@
+
+> dsh-with-chatgpt@0.1.0 test:package D:\workspace\DSHWithChatGPT\package
+> node scripts/verify-package.mjs
+
+Isolated package verification: C:\Users\jcshi\AppData\Local\Temp\dsh-chatgpt-package-ruufeg
+📦  dsh-with-chatgpt@0.1.0
+Tarball Contents
+cordis.patch.yml
+lib/adapters/cordis/planner-state-store.d.ts
+lib/adapters/cordis/planner-state-store.js
+lib/adapters/cordis/state-store.d.ts
+lib/adapters/cordis/state-store.js
+lib/adapters/dsh/agent.d.ts
+lib/adapters/dsh/agent.js
+lib/adapters/dsh/execution-workspace.d.ts
+lib/adapters/dsh/execution-workspace.js
+lib/adapters/dsh/git-authority.d.ts
+lib/adapters/dsh/git-authority.js
+lib/adapters/dsh/round-identity.d.ts
+lib/adapters/dsh/round-identity.js
+lib/adapters/mcp-exposure/openai-secure-tunnel.d.ts
+lib/adapters/mcp-exposure/openai-secure-tunnel.js
+lib/bridge/index.d.ts
+lib/bridge/index.js
+lib/bridge/server.d.ts
+lib/bridge/server.js
+lib/bridge/tool-definitions.d.ts
+lib/bridge/tool-definitions.js
+lib/bridge/tools.d.ts
+lib/bridge/tools.js
+lib/browser/adapter.d.ts
+lib/browser/adapter.js
+lib/browser/cdp-session.d.ts
+lib/browser/cdp-session.js
+lib/browser/chatgpt-web-driver.d.ts
+lib/browser/chatgpt-web-driver.js
+lib/browser/conversation-binding.d.ts
+lib/browser/conversation-binding.js
+lib/browser/direct-cdp.d.ts
+lib/browser/direct-cdp.js
+lib/browser/epoch.d.ts
+lib/browser/epoch.js
+lib/browser/errors.d.ts
+lib/browser/errors.js
+lib/browser/focus-expression.d.ts
+lib/browser/focus-expression.js
+lib/browser/harness.d.ts
+lib/browser/harness.js
+lib/browser/history-observation.d.ts
+lib/browser/history-observation.js
+lib/browser/index.d.ts
+lib/browser/index.js
+lib/browser/message-observation.d.ts
+lib/browser/message-observation.js
+lib/browser/ownership.d.ts
+lib/browser/ownership.js
+lib/browser/primitives.d.ts
+lib/browser/primitives.js
+lib/browser/transitions.d.ts
+lib/browser/transitions.js
+lib/cancellation.d.ts
+lib/cancellation.js
+lib/core/model.d.ts
+lib/core/model.js
+lib/core/planner-task.d.ts
+lib/core/planner-task.js
+lib/core/ports/agent.d.ts
+lib/core/ports/agent.js
+lib/core/ports/chat-control.d.ts
+lib/core/ports/chat-control.js
+lib/core/ports/chat-diagnostics.d.ts
+lib/core/ports/chat-diagnostics.js
+lib/core/ports/execution-workspace.d.ts
+lib/core/ports/execution-workspace.js
+lib/core/ports/git-authority.d.ts
+lib/core/ports/git-authority.js
+lib/core/ports/index.d.ts
+lib/core/ports/index.js
+lib/core/ports/mcp-exposure.d.ts
+lib/core/ports/mcp-exposure.js
+lib/core/ports/state-store.d.ts
+lib/core/ports/state-store.js
+lib/deployment/direct-sidecar.d.ts
+lib/deployment/direct-sidecar.js
+lib/deployment/dsh-runtime.d.ts
+lib/deployment/dsh-runtime.js
+lib/deployment/private-state.d.ts
+lib/deployment/private-state.js
+lib/deployment/sidecar-control.d.ts
+lib/deployment/sidecar-control.js
+lib/deployment/sidecar-credential.d.ts
+lib/deployment/sidecar-credential.js
+lib/deployment/sidecar-process-entry.d.ts
+lib/deployment/sidecar-process-entry.js
+lib/deployment/sidecar-supervisor.d.ts
+lib/deployment/sidecar-supervisor.js
+lib/deployment/sidecar-target-recovery.d.ts
+lib/deployment/sidecar-target-recovery.js
+lib/execution/index.d.ts
+lib/execution/index.js
+lib/execution/observe.d.ts
+lib/execution/observe.js
+lib/execution/recorder.d.ts
+lib/execution/recorder.js
+lib/execution/scope.d.ts
+lib/execution/scope.js
+lib/execution/workspaces.d.ts
+lib/execution/workspaces.js
+lib/index.d.ts
+lib/index.js
+lib/orchestrator/coordinator.d.ts
+lib/orchestrator/coordinator.js
+lib/orchestrator/index.d.ts
+lib/orchestrator/index.js
+lib/orchestrator/legacy-send-guard.d.ts
+lib/orchestrator/legacy-send-guard.js
+lib/orchestrator/ownership.d.ts
+lib/orchestrator/ownership.js
+lib/orchestrator/planner-task.d.ts
+lib/orchestrator/planner-task.js
+lib/orchestrator/protocol-state-backend.d.ts
+lib/orchestrator/protocol-state-backend.js
+lib/orchestrator/state.d.ts
+lib/orchestrator/state.js
+lib/protocol/envelope.d.ts
+lib/protocol/envelope.js
+lib/protocol/index.d.ts
+lib/protocol/index.js
+lib/protocol/legacy-planner-policy.d.ts
+lib/protocol/legacy-planner-policy.js
+lib/protocol/legacy-reply.d.ts
+lib/protocol/legacy-reply.js
+lib/protocol/planner-envelope.d.ts
+lib/protocol/planner-envelope.js
+lib/protocol/planner-instructions.d.ts
+lib/protocol/planner-instructions.js
+lib/protocol/state-machine.d.ts
+lib/protocol/state-machine.js
+lib/readiness/app-proof.d.ts
+lib/readiness/app-proof.js
+lib/readiness/doctor.d.ts
+lib/readiness/doctor.js
+lib/sidecar/client.d.ts
+lib/sidecar/client.js
+lib/sidecar/errors.d.ts
+lib/sidecar/errors.js
+lib/sidecar/index.d.ts
+lib/sidecar/index.js
+lib/sidecar/journal.d.ts
+lib/sidecar/journal.js
+lib/sidecar/protocol.d.ts
+lib/sidecar/protocol.js
+lib/sidecar/rpc-http.d.ts
+lib/sidecar/rpc-http.js
+lib/sidecar/server.d.ts
+lib/sidecar/server.js
+lib/tunnel/index.d.ts
+lib/tunnel/index.js
+lib/tunnel/supervisor.d.ts
+lib/tunnel/supervisor.js
+lib/workspace/boundary.d.ts
+lib/workspace/boundary.js
+lib/workspace/directory-order.d.ts
+lib/workspace/directory-order.js
+lib/workspace/errors.d.ts
+lib/workspace/errors.js
+lib/workspace/execution-identity.d.ts
+lib/workspace/execution-identity.js
+lib/workspace/git.d.ts
+lib/workspace/git.js
+lib/workspace/identity.d.ts
+lib/workspace/identity.js
+lib/workspace/index.d.ts
+lib/workspace/index.js
+lib/workspace/query.d.ts
+lib/workspace/query.js
+lib/workspace/read-lease.d.ts
+lib/workspace/read-lease.js
+lib/workspace/runtime.d.ts
+lib/workspace/runtime.js
+lib/workspace/with-read-lease.d.ts
+lib/workspace/with-read-lease.js
+package.json
+Tarball Details
+C:\Users\jcshi\AppData\Local\Temp\dsh-chatgpt-package-ruufeg\dsh-with-chatgpt-0.1.0.tgz
+Progress: resolved 0, reused 1, downloaded 0, added 0
+Progress: resolved 6, reused 5, downloaded 1, added 0
+Progress: resolved 7, reused 6, downloaded 1, added 0
+Progress: resolved 8, reused 7, downloaded 1, added 0
+Progress: resolved 20, reused 17, downloaded 1, added 0
+Progress: resolved 41, reused 20, downloaded 1, added 0
+Progress: resolved 47, reused 23, downloaded 1, added 0
+Progress: resolved 55, reused 31, downloaded 1, added 0
+Packages: +33
++++++++++++++++++++++++++++++++++
+Progress: resolved 56, reused 32, downloaded 1, added 31
+Progress: resolved 56, reused 32, downloaded 1, added 32
+Progress: resolved 56, reused 32, downloaded 1, added 33, done
+
+dependencies:
++ @deepseek-ai/cordis 4.0.4
++ @deepseek-ai/dsh-execution-world 0.1.6-alpha.4
++ @deepseek-ai/dsh-fs 0.1.6-alpha.2
++ @deepseek-ai/dsh-sandbox 0.1.6-alpha.2
++ @deepseek-ai/dsh-storage-domain 0.1.6-alpha.2
++ @deepseek-ai/dsh-subprocess 0.1.6-alpha.2
++ @types/node 24.19.1 (26.6.4 is available)
++ dsh-with-chatgpt 0.1.0
++ typescript 5.9.3 (7.0.2 is available)
+
+Done in 9.7s using pnpm v10.34.5
+dsh-with-chatgpt: isolated import OK
+@deepseek-ai/cordis: isolated import OK
+@deepseek-ai/dsh-execution-world: isolated import OK
+@deepseek-ai/dsh-fs: isolated import OK
+@deepseek-ai/dsh-sandbox: isolated import OK
+@deepseek-ai/dsh-storage-domain: isolated import OK
+@deepseek-ai/dsh-subprocess: isolated import OK
+Packaged Sidecar: separate process, neutral client, private state, stable replay and clean shutdown OK
+Packed plugin resolves without a sibling checkout; retained fixture: C:\Users\jcshi\AppData\Local\Temp\dsh-chatgpt-package-ruufeg

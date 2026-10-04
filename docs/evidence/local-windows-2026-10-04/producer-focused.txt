@@ -1,0 +1,104 @@
+The plugin "vite-tsconfig-paths" is detected. Vite now supports tsconfig paths resolution natively via the resolve.tsconfigPaths option. You can remove the plugin and set resolve.tsconfigPaths: true in your Vite config instead.
+The plugin "vite-tsconfig-paths" is detected. Vite now supports tsconfig paths resolution natively via the resolve.tsconfigPaths option. You can remove the plugin and set resolve.tsconfigPaths: true in your Vite config instead.
+The plugin "vite-tsconfig-paths" is detected. Vite now supports tsconfig paths resolution natively via the resolve.tsconfigPaths option. You can remove the plugin and set resolve.tsconfigPaths: true in your Vite config instead.
+
+ RUN  v4.1.8 D:/workspace/deepseek-harness
+
+ ✓ |thread-safe| packages/subprocess/subprocess-local/tests/windows-job.spec.ts > Windows Job capability > uses the production dependency paths by default 17ms
+ ✓ |thread-safe| packages/subprocess/subprocess-local/tests/windows-job.spec.ts > Windows Job capability > rechecks runner and empty Job support on every eligible spawn 0ms
+ ✓ |thread-safe| packages/subprocess/subprocess-local/tests/windows-job.spec.ts > Windows Job capability > falls back when either runner or current Job capability is unavailable 0ms
+ ✓ |thread-safe| packages/subprocess/subprocess-local/tests/windows-job.spec.ts > Windows parent runner contract > accepts a private result delivered after process exit without waiting for stdio close 2ms
+ ✓ |thread-safe| packages/subprocess/subprocess-local/tests/windows-job.spec.ts > Windows parent runner contract > rejects a clean exit when private IPC disconnects without a result 1ms
+ ✓ |thread-safe| packages/subprocess/subprocess-local/tests/windows-job.spec.ts > Windows parent runner contract > keeps the requested control endpoint separate from runner IPC and ordinary output 3ms
+ ✓ |thread-safe| packages/subprocess/subprocess-local/tests/windows-job.spec.ts > Windows parent runner contract > isolates runner stdio, carries target stdio on fd 4 through fd 6, and sends cwd/env 1ms
+ ✓ |thread-safe| packages/subprocess/subprocess-local/tests/windows-job.spec.ts > Windows parent runner contract > carries a null-device fd 4 for ignored stdin and closes the parent descriptor after spawn 2ms
+ ✓ |thread-safe| packages/subprocess/subprocess-local/tests/windows-job.spec.ts > Windows parent runner contract > closes the ignored-stdin descriptor when runner spawn throws synchronously 1ms
+ ✓ |thread-safe| packages/subprocess/subprocess-local/tests/windows-job.spec.ts > Windows parent runner contract > maps target-exit to direct outcome and clean close to range quiescence 1ms
+ ✓ |thread-safe| packages/subprocess/subprocess-local/tests/windows-job.spec.ts > Windows parent runner contract > latches target-exit while stdio drains and leaves later runner failure to waitForExit 115ms
+ ✓ |thread-safe| packages/subprocess/subprocess-local/tests/windows-job.spec.ts > Windows parent runner contract > maps errors and restores raw start-cancellation reasons from the parent latch 5ms
+ ✓ |thread-safe| packages/subprocess/subprocess-local/tests/windows-job.spec.ts > Windows parent runner contract > preserves a strict provider error after a termination request 1ms
+ ✓ |thread-safe| packages/subprocess/subprocess-local/tests/windows-job.spec.ts > Windows parent runner contract > rejects direct and wait for runner error or abnormal runner exit 2ms
+ ✓ |thread-safe| packages/subprocess/subprocess-local/tests/windows-job.spec.ts > Windows parent runner contract > fails closed on malformed/duplicate result, runner spawn error, and start-send error 5ms
+ ✓ |thread-safe| packages/subprocess/subprocess-local/tests/windows-job.spec.ts > Windows parent runner contract > fails infrastructure and kills the runner when termination delivery fails 3ms
+ ✓ |thread-safe| packages/subprocess/subprocess-local/tests/windows-job.spec.ts > Windows parent runner contract > accepts clean range settlement after a direct error races redundant termination delivery 1ms
+ ✓ |thread-safe| packages/subprocess/subprocess-local/tests/windows-job.spec.ts > Windows parent runner contract > accepts clean range settlement when a target result races redundant termination delivery 104ms
+ ✓ |thread-safe| packages/subprocess/subprocess-local/tests/windows-job.spec.ts > Windows parent runner contract > uses synchronous runner termination for host exit and isolates repeated control 1ms
+ ✓ |thread-safe| packages/subprocess/subprocess-local/tests/spawn-runner.spec.ts > closed runner protocol > preserves the explicit control request and rejects other transport values 23ms
+ ✓ |thread-safe| packages/subprocess/subprocess-local/tests/spawn-runner.spec.ts > closed runner protocol > creates, consumes, reports through, and cleans one private Linux exchange 16ms
+ ✓ |thread-safe| packages/subprocess/subprocess-local/tests/spawn-runner.spec.ts > closed runner protocol > removes the private directory when request creation fails partway through 3ms
+ ✓ |thread-safe| packages/subprocess/subprocess-local/tests/spawn-runner.spec.ts > closed runner protocol > strictly rejects malformed Linux and Windows messages 20ms
+ × |thread-safe| packages/subprocess/subprocess-local/tests/spawn-runner.spec.ts > closed runner protocol > contains cleanup failures and removes a substituted symlink only 7ms
+   → EPERM: operation not permitted, symlink 'C:\Users\jcshi\AppData\Local\Temp\dsh-runner-cleanup-target-25072' -> 'C:\Users\jcshi\AppData\Local\Temp\dsh-runner-cleanup-link-25072'
+ ✓ |thread-safe| packages/subprocess/subprocess-local/tests/spawn-runner.spec.ts > runner launch inputs > keeps target state out of the bootstrap environment and consumes its selector 3ms
+ ✓ |thread-safe| packages/subprocess/subprocess-local/tests/spawn-runner.spec.ts > runner launch inputs > removes ambient Node and tsx controls from the bootstrap environment only 2ms
+ ✓ |thread-safe| packages/subprocess/subprocess-local/tests/spawn-runner.spec.ts > runner launch inputs > validates every Node-baseline NUL location before launch 4ms
+ ✓ |thread-safe| packages/subprocess/subprocess-local/tests/spawn-runner.spec.ts > runner launch inputs > resolves the source runner entry and checks concrete paths without executing it 2ms
+ ✓ |thread-safe| packages/subprocess/subprocess-local/tests/spawn-runner.spec.ts > runner launch inputs > loads the source runner from an isolated application cwd 166ms
+ ✓ |thread-safe| packages/subprocess/subprocess-local/tests/spawn-runner.spec.ts > runner launch inputs > serializes only the private protocol diagnostic fields 1ms
+ × |thread-safe| packages/subprocess/subprocess-local/tests/spawn-runner.spec.ts > runner launch inputs > resolves Windows executables with target-cwd and PATH search semantics 6ms
+   → EPERM: operation not permitted, symlink 'C:\Users\jcshi\AppData\Local\Temp\dsh-windows-resolver-PZ0CXd\missing.exe' -> 'C:\Users\jcshi\AppData\Local\Temp\dsh-windows-resolver-PZ0CXd\alias.exe'
+ ✓ |thread-safe| packages/subprocess/subprocess-local/tests/spawn-runner.spec.ts > Linux one-shot exec bootstrap > uses final cwd/env PATH while preserving the original argv 15ms
+ ✓ |thread-safe| packages/subprocess/subprocess-local/tests/spawn-runner.spec.ts > Linux one-shot exec bootstrap > resolves relative PATH entries from the cwd after chdir 16ms
+ ↓ |thread-safe| packages/subprocess/subprocess-local/tests/spawn-runner.spec.ts > Linux one-shot exec bootstrap > preserves symlink-sensitive parent traversal in PATH candidates
+ ✓ |thread-safe| packages/subprocess/subprocess-local/tests/spawn-runner.spec.ts > Linux one-shot exec bootstrap > retries ENOEXEC through /bin/sh with control undefined 14ms
+ ✓ |thread-safe| packages/subprocess/subprocess-local/tests/spawn-runner.spec.ts > Linux one-shot exec bootstrap > retries ENOEXEC through /bin/sh with control pipe 8ms
+ ✓ |thread-safe| packages/subprocess/subprocess-local/tests/spawn-runner.spec.ts > Linux one-shot exec bootstrap > uses the default PATH and stops on a non-search error 29ms
+ ✓ |thread-safe| packages/subprocess/subprocess-local/tests/spawn-runner.spec.ts > Linux one-shot exec bootstrap > publishes request and early protocol failures through the single error branch 17ms
+ ✓ |thread-safe| packages/subprocess/subprocess-local/tests/spawn-runner.spec.ts > Windows Job runner protocol owner > publishes a Node-shaped path-search miss before loading Win32 bindings 1ms
+ ✓ |thread-safe| packages/subprocess/subprocess-local/tests/spawn-runner.spec.ts > Windows Job runner protocol owner > maps only the promised Win32 process-creation error subset 5ms
+ ✓ |thread-safe| packages/subprocess/subprocess-local/tests/spawn-runner.spec.ts > Windows Job runner protocol owner > rejects a Windows runner without an initial IPC channel 1ms
+ ✓ |thread-safe| packages/subprocess/subprocess-local/tests/spawn-runner.spec.ts > Windows Job runner protocol owner > sends target-exit only after suspended Job launch and closes runner stdio 16ms
+ ✓ |thread-safe| packages/subprocess/subprocess-local/tests/spawn-runner.spec.ts > Windows Job runner protocol owner > closes every target carrier with control undefined before the first Windows poll 1ms
+ ✓ |thread-safe| packages/subprocess/subprocess-local/tests/spawn-runner.spec.ts > Windows Job runner protocol owner > closes every target carrier with control pipe before the first Windows poll 0ms
+ ✓ |thread-safe| packages/subprocess/subprocess-local/tests/spawn-runner.spec.ts > Windows Job runner protocol owner > exhausts target-exit and strict error results, including start cancellation 1ms
+ ✓ |thread-safe| packages/subprocess/subprocess-local/tests/spawn-runner.spec.ts > Windows Job runner protocol owner > cancels after accepting start but before target commit 0ms
+ ✓ |thread-safe| packages/subprocess/subprocess-local/tests/spawn-runner.spec.ts > Windows Job runner protocol owner > does not create a target after pre-commit IPC disconnect 0ms
+ ✓ |thread-safe| packages/subprocess/subprocess-local/tests/spawn-runner.spec.ts > Windows Job runner protocol owner > terminates and closes the unique Job immediately when IPC disconnects 1ms
+ ✓ |thread-safe| packages/subprocess/subprocess-local/tests/spawn-runner.spec.ts > Windows Job runner protocol owner > honors terminate after commit and treats result-send failure as infrastructure failure 11ms
+ ✓ |thread-safe| packages/subprocess/subprocess-local/tests/spawn-runner.spec.ts > Windows Job runner protocol owner > reports a post-commit termination failure 1ms
+ ✓ |thread-safe| packages/subprocess/subprocess-local/tests/spawn-runner.spec.ts > Windows Job runner protocol owner > finishes when a later poll observes Job emptiness after result delivery 29ms
+ ✓ |thread-safe| packages/subprocess/subprocess-local/tests/spawn-runner.spec.ts > Windows Job runner protocol owner > contains poll failures and queued ticks after disconnect 16ms
+ ✓ |thread-safe| packages/subprocess/subprocess-local/tests/spawn-runner.spec.ts > Windows Job runner protocol owner > cleans a direct handle after the Job identity was already cleared 1ms
+ ✓ |thread-safe| packages/subprocess/subprocess-local/tests/spawn-runner.spec.ts > Windows Job runner protocol owner > fails closed for malformed or duplicate start messages and disconnected reporting 1ms
+(node:4496) [KOFFI008] DeprecationWarning: The koffi.introspect() function was deprecated in Koffi 3.0, use koffi.type() instead
+(Use `node --trace-deprecation ...` to show where the warning was created)
+ ✓ |thread-safe| packages/execution/execution-world/tests/git-lease-windows.spec.ts > native Windows fixed Git reads > leaves writable repository state and helper tripwires unchanged for each allowed read 4623ms
+ ✓ |thread-safe| packages/execution/execution-world/tests/git-lease-windows.spec.ts > native Windows fixed Git reads > ignores Windows output redirection inherited by an authorized read 2022ms
+ ✓ |thread-safe| packages/execution/execution-world/tests/git-lease-windows.spec.ts > native Windows fixed Git reads > rejects full enforcement before any native target starts 580ms
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 2 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  |thread-safe| packages/subprocess/subprocess-local/tests/spawn-runner.spec.ts > closed runner protocol > contains cleanup failures and removes a substituted symlink only
+Error: EPERM: operation not permitted, symlink 'C:\Users\jcshi\AppData\Local\Temp\dsh-runner-cleanup-target-25072' -> 'C:\Users\jcshi\AppData\Local\Temp\dsh-runner-cleanup-link-25072'
+ ❯ packages/subprocess/subprocess-local/tests/spawn-runner.spec.ts:236:5
+    234|     scratch.push(target, link)
+    235|     mkdirSync(target, { recursive: true })
+    236|     symlinkSync(target, link)
+       |     ^
+    237|     cleanupLinuxLaunchFiles({
+    238|       directory: link,
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯
+Serialized Error: { errno: -4048, code: 'EPERM', syscall: 'symlink', path: 'C:\Users\jcshi\AppData\Local\Temp\dsh-runner-cleanup-target-25072', dest: 'C:\Users\jcshi\AppData\Local\Temp\dsh-runner-cleanup-link-25072' }
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/2]⎯
+
+ FAIL  |thread-safe| packages/subprocess/subprocess-local/tests/spawn-runner.spec.ts > runner launch inputs > resolves Windows executables with target-cwd and PATH search semantics
+Error: EPERM: operation not permitted, symlink 'C:\Users\jcshi\AppData\Local\Temp\dsh-windows-resolver-PZ0CXd\missing.exe' -> 'C:\Users\jcshi\AppData\Local\Temp\dsh-windows-resolver-PZ0CXd\alias.exe'
+ ❯ packages/subprocess/subprocess-local/tests/spawn-runner.spec.ts:457:5
+    455|     mkdirSync(`${directoryCandidate}.com`)
+    456|     writeFileSync(`${directoryCandidate}.exe`, '')
+    457|     symlinkSync(missingExecutable, danglingAlias, 'file')
+       |     ^
+    458|     expect(resolveWindowsExecutable(executable, '', {})).toBe(executab…
+    459|     expect(resolveWindowsExecutable(directoryCandidate, '', {})).toBe(…
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯
+Serialized Error: { errno: -4048, code: 'EPERM', syscall: 'symlink', path: 'C:\Users\jcshi\AppData\Local\Temp\dsh-windows-resolver-PZ0CXd\missing.exe', dest: 'C:\Users\jcshi\AppData\Local\Temp\dsh-windows-resolver-PZ0CXd\alias.exe' }
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/2]⎯
+
+
+ Test Files  1 failed | 2 passed (3)
+      Tests  2 failed | 54 passed | 1 skipped (57)
+   Start at  11:09:40
+   Duration  9.23s (transform 1.80s, setup 1.30s, import 2.57s, tests 7.93s, environment 0ms)
+

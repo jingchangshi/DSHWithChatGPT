@@ -1,0 +1,110 @@
+The plugin "vite-tsconfig-paths" is detected. Vite now supports tsconfig paths resolution natively via the resolve.tsconfigPaths option. You can remove the plugin and set resolve.tsconfigPaths: true in your Vite config instead.
+The plugin "vite-tsconfig-paths" is detected. Vite now supports tsconfig paths resolution natively via the resolve.tsconfigPaths option. You can remove the plugin and set resolve.tsconfigPaths: true in your Vite config instead.
+The plugin "vite-tsconfig-paths" is detected. Vite now supports tsconfig paths resolution natively via the resolve.tsconfigPaths option. You can remove the plugin and set resolve.tsconfigPaths: true in your Vite config instead.
+
+ RUN  v4.1.8 D:/workspace/deepseek-harness
+
+stdout | packages/execution/execution-world/tests/git-lease-windows.spec.ts > native Windows fixed Git reads > leaves writable repository state and helper tripwires unchanged for each allowed read
+{"stage":"fixture-start","elapsedMs":0.04570000000012442}
+
+stdout | packages/execution/execution-world/tests/git-lease-windows.spec.ts > native Windows fixed Git reads > leaves writable repository state and helper tripwires unchanged for each allowed read
+{"stage":"git-and-acl-ready","elapsedMs":1076.0642000000003}
+
+stdout | packages/execution/execution-world/tests/git-lease-windows.spec.ts > native Windows fixed Git reads > leaves writable repository state and helper tripwires unchanged for each allowed read
+{"stage":"harness-ready","elapsedMs":1101.3279000000002}
+
+stdout | packages/execution/execution-world/tests/git-lease-windows.spec.ts > native Windows fixed Git reads > leaves writable repository state and helper tripwires unchanged for each allowed read
+{"stage":"providers-ready","elapsedMs":1102.7147}
+
+(node:23036) [KOFFI008] DeprecationWarning: The koffi.introspect() function was deprecated in Koffi 3.0, use koffi.type() instead
+(Use `node --trace-deprecation ...` to show where the warning was created)
+stdout | packages/execution/execution-world/tests/git-lease-windows.spec.ts > native Windows fixed Git reads > leaves writable repository state and helper tripwires unchanged for each allowed read
+{"stage":"execute","args":["rev-parse","--verify","HEAD"],"elapsedMs":394.4441999999999}
+
+stdout | packages/execution/execution-world/tests/git-lease-windows.spec.ts > native Windows fixed Git reads > leaves writable repository state and helper tripwires unchanged for each allowed read
+{"stage":"query-and-snapshots","args":["rev-parse","--verify","HEAD"],"elapsedMs":413.58919999999944}
+
+stdout | packages/execution/execution-world/tests/git-lease-windows.spec.ts > native Windows fixed Git reads > leaves writable repository state and helper tripwires unchanged for each allowed read
+{"stage":"execute","args":["rev-parse","--is-inside-work-tree"],"elapsedMs":386.6153000000004}
+
+stdout | packages/execution/execution-world/tests/git-lease-windows.spec.ts > native Windows fixed Git reads > leaves writable repository state and helper tripwires unchanged for each allowed read
+{"stage":"query-and-snapshots","args":["rev-parse","--is-inside-work-tree"],"elapsedMs":404.90310000000045}
+
+stdout | packages/execution/execution-world/tests/git-lease-windows.spec.ts > native Windows fixed Git reads > leaves writable repository state and helper tripwires unchanged for each allowed read
+{"stage":"execute","args":["rev-parse","--abbrev-ref","HEAD"],"elapsedMs":439.46669999999995}
+
+stdout | packages/execution/execution-world/tests/git-lease-windows.spec.ts > native Windows fixed Git reads > leaves writable repository state and helper tripwires unchanged for each allowed read
+{"stage":"query-and-snapshots","args":["rev-parse","--abbrev-ref","HEAD"],"elapsedMs":458.7466999999997}
+
+stdout | packages/execution/execution-world/tests/git-lease-windows.spec.ts > native Windows fixed Git reads > leaves writable repository state and helper tripwires unchanged for each allowed read
+{"stage":"execute","args":["rev-parse","--abbrev-ref","--symbolic-full-name","@{u}"],"elapsedMs":480.3014000000003}
+
+stdout | packages/execution/execution-world/tests/git-lease-windows.spec.ts > native Windows fixed Git reads > leaves writable repository state and helper tripwires unchanged for each allowed read
+{"stage":"query-and-snapshots","args":["rev-parse","--abbrev-ref","--symbolic-full-name","@{u}"],"elapsedMs":501.3778000000002}
+
+stdout | packages/execution/execution-world/tests/git-lease-windows.spec.ts > native Windows fixed Git reads > leaves writable repository state and helper tripwires unchanged for each allowed read
+{"stage":"execute","args":["rev-parse","--verify","@{u}"],"elapsedMs":513.7563}
+
+stdout | packages/execution/execution-world/tests/git-lease-windows.spec.ts > native Windows fixed Git reads > leaves writable repository state and helper tripwires unchanged for each allowed read
+{"stage":"query-and-snapshots","args":["rev-parse","--verify","@{u}"],"elapsedMs":534.8399}
+
+stdout | packages/execution/execution-world/tests/git-lease-windows.spec.ts > native Windows fixed Git reads > leaves writable repository state and helper tripwires unchanged for each allowed read
+{"stage":"execute","args":["rev-list","--left-right","--count","HEAD...@{u}"],"elapsedMs":817.4013000000004}
+
+stdout | packages/execution/execution-world/tests/git-lease-windows.spec.ts > native Windows fixed Git reads > leaves writable repository state and helper tripwires unchanged for each allowed read
+{"stage":"query-and-snapshots","args":["rev-list","--left-right","--count","HEAD...@{u}"],"elapsedMs":859.0788000000002}
+
+stdout | packages/execution/execution-world/tests/git-lease-windows.spec.ts > native Windows fixed Git reads > leaves writable repository state and helper tripwires unchanged for each allowed read
+{"stage":"execute","args":["status","--porcelain=v1","-z","--untracked-files=all"],"elapsedMs":619.8279999999995}
+
+stdout | packages/execution/execution-world/tests/git-lease-windows.spec.ts > native Windows fixed Git reads > ignores Windows output redirection inherited by an authorized read
+{"stage":"fixture-start","elapsedMs":0.015099999999620195}
+
+ × |thread-safe| packages/execution/execution-world/tests/git-lease-windows.spec.ts > native Windows fixed Git reads > leaves writable repository state and helper tripwires unchanged for each allowed read 5045ms
+   → Test timed out in 5000ms.
+If this is a long-running test, pass a timeout value as the last argument or configure it globally with "testTimeout".
+stdout | packages/execution/execution-world/tests/git-lease-windows.spec.ts > native Windows fixed Git reads > ignores Windows output redirection inherited by an authorized read
+{"stage":"git-and-acl-ready","elapsedMs":1437.4079000000002}
+
+stdout | packages/execution/execution-world/tests/git-lease-windows.spec.ts > native Windows fixed Git reads > ignores Windows output redirection inherited by an authorized read
+{"stage":"harness-ready","elapsedMs":1448.2389000000003}
+
+stdout | packages/execution/execution-world/tests/git-lease-windows.spec.ts > native Windows fixed Git reads > ignores Windows output redirection inherited by an authorized read
+{"stage":"providers-ready","elapsedMs":1449.714899999999}
+
+ ✓ |thread-safe| packages/execution/execution-world/tests/git-lease-windows.spec.ts > native Windows fixed Git reads > ignores Windows output redirection inherited by an authorized read 4035ms
+stdout | packages/execution/execution-world/tests/git-lease-windows.spec.ts > native Windows fixed Git reads > rejects full enforcement before any native target starts
+{"stage":"fixture-start","elapsedMs":0.005300000000715954}
+
+stdout | packages/execution/execution-world/tests/git-lease-windows.spec.ts > native Windows fixed Git reads > rejects full enforcement before any native target starts
+{"stage":"git-and-acl-ready","elapsedMs":1246.7839000000004}
+
+stdout | packages/execution/execution-world/tests/git-lease-windows.spec.ts > native Windows fixed Git reads > rejects full enforcement before any native target starts
+{"stage":"harness-ready","elapsedMs":1266.5239000000001}
+
+stdout | packages/execution/execution-world/tests/git-lease-windows.spec.ts > native Windows fixed Git reads > rejects full enforcement before any native target starts
+{"stage":"providers-ready","elapsedMs":1268.0277000000006}
+
+ ✓ |thread-safe| packages/execution/execution-world/tests/git-lease-windows.spec.ts > native Windows fixed Git reads > rejects full enforcement before any native target starts 1313ms
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  |thread-safe| packages/execution/execution-world/tests/git-lease-windows.spec.ts > native Windows fixed Git reads > leaves writable repository state and helper tripwires unchanged for each allowed read
+Error: Test timed out in 5000ms.
+If this is a long-running test, pass a timeout value as the last argument or configure it globally with "testTimeout".
+ ❯ packages/execution/execution-world/tests/git-lease-windows.spec.ts:100:3
+     98|
+     99| describe.skipIf(process.platform !== 'win32')('native Windows fixed Gi…
+    100|   it('leaves writable repository state and helper tripwires unchanged …
+       |   ^
+    101|     const { workspace, tripwire, head, mount } = await fixture()
+    102|     const before = await snapshot(workspace)
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯
+
+
+ Test Files  1 failed (1)
+      Tests  1 failed | 2 passed (3)
+   Start at  10:58:09
+   Duration  12.91s (transform 1.14s, setup 546ms, import 1.78s, tests 10.40s, environment 0ms)
+
