@@ -632,29 +632,24 @@ export async function apply(ctx: Context, config: Config): Promise<void> {
                   // send retry: the unchanged coordinator proves the journal digest.
                   replacementAttempts.set(key, taskId)
                   const replacement = await createOwnedSidecarReplacement(owned.cdpEndpoint, owned.targetId, exec?.signal)
-                  let supervisor: SidecarSupervisor | undefined
-                  try {
-                    await owned.supervisor.close()
-                    throwIfCancelled(exec?.signal)
-                    const authentication = await readSidecarCredential(config.sidecarCredentialFile
-                      ?? joinPath(privateStateBase(), 'PlannerBridge', 'credentials', 'authentication.secret'), [workspaceRoot.displayRoot])
-                    supervisor = new SidecarSupervisor({ command: config.sidecarProcessCommand, args: config.sidecarProcessArgs,
-                      endpoint: config.sidecarEndpoint, authentication, startupTimeoutMs: config.tunnelStartupTimeoutMs,
-                      env: { PLANNERBRIDGE_SIDECAR_TARGET_ID: replacement.replacementTargetId } })
-                    await supervisor.start(exec?.signal)
-                    const health = await makeBrowser(undefined, workspaceRoot).health()
-                    throwIfCancelled(exec?.signal)
-                    if (!health.ok) throw new SidecarRpcError('SIDECAR_UNAVAILABLE')
-                    const recovered = await recover()
-                    if (!recovered) throw new SidecarRpcError('SEND_UNCERTAIN')
-                    sidecarSupervisors.set(key, { supervisor, targetId: replacement.replacementTargetId, cdpEndpoint: owned.cdpEndpoint })
-                    await replacement.retireSource().catch(() => {})
-                    return recovered
-                  } catch (recoveryError) {
-                    await supervisor?.close().catch(() => {})
-                    await replacement.closeReplacement().catch(() => {})
-                    throw recoveryError
-                  }
+                  return runOwnedSidecarHandoff({
+                    replacement, signal: exec?.signal,
+                    closeSource: () => owned.supervisor.close(),
+                    prepareReplacement: async () => {
+                      const authentication = await readSidecarCredential(config.sidecarCredentialFile
+                        ?? joinPath(privateStateBase(), 'PlannerBridge', 'credentials', 'authentication.secret'), [workspaceRoot.displayRoot])
+                      return new SidecarSupervisor({ command: config.sidecarProcessCommand!, args: config.sidecarProcessArgs,
+                        endpoint: config.sidecarEndpoint, authentication, startupTimeoutMs: config.tunnelStartupTimeoutMs,
+                        env: { PLANNERBRIDGE_SIDECAR_TARGET_ID: replacement.replacementTargetId } })
+                    },
+                    health: () => makeBrowser(undefined, workspaceRoot).health(),
+                    prove: async () => {
+                      const recovered = await recover()
+                      if (!recovered) throw new SidecarRpcError('SEND_UNCERTAIN')
+                      return { kind: 'proved', value: recovered }
+                    },
+                    commit: supervisor => sidecarSupervisors.set(key, { supervisor, targetId: replacement.replacementTargetId, cdpEndpoint: owned.cdpEndpoint }),
+                  })
                 }
             })()
             if (bootstrap !== undefined) {
@@ -796,27 +791,23 @@ export async function recoverOwnedAppProof(options: {
     || wait.replyRecovery?.sendOperationId !== operation.sendOperationId || options.attempts.has(attempt)) throw new SidecarRpcError('BROWSER_STALE')
   options.attempts.add(attempt) // Before target creation, including uncertain creation outcomes.
   const replacement = await createOwnedSidecarReplacement(owned.cdpEndpoint, owned.targetId, signal)
-  let supervisor: SidecarSupervisor | undefined
-  let committed = false
   return runOwnedSidecarHandoff({
-    replacement,
-    closeSource: async () => { await owned.supervisor.close(); throwIfCancelled(signal) },
-    startReplacement: async (): Promise<SidecarSupervisor> => {
+    replacement, signal,
+    closeSource: () => owned.supervisor.close(),
+    prepareReplacement: async () => {
       const authentication = await readSidecarCredential(options.credentialFile, options.excludedRoots)
-      supervisor = new SidecarSupervisor({ command: options.command, args: options.args,
+      return new SidecarSupervisor({ command: options.command, args: options.args,
         endpoint: options.endpoint, authentication, startupTimeoutMs: options.startupTimeoutMs,
         env: { PLANNERBRIDGE_SIDECAR_TARGET_ID: replacement.replacementTargetId } })
-      await supervisor.start(signal)
-      return supervisor!
     },
     health: options.health,
-    recover: async () => { await options.recover(signal); throwIfCancelled(signal) },
-    prove: async () => { const proofFailure = await resume(); throwIfCancelled(signal); return proofFailure },
-    commit: value => { options.commit({ supervisor: value, targetId: replacement.replacementTargetId, cdpEndpoint: owned.cdpEndpoint! }); committed = true },
-  }).finally(async () => {
-    // The transaction owns replacement cleanup; the process itself is also
-    // provisional until commit and must be closed on failed proof/readiness.
-    if (supervisor && !committed) await supervisor.close().catch(() => {})
+    prove: async () => {
+      await options.recover(signal)
+      throwIfCancelled(signal)
+      const failure = await resume()
+      return { kind: failure === undefined ? 'proved' : 'rejected', value: failure }
+    },
+    commit: supervisor => options.commit({ supervisor, targetId: replacement.replacementTargetId, cdpEndpoint: owned.cdpEndpoint! }),
   })
 }
 

@@ -18,17 +18,49 @@ const json = (res: ServerResponse, body: unknown) => res.end(JSON.stringify(body
 it('preserves handoff ownership ordering and rolls back before commit', async () => {
   const events: string[] = []
   const replacement = { sourceTargetId: 'source', replacementTargetId: 'replacement', closeReplacement: async () => { events.push('close-replacement') }, retireSource: async () => { events.push('retire-source') } }
-  await expect(runOwnedSidecarHandoff({ replacement, closeSource: async () => { events.push('close-source') }, startReplacement: async () => { events.push('start'); return 'owned' }, health: async () => { events.push('health'); return { ok: true } }, recover: async () => { events.push('recover') }, prove: async () => { events.push('prove'); return 'SEND_UNCERTAIN' }, commit: () => { events.push('commit') } })).resolves.toBe('SEND_UNCERTAIN')
-  expect(events).toEqual(['close-source', 'start', 'health', 'recover', 'prove', 'close-replacement'])
+  await expect(runOwnedSidecarHandoff({ replacement, closeSource: async () => { events.push('close-source') }, prepareReplacement: async () => ({ start: async () => { events.push('start') }, close: async () => { events.push('close-process') } }), health: async () => { events.push('health'); return { ok: true } }, prove: async () => { events.push('prove'); return { kind: 'rejected', value: 'SEND_UNCERTAIN' } }, commit: () => { events.push('commit') } })).resolves.toBe('SEND_UNCERTAIN')
+  expect(events).toEqual(['close-source', 'start', 'health', 'prove', 'close-process', 'close-replacement'])
 })
 
 it('transfers ownership at commit and swallows retirement failure', async () => {
   const replacement = { sourceTargetId: 'source', replacementTargetId: 'replacement', closeReplacement: vi.fn(async () => {}), retireSource: vi.fn(async () => { throw new Error('retire failed') }) }
   const commit = vi.fn()
-  await expect(runOwnedSidecarHandoff({ replacement, closeSource: async () => {}, startReplacement: async () => 'owned', health: async () => ({ ok: true }), recover: async () => {}, prove: async () => undefined, commit })).resolves.toBeUndefined()
+  await expect(runOwnedSidecarHandoff({ replacement, closeSource: async () => {}, prepareReplacement: async () => ({ start: async () => {}, close: async () => {} }), health: async () => ({ ok: true }), prove: async () => ({ kind: 'proved', value: undefined }), commit })).resolves.toBeUndefined()
   expect(commit).toHaveBeenCalledOnce()
   expect(replacement.retireSource).toHaveBeenCalledOnce()
   expect(replacement.closeReplacement).not.toHaveBeenCalled()
+})
+
+it.each(['close-source', 'prepare', 'start', 'health', 'prove', 'commit'])('rolls back provisional resources after %s failure without masking it', async phase => {
+  const events: string[] = [], original = new Error(phase)
+  const step = (name: string) => { events.push(name); if (name === phase) throw original }
+  const process = { start: async () => { step('start') }, close: async () => { events.push('close-process'); throw new Error('cleanup') } }
+  const replacement = { sourceTargetId: 'source', replacementTargetId: 'replacement',
+    closeReplacement: async () => { events.push('close-target'); throw new Error('target cleanup') },
+    retireSource: async () => { events.push('retire-source') } }
+  await expect(runOwnedSidecarHandoff({ replacement, closeSource: async () => { step('close-source') },
+    prepareReplacement: async () => { step('prepare'); return process }, health: async () => { step('health'); return { ok: true } },
+    prove: async () => { step('prove'); return { kind: 'proved', value: 'ready' } }, commit: () => { step('commit') } })).rejects.toBe(original)
+  expect(events.at(-1)).toBe('close-target')
+  expect(events.includes('close-process')).toBe(!['close-source', 'prepare'].includes(phase))
+  if (events.includes('close-process')) expect(events.slice(-2)).toEqual(['close-process', 'close-target'])
+  expect(events).not.toContain('retire-source')
+})
+
+it.each(['close-source', 'prepare', 'start', 'health', 'prove'])('cancellation after %s prevents the next phase and commit', async phase => {
+  const controller = new AbortController(), events: string[] = []
+  const step = (name: string) => { events.push(name); if (name === phase) controller.abort() }
+  const replacement = { sourceTargetId: 'source', replacementTargetId: 'replacement',
+    closeReplacement: async () => { events.push('close-target') }, retireSource: async () => { events.push('retire-source') } }
+  await expect(runOwnedSidecarHandoff({ replacement, signal: controller.signal, closeSource: async () => { step('close-source') },
+    prepareReplacement: async () => { step('prepare'); return { start: async () => { step('start') }, close: async () => { events.push('close-process') } } },
+    health: async () => { step('health'); return { ok: true } }, prove: async () => { step('prove'); return { kind: 'proved', value: 'ready' } },
+    commit: () => { events.push('commit') } })).rejects.toThrow('CANCELLED')
+  const order = ['close-source', 'prepare', 'start', 'health', 'prove']
+  expect(events.filter(event => order.includes(event))).toEqual(order.slice(0, order.indexOf(phase) + 1))
+  expect(events.at(-1)).toBe('close-target')
+  expect(events).not.toContain('commit')
+  expect(events).not.toContain('retire-source')
 })
 
 it.each(['https://chatgpt.com/', 'https://chatgpt.com/c/temporary', 'https://example.com/c/6abfada1-f690-83ee-aedf-762de215604f', durable + '?x=1', durable + '#x', 'malformed'])('rejects non-durable source before creation: %s', async url => {

@@ -15,35 +15,45 @@ export interface OwnedSidecarReplacement {
 }
 
 /**
- * Runs the ownership-sensitive portion shared by Sidecar replacement callers.
- * Callers supply only lifecycle-specific readiness/proof callbacks. `commit`
- * transfers provisional ownership to the caller; after it returns, retirement
- * is best-effort and a retirement failure never rolls back committed ownership.
- * Before commit, replacement cleanup is always attempted on failure.
+ * Owns both provisional resources until the synchronous commit. A constructed
+ * process is registered before start, including partial startup failures.
+ * Rollback drains that process before closing its target. Semantic proof stays
+ * caller-specific; retirement cannot undo committed ownership.
  */
-export async function runOwnedSidecarHandoff<T>(options: {
+export async function runOwnedSidecarHandoff<P extends { start(signal?: AbortSignal): Promise<void>; close(): Promise<void> }, T>(options: {
   replacement: OwnedSidecarReplacement
   closeSource(): Promise<void>
-  startReplacement(): Promise<T>
+  prepareReplacement(): Promise<P>
   health(): Promise<{ ok: boolean }>
-  recover(): Promise<void>
-  prove(): Promise<string | undefined>
-  commit(value: T): void
-}): Promise<string | undefined> {
+  prove(): Promise<{ kind: 'proved' | 'rejected'; value: T }>
+  commit(process: P): void
+  signal?: AbortSignal
+}): Promise<T> {
+  let process: P | undefined
   let committed = false
   try {
+    throwIfCancelled(options.signal)
     await options.closeSource()
-    const value = await options.startReplacement()
-    if (!(await options.health()).ok) throw new SidecarRpcError('SIDECAR_UNAVAILABLE')
-    await options.recover()
-    const proofFailure = await options.prove()
-    if (proofFailure !== undefined) return proofFailure
-    options.commit(value)
+    throwIfCancelled(options.signal)
+    process = await options.prepareReplacement()
+    throwIfCancelled(options.signal)
+    await process.start(options.signal)
+    throwIfCancelled(options.signal)
+    const health = await options.health()
+    throwIfCancelled(options.signal)
+    if (!health.ok) throw new SidecarRpcError('SIDECAR_UNAVAILABLE')
+    const proof = await options.prove()
+    throwIfCancelled(options.signal)
+    if (proof.kind === 'rejected') return proof.value
+    options.commit(process)
     committed = true
     await options.replacement.retireSource().catch(() => {})
-    return undefined
+    return proof.value
   } finally {
-    if (!committed) await options.replacement.closeReplacement().catch(() => {})
+    if (!committed) {
+      await process?.close().catch(() => {})
+      await options.replacement.closeReplacement().catch(() => {})
+    }
   }
 }
 
