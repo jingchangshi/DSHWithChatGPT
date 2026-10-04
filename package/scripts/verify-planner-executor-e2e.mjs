@@ -7,7 +7,7 @@ import path from 'node:path'
 import { fileURLToPath, pathToFileURL } from 'node:url'
 import { createRequire } from 'node:module'
 import { initializeAcceptanceWorkload, verifyAcceptanceWorkload } from './planner-executor-workload.mjs'
-import { evaluateAcceptance } from './planner-executor-acceptance.mjs'
+import { evaluateAcceptance, readinessFailure } from './planner-executor-acceptance.mjs'
 import { assertSidecarEndpointUnused, ownedSidecarConfig, phaseEnvironment, readTargetPointer, validateTargetId } from './planner-executor-owned-sidecar.mjs'
 const [source, installation] = process.argv.slice(2)
 const runId = randomUUID()
@@ -88,7 +88,8 @@ async function runPhase(phase, prompt, targetId) {
 
 const firstCode = await runPhase(1, task, initialTargetId)
 const firstRecords = (await readFile(report, 'utf8').catch(() => '')).split('\n').filter(Boolean).map(line => JSON.parse(line))
-const restartPending = firstRecords.some(record => record.kind === 'restart-checkpoint')
+const restartPending = !firstRecords.some(record => record.kind === 'acceptance-stop' || readinessFailure(record) !== undefined)
+  && firstRecords.some(record => record.kind === 'restart-checkpoint')
 if (restartPending) await verifyAcceptanceWorkload(workspace, workload, 'phase1')
 const code = restartPending ? await runPhase(2, reconnectTask, await readTargetPointer(targetPointer)) : firstCode
 if (restartPending) await verifyAcceptanceWorkload(workspace, workload, 'phase2')

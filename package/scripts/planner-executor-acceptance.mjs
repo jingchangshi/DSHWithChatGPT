@@ -1,5 +1,12 @@
 // Pure acceptance policy shared by the real runner and adversarial fixtures.
 // Event order and identity come from the independent task-owned observer.
+export function readinessFailure(record) {
+  if (record.kind !== 'result' || record.name !== 'chatgpt_doctor') return undefined
+  const field = record.mode === 'local' ? 'localReady' : record.mode === 'app-proof' ? 'appDataPlaneVerified' : undefined
+  if (field && (record.isError === true || record[field] !== true)) return 'READINESS_' + (record.mode === 'local' ? 'LOCAL' : 'APP_PROOF') + '_FAILED'
+  return undefined
+}
+
 export function evaluateAcceptance({ records, runId, code, restartPending, git }) {
   const events = records.filter(record => record.runId === runId)
   const last = predicate => events.findLast(predicate)
@@ -36,6 +43,7 @@ export function evaluateAcceptance({ records, runId, code, restartPending, git }
   const readinessVerified = !!plan && events.some(record => record.kind === 'result' && record.name === 'chatgpt_doctor' && record.sessionId === plan.sessionId && record.mode === 'local' && record.localReady === true && !record.isError && index(record) < index(plan))
     && events.some(record => record.kind === 'result' && record.name === 'chatgpt_doctor' && record.sessionId === plan.sessionId && record.mode === 'app-proof' && record.appDataPlaneVerified === true && !record.isError && index(record) < index(plan))
   const plannerExecutorAccepted = code === 0 && identityVerified && nonceVerified && recoveryVerified && readinessVerified
+    && !events.some(record => record.kind === 'acceptance-stop' || readinessFailure(record) !== undefined)
     && !events.some(record => record.reviewArgumentNonceLeak === true || record.name === 'browser-harness')
   return { plannerExecutorAccepted: Boolean(plannerExecutorAccepted), identityVerified: Boolean(identityVerified), nonceVerified: Boolean(nonceVerified), recoveryVerified: Boolean(recoveryVerified), readinessVerified, exitCode: plannerExecutorAccepted ? 0 : (Number.isInteger(code) && code !== 0 ? code : 1) }
 }

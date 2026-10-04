@@ -17,7 +17,7 @@ describe('canonical Planner-Executor E2E runner', () => {
 
   it('derives acceptance from recorded nonce and independent review evidence', () => {
     // The executable oracle cases test the criteria; this gate checks runner wiring.
-    expect(script).toContain("import { evaluateAcceptance } from './planner-executor-acceptance.mjs'")
+    expect(script).toContain("import { evaluateAcceptance, readinessFailure } from './planner-executor-acceptance.mjs'")
     expect(script).toContain('evaluateAcceptance({ records, runId, code, restartPending, git:')
     expect(script).toContain('process.exitCode = acceptance.exitCode')
     expect(script).not.toContain('plannerExecutorAccepted: false')

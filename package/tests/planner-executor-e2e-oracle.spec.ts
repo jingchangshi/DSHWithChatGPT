@@ -62,6 +62,21 @@ describe('real Planner-Executor runner acceptance oracle', () => {
   it('accepts correlated final DONE, latest test and pushed identity after recovery', async () => {
     expect(await runOracle(fixture())).toMatchObject({ plannerExecutorAccepted: true, exitCode: 0 })
   })
+  it.each(['local', 'app-proof'])('never overwrites an earlier failed %s readiness with later success', async mode => {
+    const records = fixture()
+    records.unshift({ ...scope, phase: '1', kind: 'result', name: 'chatgpt_doctor', mode, localReady: false, appDataPlaneVerified: false })
+    expect((await runOracle(records)).plannerExecutorAccepted).toBe(false)
+  })
+  it('rejects failed doctor calls even when their readiness fields are absent', async () => {
+    const records = fixture()
+    records.unshift({ ...scope, phase: '1', kind: 'result', name: 'chatgpt_doctor', mode: 'local', isError: true })
+    expect((await runOracle(records)).plannerExecutorAccepted).toBe(false)
+  })
+  it('rejects a recorded acceptance stop across the process restart', async () => {
+    const records = fixture()
+    records.splice(5, 0, { ...scope, phase: '1', kind: 'acceptance-stop', reason: 'READINESS_LOCAL_FAILED' })
+    expect((await runOracle(records)).plannerExecutorAccepted).toBe(false)
+  })
   it('returns failure even when DSH exits zero without accepted evidence', async () => {
     expect(await runOracle([])).toMatchObject({ plannerExecutorAccepted: false, exitCode: 1 })
   })

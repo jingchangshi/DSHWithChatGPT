@@ -1,4 +1,5 @@
 import { appendFileSync, existsSync, readFileSync } from 'node:fs'
+import { readinessFailure } from '../../scripts/planner-executor-acceptance.mjs'
 export const name = 'planner-executor-e2e-observer'
 export const inject = ['tools']
 export function apply(ctx, config) {
@@ -7,16 +8,21 @@ export function apply(ctx, config) {
   const nonces = new Set()
   const scopes = new Map()
   const dispatched = new Map()
+  let readinessStopped = false
   const marker = text => [...text.matchAll(/E2E_EVIDENCE=([a-f0-9]{32})/g)].at(-1)?.[1]
   if (existsSync(config.report)) {
     for (const line of readFileSync(config.report, 'utf8').split('\n').filter(Boolean)) {
       const record = JSON.parse(line)
+      if (record.runId === process.env.PLANNER_EXECUTOR_RUN_ID && (record.kind === 'acceptance-stop' || readinessFailure(record))) readinessStopped = true
       if (record.runId === process.env.PLANNER_EXECUTOR_RUN_ID && record.kind === 'result' && !record.isError && record.exitCode === 0 && typeof record.nonce === 'string') nonces.add(record.nonce)
     }
   }
   const emit = record => appendFileSync(config.report, JSON.stringify({ runId: process.env.PLANNER_EXECUTOR_RUN_ID, phase: process.env.PLANNER_EXECUTOR_PHASE, pid: process.pid, at: Date.now(), ...record }) + '\n')
   emit({ kind: 'boot' })
   ctx.on('tools/execute', async (exec, next) => {
+    // Set synchronously on the failed result: cancellation/exit may take time,
+    // but no subsequent tool may cross admission in that interval.
+    if (readinessStopped) throw Object.assign(new Error('ACCEPTANCE_READINESS_FAILED'), { code: 'ACCEPTANCE_READINESS_FAILED' })
     const encoded = JSON.stringify(exec.arguments)
     const scope = { ...scopes.get(exec.agent?.session.id), sessionId: exec.agent?.session.id, mode: exec.name === 'chatgpt_doctor' ? (exec.arguments.mode ?? 'local') : undefined }
     dispatched.set(exec.callId, scope)
@@ -36,6 +42,12 @@ export function apply(ctx, config) {
     if (exec.name.startsWith('chatgpt_')) Object.assign(record, { taskId: value?.taskId ?? value?.task?.taskId, workspaceId: value?.workspaceId, head: value?.head, state: value?.state ?? value?.task?.state, iteration: value?.iteration ?? value?.task?.iteration, protocolVersion: value?.protocolVersion ?? value?.task?.protocolVersion, recovered: value?.recovered, localReady: value?.localReady, appDataPlaneVerified: value?.appDataPlaneVerified, checks: value?.checks, reviewNonce: typeof value?.summary === 'string' ? marker(value.summary) : undefined })
     if (!record.isError && record.taskId && record.workspaceId && Number.isInteger(record.iteration)) scopes.set(record.sessionId, { taskId: record.taskId, workspaceId: record.workspaceId, iteration: record.iteration, protocolVersion: record.protocolVersion })
     emit(record)
+    const failure = readinessFailure(record)
+    if (failure && !readinessStopped) {
+      readinessStopped = true
+      emit({ kind: 'acceptance-stop', reason: failure, callId: exec.callId, sessionId: exec.agent?.session.id })
+      queueMicrotask(() => process.emit('SIGTERM'))
+    }
     if (config.stopOnFix && process.env.PLANNER_EXECUTOR_PHASE === '1' && exec.name === 'chatgpt_review' && value?.state === 'planned' && exec.agent) pending.set(exec.agent.session.id, { sessionId: exec.agent.session.id, taskId: value.taskId, workspaceId: value.workspaceId, iteration: value.iteration, protocolVersion: value.protocolVersion, callId: exec.callId })
   })
   ctx.on('session/event', (session, event) => {

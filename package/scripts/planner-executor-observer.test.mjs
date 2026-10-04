@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
-import { mkdtempSync, readFileSync } from 'node:fs'
+import { mkdtempSync, readFileSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { apply } from '../tests/fixtures/planner-executor-e2e-observer.mjs'
@@ -57,4 +57,57 @@ test('observer selects the final marker from a successful test and never attribu
   observed.handlers.get('tools/result')({ ...exec, callId: 'failed' }, { isError: true, value: { exitCode: 0, stdout: { text: 'E2E_EVIDENCE=' + 'c'.repeat(32) } } })
   assert.equal(observed.records().find(record => record.callId === 'test').nonce, 'b'.repeat(32))
   assert.equal(observed.records().find(record => record.callId === 'failed' && record.kind === 'result').nonce, undefined)
+})
+
+for (const [mode, result] of [
+  ['local', { value: { localReady: false } }],
+  ['local', { isError: true }],
+  ['app-proof', { value: { localReady: true, appDataPlaneVerified: false } }],
+  ['app-proof', { value: {} }],
+  ['app-proof', { isError: true }],
+]) test('failed explicit ' + mode + ' readiness closes tool admission before another dispatch', async t => {
+  const report = path.join(mkdtempSync(path.join(tmpdir(), 'planner-executor-stop-')), 'events.jsonl')
+  const observed = fixture(report)
+  let signals = 0, dispatched = false
+  const emit = process.emit
+  t.mock.method(process, 'emit', function (name, ...args) {
+    if (name === 'SIGTERM') { signals++; return true }
+    return emit.call(this, name, ...args)
+  })
+  const exec = { name: 'chatgpt_doctor', callId: 'failed-readiness', agent: { session: { id: 'session' } }, arguments: { mode } }
+  await observed.handlers.get('tools/execute')(exec, async () => ({}))
+  observed.handlers.get('tools/result')(exec, result)
+  await assert.rejects(observed.handlers.get('tools/execute')({ ...exec, callId: 'forbidden-app-proof', arguments: { mode: 'app-proof' } }, async () => { dispatched = true }), /ACCEPTANCE_READINESS_FAILED/)
+  assert.equal(dispatched, false)
+  assert.equal(observed.records().filter(record => record.kind === 'acceptance-stop').length, 1)
+  assert.equal(observed.records().some(record => record.kind === 'dispatch' && record.callId === 'forbidden-app-proof'), false)
+  assert.equal(signals, 1)
+})
+
+test('local readiness ignores the unrequested remote proof and ordinary test failures remain repairable', async () => {
+  const report = path.join(mkdtempSync(path.join(tmpdir(), 'planner-executor-nonfatal-')), 'events.jsonl')
+  const observed = fixture(report)
+  const exec = { name: 'chatgpt_doctor', callId: 'local', arguments: { mode: 'local' } }
+  await observed.handlers.get('tools/execute')(exec, async () => ({}))
+  observed.handlers.get('tools/result')(exec, { value: { localReady: true, appDataPlaneVerified: false } })
+  const shell = { name: 'pwsh', callId: 'red-test', arguments: { command: 'npm test' } }
+  await observed.handlers.get('tools/execute')(shell, async () => ({}))
+  observed.handlers.get('tools/result')(shell, { isError: true, value: { exitCode: 1 } })
+  let continued = false
+  await observed.handlers.get('tools/execute')({ ...shell, callId: 'fix' }, async () => { continued = true })
+  assert.equal(continued, true)
+  assert.equal(observed.records().some(record => record.kind === 'acceptance-stop'), false)
+})
+
+test('a restarted observer preserves fatal readiness for the same run but ignores other runs', async () => {
+  const report = path.join(mkdtempSync(path.join(tmpdir(), 'planner-executor-restored-stop-')), 'events.jsonl')
+  writeFileSync(report, JSON.stringify({ runId: process.env.PLANNER_EXECUTOR_RUN_ID, kind: 'result', name: 'chatgpt_doctor', mode: 'local', localReady: false }) + '\n')
+  const observed = fixture(report)
+  let dispatched = false
+  await assert.rejects(observed.handlers.get('tools/execute')({ name: 'chatgpt_reconnect', callId: 'forbidden', arguments: {} }, async () => { dispatched = true }), /ACCEPTANCE_READINESS_FAILED/)
+  assert.equal(dispatched, false)
+  writeFileSync(report, JSON.stringify({ runId: 'another-run', kind: 'acceptance-stop' }) + '\n')
+  const fresh = fixture(report)
+  await fresh.handlers.get('tools/execute')({ name: 'chatgpt_doctor', callId: 'allowed', arguments: { mode: 'local' } }, async () => { dispatched = true })
+  assert.equal(dispatched, true)
 })

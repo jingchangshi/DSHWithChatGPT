@@ -38,6 +38,24 @@ interface RunningTunnel {
   healthFile: string
   healthUrl?: string
   detail: string
+  readinessFacts?: ReturnType<typeof tunnelReadinessFacts>
+}
+
+/** Only facts used by the existing readiness predicate; never retain raw health. */
+function tunnelReadinessFacts(snapshot: any) {
+  const control = snapshot?.components?.['control-plane']
+  const status = control?.details?.http_status
+  const failures = control?.details?.consecutive_failures
+  return {
+    schemaSupported: snapshot?.schema_version === 1,
+    live: snapshot?.live === true,
+    ready: snapshot?.ready === true,
+    controlStatusOk: control?.status === 'ok',
+    consecutiveFailures: Number.isSafeInteger(failures) && failures >= 0 ? failures as number : null,
+    lastSuccessValid: typeof control?.details?.last_success === 'string' && Number.isFinite(Date.parse(control.details.last_success)),
+    httpStatus: Number.isInteger(status) && status >= 100 && status <= 599 ? status as number : null,
+    localProbeSucceeded: snapshot?.components?.mcp?.details?.startup_probe?.state === 'succeeded',
+  }
 }
 
 export class TunnelSupervisor {
@@ -214,12 +232,10 @@ export class TunnelSupervisor {
     while (Date.now() < deadline) {
       throwIfCancelled(signal)
       if (spawnError !== undefined) {
-        this.running = undefined
         throw new Error('TUNNEL_START_FAILED: ' + sanitizeDiagnostic(spawnError.message))
       }
       if (child.exitCode !== null || child.signalCode !== null) {
         const detail = sanitizeDiagnostic(diagnostic) || `tunnel-client exited with code ${String(child.exitCode)}`
-        this.running = undefined
         throw new Error('TUNNEL_START_FAILED: ' + detail)
       }
       if (fs.existsSync(healthFile)) {
@@ -244,13 +260,28 @@ export class TunnelSupervisor {
       await abortableDelay(200, signal)
     }
     } catch (error) {
-      if (this.running === running) await this.close()
+      if (this.running === running) {
+        this.recordFailure(running, error instanceof Error ? error.message.split(':')[0]! : 'TUNNEL_START_FAILED')
+        await this.close()
+      }
       throw error
     }
 
     const detail = running.detail || sanitizeDiagnostic(diagnostic) || `tunnel-client did not become ready within ${this.options.startupTimeoutMs} ms`
+    this.recordFailure(running, 'TUNNEL_START_TIMEOUT')
     await this.close()
     throw new Error('TUNNEL_START_TIMEOUT: ' + detail)
+  }
+
+  private recordFailure(running: RunningTunnel, code: string): void {
+    // This diagnostic cannot grant readiness or recovery authority. Capture it
+    // before shutdown removes the health endpoint; only the last parsed facts
+    // are retained, not credentials, URLs, bodies or child output.
+    const failure = /^TUNNEL_[A-Z_]+$/.test(code) ? code : 'TUNNEL_START_FAILED'
+    const file = running.healthFile.replace(/\.health-url$/, '.failure.json')
+    try { fs.writeFileSync(file, JSON.stringify({ version: 1, at: new Date().toISOString(), failure,
+      classification: /^TUNNEL_[A-Z_]+$/.test(running.detail) ? running.detail : 'TUNNEL_HEALTH_UNAVAILABLE',
+      lastParsedHealth: running.readinessFacts ?? null }) + '\n') } catch { /* Diagnostics never mask the original failure. */ }
   }
 
   private resolveConfigured(): {
@@ -317,6 +348,7 @@ export class TunnelSupervisor {
       // Interpret the tunnel-client's local operator schema, never its raw diagnostics.
       // /readyz gates startup only; it does not attest successful authenticated polling.
       const snapshot = JSON.parse(Buffer.concat(chunks).toString('utf8'))
+      if (running !== undefined && this.running === running) running.readinessFacts = tunnelReadinessFacts(snapshot)
       if (snapshot.schema_version !== 1 || snapshot.live !== true || snapshot.ready !== true) return unavailable('TUNNEL_HEALTH_UNAVAILABLE')
       const control = snapshot.components?.['control-plane']
       if ([401, 403].includes(control?.details?.http_status)) return unavailable('TUNNEL_AUTH_FAILED')

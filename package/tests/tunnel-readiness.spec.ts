@@ -17,7 +17,7 @@ describe('managed exposure readiness against real tunnel health semantics', () =
   const directories: string[] = []
   afterEach(() => { vi.unstubAllGlobals(); vi.unstubAllEnvs(); vi.clearAllMocks(); for (const dir of directories.splice(0)) fs.rmSync(dir, { recursive: true, force: true }) })
 
-  function fixture(snapshot: unknown) {
+  function fixture(snapshot: unknown, startupTimeoutMs = 10) {
     const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'plannerbridge-tunnel-health-'))
     directories.push(dir)
     vi.stubEnv('PLANNERBRIDGE_TEST_RUNTIME_KEY', 'private-fixture-key')
@@ -29,9 +29,9 @@ describe('managed exposure readiness against real tunnel health semantics', () =
     let current = snapshot
     const fetchMock = vi.fn(async (url: string) => new Response(url.endsWith('/readyz') ? 'ready' : JSON.stringify(current)))
     vi.stubGlobal('fetch', fetchMock)
-    const supervisor = new TunnelSupervisor({ mode: 'managed', clientPath: 'fixture', configuredTunnelId: 'fixture-id', tunnelIdEnv: 'PLANNERBRIDGE_TEST_TUNNEL_ID', runtimeApiKeyEnv: 'PLANNERBRIDGE_TEST_RUNTIME_KEY', startupTimeoutMs: 10, stateDir: dir })
+    const supervisor = new TunnelSupervisor({ mode: 'managed', clientPath: 'fixture', configuredTunnelId: 'fixture-id', tunnelIdEnv: 'PLANNERBRIDGE_TEST_TUNNEL_ID', runtimeApiKeyEnv: 'PLANNERBRIDGE_TEST_RUNTIME_KEY', startupTimeoutMs, stateDir: dir })
     const binding = { workspaceId: 'workspace', localUrl: 'http://127.0.0.1:1/mcp', bearerValueFile: path.join(dir, 'bearer') }
-    return { supervisor, binding, child, fetchMock, setSnapshot: (value: unknown) => { current = value } }
+    return { supervisor, binding, child, fetchMock, dir, setSnapshot: (value: unknown) => { current = value } }
   }
 
   it('rejects remote authentication failure despite readyz=200 and closes its child', async () => {
@@ -69,5 +69,42 @@ describe('managed exposure readiness against real tunnel health semantics', () =
     const f = fixture(data)
     await expect(f.supervisor.ensure(f.binding)).rejects.toThrow('TUNNEL_START_TIMEOUT')
     expect(f.child.kill).toHaveBeenCalledOnce()
+  })
+
+  it('captures only bounded predicate facts before a failed tunnel is stopped', async () => {
+    const data = healthy()
+    data.components['control-plane'].details.consecutive_failures = 2
+    Object.assign(data.components['control-plane'].details, { http_status: 503, api_key: 'private-fixture-key', diagnostic: 'Bearer private-raw-body' })
+    const f = fixture(data)
+    const file = path.join(f.dir, 'tunnel', 'workspace.failure.json')
+    const kill = f.child.kill.getMockImplementation()!
+    f.child.kill.mockImplementation(() => { expect(fs.existsSync(file)).toBe(true); return kill() })
+    await expect(f.supervisor.ensure(f.binding)).rejects.toThrow('TUNNEL_START_TIMEOUT: TUNNEL_CONTROL_PLANE_UNAVAILABLE')
+    const text = fs.readFileSync(file, 'utf8')
+    expect(JSON.parse(text)).toMatchObject({ version: 1, failure: 'TUNNEL_START_TIMEOUT', classification: 'TUNNEL_CONTROL_PLANE_UNAVAILABLE', lastParsedHealth: {
+      schemaSupported: true, controlStatusOk: true, consecutiveFailures: 2, lastSuccessValid: true, httpStatus: 503, localProbeSucceeded: true,
+    } })
+    expect(text).not.toMatch(/private-fixture-key|private-raw-body|http:\/\/|Bearer/)
+    expect((await f.supervisor.status()).ready).toBe(false)
+  })
+
+  it.each(['spawn-error', 'early-exit'])('retains a safe startup diagnostic and removes the health pointer after %s', async scenario => {
+    const f = fixture(healthy(), 1000)
+    const spawn = childState.spawn.getMockImplementation()!
+    childState.spawn.mockImplementation((...args) => {
+      const child = spawn(...args)
+      if (scenario === 'early-exit') child.exitCode = 1
+      else {
+        fs.unlinkSync(args[1][args[1].indexOf('--health.url-file') + 1])
+        queueMicrotask(() => child.emit('error', new Error('private-fixture-key')))
+      }
+      return child
+    })
+    await expect(f.supervisor.ensure(f.binding)).rejects.toThrow('TUNNEL_START_FAILED')
+    const text = fs.readFileSync(path.join(f.dir, 'tunnel', 'workspace.failure.json'), 'utf8')
+    expect(JSON.parse(text).failure).toBe('TUNNEL_START_FAILED')
+    expect(text).not.toContain('private-fixture-key')
+    expect(fs.existsSync(path.join(f.dir, 'tunnel', 'workspace.health-url'))).toBe(false)
+    expect((await f.supervisor.status()).ready).toBe(false)
   })
 })
